@@ -1,0 +1,43 @@
+INFORMATION SECURITY POLICY
+
+Version: 3.0
+Last Updated: March 2026
+
+Purpose
+
+This document defines the security requirements that all employees and contractors must follow.
+
+Password Requirements
+
+Passwords must contain at least 12 characters and include uppercase letters, lowercase letters, numbers, and special characters.
+
+Multi-Factor Authentication
+
+Multi-factor authentication (MFA) is mandatory for all company accounts, including email, cloud platforms, and internal applications.
+
+Data Classification
+
+Company data is classified into four categories:
+
+1. Public
+2. Internal
+3. Confidential
+4. Restricted
+
+Confidential and Restricted data must not be shared outside the organization without authorization.
+
+Access Control
+
+Employees are granted access according to the principle of least privilege. Access requests must be approved by the relevant department manager.
+
+Incident Reporting
+
+Security incidents must be reported to the Information Security Team within one hour of discovery.
+
+Remote Work
+
+Employees working remotely must connect through the company VPN when accessing internal resources.
+
+Device Management
+
+Only company-approved devices may access production systems and confidential information.

@@ -1,6 +1,14 @@
 # Dependencies
 node_modules/
 
+# Python
+__pycache__/
+*.py[cod]
+.python-version
+.venv/
+venv/
+env/
+
 # Logs
 logs/
 *.log
@@ -38,6 +46,11 @@ out/
 .parcel-cache/
 .cache/
 .eslintcache
+
+# Local databases / generated artifacts
+*.bin
+*.sqlite3
+SimpleRAG/chroma_db/
 
 # TypeScript
 *.tsbuildinfo

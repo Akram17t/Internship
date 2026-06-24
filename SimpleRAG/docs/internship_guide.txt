@@ -1,0 +1,36 @@
+INTERNSHIP PROGRAM GUIDE
+
+Version: 1.4
+Last Updated: February 2026
+
+Introduction
+
+The internship program is designed to provide practical experience to students and fresh graduates working on real-world projects.
+
+Working Hours
+
+Interns are expected to work from 09:00 to 17:00, Monday through Friday. Flexible arrangements may be approved by supervisors.
+
+Weekly Reports
+
+Every intern must submit a weekly progress report every Friday before 17:00. Reports should summarize completed tasks, challenges encountered, and plans for the following week.
+
+Mentorship
+
+Each intern is assigned a mentor responsible for providing technical guidance and conducting weekly check-ins.
+
+Attendance
+
+Interns must maintain at least 90 percent attendance throughout the internship period.
+
+Code Repository
+
+All source code must be committed to the company Git repository. Commits should be made regularly and include meaningful commit messages.
+
+Performance Evaluation
+
+Intern performance is evaluated based on technical contribution, communication, teamwork, and professionalism.
+
+Completion Certificate
+
+Interns who successfully complete the program and receive satisfactory evaluations will receive an internship completion certificate.
