@@ -1,9 +1,11 @@
+import shutil
 from pathlib import Path
 
 from langchain_chroma import Chroma
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain_ollama import OllamaEmbeddings
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+from citations import chunk_documents_by_section
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -30,15 +32,20 @@ def main() -> None:
 
     print(f"Loaded {len(documents)} documents from {DOCS_DIR}")
 
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=500,
-        chunk_overlap=50,
-    )
-    chunks = splitter.split_documents(documents)
+    chunks = chunk_documents_by_section(documents)
 
     print(f"Created {len(chunks)} chunks")
 
     embeddings = OllamaEmbeddings(model=EMBED_MODEL)
+
+    if CHROMA_DIR.exists():
+        try:
+            shutil.rmtree(CHROMA_DIR)
+        except PermissionError as error:
+            raise RuntimeError(
+                "Could not rebuild Chroma DB because the folder is locked. "
+                "Stop any running SimpleRAG API or CLI process, then run ingest.py again."
+            ) from error
 
     db = Chroma.from_documents(
         documents=chunks,
