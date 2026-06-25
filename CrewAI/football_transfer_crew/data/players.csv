@@ -1,0 +1,891 @@
+name,club,league,country,age,position,secondary_position,market_value_million,overall_rating,potential,preferred_foot,height_cm,weight_kg,pace,shooting,passing,dribbling,defending,physical,play_style,work_rate,weak_foot,skill_moves
+T. Courtois,Real Madrid,La Liga,Spain,32,GK,,35.5,83,85,Left,191,91,37,22,67,34,28,80,Sweeper Keeper,High/High,3,1
+D. Carvajal,Real Madrid,La Liga,Spain,32,RB,RWB,35.0,81,86,Right,170,71,94,53,82,81,81,75,Press Resistant,Medium/Medium,3,1
+E. Militao,Real Madrid,La Liga,Spain,26,CB,RB,45.8,84,88,Right,190,90,67,49,63,65,87,90,Ball Playing Defender,High/Medium,5,1
+D. Alaba,Real Madrid,La Liga,Spain,32,CB,,40.5,85,87,Right,186,91,72,49,69,58,87,90,Ball Winner,Low/Medium,4,4
+A. Rudiger,Real Madrid,La Liga,Spain,31,CB,,55.0,89,94,Right,196,100,66,46,74,51,94,91,Ball Playing Defender,High/Medium,3,5
+F. Mendy,Real Madrid,La Liga,Spain,29,LB,LWB,50.7,88,91,Right,178,78,84,58,78,70,77,72,Traditional Winger,High/Medium,4,5
+A. Tchouameni,Real Madrid,La Liga,Spain,24,CDM,,45.2,81,88,Right,190,85,74,65,86,79,65,83,Ball Winner,High/High,2,3
+E. Camavinga,Real Madrid,La Liga,Spain,21,CM,CAM,68.3,90,95,Right,177,81,65,60,95,76,73,76,Press Resistant,High/High,5,3
+F. Valverde,Real Madrid,La Liga,Spain,26,CM,CAM,59.8,89,94,Left,179,76,80,60,92,82,55,79,Box to Box,Medium/Medium,5,1
+J. Bellingham,Real Madrid,La Liga,Spain,21,CAM,,63.8,87,94,Right,179,81,87,85,77,92,38,57,Traditional Winger,High/High,4,1
+Vinicius Jr,Real Madrid,La Liga,Spain,24,LW,CAM,62.7,88,95,Right,183,82,83,74,86,90,55,67,Creative Playmaker,High/High,4,2
+Rodrygo,Real Madrid,La Liga,Spain,23,RW,ST,44.9,81,87,Right,176,80,84,73,86,87,40,58,Creative Playmaker,High/Medium,2,2
+K. Mbappe,Real Madrid,La Liga,Spain,25,ST,LW,62.5,89,95,Left,178,73,90,91,79,90,48,89,Target Man,Medium/Medium,2,3
+L. Modric,Real Madrid,La Liga,Spain,38,CM,CDM,33.0,82,84,Right,188,91,70,80,85,76,68,80,Ball Winner,High/Low,2,1
+Brahim,Real Madrid,La Liga,Spain,25,CAM,,55.5,88,91,Left,185,85,96,83,87,93,35,67,Creative Playmaker,Medium/Medium,3,3
+A. Guler,Real Madrid,La Liga,Spain,19,CAM,,65.7,85,95,Right,178,77,84,75,81,90,45,62,Traditional Winger,Low/Medium,3,5
+Endrick,Real Madrid,La Liga,Spain,18,ST,,66.9,85,95,Right,176,71,92,87,71,83,50,90,Target Man,Low/Medium,5,5
+A. Lunin,Real Madrid,La Liga,Spain,25,GK,,40.0,80,86,Right,198,97,44,18,79,50,27,63,Sweeper Keeper,High/High,3,1
+F. Garcia,Real Madrid,La Liga,Spain,24,LB,LWB,43.7,81,87,Right,171,66,90,50,72,70,75,66,Traditional Winger,Medium/Medium,3,3
+L. Vazquez,Real Madrid,La Liga,Spain,33,RB,RWB,29.5,80,83,Right,172,67,90,70,75,81,82,80,Traditional Winger,High/Low,3,1
+M. ter Stegen,Barcelona,La Liga,Spain,32,GK,,38.0,84,86,Left,196,97,50,18,64,45,20,78,Sweeper Keeper,Low/Medium,2,1
+J. Kounde,Barcelona,La Liga,Spain,25,RB,,62.0,90,94,Right,173,73,95,70,84,80,84,66,Traditional Winger,High/Medium,2,4
+R. Araujo,Barcelona,La Liga,Spain,25,CB,CDM,48.0,82,90,Right,189,85,71,33,56,62,87,84,Ball Playing Defender,Medium/High,2,5
+A. Christensen,Barcelona,La Liga,Spain,28,CB,,51.9,88,91,Right,190,92,78,37,69,67,89,85,Ball Winner,High/High,4,5
+P. Cubarsi,Barcelona,La Liga,Spain,17,CB,,72.1,89,95,Left,184,84,76,50,59,68,93,93,Ball Winner,Low/Medium,4,3
+A. Balde,Barcelona,La Liga,Spain,20,LB,LWB,57.5,81,93,Right,170,66,94,57,74,85,70,68,Traditional Winger,Low/Medium,2,1
+F. de Jong,Barcelona,La Liga,Spain,27,CM,CDM,45.6,85,88,Left,187,82,82,79,90,87,59,72,Box to Box,Low/Medium,3,2
+Pedri,Barcelona,La Liga,Spain,21,CM,CAM,58.3,83,93,Left,179,75,83,69,83,87,56,86,Deep Playmaker,Low/Medium,3,2
+Gavi,Barcelona,La Liga,Spain,20,CM,CAM,61.0,83,94,Right,172,68,85,60,88,76,60,72,Ball Winner,Medium/High,5,2
+I. Gundogan,Barcelona,La Liga,Spain,33,CM,CAM,43.0,86,88,Right,175,79,72,80,86,82,68,80,Press Resistant,High/High,4,5
+L. Yamal,Barcelona,La Liga,Spain,17,RW,RM,67.1,84,95,Left,178,77,94,79,81,86,58,50,Traditional Winger,High/Low,4,2
+Raphinha,Barcelona,La Liga,Spain,27,LW,RM,43.6,83,88,Right,173,71,92,86,85,88,39,67,Inverted Winger,Medium/Medium,4,2
+R. Lewandowski,Barcelona,La Liga,Spain,35,ST,CF,25.0,80,80,Right,180,82,93,84,76,84,45,88,Target Man,Medium/High,5,3
+J. Felix,Barcelona,La Liga,Spain,24,LW,ST,47.7,82,89,Right,167,70,88,74,81,88,53,53,Traditional Winger,High/Medium,5,4
+J. Cancelo,Barcelona,La Liga,Spain,30,RB,CB,51.5,90,91,Right,181,76,81,64,83,85,77,75,Traditional Winger,High/Low,4,1
+I. Pena,Barcelona,La Liga,Spain,25,GK,,45.0,82,88,Right,188,87,47,28,60,41,15,79,Sweeper Keeper,High/High,2,1
+I. Martinez,Barcelona,La Liga,Spain,33,CB,CDM,48.5,87,91,Right,195,90,65,34,55,55,88,91,Ball Playing Defender,High/High,2,3
+F. Torres,Barcelona,La Liga,Spain,24,LW,LM,65.7,91,95,Right,167,63,87,86,83,94,35,53,Traditional Winger,High/Low,5,2
+Fermin,Barcelona,La Liga,Spain,21,CM,CDM,51.3,82,89,Right,182,85,84,82,83,76,65,70,Box to Box,Low/Medium,3,3
+V. Roque,Barcelona,La Liga,Spain,19,ST,RW,71.7,91,95,Right,178,78,92,93,78,77,50,86,Target Man,High/Low,4,3
+J. Oblak,Atletico Madrid,La Liga,Spain,31,GK,,44.5,86,89,Right,196,95,46,29,80,44,15,72,Sweeper Keeper,Medium/High,5,1
+N. Molina,Atletico Madrid,La Liga,Spain,26,RB,RWB,48.3,85,89,Right,177,77,88,57,78,77,78,72,Traditional Winger,High/Medium,3,2
+J. Gimenez,Atletico Madrid,La Liga,Spain,29,CB,RB,37.7,84,85,Right,188,87,69,33,70,55,85,82,Ball Winner,High/Low,4,3
+M. Hermoso,Atletico Madrid,La Liga,Spain,29,CB,,59.7,91,95,Right,196,94,81,47,75,56,93,92,Ball Playing Defender,High/High,2,2
+S. Savic,Atletico Madrid,La Liga,Spain,33,CB,RB,26.5,80,81,Right,192,96,75,38,61,67,80,80,Ball Winner,High/Medium,5,1
+S. Lino,Atletico Madrid,La Liga,Spain,24,LWB,,53.7,85,91,Right,173,74,86,66,76,78,74,78,Press Resistant,Medium/High,3,4
+K. Koke,Atletico Madrid,La Liga,Spain,32,CM,CDM,56.0,90,94,Left,175,80,82,61,90,75,60,79,Press Resistant,Medium/Medium,4,3
+R. De Paul,Atletico Madrid,La Liga,Spain,30,CM,CDM,42.0,85,88,Right,176,77,68,69,90,88,58,81,Deep Playmaker,High/Low,5,2
+M. Llorente,Atletico Madrid,La Liga,Spain,29,RM,,49.7,87,91,Right,166,71,91,71,87,89,50,71,Inverted Winger,High/Medium,4,5
+A. Griezmann,Atletico Madrid,La Liga,Spain,33,ST,,49.5,88,91,Left,184,89,84,94,79,77,49,85,Target Man,High/Low,3,1
+A. Morata,Atletico Madrid,La Liga,Spain,31,ST,CF,52.0,89,92,Left,191,93,87,91,78,83,35,87,Target Man,Medium/High,4,2
+A. Correa,Atletico Madrid,La Liga,Spain,29,CF,,40.7,84,87,Right,180,75,90,90,77,88,29,80,Poacher,Medium/Medium,2,3
+M. Depay,Atletico Madrid,La Liga,Spain,30,ST,LW,34.0,83,84,Right,177,74,77,87,67,87,38,80,Poacher,Medium/Medium,3,1
+T. Lemar,Atletico Madrid,La Liga,Spain,28,LM,,59.4,91,94,Left,166,67,85,85,85,95,48,73,Creative Playmaker,High/High,4,4
+A. Witsel,Atletico Madrid,La Liga,Spain,35,CB,,47.5,86,91,Left,192,88,75,43,66,52,87,89,Ball Playing Defender,High/Medium,5,4
+C. Azpilicueta,Atletico Madrid,La Liga,Spain,34,CB,RB,37.5,85,85,Left,189,90,77,52,66,62,90,82,Ball Winner,High/Low,4,5
+R. Riquelme,Atletico Madrid,La Liga,Spain,24,LM,,42.7,80,87,Right,168,73,90,85,78,83,51,68,Traditional Winger,High/High,4,5
+S. Niguez,Atletico Madrid,La Liga,Spain,29,CM,CAM,59.7,91,95,Right,179,82,71,69,95,84,61,71,Ball Winner,Medium/High,2,5
+P. Barrios,Atletico Madrid,La Liga,Spain,21,CM,CDM,67.3,89,95,Right,187,89,85,70,93,77,60,86,Ball Winner,Medium/Medium,3,1
+H. Moldovan,Atletico Madrid,La Liga,Spain,26,GK,,47.3,84,89,Right,188,91,37,26,84,31,25,73,Sweeper Keeper,Low/Medium,4,1
+Ederson,Man City,Premier League,England,30,GK,,29.0,81,82,Right,193,93,31,29,74,50,19,69,Sweeper Keeper,Medium/Medium,2,1
+K. Walker,Man City,Premier League,England,34,RB,LWB,32.5,83,83,Right,183,87,83,51,75,77,73,66,Press Resistant,Low/Medium,2,4
+R. Dias,Man City,Premier League,England,27,CB,,49.1,87,89,Right,187,87,75,33,59,63,90,93,Ball Playing Defender,Medium/High,3,1
+J. Stones,Man City,Premier League,England,30,CB,RB,44.5,86,89,Right,186,82,62,54,65,57,88,83,Ball Winner,Low/Medium,3,4
+N. Ake,Man City,Premier League,England,29,CB,RB,44.7,85,89,Right,195,94,67,30,57,68,86,82,Ball Winner,High/High,2,5
+J. Gvardiol,Man City,Premier League,England,22,LB,RWB,60.6,85,94,Right,185,84,88,51,73,80,79,71,Press Resistant,High/High,2,3
+Rodri,Man City,Premier League,England,28,CDM,,59.4,91,94,Left,181,85,69,73,91,87,65,81,Box to Box,Medium/Medium,4,4
+M. Kovacic,Man City,Premier League,England,30,CM,CAM,35.0,81,86,Left,184,87,76,72,85,82,64,70,Press Resistant,High/Medium,5,3
+K. De Bruyne,Man City,Premier League,England,33,CAM,,50.0,87,92,Left,177,80,93,88,90,92,32,56,Traditional Winger,Medium/High,4,5
+B. Silva,Man City,Premier League,England,29,CM,CDM,58.2,91,94,Right,173,74,71,80,93,75,71,71,Box to Box,Low/Medium,3,1
+P. Foden,Man City,Premier League,England,24,RW,ST,60.7,86,95,Left,182,78,84,88,82,91,46,59,Traditional Winger,High/High,2,1
+J. Grealish,Man City,Premier League,England,28,LW,RM,35.9,81,85,Right,173,76,83,77,86,87,55,60,Creative Playmaker,High/Low,2,1
+J. Doku,Man City,Premier League,England,22,LW,ST,66.1,89,95,Right,176,79,90,71,78,92,43,57,Creative Playmaker,High/Medium,2,5
+E. Haaland,Man City,Premier League,England,24,ST,RW,60.7,86,95,Left,178,75,93,92,74,87,45,78,Poacher,High/Medium,5,5
+J. Alvarez,Man City,Premier League,England,24,CF,,57.2,87,92,Left,185,89,89,92,68,86,45,89,Poacher,High/Medium,4,3
+S. Ortega,Man City,Premier League,England,31,GK,,43.5,85,89,Left,191,90,38,21,64,39,24,70,Sweeper Keeper,High/Medium,4,1
+M. Akanji,Man City,Premier League,England,29,CB,CDM,39.2,84,86,Right,184,82,69,40,58,52,86,81,Ball Winner,High/Low,2,2
+R. Lewis,Man City,Premier League,England,19,RB,RWB,70.7,90,95,Left,184,80,95,63,72,78,80,71,Traditional Winger,High/Low,2,3
+O. Bobb,Man City,Premier League,England,21,RW,RM,66.3,88,95,Left,179,84,85,78,87,92,60,73,Creative Playmaker,High/High,5,1
+M. Nunes,Man City,Premier League,England,25,CM,CDM,52.5,85,91,Right,190,85,79,70,88,82,70,73,Ball Winner,High/Low,4,5
+D. Raya,Arsenal,Premier League,England,28,GK,,42.4,86,86,Right,192,95,40,30,71,30,28,81,Sweeper Keeper,Medium/Medium,4,1
+B. White,Arsenal,Premier League,England,26,RB,RWB,35.8,80,84,Right,176,73,81,62,79,84,74,69,Traditional Winger,High/Low,3,4
+W. Saliba,Arsenal,Premier League,England,23,CB,CDM,60.4,86,94,Right,194,95,76,42,64,63,86,91,Ball Playing Defender,Low/Medium,3,2
+Gabriel,Arsenal,Premier League,England,26,CB,RB,38.8,80,86,Right,183,87,72,31,58,63,82,80,Ball Playing Defender,High/Low,3,3
+O. Zinchenko,Arsenal,Premier League,England,27,LB,LWB,61.1,90,95,Right,183,80,82,67,81,77,83,68,Press Resistant,Medium/Medium,2,1
+D. Rice,Arsenal,Premier League,England,25,CDM,,63.5,90,95,Right,173,78,66,82,94,76,66,86,Deep Playmaker,Medium/High,3,3
+T. Partey,Arsenal,Premier League,England,31,CDM,,32.0,81,84,Right,175,70,76,80,85,83,69,87,Deep Playmaker,High/Low,3,2
+M. Odegaard,Arsenal,Premier League,England,25,CAM,,63.5,90,95,Right,182,82,92,70,88,95,35,56,Traditional Winger,High/Low,2,1
+B. Saka,Arsenal,Premier League,England,23,RW,RM,43.9,80,87,Left,173,78,90,88,80,85,39,72,Traditional Winger,High/Medium,4,3
+G. Martinelli,Arsenal,Premier League,England,23,LW,CAM,53.4,85,90,Left,177,77,90,87,75,89,53,64,Traditional Winger,High/Low,5,2
+L. Trossard,Arsenal,Premier League,England,29,LW,CAM,45.2,87,88,Left,171,72,93,83,87,92,33,62,Creative Playmaker,High/Low,5,2
+K. Havertz,Arsenal,Premier League,England,25,CF,,55.5,85,93,Right,192,90,78,88,80,84,34,81,Target Man,High/Low,5,3
+G. Jesus,Arsenal,Premier League,England,27,ST,LW,57.6,91,92,Left,177,80,89,95,77,86,40,81,Poacher,High/Medium,5,4
+A. Ramsdale,Arsenal,Premier League,England,26,GK,,61.3,89,95,Right,194,99,57,17,85,45,26,78,Sweeper Keeper,Medium/Medium,2,1
+T. Tomiyasu,Arsenal,Premier League,England,25,RB,RWB,44.5,83,87,Left,171,76,94,67,72,84,75,74,Traditional Winger,High/Medium,2,2
+J. Kiwior,Arsenal,Premier League,England,24,CB,RB,45.2,81,88,Right,189,87,81,45,68,64,86,84,Ball Winner,High/High,3,2
+Jorginho,Arsenal,Premier League,England,32,CM,CAM,56.0,90,94,Left,183,86,79,62,94,81,62,73,Deep Playmaker,Low/Medium,5,2
+E. Smith Rowe,Arsenal,Premier League,England,24,CAM,,58.2,88,92,Right,171,75,95,74,89,92,60,59,Creative Playmaker,Medium/High,2,4
+R. Nelson,Arsenal,Premier League,England,24,RW,ST,50.7,85,89,Right,181,83,89,72,90,89,44,75,Creative Playmaker,Medium/High,2,3
+E. Nketiah,Arsenal,Premier League,England,25,ST,CF,46.0,83,88,Right,182,84,88,89,71,76,42,70,Poacher,Medium/High,3,5
+Alisson,Liverpool,Premier League,England,31,GK,,46.5,88,89,Right,195,90,51,21,69,45,18,72,Sweeper Keeper,Medium/High,4,1
+T. Alexander-Arnold,Liverpool,Premier League,England,25,RB,CB,62.5,89,95,Right,176,74,90,50,77,72,74,73,Traditional Winger,High/Low,5,3
+V. van Dijk,Liverpool,Premier League,England,33,CB,,46.0,86,90,Right,193,88,72,30,68,54,86,86,Ball Playing Defender,High/Low,2,3
+I. Konate,Liverpool,Premier League,England,25,CB,,54.0,85,92,Right,194,98,63,50,65,56,85,84,Ball Winner,Medium/High,4,2
+A. Robertson,Liverpool,Premier League,England,30,LB,LWB,37.5,85,85,Left,171,71,94,55,80,82,85,71,Traditional Winger,Medium/Medium,3,1
+A. Mac Allister,Liverpool,Premier League,England,25,CM,CAM,56.5,86,93,Left,173,71,66,71,91,77,63,83,Press Resistant,High/Low,4,3
+D. Szoboszlai,Liverpool,Premier League,England,23,CM,CAM,59.9,87,93,Right,185,87,70,75,88,84,68,75,Box to Box,Medium/Medium,3,2
+W. Endo,Liverpool,Premier League,England,31,CDM,,36.5,84,85,Right,172,77,79,72,88,81,74,88,Ball Winner,High/High,3,5
+M. Salah,Liverpool,Premier League,England,32,RW,ST,30.0,82,82,Right,182,81,88,87,75,84,32,54,Inverted Winger,Medium/Medium,5,4
+L. Diaz,Liverpool,Premier League,England,27,LW,LM,50.1,85,91,Right,171,75,87,72,87,91,59,51,Traditional Winger,Medium/Medium,2,2
+D. Nunez,Liverpool,Premier League,England,25,ST,CF,63.5,90,95,Right,179,84,87,95,76,76,28,85,Target Man,Low/Medium,4,4
+D. Jota,Liverpool,Premier League,England,27,CF,,40.1,84,85,Right,190,87,91,90,66,75,32,77,Poacher,Medium/Medium,3,2
+C. Gakpo,Liverpool,Premier League,England,25,LW,RM,43.0,80,88,Right,175,76,84,73,76,85,52,68,Creative Playmaker,High/Low,4,2
+C. Kelleher,Liverpool,Premier League,England,25,GK,,57.0,88,92,Right,199,101,57,19,76,48,27,65,Sweeper Keeper,Medium/Medium,5,1
+J. Gomez,Liverpool,Premier League,England,27,CB,RB,59.1,91,93,Right,188,84,78,33,68,65,92,89,Ball Winner,High/Medium,3,1
+J. Quansah,Liverpool,Premier League,England,21,CB,CDM,68.3,90,95,Right,186,89,77,43,55,66,94,90,Ball Winner,High/High,2,1
+C. Bradley,Liverpool,Premier League,England,21,RB,RWB,65.3,87,95,Right,181,83,95,64,78,81,74,72,Traditional Winger,Medium/High,4,3
+H. Elliott,Liverpool,Premier League,England,21,CAM,,64.3,86,95,Right,166,66,94,72,87,89,59,65,Inverted Winger,Medium/Medium,2,1
+C. Jones,Liverpool,Premier League,England,23,CM,CAM,66.9,91,95,Right,174,78,78,66,93,86,68,87,Box to Box,High/High,2,1
+R. Gravenberch,Liverpool,Premier League,England,22,CM,CAM,51.1,83,89,Right,173,68,75,73,85,77,55,85,Ball Winner,Medium/High,2,2
+R. Sanchez,Chelsea,Premier League,England,26,GK,,56.8,89,92,Right,188,84,37,17,68,40,29,67,Sweeper Keeper,Medium/Medium,5,1
+R. James,Chelsea,Premier League,England,24,RB,RWB,65.7,91,95,Right,178,80,84,61,77,81,76,77,Traditional Winger,Medium/High,4,4
+T. Silva,Chelsea,Premier League,England,39,CB,CDM,58.5,91,95,Right,195,99,66,37,66,60,91,92,Ball Winner,Medium/High,4,5
+L. Colwill,Chelsea,Premier League,England,21,CB,,68.3,90,95,Right,189,85,77,42,60,64,91,94,Ball Playing Defender,Medium/High,4,1
+B. Chilwell,Chelsea,Premier League,England,27,LB,RWB,61.1,90,95,Left,174,69,92,55,81,84,83,69,Press Resistant,High/Medium,3,2
+M. Caicedo,Chelsea,Premier League,England,22,CDM,,56.1,82,93,Right,179,82,79,77,87,87,84,77,Press Resistant,Low/Medium,5,1
+E. Fernandez,Chelsea,Premier League,England,23,CM,CDM,64.9,89,95,Left,187,89,78,71,90,87,64,73,Ball Winner,High/Low,2,2
+C. Gallagher,Chelsea,Premier League,England,24,CM,CDM,61.7,87,95,Right,176,75,71,63,91,86,63,73,Deep Playmaker,Medium/Medium,2,5
+C. Palmer,Chelsea,Premier League,England,22,CAM,,57.1,83,93,Right,183,86,87,78,83,85,46,60,Traditional Winger,High/High,5,5
+R. Sterling,Chelsea,Premier League,England,29,LW,ST,27.7,80,81,Right,183,84,90,81,87,83,32,66,Creative Playmaker,Medium/High,5,1
+N. Jackson,Chelsea,Premier League,England,23,ST,CF,55.9,86,91,Right,187,83,92,90,82,84,32,71,Target Man,High/Medium,2,3
+D. Petrovic,Chelsea,Premier League,England,24,GK,,42.2,81,86,Right,185,85,50,30,77,38,25,77,Sweeper Keeper,Medium/High,2,1
+M. Gusto,Chelsea,Premier League,England,21,RB,,52.3,80,91,Left,181,81,80,58,80,80,70,81,Press Resistant,Medium/High,3,1
+B. Badiashile,Chelsea,Premier League,England,23,CB,RB,47.4,82,88,Left,188,90,67,35,71,58,87,84,Ball Winner,Medium/High,2,1
+A. Disasi,Chelsea,Premier League,England,26,CB,,63.3,91,95,Right,189,87,67,30,71,50,93,92,Ball Playing Defender,High/High,3,2
+M. Cucurella,Chelsea,Premier League,England,25,LB,LWB,58.0,86,94,Right,174,79,94,57,72,76,77,74,Press Resistant,High/Medium,5,1
+R. Lavia,Chelsea,Premier League,England,20,CDM,,68.5,89,95,Right,189,85,72,67,94,83,77,83,Press Resistant,Medium/Medium,3,1
+M. Mudryk,Chelsea,Premier League,England,23,LW,CAM,66.9,91,95,Right,178,77,92,71,89,93,36,66,Creative Playmaker,Medium/Medium,4,3
+N. Madueke,Chelsea,Premier League,England,22,RW,CAM,61.1,84,95,Right,180,76,94,77,79,89,54,64,Inverted Winger,High/Low,2,4
+C. Nkunku,Chelsea,Premier League,England,26,CF,,42.3,82,87,Right,191,90,77,86,66,90,31,90,Target Man,High/High,4,1
+A. Onana,Man Utd,Premier League,England,28,GK,,59.9,90,95,Right,194,97,48,25,74,34,27,83,Sweeper Keeper,High/Medium,4,1
+D. Dalot,Man Utd,Premier League,England,25,RB,RWB,45.5,81,89,Right,175,80,90,50,85,83,77,68,Press Resistant,High/High,3,1
+R. Varane,Man Utd,Premier League,England,31,CB,RB,50.5,89,91,Right,192,94,62,48,73,63,89,89,Ball Playing Defender,High/Medium,5,4
+L. Martinez,Man Utd,Premier League,England,26,CB,,42.3,82,87,Left,189,89,69,42,56,58,86,88,Ball Playing Defender,Medium/High,5,2
+L. Shaw,Man Utd,Premier League,England,28,LB,,37.9,83,85,Right,177,80,84,70,78,82,77,82,Traditional Winger,Medium/High,3,1
+Casemiro,Man Utd,Premier League,England,32,CDM,,57.0,91,94,Right,185,83,72,64,95,83,85,75,Press Resistant,High/Low,5,1
+K. Mainoo,Man Utd,Premier League,England,19,CM,CDM,71.7,91,95,Right,173,71,73,69,94,80,69,74,Deep Playmaker,Low/Medium,3,3
+B. Fernandes,Man Utd,Premier League,England,29,CAM,,53.2,89,92,Left,182,79,84,86,89,95,53,67,Inverted Winger,High/Medium,3,3
+A. Garnacho,Man Utd,Premier League,England,19,RW,LM,63.7,83,95,Right,181,76,85,73,79,87,31,61,Creative Playmaker,Low/Medium,3,3
+M. Rashford,Man Utd,Premier League,England,26,LW,RM,60.8,90,94,Right,183,78,88,75,85,92,31,52,Creative Playmaker,Low/Medium,4,4
+R. Hojlund,Man Utd,Premier League,England,21,ST,LW,68.3,90,95,Right,175,70,75,94,75,87,25,86,Poacher,High/Medium,3,3
+A. Bayindir,Man Utd,Premier League,England,26,GK,,37.3,80,85,Right,192,92,52,22,75,40,26,63,Sweeper Keeper,High/Low,5,1
+A. Wan-Bissaka,Man Utd,Premier League,England,26,RB,LWB,52.8,85,92,Right,170,73,83,61,80,80,73,80,Traditional Winger,Medium/Medium,3,3
+H. Maguire,Man Utd,Premier League,England,31,CB,,38.5,83,87,Right,190,85,62,34,68,64,87,86,Ball Winner,High/Medium,3,4
+V. Lindelof,Man Utd,Premier League,England,29,CB,,51.2,87,92,Right,187,86,60,52,70,54,88,93,Ball Playing Defender,Medium/High,2,1
+T. Malacia,Man Utd,Premier League,England,24,LB,,53.2,86,90,Right,170,73,93,50,72,75,75,69,Traditional Winger,Medium/Medium,2,1
+S. McTominay,Man Utd,Premier League,England,27,CM,CAM,60.6,91,94,Right,185,87,79,77,94,77,75,88,Press Resistant,High/Medium,2,4
+M. Mount,Man Utd,Premier League,England,25,CAM,,50.5,86,89,Right,166,69,93,70,75,91,40,65,Inverted Winger,Low/Medium,3,5
+Antony,Man Utd,Premier League,England,24,RW,ST,51.2,84,90,Left,168,64,84,71,86,86,44,53,Inverted Winger,Medium/Medium,2,4
+A. Diallo,Man Utd,Premier League,England,21,RW,RM,62.3,84,95,Right,184,88,87,71,85,87,52,58,Inverted Winger,High/High,3,2
+G. Vicario,Tottenham,Premier League,England,27,GK,,35.6,81,84,Right,192,89,50,15,82,48,17,75,Sweeper Keeper,High/Medium,5,1
+P. Porro,Tottenham,Premier League,England,24,RB,CB,63.7,89,95,Left,179,77,95,67,84,73,70,68,Press Resistant,High/High,2,2
+C. Romero,Tottenham,Premier League,England,26,CB,,50.3,87,89,Left,187,90,66,38,74,52,89,93,Ball Playing Defender,High/High,2,2
+M. van de Ven,Tottenham,Premier League,England,23,CB,CDM,45.4,80,88,Right,186,82,64,33,59,69,80,78,Ball Playing Defender,Medium/High,2,5
+D. Udogie,Tottenham,Premier League,England,21,LB,CB,66.3,88,95,Right,184,88,88,66,79,79,71,69,Traditional Winger,Medium/High,2,1
+Y. Bissouma,Tottenham,Premier League,England,27,CDM,,51.6,88,90,Right,179,75,83,62,90,79,66,77,Ball Winner,Medium/High,3,1
+P. Sarr,Tottenham,Premier League,England,21,CM,CDM,53.8,80,92,Left,188,92,82,65,83,86,56,80,Box to Box,Medium/High,5,2
+J. Maddison,Tottenham,Premier League,England,27,CAM,,39.1,83,85,Left,173,78,88,73,76,87,36,61,Inverted Winger,High/Medium,4,2
+D. Kulusevski,Tottenham,Premier League,England,24,RW,CAM,56.2,86,92,Left,180,79,90,78,83,88,48,75,Creative Playmaker,Medium/High,4,2
+H. Son,Tottenham,Premier League,England,31,LW,ST,26.5,80,81,Left,175,70,91,85,80,86,47,57,Creative Playmaker,High/Medium,4,4
+Richarlison,Tottenham,Premier League,England,27,ST,CF,46.6,86,88,Right,175,71,88,89,77,87,41,78,Poacher,High/High,2,2
+F. Forster,Tottenham,Premier League,England,36,GK,,57.5,90,95,Right,187,91,35,15,81,41,28,65,Sweeper Keeper,High/High,4,1
+Emerson,Tottenham,Premier League,England,25,RB,LWB,48.0,82,90,Left,180,76,86,58,82,84,84,77,Press Resistant,High/High,3,3
+R. Dragusin,Tottenham,Premier League,England,22,CB,RB,63.1,86,95,Right,189,88,71,31,60,55,88,86,Ball Winner,High/Medium,5,4
+B. Davies,Tottenham,Premier League,England,31,LB,RWB,56.0,90,94,Right,182,83,93,58,79,76,84,77,Press Resistant,Medium/Medium,4,2
+R. Bentancur,Tottenham,Premier League,England,27,CM,CDM,49.6,86,90,Right,175,72,74,64,90,78,55,85,Ball Winner,High/Low,3,1
+P. Hojbjerg,Tottenham,Premier League,England,28,CDM,,46.4,87,88,Right,178,80,68,69,90,81,74,77,Press Resistant,High/High,2,4
+G. Lo Celso,Tottenham,Premier League,England,28,CAM,,56.4,91,92,Left,180,81,96,79,80,95,41,56,Traditional Winger,High/Low,2,3
+B. Johnson,Tottenham,Premier League,England,23,RW,ST,66.9,91,95,Right,175,80,82,82,76,95,58,57,Traditional Winger,Medium/Medium,2,1
+T. Werner,Tottenham,Premier League,England,28,LW,CAM,48.9,88,89,Right,170,72,84,80,88,90,46,61,Traditional Winger,High/Medium,5,4
+M. Neuer,Bayern,Bundesliga,Germany,38,GK,,34.5,82,85,Right,187,88,46,28,75,33,27,84,Sweeper Keeper,High/High,5,1
+J. Kimmich,Bayern,Bundesliga,Germany,29,RB,LWB,38.7,82,87,Right,182,86,89,68,77,84,76,68,Press Resistant,High/High,2,5
+D. Upamecano,Bayern,Bundesliga,Germany,25,CB,,53.5,86,91,Right,193,88,76,52,63,50,90,86,Ball Winner,Medium/Medium,3,1
+M. Kim,Bayern,Bundesliga,Germany,27,CB,,37.6,80,86,Right,194,97,67,32,67,57,82,82,Ball Playing Defender,High/Medium,5,3
+M. De Ligt,Bayern,Bundesliga,Germany,24,CB,RB,51.7,83,91,Left,185,90,80,45,63,54,86,83,Ball Playing Defender,Medium/Medium,4,4
+A. Davies,Bayern,Bundesliga,Germany,23,LB,RWB,61.9,86,95,Right,182,77,80,50,80,78,80,72,Traditional Winger,Medium/Medium,5,1
+L. Goretzka,Bayern,Bundesliga,Germany,29,CM,CAM,33.7,80,85,Right,176,74,84,65,83,79,75,81,Press Resistant,Low/Medium,3,4
+K. Laimer,Bayern,Bundesliga,Germany,27,CDM,,42.1,83,87,Left,173,74,83,69,84,76,74,78,Box to Box,Low/Medium,2,4
+J. Musiala,Bayern,Bundesliga,Germany,21,CAM,,58.8,85,92,Left,173,72,94,73,83,88,32,53,Inverted Winger,High/Medium,2,3
+L. Sane,Bayern,Bundesliga,Germany,28,RW,ST,50.4,88,90,Right,168,67,87,78,82,91,52,54,Inverted Winger,High/Low,5,4
+K. Coman,Bayern,Bundesliga,Germany,28,LW,RM,47.9,87,89,Right,167,72,82,83,80,90,35,61,Inverted Winger,High/Medium,4,4
+H. Kane,Bayern,Bundesliga,Germany,31,ST,CF,33.0,82,84,Right,183,80,86,86,67,83,34,72,Target Man,High/Low,2,1
+S. Gnabry,Bayern,Bundesliga,Germany,29,RM,,26.2,80,80,Right,173,76,85,81,78,84,54,69,Traditional Winger,Medium/Medium,2,2
+T. Muller,Bayern,Bundesliga,Germany,34,CF,,33.0,82,84,Right,192,90,83,84,71,85,31,78,Poacher,Medium/High,3,2
+S. Ulreich,Bayern,Bundesliga,Germany,35,GK,,42.0,85,88,Left,198,102,37,30,77,43,25,82,Sweeper Keeper,Medium/Medium,5,1
+E. Dier,Bayern,Bundesliga,Germany,30,CB,RB,41.5,86,87,Right,191,86,81,47,67,58,90,87,Ball Winner,High/Low,4,2
+R. Guerreiro,Bayern,Bundesliga,Germany,30,LB,CB,58.5,91,95,Right,171,67,91,58,75,84,72,65,Press Resistant,Medium/Medium,4,1
+A. Pavlovic,Bayern,Bundesliga,Germany,20,CDM,,62.0,84,94,Right,181,80,69,64,89,83,85,72,Box to Box,High/Low,2,2
+M. Tel,Bayern,Bundesliga,Germany,19,ST,RW,63.2,84,94,Right,183,87,76,90,78,76,26,83,Target Man,Medium/Medium,4,5
+S. Boey,Bayern,Bundesliga,Germany,23,RB,RWB,54.4,83,92,Right,184,80,91,53,77,80,81,68,Press Resistant,Low/Medium,4,2
+G. Kobel,Dortmund,Bundesliga,Germany,26,GK,,42.8,84,86,Left,192,91,53,23,78,43,16,67,Sweeper Keeper,Low/Medium,5,1
+J. Ryerson,Dortmund,Bundesliga,Germany,26,RB,LWB,53.8,86,92,Left,177,82,91,50,85,76,76,67,Press Resistant,High/High,2,5
+M. Hummels,Dortmund,Bundesliga,Germany,35,CB,RB,31.5,82,83,Right,193,89,66,42,58,62,86,84,Ball Winner,Medium/Medium,4,5
+N. Schlotterbeck,Dortmund,Bundesliga,Germany,24,CB,CDM,60.7,89,93,Right,186,84,62,44,61,68,94,94,Ball Winner,High/Low,2,1
+I. Maatsen,Dortmund,Bundesliga,Germany,22,LB,CB,67.1,90,95,Left,184,87,81,56,73,78,76,67,Press Resistant,Medium/High,2,1
+E. Can,Dortmund,Bundesliga,Germany,30,CDM,,47.5,86,91,Right,172,69,79,68,89,82,69,83,Deep Playmaker,Medium/High,2,2
+M. Sabitzer,Dortmund,Bundesliga,Germany,30,CM,CDM,50.5,89,91,Right,190,91,79,60,92,86,57,77,Box to Box,Medium/High,3,3
+J. Brandt,Dortmund,Bundesliga,Germany,28,CAM,,44.4,85,88,Left,169,72,94,84,89,89,56,64,Traditional Winger,Low/Medium,4,2
+J. Sancho,Dortmund,Bundesliga,Germany,24,RW,RM,62.7,88,95,Right,174,79,96,81,80,90,40,54,Creative Playmaker,Medium/Medium,4,3
+K. Adeyemi,Dortmund,Bundesliga,Germany,22,LW,LM,67.1,90,95,Right,184,81,90,87,90,95,55,50,Creative Playmaker,Medium/Medium,2,5
+N. Fullkrug,Dortmund,Bundesliga,Germany,31,ST,CF,58.5,91,95,Right,183,82,90,95,82,79,33,73,Target Man,High/Medium,2,4
+A. Meyer,Dortmund,Bundesliga,Germany,33,GK,,40.5,85,87,Right,195,98,59,29,65,35,17,76,Sweeper Keeper,Medium/Medium,2,1
+M. Wolf,Dortmund,Bundesliga,Germany,29,RB,LWB,46.2,88,88,Right,178,83,92,61,79,73,78,65,Press Resistant,High/Medium,3,5
+N. Sule,Dortmund,Bundesliga,Germany,28,CB,RB,48.4,86,90,Right,185,87,76,54,61,58,88,86,Ball Winner,Low/Medium,4,4
+R. Bensebaini,Dortmund,Bundesliga,Germany,29,LB,RWB,43.2,85,88,Right,175,72,92,57,72,76,79,70,Traditional Winger,High/Low,5,1
+S. Ozcan,Dortmund,Bundesliga,Germany,26,CDM,,41.3,81,87,Left,186,89,69,77,84,77,80,76,Deep Playmaker,High/Medium,2,1
+F. Nmecha,Dortmund,Bundesliga,Germany,23,CM,CAM,49.4,81,90,Right,172,71,65,62,82,78,70,78,Press Resistant,Low/Medium,4,2
+M. Reus,Dortmund,Bundesliga,Germany,35,CAM,,30.5,81,83,Right,185,85,82,78,81,87,34,54,Traditional Winger,High/Low,4,3
+D. Malen,Dortmund,Bundesliga,Germany,25,RW,ST,58.0,86,94,Left,166,69,96,87,79,89,49,69,Inverted Winger,High/Medium,2,1
+S. Haller,Dortmund,Bundesliga,Germany,30,ST,LW,41.0,84,88,Right,186,84,75,89,79,90,43,72,Target Man,High/Medium,3,4
+L. Hradecky,Leverkusen,Bundesliga,Germany,34,GK,,42.5,87,87,Right,199,102,48,15,78,34,25,76,Sweeper Keeper,High/High,5,1
+J. Frimpong,Leverkusen,Bundesliga,Germany,23,RWB,,64.9,89,95,Right,174,71,85,67,77,72,78,71,Press Resistant,Medium/High,3,5
+O. Kossounou,Leverkusen,Bundesliga,Germany,23,CB,RB,52.9,83,91,Left,183,81,65,55,57,53,87,87,Ball Winner,Low/Medium,3,2
+J. Tah,Leverkusen,Bundesliga,Germany,28,CB,,52.4,87,92,Right,183,88,81,36,59,63,89,87,Ball Winner,High/Medium,2,5
+E. Tapsoba,Leverkusen,Bundesliga,Germany,25,CB,RB,54.5,87,91,Right,187,85,60,37,60,68,92,93,Ball Winner,High/Low,3,1
+A. Grimaldo,Leverkusen,Bundesliga,Germany,28,LWB,,43.9,86,87,Left,176,72,83,56,76,82,83,77,Press Resistant,High/High,4,5
+G. Xhaka,Leverkusen,Bundesliga,Germany,31,CM,CAM,37.5,82,87,Left,187,89,68,62,84,82,66,79,Box to Box,High/High,2,2
+E. Palacios,Leverkusen,Bundesliga,Germany,25,CM,CAM,40.5,82,85,Right,185,89,68,71,86,82,55,86,Box to Box,Low/Medium,2,2
+F. Wirtz,Leverkusen,Bundesliga,Germany,21,CAM,,61.3,83,95,Right,178,79,94,81,76,86,36,73,Traditional Winger,High/High,4,1
+J. Hofmann,Leverkusen,Bundesliga,Germany,31,RM,,29.5,80,83,Right,172,69,87,72,76,83,35,66,Inverted Winger,High/Low,2,5
+V. Boniface,Leverkusen,Bundesliga,Germany,23,ST,CF,61.4,87,94,Left,184,86,91,91,69,86,27,78,Poacher,High/High,2,1
+M. Kovar,Leverkusen,Bundesliga,Germany,24,GK,,38.2,80,84,Right,185,90,30,15,63,38,21,63,Sweeper Keeper,Medium/High,5,1
+J. Stanisic,Leverkusen,Bundesliga,Germany,24,CB,RB,49.7,84,89,Right,190,91,70,38,71,59,85,81,Ball Playing Defender,Low/Medium,2,5
+P. Hincapie,Leverkusen,Bundesliga,Germany,22,CB,,60.1,86,93,Right,188,84,73,42,59,68,87,91,Ball Winner,High/High,5,4
+R. Andrich,Leverkusen,Bundesliga,Germany,29,CDM,,39.7,83,87,Right,184,81,81,81,85,81,65,79,Ball Winner,High/Medium,5,4
+A. Adli,Leverkusen,Bundesliga,Germany,24,LM,,64.7,90,95,Right,175,77,96,84,81,95,49,72,Inverted Winger,High/Medium,3,2
+N. Tella,Leverkusen,Bundesliga,Germany,24,RW,LM,63.7,89,95,Left,173,71,93,86,75,91,31,68,Creative Playmaker,High/Medium,5,3
+P. Schick,Leverkusen,Bundesliga,Germany,28,ST,CF,47.4,85,90,Right,176,76,86,87,65,89,47,85,Poacher,Medium/Medium,2,4
+M. Iglesias,Leverkusen,Bundesliga,Germany,31,ST,LW,41.0,84,88,Left,183,80,84,88,75,84,31,77,Target Man,High/Low,4,2
+Arthur,Leverkusen,Bundesliga,Germany,21,RB,RWB,67.3,89,95,Right,176,76,85,67,79,81,78,66,Press Resistant,Medium/Medium,5,1
+W. Szczesny,Juventus,Serie A,Italy,34,GK,,42.5,87,87,Right,196,99,58,22,82,41,29,81,Sweeper Keeper,High/High,3,1
+Danilo,Juventus,Serie A,Italy,32,RB,RWB,35.0,81,86,Right,180,79,83,62,80,70,76,81,Press Resistant,Medium/Medium,2,1
+G. Bremer,Juventus,Serie A,Italy,27,CB,RB,55.1,90,91,Right,196,97,62,41,63,51,95,87,Ball Winner,High/High,2,4
+D. Rugani,Juventus,Serie A,Italy,29,CB,CDM,42.2,84,88,Right,183,86,77,52,69,68,85,87,Ball Winner,Medium/Medium,5,4
+A. Cambiaso,Juventus,Serie A,Italy,24,LWB,,43.7,81,87,Left,182,77,91,54,71,77,73,73,Traditional Winger,High/Low,5,1
+M. Locatelli,Juventus,Serie A,Italy,26,CDM,,38.3,81,85,Left,179,83,83,77,83,83,82,87,Box to Box,High/Medium,4,1
+A. Rabiot,Juventus,Serie A,Italy,29,CM,CAM,48.7,86,91,Right,190,90,77,63,89,77,74,79,Box to Box,Medium/Medium,4,3
+W. McKennie,Juventus,Serie A,Italy,25,CM,CDM,60.5,87,95,Right,172,77,82,76,92,77,67,86,Deep Playmaker,Medium/High,2,2
+F. Chiesa,Juventus,Serie A,Italy,26,LW,CAM,50.3,84,91,Right,173,69,82,75,84,86,50,58,Inverted Winger,Medium/High,4,4
+T. Weah,Juventus,Serie A,Italy,24,RW,ST,56.7,85,93,Left,170,69,84,87,77,90,45,55,Inverted Winger,Medium/Medium,2,4
+D. Vlahovic,Juventus,Serie A,Italy,24,ST,RW,59.2,86,94,Right,191,95,77,88,66,82,29,79,Target Man,High/Low,4,1
+M. Perin,Juventus,Serie A,Italy,31,GK,,50.0,87,92,Right,194,89,48,24,68,49,21,75,Sweeper Keeper,Medium/High,4,1
+F. Gatti,Juventus,Serie A,Italy,25,CB,RB,38.5,80,85,Right,192,96,79,32,65,65,84,81,Ball Playing Defender,High/High,5,1
+T. Djalo,Juventus,Serie A,Italy,24,CB,,41.2,80,86,Right,189,89,79,53,57,60,82,82,Ball Playing Defender,High/High,5,3
+A. Sandro,Juventus,Serie A,Italy,33,LB,LWB,31.0,80,84,Right,171,68,94,70,78,76,81,79,Traditional Winger,High/Medium,4,3
+F. Miretti,Juventus,Serie A,Italy,20,CM,CAM,69.5,90,95,Right,173,76,81,79,94,79,59,81,Ball Winner,High/Low,3,5
+C. Alcaraz,Juventus,Serie A,Italy,21,CM,CAM,57.8,84,92,Left,172,71,74,63,84,83,57,75,Ball Winner,Medium/Medium,5,4
+F. Kostic,Juventus,Serie A,Italy,31,LM,,54.5,90,93,Right,166,66,95,83,78,92,42,54,Creative Playmaker,High/Medium,4,3
+A. Milik,Juventus,Serie A,Italy,30,ST,RW,29.0,81,82,Right,194,96,81,85,78,81,39,79,Poacher,Medium/High,3,5
+M. Kean,Juventus,Serie A,Italy,24,ST,LW,62.2,89,94,Left,195,91,79,94,67,86,29,85,Poacher,High/Medium,3,5
+Y. Sommer,Inter,Serie A,Italy,35,GK,,29.0,81,82,Right,196,93,52,30,81,30,21,67,Sweeper Keeper,High/High,4,1
+B. Pavard,Inter,Serie A,Italy,28,CB,RB,56.4,91,92,Right,190,91,78,42,74,52,94,95,Ball Winner,Medium/Medium,3,4
+F. Acerbi,Inter,Serie A,Italy,36,CB,,48.0,88,90,Left,190,88,65,42,65,70,88,92,Ball Playing Defender,Medium/High,4,5
+A. Bastoni,Inter,Serie A,Italy,25,CB,,62.5,89,95,Left,196,95,71,49,55,66,91,91,Ball Winner,Low/Medium,5,1
+D. Dumfries,Inter,Serie A,Italy,28,RWB,,51.4,89,90,Right,179,80,91,64,72,78,75,81,Traditional Winger,Medium/Medium,3,5
+F. Dimarco,Inter,Serie A,Italy,26,LWB,,60.3,88,95,Left,173,71,85,65,83,85,70,70,Traditional Winger,Low/Medium,4,4
+H. Calhanoglu,Inter,Serie A,Italy,30,CDM,,31.0,80,84,Left,186,86,85,67,85,87,85,75,Deep Playmaker,High/Medium,3,1
+N. Barella,Inter,Serie A,Italy,27,CM,CDM,37.1,81,85,Right,173,71,70,76,85,76,59,83,Press Resistant,High/Medium,5,3
+H. Mkhitaryan,Inter,Serie A,Italy,35,CM,CAM,35.0,81,86,Right,186,89,82,82,83,75,59,85,Deep Playmaker,High/Medium,4,1
+L. Martinez,Inter,Serie A,Italy,26,ST,RW,47.8,83,90,Right,185,82,92,88,68,88,32,87,Target Man,Low/Medium,5,3
+M. Thuram,Inter,Serie A,Italy,26,ST,CF,53.3,87,91,Left,183,78,81,93,79,79,39,87,Poacher,High/Low,4,2
+E. Audero,Inter,Serie A,Italy,27,GK,,34.1,81,83,Right,199,98,39,22,69,34,27,81,Sweeper Keeper,Low/Medium,3,1
+S. De Vrij,Inter,Serie A,Italy,32,CB,RB,35.0,81,86,Left,188,93,65,48,63,51,83,83,Ball Playing Defender,High/Low,4,4
+Y. Bisseck,Inter,Serie A,Italy,23,CB,CDM,63.4,89,94,Right,193,98,68,43,65,63,89,88,Ball Playing Defender,High/Medium,2,5
+M. Darmian,Inter,Serie A,Italy,34,RWB,,39.0,85,86,Right,182,81,82,54,76,80,80,79,Traditional Winger,Low/Medium,2,1
+C. Augusto,Inter,Serie A,Italy,25,LWB,,62.5,89,95,Right,174,73,93,70,74,77,74,80,Traditional Winger,Medium/High,4,1
+D. Frattesi,Inter,Serie A,Italy,24,CM,CAM,61.7,87,95,Right,181,86,82,78,91,78,68,88,Press Resistant,Low/Medium,5,1
+K. Asllani,Inter,Serie A,Italy,22,CDM,,67.1,90,95,Right,185,90,74,75,92,78,66,74,Press Resistant,High/High,2,1
+M. Arnautovic,Inter,Serie A,Italy,35,ST,CF,27.5,81,81,Right,177,75,79,83,81,80,30,80,Poacher,High/Medium,2,3
+A. Sanchez,Inter,Serie A,Italy,35,CF,,51.0,88,92,Left,176,79,93,93,66,86,50,83,Target Man,Medium/Medium,2,1
+M. Maignan,AC Milan,Serie A,Italy,28,GK,,51.9,88,91,Right,199,103,42,25,83,34,16,69,Sweeper Keeper,High/High,3,1
+D. Calabria,AC Milan,Serie A,Italy,27,RB,RWB,42.6,85,86,Right,182,78,93,67,72,73,75,70,Traditional Winger,Medium/High,4,1
+M. Thiaw,AC Milan,Serie A,Italy,22,CB,RB,49.6,80,90,Right,190,92,81,52,72,50,85,80,Ball Winner,High/Low,2,3
+F. Tomori,AC Milan,Serie A,Italy,26,CB,,40.3,83,85,Left,193,88,73,54,59,52,88,81,Ball Playing Defender,High/Low,2,1
+T. Hernandez,AC Milan,Serie A,Italy,26,LB,CB,34.3,80,83,Right,184,80,91,70,81,85,73,79,Press Resistant,High/Low,3,2
+T. Reijnders,AC Milan,Serie A,Italy,25,CM,CAM,63.5,90,95,Right,173,69,67,68,92,78,74,84,Box to Box,High/Medium,2,2
+I. Bennacer,AC Milan,Serie A,Italy,26,CDM,,49.3,86,89,Left,185,87,69,68,91,85,71,76,Deep Playmaker,High/Medium,3,2
+R. Loftus-Cheek,AC Milan,Serie A,Italy,28,CM,CDM,56.9,90,93,Right,187,84,69,77,94,84,69,71,Ball Winner,Medium/Medium,3,5
+C. Pulisic,AC Milan,Serie A,Italy,25,RW,ST,40.0,80,86,Right,183,79,83,81,77,83,50,74,Creative Playmaker,High/High,2,1
+R. Leao,AC Milan,Serie A,Italy,24,LW,RM,55.7,84,93,Left,174,69,93,76,79,87,50,55,Creative Playmaker,Low/Medium,3,5
+O. Giroud,AC Milan,Serie A,Italy,37,ST,RW,48.0,88,90,Right,176,76,79,94,78,79,43,80,Poacher,High/Medium,5,4
+M. Sportiello,AC Milan,Serie A,Italy,32,GK,,56.0,90,94,Right,194,89,31,24,70,40,18,60,Sweeper Keeper,High/Medium,4,1
+A. Florenzi,AC Milan,Serie A,Italy,33,RB,RWB,50.5,89,91,Right,184,83,88,51,82,82,77,73,Press Resistant,Medium/High,2,2
+S. Kjaer,AC Milan,Serie A,Italy,35,CB,CDM,49.0,89,90,Right,184,89,76,50,56,66,92,94,Ball Playing Defender,Low/Medium,5,5
+M. Gabbia,AC Milan,Serie A,Italy,24,CB,,64.7,90,95,Right,190,95,61,47,69,61,90,91,Ball Winner,Medium/Medium,3,3
+Y. Adli,AC Milan,Serie A,Italy,23,CM,CDM,66.9,91,95,Right,187,83,71,68,95,79,59,70,Ball Winner,Medium/High,5,4
+Y. Musah,AC Milan,Serie A,Italy,21,CM,CAM,63.3,85,95,Left,179,84,71,67,88,75,56,79,Deep Playmaker,High/High,5,2
+S. Chukwueze,AC Milan,Serie A,Italy,25,RW,RM,64.5,91,95,Left,171,75,85,73,76,93,37,50,Inverted Winger,Medium/Medium,5,4
+N. Okafor,AC Milan,Serie A,Italy,24,LW,LM,45.2,81,88,Left,177,77,83,73,85,87,45,60,Inverted Winger,High/High,4,4
+L. Jovic,AC Milan,Serie A,Italy,26,ST,CF,55.8,88,92,Left,177,77,86,92,68,84,39,88,Target Man,High/Low,4,4
+A. Meret,Napoli,Serie A,Italy,27,GK,,57.6,88,94,Right,195,100,30,15,74,50,29,68,Sweeper Keeper,Low/Medium,5,1
+G. Di Lorenzo,Napoli,Serie A,Italy,30,RB,RWB,50.5,89,91,Left,170,68,91,60,76,71,70,68,Traditional Winger,High/High,2,5
+A. Rrahmani,Napoli,Serie A,Italy,30,CB,,43.5,85,89,Right,186,89,73,47,59,67,88,85,Ball Winner,High/High,4,2
+Juan Jesus,Napoli,Serie A,Italy,32,CB,,45.0,85,90,Right,183,88,76,54,59,59,89,84,Ball Playing Defender,Low/Medium,5,4
+M. Olivera,Napoli,Serie A,Italy,26,LB,CB,52.8,88,90,Right,178,73,91,62,78,77,76,69,Traditional Winger,Low/Medium,5,3
+S. Lobotka,Napoli,Serie A,Italy,29,CDM,,39.7,83,87,Right,182,84,68,74,84,85,72,81,Box to Box,High/High,3,4
+F. Anguissa,Napoli,Serie A,Italy,28,CM,CDM,40.4,84,86,Right,180,80,72,72,88,83,67,81,Press Resistant,High/Low,2,2
+P. Zielinski,Napoli,Serie A,Italy,30,CM,CAM,48.5,87,91,Right,179,80,71,82,91,83,57,83,Ball Winner,High/High,2,5
+M. Politano,Napoli,Serie A,Italy,30,RW,ST,45.5,87,89,Right,184,89,82,81,77,91,58,50,Traditional Winger,Medium/High,5,1
+K. Kvaratskhelia,Napoli,Serie A,Italy,23,LW,LM,53.4,82,92,Right,185,83,89,74,90,88,36,57,Inverted Winger,High/Medium,4,3
+V. Osimhen,Napoli,Serie A,Italy,25,ST,CF,48.0,82,90,Left,182,87,79,84,82,87,42,79,Poacher,Medium/High,2,1
+P. Gollini,Napoli,Serie A,Italy,29,GK,,50.7,88,91,Left,185,81,60,18,63,34,25,66,Sweeper Keeper,High/Low,4,1
+M. Rui,Napoli,Serie A,Italy,33,LB,RWB,45.0,85,90,Right,173,68,83,68,85,74,74,66,Press Resistant,High/Low,3,4
+N. Perez,Napoli,Serie A,Italy,23,CB,,61.9,86,95,Right,183,81,75,47,62,65,89,92,Ball Playing Defender,Low/Medium,4,5
+L. Ostigard,Napoli,Serie A,Italy,24,CB,RB,41.2,80,86,Right,192,96,79,42,72,51,84,84,Ball Winner,High/Medium,2,5
+J. Cajuste,Napoli,Serie A,Italy,24,CM,CAM,54.2,84,92,Right,187,86,83,82,85,87,71,88,Press Resistant,High/Low,2,1
+H. Traore,Napoli,Serie A,Italy,24,CAM,,49.2,82,90,Left,185,81,87,75,86,86,30,53,Inverted Winger,High/Medium,4,2
+C. Ngonge,Napoli,Serie A,Italy,24,RW,LM,60.2,87,94,Left,168,72,90,70,85,90,46,54,Traditional Winger,Low/Medium,3,3
+J. Lindstrom,Napoli,Serie A,Italy,24,CAM,,64.7,90,95,Right,175,72,88,88,76,95,41,72,Inverted Winger,High/High,2,4
+G. Simeone,Napoli,Serie A,Italy,28,ST,RW,39.9,82,87,Right,186,82,83,87,67,82,29,84,Target Man,High/Medium,5,1
+G. Donnarumma,PSG,Ligue 1,France,25,GK,,45.5,81,89,Left,199,102,59,27,79,43,27,60,Sweeper Keeper,Medium/High,3,1
+A. Hakimi,PSG,Ligue 1,France,25,RB,CB,64.5,91,95,Right,179,78,90,54,74,75,83,80,Press Resistant,High/High,4,3
+Marquinhos,PSG,Ligue 1,France,30,CB,,32.0,81,84,Right,184,87,70,39,74,70,82,79,Ball Playing Defender,High/Low,5,3
+M. Skriniar,PSG,Ligue 1,France,29,CB,CDM,45.7,86,89,Right,188,87,68,45,62,53,87,87,Ball Playing Defender,Medium/High,2,3
+N. Mendes,PSG,Ligue 1,France,22,LB,LWB,67.1,90,95,Left,184,79,91,66,79,70,70,82,Traditional Winger,Low/Medium,3,2
+M. Ugarte,PSG,Ligue 1,France,23,CDM,,48.4,80,90,Right,176,71,71,74,83,78,77,73,Box to Box,High/Low,4,4
+W. Zaire-Emery,PSG,Ligue 1,France,18,CM,CAM,60.9,82,93,Right,189,94,83,64,86,75,74,79,Deep Playmaker,High/Medium,5,2
+Vitinha,PSG,Ligue 1,France,24,CM,CAM,59.7,88,93,Left,173,75,74,80,88,84,55,73,Press Resistant,High/High,5,3
+O. Dembele,PSG,Ligue 1,France,27,RW,ST,55.1,87,93,Left,168,63,84,75,90,90,34,59,Traditional Winger,High/Low,4,1
+B. Barcola,PSG,Ligue 1,France,21,LW,RM,66.3,88,95,Left,185,88,87,83,80,93,55,51,Creative Playmaker,High/Medium,5,4
+G. Ramos,PSG,Ligue 1,France,23,ST,CF,53.4,85,90,Left,183,80,78,87,77,83,25,86,Poacher,High/High,4,4
+K. Navas,PSG,Ligue 1,France,37,GK,,30.0,82,82,Right,196,91,50,22,60,45,25,71,Sweeper Keeper,High/High,2,1
+L. Hernandez,PSG,Ligue 1,France,28,CB,RB,50.4,88,90,Left,186,88,69,48,55,68,92,93,Ball Winner,High/Low,4,5
+Beraldo,PSG,Ligue 1,France,20,CB,CDM,54.5,81,91,Right,185,84,69,31,55,60,84,83,Ball Winner,Medium/High,4,3
+N. Mukiele,PSG,Ligue 1,France,26,RB,LWB,53.3,87,91,Right,171,70,82,51,70,85,74,72,Traditional Winger,High/High,5,2
+F. Ruiz,PSG,Ligue 1,France,28,CM,CDM,27.4,80,80,Right,187,87,82,76,84,78,72,71,Press Resistant,High/Low,2,1
+K. Lee,PSG,Ligue 1,France,23,CAM,,50.4,82,90,Right,177,72,85,82,79,87,48,63,Creative Playmaker,Medium/Medium,4,3
+M. Asensio,PSG,Ligue 1,France,28,RW,RM,36.9,82,85,Right,167,62,96,71,79,85,52,58,Traditional Winger,Low/Medium,2,3
+R. Kolo Muani,PSG,Ligue 1,France,25,ST,,48.0,85,88,Left,192,90,83,89,70,77,27,82,Poacher,High/Low,2,5
+D. Pereira,PSG,Ligue 1,France,32,CDM,,36.0,82,86,Left,187,84,69,71,83,78,66,71,Press Resistant,High/Low,2,1
+N. Pope,Newcastle,Premier League,England,32,GK,,36.5,84,85,Right,191,93,38,30,74,45,22,75,Sweeper Keeper,Medium/Medium,2,1
+K. Trippier,Newcastle,Premier League,England,33,RB,RWB,34.0,83,84,Left,178,76,93,52,75,77,80,66,Traditional Winger,High/Medium,3,5
+F. Schar,Newcastle,Premier League,England,32,CB,,50.0,90,90,Right,185,83,72,38,66,70,90,95,Ball Playing Defender,High/Medium,4,4
+S. Botman,Newcastle,Premier League,England,24,CB,,48.2,84,88,Left,196,100,75,32,71,60,85,82,Ball Playing Defender,Medium/High,5,4
+D. Burn,Newcastle,Premier League,England,32,LB,LWB,36.0,82,86,Right,170,65,95,50,73,77,72,78,Traditional Winger,High/High,4,1
+B. Guimaraes,Newcastle,Premier League,England,26,CDM,,48.8,84,90,Right,187,86,84,73,89,84,82,84,Ball Winner,High/Low,2,2
+J. Linton,Newcastle,Premier League,England,27,CM,CDM,53.1,88,91,Right,174,75,85,79,88,83,69,87,Deep Playmaker,High/High,2,1
+S. Tonali,Newcastle,Premier League,England,24,CM,CAM,39.7,80,85,Right,180,78,72,69,84,79,55,77,Ball Winner,Medium/High,5,2
+M. Almiron,Newcastle,Premier League,England,30,RW,LM,30.0,82,82,Right,170,72,87,80,84,88,40,58,Traditional Winger,High/High,3,4
+A. Gordon,Newcastle,Premier League,England,23,LW,RM,55.9,83,93,Right,165,61,85,83,86,89,45,65,Creative Playmaker,Medium/High,2,1
+A. Isak,Newcastle,Premier League,England,24,ST,RW,42.2,81,86,Right,189,92,82,84,77,82,45,83,Poacher,Medium/High,5,4
+M. Dubravka,Newcastle,Premier League,England,35,GK,,38.5,83,87,Left,199,102,36,29,66,41,23,77,Sweeper Keeper,High/High,5,1
+T. Livramento,Newcastle,Premier League,England,21,RB,RWB,66.3,88,95,Right,185,80,84,69,72,71,76,79,Traditional Winger,High/Medium,5,3
+J. Lascelles,Newcastle,Premier League,England,30,CB,RB,38.0,84,86,Right,187,91,62,33,68,54,85,87,Ball Winner,High/Low,2,2
+E. Krafth,Newcastle,Premier League,England,29,RB,,45.2,87,88,Left,170,66,87,70,71,85,85,77,Traditional Winger,Low/Medium,2,1
+L. Hall,Newcastle,Premier League,England,19,LB,CB,66.7,86,95,Right,181,78,85,54,74,72,76,76,Traditional Winger,High/High,5,5
+S. Longstaff,Newcastle,Premier League,England,26,CM,CDM,61.8,91,94,Right,173,75,78,70,94,83,69,88,Ball Winner,Medium/Medium,2,3
+J. Willock,Newcastle,Premier League,England,24,CM,CDM,62.2,89,94,Left,187,91,81,76,93,80,73,83,Box to Box,Medium/High,4,1
+H. Barnes,Newcastle,Premier League,England,26,LW,LM,58.3,89,93,Right,179,83,86,78,75,91,50,62,Traditional Winger,Low/Medium,2,4
+C. Wilson,Newcastle,Premier League,England,32,ST,CF,47.0,87,90,Left,186,89,92,92,69,80,34,82,Target Man,High/Medium,4,3
+P. Gulacsi,RB Leipzig,Bundesliga,Germany,34,GK,,47.5,86,91,Right,190,95,38,21,77,32,23,71,Sweeper Keeper,Medium/High,2,1
+M. Simakan,RB Leipzig,Bundesliga,Germany,24,RB,,58.7,87,93,Left,179,80,94,61,82,75,80,67,Traditional Winger,Medium/Medium,4,2
+W. Orban,RB Leipzig,Bundesliga,Germany,31,CB,RB,55.0,89,94,Left,186,89,77,35,69,59,90,92,Ball Playing Defender,High/Medium,2,1
+C. Lukeba,RB Leipzig,Bundesliga,Germany,21,CB,,66.3,88,95,Right,196,93,74,32,69,65,88,90,Ball Playing Defender,Medium/High,4,3
+D. Raum,RB Leipzig,Bundesliga,Germany,26,LB,,48.8,84,90,Right,176,78,95,66,77,79,70,67,Traditional Winger,High/High,2,4
+X. Schlager,RB Leipzig,Bundesliga,Germany,26,CDM,,34.3,80,83,Left,184,82,81,73,85,75,68,85,Ball Winner,Medium/Medium,4,1
+A. Haidara,RB Leipzig,Bundesliga,Germany,26,CM,CAM,50.3,84,91,Right,190,91,85,66,84,83,64,77,Press Resistant,High/Low,2,4
+D. Olmo,RB Leipzig,Bundesliga,Germany,26,CAM,,53.3,87,91,Right,170,73,82,88,79,91,38,59,Creative Playmaker,High/High,2,4
+X. Simons,RB Leipzig,Bundesliga,Germany,21,CAM,,67.3,89,95,Right,177,76,96,83,83,91,31,74,Creative Playmaker,Medium/High,3,3
+L. Openda,RB Leipzig,Bundesliga,Germany,24,ST,RW,61.7,87,95,Left,177,73,84,90,68,77,39,82,Target Man,High/Low,5,4
+B. Sesko,RB Leipzig,Bundesliga,Germany,21,ST,RW,63.3,85,95,Right,179,81,81,88,66,84,48,82,Target Man,High/Medium,4,2
+J. Blaswich,RB Leipzig,Bundesliga,Germany,33,GK,,47.5,86,91,Left,192,91,45,15,75,46,16,74,Sweeper Keeper,High/High,3,1
+B. Henrichs,RB Leipzig,Bundesliga,Germany,27,RB,,38.1,82,85,Right,178,74,82,70,84,84,76,67,Traditional Winger,Medium/High,4,5
+K. Klostermann,RB Leipzig,Bundesliga,Germany,27,CB,,39.1,83,85,Right,189,89,70,46,74,55,84,88,Ball Winner,Medium/Medium,5,2
+E. Bitshiabu,RB Leipzig,Bundesliga,Germany,19,CB,,65.7,85,95,Right,193,91,81,55,73,61,89,82,Ball Winner,Medium/Medium,5,5
+N. Seiwald,RB Leipzig,Bundesliga,Germany,23,CDM,,65.9,90,95,Left,172,71,69,60,91,83,77,88,Deep Playmaker,Medium/Medium,2,5
+K. Kampl,RB Leipzig,Bundesliga,Germany,33,CM,CAM,45.0,85,90,Right,175,70,78,64,90,78,67,80,Ball Winner,High/Medium,2,5
+E. Elmas,RB Leipzig,Bundesliga,Germany,24,CAM,,44.7,82,87,Right,177,79,85,70,89,87,54,57,Inverted Winger,High/High,2,2
+C. Baumgartner,RB Leipzig,Bundesliga,Germany,24,CAM,,64.7,90,95,Left,181,81,95,88,82,95,43,74,Traditional Winger,High/Low,2,3
+Y. Poulsen,RB Leipzig,Bundesliga,Germany,30,ST,,48.5,87,91,Left,179,76,80,90,65,85,30,74,Poacher,High/Low,5,2
+M. Svilar,Roma,Serie A,Italy,24,GK,,65.7,91,95,Left,195,97,31,28,84,33,15,74,Sweeper Keeper,High/Medium,4,1
+R. Karsdorp,Roma,Serie A,Italy,29,RB,RWB,48.2,87,90,Right,174,76,82,67,80,70,80,82,Traditional Winger,High/High,3,3
+G. Mancini,Roma,Serie A,Italy,28,CB,CDM,47.4,85,90,Right,194,92,73,52,69,55,88,90,Ball Playing Defender,High/High,4,3
+E. Ndicka,Roma,Serie A,Italy,24,CB,RB,64.7,90,95,Left,192,89,70,32,73,66,91,93,Ball Winner,Medium/Medium,3,3
+Leonardo Spinazzola,Roma,Serie A,Italy,31,LB,CB,32.5,83,83,Right,177,79,80,67,78,70,70,78,Traditional Winger,Medium/Medium,4,1
+L. Paredes,Roma,Serie A,Italy,29,CDM,,46.2,85,90,Right,181,83,67,67,90,88,70,87,Deep Playmaker,Medium/Medium,4,2
+B. Cristante,Roma,Serie A,Italy,29,CM,CDM,30.2,81,82,Left,175,78,81,69,82,86,61,82,Press Resistant,High/High,4,3
+L. Pellegrini,Roma,Serie A,Italy,27,CAM,,35.6,81,84,Right,181,81,86,73,79,87,59,54,Inverted Winger,Medium/High,2,3
+P. Dybala,Roma,Serie A,Italy,30,CF,,41.0,84,88,Right,177,80,87,88,66,86,47,90,Poacher,Low/Medium,3,1
+S. El Shaarawy,Roma,Serie A,Italy,31,LW,LM,41.5,86,87,Right,165,65,91,77,78,90,59,72,Creative Playmaker,Medium/High,2,2
+R. Lukaku,Roma,Serie A,Italy,31,ST,LW,34.0,83,84,Right,189,85,85,87,82,83,25,83,Target Man,Medium/High,2,5
+R. Patricio,Roma,Serie A,Italy,36,GK,,36.5,84,85,Left,197,100,59,19,63,38,20,64,Sweeper Keeper,High/High,5,1
+Z. Celik,Roma,Serie A,Italy,27,RB,LWB,59.6,90,94,Right,180,75,94,56,85,83,81,80,Press Resistant,Medium/High,4,3
+C. Smalling,Roma,Serie A,Italy,34,CB,,54.5,90,93,Right,184,86,76,30,55,69,95,92,Ball Playing Defender,Medium/High,2,5
+D. Llorente,Roma,Serie A,Italy,30,CB,RB,58.5,91,95,Right,188,86,65,41,68,61,91,95,Ball Playing Defender,High/Low,2,3
+Angelino,Roma,Serie A,Italy,27,LB,,31.6,80,82,Left,170,71,89,61,70,71,81,65,Press Resistant,Low/Medium,5,2
+E. Bove,Roma,Serie A,Italy,22,CM,CDM,47.6,81,88,Right,178,74,67,81,81,84,75,75,Box to Box,Low/Medium,3,3
+H. Aouar,Roma,Serie A,Italy,25,CM,CAM,46.5,82,89,Left,181,79,81,74,83,77,73,81,Press Resistant,Medium/High,4,4
+T. Baldanzi,Roma,Serie A,Italy,21,CAM,,66.3,88,95,Right,179,77,86,78,79,90,51,63,Inverted Winger,High/Low,4,1
+T. Abraham,Roma,Serie A,Italy,26,ST,LW,58.8,88,94,Right,190,87,86,93,79,78,28,73,Target Man,Low/Medium,3,4
+R. Majecki,Monaco,Ligue 1,France,24,GK,,52.2,85,90,Right,199,94,57,16,73,47,23,62,Sweeper Keeper,Medium/High,4,1
+V. Vanderson,Monaco,Ligue 1,France,22,RWB,,59.1,85,93,Right,177,79,94,50,81,80,85,78,Press Resistant,Low/Medium,3,2
+W. Singo,Monaco,Ligue 1,France,23,CB,CDM,63.9,88,95,Right,193,88,65,34,58,63,89,90,Ball Winner,Low/Medium,2,3
+G. Maripan,Monaco,Ligue 1,France,30,CB,RB,37.5,82,87,Right,192,89,82,37,58,69,83,79,Ball Winner,High/High,4,3
+T. Kehrer,Monaco,Ligue 1,France,27,CB,RB,37.1,81,85,Right,186,84,80,47,65,60,82,84,Ball Playing Defender,High/Low,4,2
+I. Jakobs,Monaco,Ligue 1,France,24,LWB,,48.2,84,88,Right,172,76,85,62,82,81,83,67,Traditional Winger,High/Low,5,1
+Y. Fofana,Monaco,Ligue 1,France,25,CDM,,47.5,83,89,Right,183,87,68,64,87,80,70,85,Box to Box,Low/Medium,5,3
+D. Zakaria,Monaco,Ligue 1,France,27,CM,CAM,60.6,91,94,Right,188,86,77,60,91,80,67,73,Press Resistant,High/Medium,2,5
+A. Golovin,Monaco,Ligue 1,France,28,CAM,,50.9,87,91,Right,171,66,85,74,81,89,36,68,Traditional Winger,Medium/Medium,5,1
+T. Minamino,Monaco,Ligue 1,France,29,CF,,56.2,89,94,Right,185,83,75,92,65,88,49,82,Target Man,High/Low,5,2
+W. Ben Yedder,Monaco,Ligue 1,France,33,ST,LW,49.5,88,91,Left,175,74,81,92,78,81,31,77,Poacher,Medium/Medium,5,5
+P. Kohn,Monaco,Ligue 1,France,26,GK,,57.8,90,92,Right,197,96,44,20,60,33,27,69,Sweeper Keeper,High/Medium,4,1
+M. Salisu,Monaco,Ligue 1,France,25,CB,RB,59.5,89,93,Right,195,91,71,40,55,63,92,93,Ball Winner,Medium/High,3,4
+C. Matsima,Monaco,Ligue 1,France,22,CB,RB,52.1,81,91,Right,191,87,79,38,56,58,82,83,Ball Playing Defender,High/Low,3,2
+K. Ouattara,Monaco,Ligue 1,France,23,LB,RWB,51.4,83,90,Right,174,77,91,55,72,84,71,72,Press Resistant,Low/Medium,3,2
+M. Camara,Monaco,Ligue 1,France,24,CDM,,52.7,84,91,Right,188,84,81,82,89,75,75,74,Press Resistant,Medium/Medium,2,2
+E. Ben Seghir,Monaco,Ligue 1,France,19,CAM,,69.7,89,95,Right,180,77,88,82,80,94,37,64,Inverted Winger,Low/Medium,4,4
+M. Akliouche,Monaco,Ligue 1,France,22,RM,,45.1,80,87,Left,172,73,93,86,85,82,56,70,Inverted Winger,High/Low,5,4
+F. Balogun,Monaco,Ligue 1,France,22,ST,CF,51.1,83,89,Right,185,82,75,85,79,80,34,75,Target Man,High/Low,3,3
+B. Embolo,Monaco,Ligue 1,France,27,ST,,51.6,88,90,Right,186,86,75,94,72,85,43,90,Poacher,Medium/Medium,3,4
+F. Israel,Sporting CP,Primeira Liga,Portugal,24,GK,,54.7,86,91,Right,196,101,40,19,65,39,23,69,Sweeper Keeper,Medium/High,5,1
+I. Fresneda,Sporting CP,Primeira Liga,Portugal,19,RWB,,69.7,89,95,Right,180,76,85,51,70,72,76,71,Press Resistant,High/High,4,1
+O. Diomande,Sporting CP,Primeira Liga,Portugal,20,CB,RB,56.5,83,91,Right,184,80,67,40,57,53,86,86,Ball Winner,Medium/High,4,2
+S. Coates,Sporting CP,Primeira Liga,Portugal,33,CB,CDM,52.5,91,91,Right,188,87,81,38,73,66,94,95,Ball Winner,Medium/High,2,3
+G. Inacio,Sporting CP,Primeira Liga,Portugal,22,CB,CDM,66.1,89,95,Right,183,87,79,51,58,57,92,90,Ball Winner,High/Low,2,5
+M. Reis,Sporting CP,Primeira Liga,Portugal,26,LWB,,42.3,82,87,Right,178,82,93,62,84,72,82,73,Traditional Winger,Low/Medium,3,1
+M. Hjulmand,Sporting CP,Primeira Liga,Portugal,24,CDM,,63.7,89,95,Right,173,68,75,78,94,78,67,87,Press Resistant,Low/Medium,2,3
+H. Morita,Sporting CP,Primeira Liga,Portugal,29,CM,CDM,37.2,82,86,Right,184,82,84,65,86,79,72,78,Box to Box,High/Medium,5,5
+P. Goncalves,Sporting CP,Primeira Liga,Portugal,25,LW,RM,64.5,91,95,Right,173,68,83,83,75,93,36,55,Inverted Winger,High/Low,2,2
+M. Edwards,Sporting CP,Primeira Liga,Portugal,25,RW,LM,62.5,89,95,Right,172,70,86,87,89,91,36,52,Traditional Winger,Low/Medium,5,3
+V. Gyokeres,Sporting CP,Primeira Liga,Portugal,26,ST,,47.8,83,90,Left,178,74,81,88,77,80,25,81,Target Man,High/Medium,4,5
+A. Adan,Sporting CP,Primeira Liga,Portugal,37,GK,,36.5,84,85,Right,198,95,38,17,71,31,30,71,Sweeper Keeper,Low/Medium,5,1
+R. Esgaio,Sporting CP,Primeira Liga,Portugal,31,RWB,,52.5,91,91,Right,172,77,88,60,74,81,79,72,Press Resistant,High/High,4,2
+E. Quaresma,Sporting CP,Primeira Liga,Portugal,22,CB,RB,64.1,87,95,Right,183,87,70,35,73,53,88,93,Ball Playing Defender,High/High,5,3
+J. St. Juste,Sporting CP,Primeira Liga,Portugal,27,CB,,40.1,81,87,Right,186,91,62,49,60,56,86,83,Ball Winner,Low/Medium,3,1
+N. Santos,Sporting CP,Primeira Liga,Portugal,29,LWB,,40.7,84,87,Right,180,84,80,55,84,83,84,66,Traditional Winger,High/Medium,2,5
+D. Braganca,Sporting CP,Primeira Liga,Portugal,24,CM,CDM,49.7,84,89,Left,184,85,75,65,89,83,65,73,Press Resistant,High/Medium,2,4
+K. Koindredi,Sporting CP,Primeira Liga,Portugal,22,CM,CDM,46.6,80,88,Right,174,78,83,79,80,77,72,72,Box to Box,High/Medium,2,3
+Trincao,Sporting CP,Primeira Liga,Portugal,24,RW,RM,64.7,90,95,Right,178,83,89,86,79,95,43,50,Creative Playmaker,High/High,4,5
+Paulinho,Sporting CP,Primeira Liga,Portugal,31,ST,CF,52.5,91,91,Right,190,87,88,95,71,80,47,85,Poacher,High/Medium,4,4
+A. Trubin,Benfica,Primeira Liga,Portugal,22,GK,,58.6,86,92,Left,198,97,60,26,69,39,27,66,Sweeper Keeper,High/Low,5,1
+A. Bah,Benfica,Primeira Liga,Portugal,26,RB,CB,48.3,85,89,Left,176,76,94,58,70,82,71,70,Traditional Winger,Medium/Medium,5,5
+A. Silva,Benfica,Primeira Liga,Portugal,20,CB,CDM,66.5,87,95,Left,183,88,77,52,60,65,88,85,Ball Winner,High/Low,5,5
+N. Otamendi,Benfica,Primeira Liga,Portugal,36,CB,,27.5,81,81,Right,188,87,71,50,57,58,83,80,Ball Playing Defender,High/Medium,5,4
+F. Aursnes,Benfica,Primeira Liga,Portugal,28,LB,RWB,52.4,90,90,Right,173,75,92,53,83,74,75,73,Press Resistant,Low/Medium,3,5
+F. Florentino,Benfica,Primeira Liga,Portugal,24,CDM,,53.2,83,92,Left,182,83,84,79,88,87,71,88,Deep Playmaker,Medium/High,2,5
+J. Neves,Benfica,Primeira Liga,Portugal,19,CM,CDM,62.7,82,95,Right,187,84,76,74,86,81,65,83,Box to Box,High/Low,4,1
+O. Kokcu,Benfica,Primeira Liga,Portugal,23,CAM,,48.4,83,88,Left,176,75,90,71,81,88,30,65,Traditional Winger,Medium/Medium,2,2
+A. Di Maria,Benfica,Primeira Liga,Portugal,36,RW,LM,37.0,83,86,Right,176,74,91,81,82,87,39,63,Traditional Winger,High/Low,4,3
+D. Neres,Benfica,Primeira Liga,Portugal,27,LW,ST,42.6,85,86,Right,170,69,87,80,90,89,35,64,Creative Playmaker,Medium/High,3,4
+R. Silva,Benfica,Primeira Liga,Portugal,31,CF,,35.0,81,86,Right,176,77,88,87,80,87,30,88,Poacher,Medium/High,5,3
+S. Soares,Benfica,Primeira Liga,Portugal,21,GK,,55.3,83,91,Right,188,84,36,22,78,40,26,72,Sweeper Keeper,Medium/High,4,1
+T. Araujo,Benfica,Primeira Liga,Portugal,22,CB,CDM,53.1,82,91,Left,190,93,60,31,60,59,82,85,Ball Playing Defender,High/Medium,3,1
+M. Morato,Benfica,Primeira Liga,Portugal,22,CB,RB,66.1,89,95,Right,189,90,80,47,56,58,93,94,Ball Winner,Medium/High,2,2
+A. Carreras,Benfica,Primeira Liga,Portugal,21,LB,RWB,50.8,80,90,Right,182,83,90,56,85,78,78,79,Press Resistant,High/Medium,5,5
+J. Mario,Benfica,Primeira Liga,Portugal,31,CM,CDM,30.0,82,82,Right,173,69,85,78,83,75,58,83,Press Resistant,Medium/High,3,1
+R. Sanches,Benfica,Primeira Liga,Portugal,26,CM,CAM,62.3,90,95,Right,179,75,83,79,95,80,69,82,Deep Playmaker,High/Medium,4,5
+T. Gouveia,Benfica,Primeira Liga,Portugal,23,RW,ST,50.9,84,89,Right,175,72,87,83,87,90,56,51,Traditional Winger,Medium/High,2,3
+M. Leonardo,Benfica,Primeira Liga,Portugal,21,ST,CF,66.3,88,95,Right,179,81,75,92,71,79,43,74,Poacher,Medium/High,3,2
+A. Cabral,Benfica,Primeira Liga,Portugal,26,ST,LW,61.8,91,94,Right,188,90,76,95,72,87,37,84,Target Man,High/Low,5,2
+D. Costa,Porto,Primeira Liga,Portugal,24,GK,,62.2,89,94,Right,187,92,31,16,62,34,20,64,Sweeper Keeper,High/Low,5,1
+J. Mario,Porto,Primeira Liga,Portugal,24,RB,,45.7,83,87,Right,179,79,92,56,73,71,72,71,Press Resistant,High/Low,5,5
+Pepe,Porto,Primeira Liga,Portugal,41,CB,CDM,33.5,81,85,Right,187,87,81,54,72,56,85,80,Ball Playing Defender,High/High,5,2
+Z. Pedro,Porto,Primeira Liga,Portugal,27,CB,,61.1,90,95,Right,190,92,66,46,58,53,91,92,Ball Winner,Low/Medium,4,5
+Wendell,Porto,Primeira Liga,Portugal,30,LB,RWB,47.5,86,91,Left,181,85,90,57,79,78,81,74,Traditional Winger,High/Low,5,3
+A. Varela,Porto,Primeira Liga,Portugal,22,CDM,,68.1,91,95,Left,187,84,66,73,94,87,69,82,Deep Playmaker,High/Medium,4,4
+N. Gonzalez,Porto,Primeira Liga,Portugal,22,CM,CDM,61.6,86,94,Right,172,73,73,76,90,75,56,80,Press Resistant,Medium/High,4,3
+W. Galeno,Porto,Primeira Liga,Portugal,26,LW,RM,50.3,87,89,Right,183,83,89,78,81,90,45,51,Creative Playmaker,Low/Medium,2,5
+F. Conceicao,Porto,Primeira Liga,Portugal,21,RW,RM,68.3,90,95,Right,169,66,96,75,84,94,46,52,Inverted Winger,High/Low,4,4
+Evanilson,Porto,Primeira Liga,Portugal,24,ST,RW,65.7,91,95,Right,191,94,83,95,73,84,48,77,Poacher,High/Low,2,5
+C. Ramos,Porto,Primeira Liga,Portugal,32,GK,,53.0,90,92,Right,196,98,41,22,85,47,19,69,Sweeper Keeper,Medium/High,3,1
+M. Sanchez,Porto,Primeira Liga,Portugal,26,RB,RWB,43.3,83,87,Right,179,76,94,69,76,70,84,77,Press Resistant,Medium/Medium,2,4
+F. Cardoso,Porto,Primeira Liga,Portugal,30,CB,CDM,39.5,84,87,Left,191,96,63,52,68,54,88,87,Ball Playing Defender,Medium/Medium,3,3
+O. Ataide,Porto,Primeira Liga,Portugal,26,CB,RB,62.3,90,95,Right,186,88,76,46,55,57,94,87,Ball Winner,Medium/High,5,2
+S. Zaidu,Porto,Primeira Liga,Portugal,27,LB,CB,36.1,80,85,Right,179,78,94,66,85,71,79,76,Press Resistant,High/Low,3,4
+S. Eustaquio,Porto,Primeira Liga,Portugal,27,CM,CDM,50.6,87,90,Right,179,80,71,62,91,79,66,78,Deep Playmaker,Low/Medium,5,5
+M. Grujic,Porto,Primeira Liga,Portugal,28,CDM,,45.4,86,88,Right,178,74,71,68,88,75,65,88,Press Resistant,High/High,2,3
+I. Jaime,Porto,Primeira Liga,Portugal,23,CAM,,53.4,85,90,Right,181,81,95,77,90,87,59,63,Inverted Winger,High/Medium,5,1
+M. Taremi,Porto,Primeira Liga,Portugal,31,ST,CF,26.5,80,81,Right,183,80,77,85,72,87,32,74,Target Man,Medium/Medium,2,1
+E. Martinez,Aston Villa,Premier League,England,31,GK,,52.5,88,93,Right,185,80,41,29,75,48,15,72,Sweeper Keeper,High/High,3,1
+M. Cash,Aston Villa,Premier League,England,26,RB,CB,61.3,89,95,Right,180,83,95,63,79,82,80,76,Traditional Winger,Medium/High,2,2
+E. Konsa,Aston Villa,Premier League,England,26,CB,CDM,63.3,91,95,Right,183,79,82,50,57,65,91,93,Ball Winner,High/High,2,2
+P. Torres,Aston Villa,Premier League,England,27,CB,,61.1,90,95,Right,194,92,78,49,56,50,93,93,Ball Playing Defender,Medium/High,2,3
+A. Moreno,Aston Villa,Premier League,England,31,LB,RWB,33.5,81,85,Right,182,85,94,55,74,74,80,82,Press Resistant,Medium/Medium,4,2
+D. Luiz,Aston Villa,Premier League,England,26,CM,CAM,63.3,91,95,Right,175,73,81,80,95,80,71,83,Box to Box,High/Medium,5,3
+B. Kamara,Aston Villa,Premier League,England,24,CDM,,53.2,86,90,Right,180,76,71,60,87,86,75,78,Press Resistant,High/High,3,4
+J. McGinn,Aston Villa,Premier League,England,29,CM,CDM,56.2,89,94,Right,184,86,76,82,92,76,66,81,Box to Box,Medium/High,2,1
+L. Bailey,Aston Villa,Premier League,England,26,RW,CAM,51.3,85,91,Left,178,83,88,87,85,90,60,67,Creative Playmaker,High/High,2,5
+M. Diaby,Aston Villa,Premier League,England,24,RM,,63.7,89,95,Right,167,69,93,81,90,93,54,68,Creative Playmaker,High/Medium,3,5
+O. Watkins,Aston Villa,Premier League,England,28,ST,RW,34.4,81,84,Right,187,82,83,86,70,90,31,87,Target Man,High/High,4,2
+R. Olsen,Aston Villa,Premier League,England,34,GK,,56.0,90,94,Right,193,91,39,20,74,32,27,82,Sweeper Keeper,Medium/High,5,1
+D. Carlos,Aston Villa,Premier League,England,31,CB,RB,46.0,86,90,Right,185,87,73,52,55,67,88,83,Ball Winner,High/Medium,4,3
+C. Lenglet,Aston Villa,Premier League,England,28,CB,,46.9,86,89,Right,188,92,72,45,74,51,86,84,Ball Winner,High/Medium,5,2
+L. Digne,Aston Villa,Premier League,England,30,LB,,55.5,91,93,Right,180,77,88,61,70,75,85,78,Traditional Winger,High/High,2,2
+Y. Tielemans,Aston Villa,Premier League,England,27,CM,CAM,37.6,83,84,Right,180,82,78,66,87,75,64,82,Press Resistant,High/Medium,3,5
+N. Zaniolo,Aston Villa,Premier League,England,24,CAM,,45.7,80,89,Right,175,78,91,74,90,85,58,69,Inverted Winger,High/Medium,3,4
+J. Ramsey,Aston Villa,Premier League,England,23,LM,,55.9,83,93,Left,167,64,86,76,86,85,48,50,Creative Playmaker,High/Medium,2,4
+J. Duran,Aston Villa,Premier League,England,20,ST,LW,61.5,82,95,Left,177,79,76,84,73,88,41,71,Target Man,Medium/High,3,3
+M. Rogers,Aston Villa,Premier League,England,21,LM,,63.3,85,95,Right,166,63,92,72,89,89,55,72,Creative Playmaker,High/Low,5,4
+N. Johnson,West Ham,Premier League,England,32,RM,,15.0,76,76,Right,165,70,92,77,88,82,53,60,Creative Playmaker,High/Medium,4,1
+A. Taylor,West Ham,Premier League,England,26,CF,,16.8,73,76,Left,182,84,78,76,76,79,30,80,Target Man,Low/Medium,5,5
+B. Michel,West Ham,Premier League,England,17,CF,,42.6,73,86,Right,182,85,84,77,82,77,48,78,Poacher,Medium/High,3,4
+S. Smith,West Ham,Premier League,England,22,RB,RWB,42.6,79,86,Right,182,82,84,54,79,71,72,81,Traditional Winger,Medium/Medium,4,4
+G. Taylor,West Ham,Premier League,England,23,LM,,31.4,75,82,Right,167,68,93,87,87,78,50,75,Inverted Winger,Medium/High,2,1
+L. Evans,West Ham,Premier League,England,34,RB,,35.5,83,85,Left,180,77,87,62,83,73,79,70,Traditional Winger,High/High,5,3
+L. Schmidt,West Ham,Premier League,England,26,CDM,,36.3,79,85,Right,188,84,66,72,80,80,69,77,Ball Winner,High/Low,5,1
+J. Moreau,West Ham,Premier League,England,19,RM,,53.7,79,91,Right,183,82,91,81,80,81,43,61,Traditional Winger,Medium/High,4,3
+T. Rodriguez,West Ham,Premier League,England,26,CF,,40.3,80,87,Right,178,82,93,85,76,87,38,81,Poacher,Low/Medium,2,4
+M. Silva,West Ham,Premier League,England,19,ST,LW,56.7,82,91,Right,192,91,80,84,74,88,30,71,Target Man,High/Medium,2,4
+J. Williams,West Ham,Premier League,England,18,CAM,,63.9,82,95,Right,172,77,86,78,83,84,54,61,Inverted Winger,High/Medium,2,2
+M. Horvat,West Ham,Premier League,England,21,CM,CDM,38.3,75,85,Right,190,89,69,80,76,82,55,88,Deep Playmaker,High/Low,4,1
+J. Russo,West Ham,Premier League,England,21,ST,LW,32.8,74,82,Right,187,90,91,76,79,86,30,89,Target Man,High/Medium,2,2
+G. Schmidt,West Ham,Premier League,England,18,GK,,45.9,76,87,Left,193,95,47,23,63,35,17,84,Sweeper Keeper,High/High,5,1
+H. Brown,West Ham,Premier League,England,34,CM,CDM,35.0,81,86,Right,178,77,80,61,83,75,74,70,Ball Winner,Medium/High,5,5
+J. Schneider,West Ham,Premier League,England,23,CB,,28.9,74,81,Right,190,93,61,54,65,70,74,73,Ball Playing Defender,High/High,5,5
+J. Dubois,West Ham,Premier League,England,21,CAM,,45.3,79,87,Right,185,85,93,73,88,81,44,65,Inverted Winger,High/High,2,5
+S. Simon,West Ham,Premier League,England,17,RB,,54.6,79,90,Right,176,78,89,53,83,78,83,65,Press Resistant,High/Low,2,1
+J. Fischer,West Ham,Premier League,England,29,LM,,27.2,78,82,Right,165,61,94,83,88,82,42,53,Creative Playmaker,Low/Medium,4,1
+J. Kovacic,West Ham,Premier League,England,34,RB,,24.5,78,81,Right,171,67,93,58,79,84,77,76,Press Resistant,High/Medium,2,4
+H. Silva,West Ham,Premier League,England,20,CF,,41.5,77,85,Right,184,85,89,79,80,84,49,84,Poacher,High/Low,5,1
+L. Oliveira,West Ham,Premier League,England,24,CM,CDM,24.7,74,79,Right,188,91,67,80,78,83,67,74,Box to Box,Medium/Medium,2,4
+V. Brown,West Ham,Premier League,England,17,CAM,,53.1,76,91,Right,182,85,84,85,89,81,56,63,Creative Playmaker,Medium/High,4,1
+O. Martinez,West Ham,Premier League,England,23,LB,LWB,38.4,76,86,Right,180,77,85,67,84,74,77,82,Press Resistant,Low/Medium,5,4
+K. Michel,West Ham,Premier League,England,19,CF,,55.7,81,91,Right,178,77,89,83,68,81,38,71,Poacher,High/Medium,3,2
+M. Weber,Brighton,Premier League,England,23,CB,,31.9,74,83,Right,192,96,71,55,75,63,77,71,Ball Playing Defender,Medium/Medium,4,4
+L. Oliveira,Brighton,Premier League,England,29,ST,RW,11.2,74,74,Right,182,87,78,76,74,81,47,75,Target Man,Low/Medium,3,5
+C. Garcia,Brighton,Premier League,England,18,LM,,49.4,75,90,Left,171,71,83,75,84,80,53,58,Creative Playmaker,Low/Medium,4,3
+L. Evans,Brighton,Premier League,England,20,RW,ST,30.5,72,81,Left,176,74,87,81,79,74,50,50,Creative Playmaker,Low/Medium,2,2
+V. Pereira,Brighton,Premier League,England,22,ST,,36.1,77,83,Right,195,93,76,83,70,80,41,83,Target Man,Medium/High,5,3
+G. Evans,Brighton,Premier League,England,26,CB,RB,46.3,83,89,Right,192,91,79,51,64,70,84,88,Ball Playing Defender,High/Low,2,5
+G. Ferrari,Brighton,Premier League,England,32,CB,CDM,15.0,76,76,Right,196,93,68,37,63,62,76,78,Ball Winner,Low/Medium,2,5
+V. Smith,Brighton,Premier League,England,19,CB,,58.7,81,93,Right,196,99,74,54,65,56,86,86,Ball Playing Defender,Low/Medium,4,5
+I. Evans,Brighton,Premier League,England,17,RB,,65.1,82,95,Right,174,74,93,69,75,85,73,80,Press Resistant,Low/Medium,4,2
+O. Gonzalez,Brighton,Premier League,England,32,CM,CAM,27.5,78,83,Right,179,74,67,63,82,80,73,87,Deep Playmaker,High/Low,2,2
+S. Jones,Brighton,Premier League,England,28,CAM,,33.9,82,83,Right,185,80,91,81,87,84,51,75,Creative Playmaker,Medium/Medium,3,3
+J. Esposito,Brighton,Premier League,England,17,CB,CDM,56.6,78,92,Right,193,93,80,42,68,64,80,78,Ball Playing Defender,Medium/Medium,4,5
+O. Novak,Brighton,Premier League,England,18,CM,CDM,46.9,74,89,Right,173,70,66,72,75,76,57,86,Deep Playmaker,High/Medium,4,3
+M. Kovacic,Brighton,Premier League,England,32,ST,RW,13.0,74,76,Right,184,89,92,78,65,79,27,86,Target Man,High/High,5,1
+G. Costa,Brighton,Premier League,England,32,CM,CDM,23.0,78,80,Right,181,83,65,66,78,86,66,83,Ball Winner,Low/Medium,4,5
+M. Taylor,Brighton,Premier League,England,20,CDM,,40.5,76,85,Left,178,77,78,81,77,88,81,83,Ball Winner,Low/Medium,2,5
+L. Horvat,Brighton,Premier League,England,33,ST,,33.5,81,85,Left,184,89,90,85,66,79,46,79,Target Man,High/High,3,3
+T. Brown,Brighton,Premier League,England,21,RB,,42.8,78,86,Right,185,83,85,62,75,76,84,78,Press Resistant,Low/Medium,3,1
+A. Thomas,Brighton,Premier League,England,26,CAM,,26.3,75,81,Left,174,78,96,76,75,77,44,75,Inverted Winger,High/High,3,3
+J. Martinez,Brighton,Premier League,England,25,RB,LWB,30.0,76,82,Right,178,73,82,51,73,79,72,75,Traditional Winger,High/High,4,4
+A. Jones,Brighton,Premier League,England,25,ST,LW,33.5,78,83,Right,179,75,80,80,66,88,46,89,Poacher,Medium/Medium,3,5
+C. Lopez,Brighton,Premier League,England,28,CM,CDM,20.9,75,79,Right,172,69,78,75,77,76,60,78,Box to Box,Low/Medium,3,3
+K. Evans,Brighton,Premier League,England,19,CF,,44.7,76,87,Right,176,81,85,78,78,86,44,79,Poacher,High/Medium,3,5
+M. Brown,Brighton,Premier League,England,21,CM,CDM,58.8,82,94,Right,178,77,65,62,85,82,69,78,Deep Playmaker,High/Low,5,1
+L. Moreau,Brighton,Premier League,England,17,LB,CB,44.6,72,88,Right,185,87,82,62,84,78,74,67,Press Resistant,High/Medium,3,3
+O. Simon,Crystal Palace,Premier League,England,17,CDM,,56.1,79,91,Right,182,85,75,62,81,83,65,88,Ball Winner,Medium/Medium,2,3
+A. Evans,Crystal Palace,Premier League,England,21,ST,LW,32.8,74,82,Right,180,80,75,78,74,79,48,76,Poacher,High/Medium,4,2
+O. Schmidt,Crystal Palace,Premier League,England,28,RM,,38.4,82,86,Left,169,67,94,78,85,85,54,64,Creative Playmaker,Medium/High,5,4
+G. Jones,Crystal Palace,Premier League,England,33,GK,,14.5,74,77,Right,195,90,34,27,69,32,25,85,Sweeper Keeper,High/High,5,1
+L. Rodriguez,Crystal Palace,Premier League,England,33,LW,RM,38.5,83,87,Left,174,71,87,77,86,86,54,55,Traditional Winger,High/Low,3,2
+L. Santos,Crystal Palace,Premier League,England,25,ST,LW,21.0,73,78,Left,177,73,83,78,73,75,37,88,Poacher,Low/Medium,2,1
+J. Ferrari,Crystal Palace,Premier League,England,25,CM,CAM,25.0,74,80,Right,176,79,75,65,76,80,61,83,Deep Playmaker,Low/Medium,3,4
+L. Oliveira,Crystal Palace,Premier League,England,28,GK,,14.9,75,75,Right,194,95,33,19,77,34,27,79,Sweeper Keeper,Medium/Medium,3,1
+S. Esposito,Crystal Palace,Premier League,England,17,CB,CDM,59.6,81,92,Right,195,93,81,30,64,64,83,84,Ball Winner,High/High,2,5
+H. Moreau,Crystal Palace,Premier League,England,25,GK,,38.0,81,84,Right,199,97,55,20,67,46,22,64,Sweeper Keeper,Low/Medium,3,1
+M. Johnson,Crystal Palace,Premier League,England,26,LM,,17.3,72,77,Right,184,84,96,81,89,78,49,74,Creative Playmaker,High/Medium,5,1
+A. Horvat,Crystal Palace,Premier League,England,26,CAM,,40.8,82,86,Right,171,69,84,83,86,85,44,56,Creative Playmaker,High/Medium,3,3
+S. Moreau,Crystal Palace,Premier League,England,31,RB,CB,22.0,77,80,Right,177,78,83,66,72,85,79,80,Traditional Winger,Medium/High,2,5
+D. Popovic,Crystal Palace,Premier League,England,35,CM,CAM,26.0,78,82,Right,179,78,81,63,83,81,57,85,Box to Box,Medium/Medium,3,3
+O. Schneider,Crystal Palace,Premier League,England,20,ST,RW,62.5,83,95,Right,175,78,88,87,69,80,27,73,Poacher,Medium/High,4,3
+S. Muller,Crystal Palace,Premier League,England,27,GK,,37.6,83,84,Right,190,92,35,19,77,39,19,62,Sweeper Keeper,High/High,4,1
+J. Lopez,Crystal Palace,Premier League,England,32,GK,,27.5,81,81,Right,187,89,44,28,65,36,17,75,Sweeper Keeper,Medium/High,2,1
+M. Lopez,Crystal Palace,Premier League,England,17,LW,CAM,49.1,75,89,Right,174,73,86,80,79,79,57,57,Inverted Winger,Medium/High,2,2
+K. Rossi,Crystal Palace,Premier League,England,17,LM,,49.6,74,90,Right,168,72,82,86,75,76,41,60,Traditional Winger,Low/Medium,4,4
+J. Thomas,Crystal Palace,Premier League,England,29,CM,CDM,25.7,78,81,Right,185,82,67,81,78,81,61,75,Press Resistant,High/Low,5,2
+S. Rodriguez,Crystal Palace,Premier League,England,28,ST,CF,7.4,72,72,Left,184,88,85,74,81,84,45,84,Poacher,High/Medium,2,4
+L. Moreau,Crystal Palace,Premier League,England,22,CM,CDM,25.1,72,79,Left,189,92,69,72,77,80,59,88,Deep Playmaker,High/Low,4,1
+D. Schmidt,Crystal Palace,Premier League,England,33,GK,,21.0,76,80,Right,189,92,42,22,74,34,22,65,Sweeper Keeper,High/Medium,4,1
+J. Davies,Crystal Palace,Premier League,England,34,CB,CDM,9.0,73,74,Right,188,92,65,38,69,53,74,72,Ball Winner,High/Low,5,5
+J. Fischer,Real Sociedad,La Liga,Spain,24,LW,CAM,41.2,80,86,Right,180,75,94,81,83,86,37,53,Inverted Winger,High/Low,2,4
+D. Dubois,Real Sociedad,La Liga,Spain,19,CB,,39.2,72,86,Right,185,90,62,54,71,67,72,78,Ball Playing Defender,Medium/High,5,2
+A. Oliveira,Real Sociedad,La Liga,Spain,27,LW,RM,21.1,74,79,Right,181,84,88,79,83,78,54,54,Inverted Winger,High/Low,5,1
+S. Thomas,Real Sociedad,La Liga,Spain,29,LB,CB,11.2,74,74,Right,172,67,88,51,85,72,81,73,Traditional Winger,Medium/Medium,3,1
+M. Weber,Real Sociedad,La Liga,Spain,29,RM,,26.2,80,80,Right,183,86,85,74,80,85,53,56,Inverted Winger,Medium/High,5,4
+T. Silva,Real Sociedad,La Liga,Spain,28,CB,CDM,17.9,75,77,Right,185,88,80,36,57,54,77,80,Ball Playing Defender,Low/Medium,2,2
+A. Santos,Real Sociedad,La Liga,Spain,18,CM,CDM,61.9,83,93,Left,188,89,83,62,88,86,55,76,Box to Box,Medium/High,5,5
+J. Thomas,Real Sociedad,La Liga,Spain,32,RB,CB,28.0,80,82,Right,175,72,89,60,76,74,85,70,Traditional Winger,Medium/Medium,3,5
+T. Dubois,Real Sociedad,La Liga,Spain,30,RM,,35.5,83,85,Right,178,75,91,83,90,87,60,65,Traditional Winger,Medium/High,2,2
+M. Evans,Real Sociedad,La Liga,Spain,28,RW,ST,37.9,83,85,Left,177,76,94,74,75,89,37,73,Creative Playmaker,High/Medium,4,2
+J. Garcia,Real Sociedad,La Liga,Spain,17,CB,CDM,62.1,79,95,Left,185,81,78,50,68,70,79,85,Ball Playing Defender,Low/Medium,4,2
+M. Ferrari,Real Sociedad,La Liga,Spain,34,RB,,12.0,73,76,Right,175,74,86,56,74,83,81,68,Traditional Winger,High/Medium,4,1
+J. Roberts,Real Sociedad,La Liga,Spain,19,LB,CB,39.7,74,85,Left,173,69,80,57,83,73,82,71,Traditional Winger,Low/Medium,4,2
+M. Roberts,Real Sociedad,La Liga,Spain,28,CDM,,31.9,80,83,Right,190,92,84,77,83,77,81,77,Box to Box,Medium/Medium,5,3
+C. Rodriguez,Real Sociedad,La Liga,Spain,28,LB,,32.4,82,82,Right,174,70,82,55,74,77,83,68,Press Resistant,High/High,2,1
+M. Laurent,Real Sociedad,La Liga,Spain,25,ST,CF,43.5,82,87,Left,187,85,86,84,77,89,38,77,Poacher,High/Medium,5,2
+D. Gonzalez,Real Sociedad,La Liga,Spain,17,LM,,44.6,72,88,Right,182,77,94,70,75,76,34,52,Traditional Winger,High/High,2,3
+B. Popovic,Real Sociedad,La Liga,Spain,34,GK,,9.0,73,74,Right,193,90,37,19,60,48,16,66,Sweeper Keeper,High/Medium,5,1
+J. Lopez,Real Sociedad,La Liga,Spain,18,CAM,,35.9,72,83,Left,178,78,86,73,84,75,51,60,Inverted Winger,Medium/Medium,4,5
+L. Russo,Real Sociedad,La Liga,Spain,30,CDM,,30.0,82,82,Right,174,77,66,63,86,75,67,77,Ball Winner,High/Medium,3,4
+M. Novak,Real Sociedad,La Liga,Spain,31,LW,LM,23.5,77,81,Right,179,78,89,85,81,82,45,58,Traditional Winger,Low/Medium,4,1
+G. Schmidt,Real Sociedad,La Liga,Spain,30,RB,CB,40.0,83,88,Right,185,82,82,57,74,80,75,72,Traditional Winger,Medium/High,4,5
+A. Smith,Real Sociedad,La Liga,Spain,34,CB,,28.0,80,82,Left,190,88,82,41,70,50,82,85,Ball Playing Defender,Medium/Medium,2,4
+J. Martinez,Real Sociedad,La Liga,Spain,18,CB,CDM,46.4,75,88,Left,192,95,78,53,70,67,77,77,Ball Winner,Medium/Medium,5,5
+N. Novak,Real Sociedad,La Liga,Spain,25,CB,CDM,28.0,77,80,Right,189,86,64,36,65,58,81,77,Ball Winner,High/High,5,3
+D. Muller,Real Betis,La Liga,Spain,33,LW,LM,13.5,73,77,Right,183,81,83,81,79,76,38,55,Creative Playmaker,High/Low,5,5
+H. Horvat,Real Betis,La Liga,Spain,22,GK,,36.6,76,84,Right,190,86,33,26,75,45,30,68,Sweeper Keeper,Low/Medium,3,1
+L. Kovacic,Real Betis,La Liga,Spain,34,ST,CF,12.5,72,77,Right,190,90,81,76,72,75,33,89,Poacher,High/High,3,2
+L. Roberts,Real Betis,La Liga,Spain,28,RW,ST,32.4,79,84,Left,184,86,96,78,85,84,43,55,Inverted Winger,Medium/Medium,3,3
+H. Michel,Real Betis,La Liga,Spain,28,ST,RW,27.4,77,82,Right,176,72,86,82,75,79,37,73,Poacher,High/Medium,2,4
+S. Evans,Real Betis,La Liga,Spain,27,GK,,35.1,82,83,Right,191,94,58,29,73,41,24,84,Sweeper Keeper,High/High,4,1
+M. Santos,Real Betis,La Liga,Spain,29,RB,CB,25.2,79,80,Right,182,87,86,53,73,73,80,72,Traditional Winger,Medium/High,2,1
+S. Simon,Real Betis,La Liga,Spain,23,RW,CAM,45.9,82,87,Right,185,86,95,84,83,84,59,55,Inverted Winger,Medium/High,5,3
+J. Silva,Real Betis,La Liga,Spain,26,CB,RB,33.3,79,83,Right,193,95,75,45,57,59,80,80,Ball Winner,Medium/High,4,2
+L. Brown,Real Betis,La Liga,Spain,22,CF,,49.1,81,89,Left,194,92,81,84,77,80,26,80,Poacher,Medium/Medium,2,3
+A. Ferrari,Real Betis,La Liga,Spain,20,CM,CDM,36.5,75,83,Left,180,84,85,64,77,85,70,76,Box to Box,High/Low,3,2
+J. Gonzalez,Real Betis,La Liga,Spain,34,CAM,,31.5,82,83,Right,174,75,92,76,77,87,30,58,Inverted Winger,High/Medium,2,4
+G. Fischer,Real Betis,La Liga,Spain,17,CB,RB,49.6,77,88,Right,187,84,60,55,60,60,79,80,Ball Playing Defender,High/High,5,5
+L. Martinez,Real Betis,La Liga,Spain,32,CF,,19.0,77,78,Right,184,79,85,83,80,80,32,72,Poacher,Low/Medium,3,4
+J. Taylor,Real Betis,La Liga,Spain,33,RW,CAM,30.0,82,82,Right,178,76,83,82,80,86,39,65,Creative Playmaker,High/Low,5,2
+L. Oliveira,Real Betis,La Liga,Spain,17,RM,,61.6,80,94,Right,185,89,95,83,75,85,44,64,Traditional Winger,Medium/High,4,2
+K. Weber,Real Betis,La Liga,Spain,21,LB,,51.3,82,89,Right,178,78,84,65,84,76,75,74,Press Resistant,High/Medium,2,5
+J. Rossi,Real Betis,La Liga,Spain,21,RW,ST,57.3,82,93,Right,168,69,92,79,90,85,37,69,Inverted Winger,High/Medium,4,4
+K. Laurent,Real Betis,La Liga,Spain,35,CDM,,33.0,82,84,Right,187,87,68,73,82,83,78,72,Deep Playmaker,High/Medium,3,2
+M. Costa,Real Betis,La Liga,Spain,19,LM,,37.2,73,84,Left,167,63,84,71,90,76,41,68,Inverted Winger,Low/Medium,2,1
+D. Thomas,Real Betis,La Liga,Spain,18,CDM,,63.9,82,95,Right,188,85,65,79,87,78,68,83,Ball Winner,High/Low,5,1
+T. Rossi,Real Betis,La Liga,Spain,27,LM,,38.6,81,86,Right,170,71,95,73,90,85,55,51,Traditional Winger,High/High,5,3
+T. Williams,Real Betis,La Liga,Spain,30,CAM,,16.0,74,78,Left,169,70,91,70,79,77,38,74,Inverted Winger,Low/Medium,5,5
+M. Popovic,Real Betis,La Liga,Spain,31,CAM,,21.0,76,80,Right,185,88,96,79,76,81,53,59,Creative Playmaker,Medium/High,2,1
+L. Thomas,Athletic Club,La Liga,Spain,34,CB,,25.0,80,80,Right,188,89,82,31,63,70,82,78,Ball Winner,Medium/High,4,4
+P. Santos,Athletic Club,La Liga,Spain,31,CB,CDM,30.5,81,83,Right,191,87,61,33,57,66,83,86,Ball Playing Defender,Medium/High,5,3
+J. Rodriguez,Athletic Club,La Liga,Spain,28,GK,,23.4,76,80,Right,189,93,49,25,85,47,19,74,Sweeper Keeper,Medium/Medium,5,1
+L. Oliveira,Athletic Club,La Liga,Spain,33,CF,,24.5,78,81,Right,178,78,92,81,66,89,29,88,Target Man,Medium/Medium,2,3
+A. Silva,Athletic Club,La Liga,Spain,22,CB,RB,44.1,79,87,Right,183,82,63,43,66,60,84,81,Ball Playing Defender,High/Low,4,2
+D. Brown,Athletic Club,La Liga,Spain,25,LW,CAM,43.0,83,86,Right,171,71,87,82,80,88,60,74,Traditional Winger,High/Low,4,4
+T. Bianchi,Athletic Club,La Liga,Spain,34,CB,CDM,6.5,72,73,Left,194,90,75,40,67,57,75,75,Ball Winner,Medium/High,4,4
+J. Jones,Athletic Club,La Liga,Spain,24,CAM,,24.2,72,80,Left,174,70,85,73,77,75,42,53,Creative Playmaker,Medium/Medium,5,3
+L. Rodriguez,Athletic Club,La Liga,Spain,33,CDM,,10.0,74,74,Right,187,91,71,77,79,83,71,77,Ball Winner,Medium/High,3,1
+L. Gonzalez,Athletic Club,La Liga,Spain,17,CM,CAM,56.6,78,92,Right,184,86,67,81,81,77,60,70,Ball Winner,Medium/High,2,1
+B. Novak,Athletic Club,La Liga,Spain,28,ST,RW,31.4,81,82,Right,194,90,79,86,71,84,46,82,Target Man,High/Low,3,2
+H. Fischer,Athletic Club,La Liga,Spain,21,GK,,55.8,82,92,Right,199,94,50,20,61,36,26,60,Sweeper Keeper,High/Low,4,1
+L. Taylor,Athletic Club,La Liga,Spain,29,CM,CAM,18.7,74,79,Right,182,78,73,72,78,81,68,70,Deep Playmaker,Medium/High,5,1
+M. Dubois,Athletic Club,La Liga,Spain,17,ST,,63.1,80,95,Right,180,80,76,84,73,87,37,75,Poacher,Medium/Medium,2,5
+O. Dubois,Athletic Club,La Liga,Spain,20,ST,RW,62.5,83,95,Right,185,83,75,85,71,82,42,84,Poacher,High/Medium,2,2
+M. Williams,Athletic Club,La Liga,Spain,31,CDM,,33.0,82,84,Left,190,85,66,77,87,80,81,87,Deep Playmaker,Medium/Medium,3,3
+A. Pereira,Athletic Club,La Liga,Spain,33,ST,,31.5,82,83,Right,185,85,77,86,69,88,31,77,Target Man,Low/Medium,3,5
+P. Schmidt,Athletic Club,La Liga,Spain,23,RM,,30.4,74,82,Right,165,70,82,87,75,79,46,74,Creative Playmaker,High/Medium,2,3
+M. Laurent,Athletic Club,La Liga,Spain,21,LW,LM,53.3,81,91,Right,176,71,86,72,77,84,36,57,Traditional Winger,Medium/High,4,1
+M. Costa,Athletic Club,La Liga,Spain,27,ST,RW,35.6,81,84,Right,179,81,88,83,71,89,44,90,Target Man,High/Low,5,3
+I. Evans,Athletic Club,La Liga,Spain,18,CB,CDM,55.9,80,91,Right,196,93,75,44,68,62,85,79,Ball Playing Defender,High/High,5,3
+C. Russo,Athletic Club,La Liga,Spain,32,RB,,37.5,82,87,Left,176,80,94,58,79,80,79,72,Traditional Winger,High/High,5,1
+T. Laurent,Athletic Club,La Liga,Spain,34,CB,CDM,22.5,79,79,Left,194,91,67,49,61,51,84,77,Ball Playing Defender,High/Medium,4,3
+A. Oliveira,Athletic Club,La Liga,Spain,27,RW,CAM,21.6,76,78,Right,166,67,84,84,83,81,42,67,Inverted Winger,High/High,3,2
+J. Fischer,Athletic Club,La Liga,Spain,25,ST,,20.0,72,78,Left,181,85,90,75,67,78,27,80,Target Man,High/High,2,3
+G. Davies,Lazio,Serie A,Italy,27,CM,CAM,34.6,80,84,Right,176,73,71,75,81,87,65,71,Ball Winner,High/Medium,5,4
+M. Brown,Lazio,Serie A,Italy,20,ST,CF,48.0,79,88,Right,184,83,75,82,81,80,40,88,Target Man,High/Low,5,4
+S. Silva,Lazio,Serie A,Italy,25,ST,,41.0,81,86,Right,186,89,84,84,70,84,43,80,Poacher,Low/Medium,4,3
+A. Garcia,Lazio,Serie A,Italy,21,CM,CDM,54.8,81,92,Right,190,88,70,73,82,86,75,73,Press Resistant,Low/Medium,2,2
+M. Russo,Lazio,Serie A,Italy,29,LB,RWB,24.2,78,80,Right,179,81,92,58,85,82,78,71,Press Resistant,High/High,2,1
+D. Pereira,Lazio,Serie A,Italy,24,ST,,45.2,81,88,Right,181,79,81,84,78,75,40,71,Target Man,Medium/High,2,5
+D. Russo,Lazio,Serie A,Italy,21,GK,,48.8,78,90,Right,196,92,33,17,77,43,22,61,Sweeper Keeper,Medium/Medium,5,1
+J. Dubois,Lazio,Serie A,Italy,26,CDM,,14.3,72,75,Right,179,74,72,66,76,82,74,76,Press Resistant,Medium/Medium,5,4
+G. Horvat,Lazio,Serie A,Italy,20,LW,CAM,59.0,81,94,Right,177,82,96,75,80,85,39,73,Inverted Winger,Low/Medium,4,3
+A. Brown,Lazio,Serie A,Italy,26,CM,CAM,29.3,78,81,Right,180,81,84,68,83,85,73,75,Press Resistant,High/Low,3,5
+J. Taylor,Lazio,Serie A,Italy,32,ST,RW,34.5,82,85,Left,181,80,93,86,80,76,43,74,Poacher,High/Low,5,3
+J. Brown,Lazio,Serie A,Italy,24,RW,ST,37.7,78,85,Right,175,72,88,72,90,82,45,64,Traditional Winger,High/Medium,2,4
+M. Novak,Lazio,Serie A,Italy,18,CB,,58.4,81,92,Right,184,89,77,31,73,58,83,87,Ball Playing Defender,Low/Medium,4,4
+T. Schneider,Lazio,Serie A,Italy,33,LM,,12.5,72,77,Right,169,66,89,78,83,76,35,57,Inverted Winger,Medium/Medium,5,3
+N. Davies,Lazio,Serie A,Italy,19,CAM,,60.2,81,94,Right,165,65,82,82,89,83,35,54,Traditional Winger,High/Low,2,1
+C. Pereira,Lazio,Serie A,Italy,32,RM,,22.5,79,79,Left,170,70,95,77,82,81,50,67,Traditional Winger,High/Low,3,2
+O. Roberts,Lazio,Serie A,Italy,32,ST,,20.0,75,80,Right,185,88,89,78,71,77,50,70,Target Man,High/Low,5,3
+D. Rodriguez,Lazio,Serie A,Italy,35,GK,,38.5,83,87,Left,187,87,47,16,74,45,25,68,Sweeper Keeper,Low/Medium,5,1
+G. Ferrari,Lazio,Serie A,Italy,18,ST,LW,64.9,83,95,Right,189,87,82,87,70,81,41,70,Poacher,High/Low,2,3
+J. Esposito,Lazio,Serie A,Italy,34,CAM,,26.5,80,81,Right,185,90,96,77,90,84,45,75,Inverted Winger,Medium/Medium,2,4
+D. Bianchi,Lazio,Serie A,Italy,27,CB,CDM,32.6,81,82,Left,186,88,63,46,70,53,81,85,Ball Winner,High/High,5,4
+I. Davies,Lazio,Serie A,Italy,26,CB,,39.3,82,85,Right,190,90,64,31,57,68,82,81,Ball Playing Defender,High/High,5,1
+S. Thomas,Lazio,Serie A,Italy,29,ST,RW,16.7,75,77,Right,183,80,75,78,73,75,42,89,Target Man,High/High,4,3
+L. Dubois,Fiorentina,Serie A,Italy,22,CDM,,38.6,78,84,Left,178,75,76,82,82,79,83,87,Box to Box,Low/Medium,3,3
+L. Russo,Fiorentina,Serie A,Italy,19,CM,CDM,34.7,72,83,Right,183,83,67,78,72,75,58,74,Ball Winner,Medium/High,5,5
+O. Smith,Fiorentina,Serie A,Italy,21,GK,,46.8,79,88,Right,194,94,49,23,70,41,21,76,Sweeper Keeper,High/Low,4,1
+L. Johnson,Fiorentina,Serie A,Italy,30,LW,ST,18.0,76,78,Left,165,63,92,86,77,78,33,66,Creative Playmaker,High/Low,4,5
+M. Novak,Fiorentina,Serie A,Italy,22,GK,,36.1,77,83,Right,195,98,48,25,67,43,25,77,Sweeper Keeper,Low/Medium,5,1
+C. Rossi,Fiorentina,Serie A,Italy,30,CM,CDM,30.0,79,84,Right,178,82,83,71,80,83,68,79,Press Resistant,Low/Medium,3,2
+J. Evans,Fiorentina,Serie A,Italy,27,CF,,15.1,74,75,Right,178,74,92,79,73,82,32,86,Target Man,High/Low,2,3
+D. Oliveira,Fiorentina,Serie A,Italy,30,CAM,,34.0,83,84,Left,167,72,96,85,76,88,39,58,Inverted Winger,Medium/High,5,3
+A. Novak,Fiorentina,Serie A,Italy,30,CDM,,30.0,79,84,Left,186,81,78,64,80,75,85,70,Ball Winner,Medium/Medium,2,5
+M. Weber,Fiorentina,Serie A,Italy,29,CM,CAM,10.7,72,75,Left,173,75,81,68,73,84,63,74,Press Resistant,Medium/Medium,3,1
+A. Oliveira,Fiorentina,Serie A,Italy,26,CB,RB,34.8,79,84,Right,185,88,72,43,74,55,80,79,Ball Winner,Low/Medium,5,4
+M. Rodriguez,Fiorentina,Serie A,Italy,33,CB,CDM,31.0,80,84,Right,190,93,74,54,57,58,83,79,Ball Playing Defender,Low/Medium,3,4
+D. Santos,Fiorentina,Serie A,Italy,20,CM,CDM,36.5,75,83,Right,176,74,69,79,80,77,73,81,Box to Box,High/Medium,4,3
+H. Davies,Fiorentina,Serie A,Italy,22,CF,,30.1,74,81,Left,177,73,84,76,72,76,39,75,Target Man,High/Medium,2,3
+A. Popovic,Fiorentina,Serie A,Italy,32,CAM,,30.0,82,82,Right,181,82,85,77,88,85,42,73,Inverted Winger,Medium/Medium,3,5
+S. Evans,Fiorentina,Serie A,Italy,22,CM,CDM,46.1,81,87,Right,186,85,77,82,85,76,65,81,Box to Box,Medium/Medium,3,2
+A. Johnson,Fiorentina,Serie A,Italy,34,CM,CDM,14.5,74,77,Right,187,87,82,61,79,75,69,87,Deep Playmaker,High/Medium,3,4
+S. Roberts,Fiorentina,Serie A,Italy,32,RW,LM,33.5,81,85,Right,173,70,90,77,78,86,45,61,Inverted Winger,Low/Medium,3,1
+M. Johnson,Fiorentina,Serie A,Italy,27,CM,CDM,32.6,81,82,Right,189,91,74,73,82,78,58,82,Ball Winner,High/High,3,3
+C. Simon,Fiorentina,Serie A,Italy,18,CDM,,40.4,72,86,Left,189,94,81,66,73,75,67,87,Press Resistant,High/High,4,4
+L. Brown,Fiorentina,Serie A,Italy,29,GK,,30.2,81,82,Right,197,101,43,22,62,47,30,76,Sweeper Keeper,High/Medium,2,1
+J. Roberts,Fiorentina,Serie A,Italy,17,CAM,,42.6,73,86,Left,178,73,82,83,84,79,39,73,Inverted Winger,Medium/High,4,3
+G. Thomas,Fiorentina,Serie A,Italy,35,LM,,28.0,80,82,Left,180,79,94,83,88,83,39,59,Inverted Winger,High/Low,4,3
+J. Williams,Fiorentina,Serie A,Italy,22,CAM,,41.1,76,87,Right,179,84,85,86,84,79,47,50,Traditional Winger,Medium/High,4,1
+D. Gonzalez,Atalanta,Serie A,Italy,19,CM,CDM,53.2,80,90,Left,190,85,67,82,82,75,63,82,Box to Box,Medium/High,5,5
+L. Costa,Atalanta,Serie A,Italy,34,RB,LWB,23.5,77,81,Right,180,81,81,52,73,74,74,82,Press Resistant,Low/Medium,3,2
+L. Laurent,Atalanta,Serie A,Italy,24,LB,,23.7,73,79,Right,176,80,83,63,72,71,72,82,Traditional Winger,Medium/High,4,5
+L. Schmidt,Atalanta,Serie A,Italy,28,CM,CDM,14.9,72,77,Right,184,84,72,75,76,81,74,74,Box to Box,High/Medium,3,2
+J. Jones,Atalanta,Serie A,Italy,35,RW,CAM,29.0,81,82,Left,171,67,84,84,77,87,53,74,Inverted Winger,Low/Medium,4,3
+M. Smith,Atalanta,Serie A,Italy,22,LM,,43.6,80,86,Left,176,71,92,73,82,84,55,56,Inverted Winger,Medium/High,3,4
+V. Weber,Atalanta,Serie A,Italy,19,CB,CDM,44.2,74,88,Right,196,93,72,46,58,61,75,77,Ball Winner,High/High,5,3
+M. Martinez,Atalanta,Serie A,Italy,23,CB,,26.4,73,80,Right,184,87,81,30,58,56,74,78,Ball Winner,Low/Medium,5,4
+D. Popovic,Atalanta,Serie A,Italy,25,CB,,30.0,76,82,Right,194,96,68,39,67,67,77,75,Ball Playing Defender,High/Medium,3,2
+C. Muller,Atalanta,Serie A,Italy,32,GK,,25.0,77,82,Left,194,90,47,22,79,49,19,69,Sweeper Keeper,Medium/High,3,1
+A. Muller,Atalanta,Serie A,Italy,32,CB,CDM,24.0,79,80,Left,190,91,79,54,68,62,84,82,Ball Playing Defender,High/Medium,4,2
+L. Fischer,Atalanta,Serie A,Italy,31,CF,,13.5,73,77,Left,182,79,76,78,79,90,28,88,Poacher,Low/Medium,2,2
+D. Schneider,Atalanta,Serie A,Italy,25,CB,CDM,34.0,77,84,Right,183,78,62,50,64,53,79,74,Ball Playing Defender,Medium/Medium,5,1
+H. Garcia,Atalanta,Serie A,Italy,27,CB,,13.1,72,75,Left,193,89,69,30,75,59,74,71,Ball Winner,High/Low,2,1
+L. Brown,Atalanta,Serie A,Italy,30,RM,,12.5,72,77,Right,176,81,83,71,82,78,58,59,Inverted Winger,Medium/High,5,4
+D. Fischer,Atalanta,Serie A,Italy,18,CDM,,51.9,76,91,Right,172,72,74,60,80,80,68,85,Deep Playmaker,Low/Medium,2,5
+L. Michel,Atalanta,Serie A,Italy,18,GK,,43.9,74,87,Right,190,95,32,22,82,32,27,75,Sweeper Keeper,High/Medium,2,1
+D. Esposito,Atalanta,Serie A,Italy,21,CAM,,46.3,77,89,Right,169,71,86,72,80,83,38,72,Inverted Winger,High/High,4,3
+S. Pereira,Atalanta,Serie A,Italy,28,RB,RWB,33.9,82,83,Left,183,81,91,51,77,76,79,76,Press Resistant,Medium/High,3,5
+L. Silva,Atalanta,Serie A,Italy,27,CB,CDM,42.6,82,88,Right,194,93,80,39,66,67,87,82,Ball Winner,Low/Medium,4,2
+A. Lopez,Atalanta,Serie A,Italy,34,LM,,5.0,72,72,Left,171,66,84,78,89,77,46,73,Inverted Winger,Medium/Medium,3,2
+A. Rossi,Atalanta,Serie A,Italy,33,CB,CDM,36.0,82,86,Right,185,88,64,44,59,68,86,82,Ball Playing Defender,High/Medium,2,3
+M. Muller,Atalanta,Serie A,Italy,22,RM,,54.1,83,91,Left,168,69,91,78,75,87,54,72,Inverted Winger,Low/Medium,2,2
+T. Lopez,Frankfurt,Bundesliga,Germany,17,CF,,64.1,81,95,Right,185,86,90,86,72,76,40,84,Poacher,High/High,3,1
+J. Evans,Frankfurt,Bundesliga,Germany,24,GK,,18.2,72,76,Left,185,85,37,19,81,47,26,73,Sweeper Keeper,High/Medium,5,1
+V. Schmidt,Frankfurt,Bundesliga,Germany,29,CM,CDM,17.7,76,77,Right,181,80,72,69,77,86,58,77,Deep Playmaker,High/Low,5,2
+D. Michel,Frankfurt,Bundesliga,Germany,19,ST,RW,53.2,80,90,Right,175,71,87,82,68,87,27,72,Target Man,High/High,5,2
+T. Davies,Frankfurt,Bundesliga,Germany,19,CB,CDM,62.7,82,95,Left,191,88,60,41,72,54,82,80,Ball Playing Defender,High/Low,5,1
+S. Taylor,Frankfurt,Bundesliga,Germany,32,CM,CDM,15.0,73,78,Right,180,84,81,74,75,77,61,77,Deep Playmaker,High/Medium,3,4
+O. Taylor,Frankfurt,Bundesliga,Germany,18,CF,,54.4,80,90,Right,182,83,89,82,81,89,49,72,Poacher,High/Low,2,2
+O. Laurent,Frankfurt,Bundesliga,Germany,33,LM,,27.5,78,83,Right,171,72,87,75,77,84,35,52,Traditional Winger,High/High,3,4
+M. Thomas,Frankfurt,Bundesliga,Germany,33,RW,LM,16.0,74,78,Right,173,76,86,73,84,80,40,73,Traditional Winger,Medium/Medium,3,1
+L. Brown,Frankfurt,Bundesliga,Germany,30,LW,RM,32.5,80,85,Right,171,74,89,83,80,85,42,53,Inverted Winger,Medium/High,2,5
+J. Laurent,Frankfurt,Bundesliga,Germany,31,CF,,11.5,74,75,Right,182,81,89,76,67,84,43,89,Poacher,Medium/High,5,2
+C. Smith,Frankfurt,Bundesliga,Germany,21,ST,CF,29.3,72,81,Right,195,100,83,77,70,87,26,71,Poacher,Medium/Medium,5,1
+P. Johnson,Frankfurt,Bundesliga,Germany,31,CDM,,14.0,75,76,Right,173,78,71,77,78,84,84,75,Press Resistant,High/High,2,2
+D. Pereira,Frankfurt,Bundesliga,Germany,29,GK,,29.2,80,82,Right,196,101,56,15,60,32,30,67,Sweeper Keeper,Medium/Medium,5,1
+A. Schneider,Frankfurt,Bundesliga,Germany,22,CB,CDM,53.6,81,92,Right,189,84,69,34,57,69,82,85,Ball Playing Defender,Medium/High,4,4
+A. Roberts,Frankfurt,Bundesliga,Germany,24,CDM,,22.2,73,78,Left,182,82,73,68,78,87,71,72,Press Resistant,Medium/High,3,2
+I. Michel,Frankfurt,Bundesliga,Germany,31,RB,CB,12.0,73,76,Right,184,88,84,64,74,70,80,78,Traditional Winger,High/High,3,5
+D. Roberts,Frankfurt,Bundesliga,Germany,28,CDM,,14.9,75,75,Right,184,86,84,62,76,83,75,74,Press Resistant,Low/Medium,4,4
+B. Simon,Frankfurt,Bundesliga,Germany,18,CAM,,41.4,73,86,Right,178,82,85,76,79,78,55,75,Inverted Winger,Medium/High,5,1
+T. Garcia,Frankfurt,Bundesliga,Germany,35,CDM,,25.5,79,81,Left,174,70,84,77,81,78,76,70,Deep Playmaker,Low/Medium,3,5
+A. Dubois,Frankfurt,Bundesliga,Germany,18,CM,CDM,37.4,72,84,Right,189,92,65,76,72,88,58,76,Box to Box,Low/Medium,3,5
+S. Kovacic,Frankfurt,Bundesliga,Germany,21,CAM,,49.8,79,90,Right,182,78,87,76,86,82,47,69,Traditional Winger,Medium/High,4,2
+A. Johnson,Frankfurt,Bundesliga,Germany,29,CM,CDM,20.2,77,78,Right,180,76,82,81,82,88,72,86,Box to Box,Medium/High,5,1
+L. Schmidt,Frankfurt,Bundesliga,Germany,32,CB,RB,12.5,72,77,Right,195,94,71,48,57,69,77,74,Ball Playing Defender,Low/Medium,2,3
+V. Rossi,Frankfurt,Bundesliga,Germany,24,RB,RWB,26.7,73,81,Left,172,69,91,65,81,73,71,65,Traditional Winger,Medium/Medium,5,1
+G. Simon,Wolfsburg,Bundesliga,Germany,23,LW,ST,40.9,77,87,Right,176,75,92,78,75,80,51,72,Creative Playmaker,High/Low,5,2
+A. Taylor,Wolfsburg,Bundesliga,Germany,20,CM,CAM,54.0,79,92,Left,183,85,80,79,79,84,74,76,Box to Box,High/Low,4,4
+L. Moreau,Wolfsburg,Bundesliga,Germany,28,ST,RW,15.4,74,76,Right,184,87,83,79,78,76,30,84,Target Man,High/High,5,5
+L. Jones,Wolfsburg,Bundesliga,Germany,25,LM,,46.0,83,88,Left,178,80,94,79,81,86,55,51,Inverted Winger,High/Medium,2,2
+J. Santos,Wolfsburg,Bundesliga,Germany,32,RB,LWB,14.5,74,77,Right,183,79,95,62,84,72,79,74,Traditional Winger,Low/Medium,3,5
+M. Oliveira,Wolfsburg,Bundesliga,Germany,25,CAM,,33.0,79,82,Right,174,79,91,75,85,84,38,59,Inverted Winger,Medium/Medium,2,5
+M. Russo,Wolfsburg,Bundesliga,Germany,23,CB,CDM,50.9,81,91,Right,195,96,64,53,73,60,82,83,Ball Playing Defender,High/Medium,4,3
+D. Jones,Wolfsburg,Bundesliga,Germany,27,LW,ST,37.1,81,85,Right,176,79,84,80,90,84,34,62,Creative Playmaker,Low/Medium,2,1
+J. Lopez,Wolfsburg,Bundesliga,Germany,27,ST,CF,32.6,81,82,Left,194,89,85,83,69,81,50,73,Poacher,Medium/Medium,4,4
+D. Dubois,Wolfsburg,Bundesliga,Germany,30,GK,,15.5,75,77,Right,195,91,30,25,70,32,28,60,Sweeper Keeper,Low/Medium,5,1
+B. Oliveira,Wolfsburg,Bundesliga,Germany,27,GK,,16.6,74,76,Right,193,98,33,17,70,35,23,81,Sweeper Keeper,Low/Medium,3,1
+L. Muller,Wolfsburg,Bundesliga,Germany,23,LB,LWB,43.9,80,87,Right,177,76,89,59,82,70,85,74,Press Resistant,Medium/High,3,4
+J. Esposito,Wolfsburg,Bundesliga,Germany,18,RB,,57.9,79,93,Right,178,74,94,64,80,85,78,67,Traditional Winger,Medium/Medium,3,5
+J. Laurent,Wolfsburg,Bundesliga,Germany,21,CM,CAM,46.3,77,89,Right,189,93,80,72,78,78,73,85,Deep Playmaker,High/High,2,3
+J. Moreau,Wolfsburg,Bundesliga,Germany,21,RB,CB,36.3,76,83,Right,173,78,95,59,72,74,71,66,Traditional Winger,High/High,5,2
+M. Evans,Wolfsburg,Bundesliga,Germany,26,CM,CAM,18.3,73,77,Right,185,80,74,64,73,78,75,70,Ball Winner,Medium/Medium,2,5
+P. Costa,Wolfsburg,Bundesliga,Germany,27,LM,,19.1,75,77,Right,183,86,83,85,86,79,52,62,Creative Playmaker,Low/Medium,4,1
+B. Lopez,Wolfsburg,Bundesliga,Germany,28,CDM,,32.9,81,83,Right,175,75,85,74,84,78,66,75,Press Resistant,High/High,3,4
+J. Evans,Wolfsburg,Bundesliga,Germany,31,RW,LM,31.5,82,83,Left,182,87,83,78,81,85,54,66,Inverted Winger,High/Medium,2,4
+L. Esposito,Wolfsburg,Bundesliga,Germany,32,CAM,,34.5,82,85,Right,180,79,84,86,84,85,52,66,Traditional Winger,Low/Medium,2,3
+O. Martinez,Wolfsburg,Bundesliga,Germany,22,CM,CDM,33.1,74,83,Right,177,75,84,71,78,83,65,75,Deep Playmaker,Medium/High,4,4
+J. Martinez,Wolfsburg,Bundesliga,Germany,22,CDM,,46.1,81,87,Left,185,88,65,76,82,83,81,81,Deep Playmaker,High/Low,3,1
+D. Popovic,Wolfsburg,Bundesliga,Germany,21,CDM,,41.3,75,87,Right,180,76,68,74,75,87,84,83,Box to Box,Medium/High,4,4
+M. Laurent,Wolfsburg,Bundesliga,Germany,33,RM,,29.5,80,83,Right,177,78,88,72,79,83,35,57,Inverted Winger,High/Low,2,4
+J. Davies,Wolfsburg,Bundesliga,Germany,23,ST,LW,26.9,72,81,Right,184,79,76,78,78,90,45,84,Poacher,High/Low,3,5
+G. Simon,Marseille,Ligue 1,France,18,CM,CDM,58.9,80,93,Right,174,70,72,76,84,81,58,74,Deep Playmaker,Low/Medium,4,3
+T. Johnson,Marseille,Ligue 1,France,21,CB,RB,31.3,74,81,Right,193,98,76,53,60,53,78,77,Ball Winner,High/Low,4,1
+M. Moreau,Marseille,Ligue 1,France,33,GK,,37.0,83,86,Right,190,88,56,22,77,49,29,82,Sweeper Keeper,High/Low,5,1
+G. Lopez,Marseille,Ligue 1,France,33,CB,CDM,13.5,73,77,Right,193,98,70,41,75,51,78,77,Ball Winner,Low/Medium,5,1
+J. Rossi,Marseille,Ligue 1,France,21,RW,CAM,40.8,76,86,Left,165,60,83,85,77,81,32,50,Traditional Winger,Low/Medium,5,1
+G. Popovic,Marseille,Ligue 1,France,31,CF,,18.5,75,79,Right,181,86,76,78,78,82,27,87,Target Man,Medium/High,3,2
+S. Rodriguez,Marseille,Ligue 1,France,34,CM,CDM,24.0,79,80,Right,181,77,80,68,84,83,60,83,Press Resistant,High/Medium,3,3
+J. Laurent,Marseille,Ligue 1,France,24,CDM,,41.7,79,87,Right,172,77,69,72,81,83,77,76,Ball Winner,High/High,2,4
+A. Santos,Marseille,Ligue 1,France,21,RM,,55.8,82,92,Right,180,82,89,80,90,87,36,68,Traditional Winger,Low/Medium,4,3
+P. Williams,Marseille,Ligue 1,France,26,RW,LM,22.8,73,80,Right,178,79,94,78,85,79,37,57,Inverted Winger,High/Low,2,4
+M. Laurent,Marseille,Ligue 1,France,32,CB,CDM,12.0,73,76,Right,184,79,67,44,74,63,77,72,Ball Playing Defender,Medium/Medium,4,2
+N. Simon,Marseille,Ligue 1,France,17,RM,,57.1,77,93,Right,174,69,83,81,84,82,50,58,Creative Playmaker,Medium/High,4,2
+J. Jones,Marseille,Ligue 1,France,21,CB,,28.8,73,80,Right,189,85,74,45,72,54,78,79,Ball Playing Defender,Medium/Medium,5,5
+T. Taylor,Marseille,Ligue 1,France,23,CB,,38.4,79,84,Left,194,96,78,47,69,52,84,79,Ball Playing Defender,High/Medium,4,4
+M. Kovacic,Marseille,Ligue 1,France,25,CF,,28.5,76,81,Right,193,90,75,80,80,89,25,79,Target Man,High/Medium,5,1
+J. Taylor,Marseille,Ligue 1,France,19,ST,LW,50.2,77,90,Left,177,74,83,83,70,85,49,77,Poacher,High/Medium,5,2
+T. Bianchi,Marseille,Ligue 1,France,21,GK,,46.8,79,88,Left,187,91,34,27,74,33,20,68,Sweeper Keeper,High/High,4,1
+K. Weber,Marseille,Ligue 1,France,17,CM,CAM,49.1,75,89,Right,173,69,75,74,80,78,69,81,Ball Winner,High/Low,3,1
+G. Muller,Marseille,Ligue 1,France,22,LM,,26.6,72,80,Right,168,70,90,81,78,76,36,66,Creative Playmaker,Medium/High,3,2
+J. Garcia,Marseille,Ligue 1,France,22,CAM,,34.6,74,84,Right,183,83,95,70,84,76,59,67,Inverted Winger,Medium/Medium,3,2
+D. Garcia,Marseille,Ligue 1,France,19,CB,CDM,41.7,76,85,Right,189,86,63,36,64,63,80,74,Ball Winner,Low/Medium,5,5
+L. Santos,Marseille,Ligue 1,France,21,CB,,50.3,81,89,Right,187,82,72,51,61,56,86,82,Ball Playing Defender,Medium/High,3,2
+C. Garcia,Marseille,Ligue 1,France,18,CF,,52.4,78,90,Right,184,85,77,80,73,76,42,83,Target Man,High/Medium,4,2
+D. Pereira,Marseille,Ligue 1,France,25,CM,CDM,25.5,73,81,Right,181,80,66,79,78,83,71,75,Ball Winner,Low/Medium,2,3
+O. Rossi,Marseille,Ligue 1,France,32,CB,,9.5,72,75,Left,186,85,79,55,60,66,75,70,Ball Winner,Medium/High,3,1
+B. Santos,Lens,Ligue 1,France,26,CM,CDM,39.8,81,86,Right,179,81,85,72,82,84,58,85,Deep Playmaker,Medium/High,2,4
+M. Laurent,Lens,Ligue 1,France,17,LB,LWB,57.1,80,91,Right,183,83,85,66,74,73,84,68,Traditional Winger,High/Low,3,3
+L. Gonzalez,Lens,Ligue 1,France,21,CB,CDM,40.8,76,86,Left,191,92,64,37,69,68,81,73,Ball Playing Defender,Low/Medium,2,2
+B. Novak,Lens,Ligue 1,France,28,CDM,,19.9,77,77,Right,187,92,69,82,79,80,67,79,Deep Playmaker,Medium/High,4,4
+S. Martinez,Lens,Ligue 1,France,25,LB,,25.5,76,79,Right,177,78,94,62,76,70,77,80,Press Resistant,Medium/Medium,2,2
+M. Costa,Lens,Ligue 1,France,21,RW,LM,31.8,73,82,Right,165,63,83,79,82,77,53,51,Creative Playmaker,High/Medium,2,2
+N. Rodriguez,Lens,Ligue 1,France,20,LB,RWB,50.0,78,90,Left,184,89,94,64,82,85,78,75,Press Resistant,Medium/High,4,5
+T. Silva,Lens,Ligue 1,France,31,CB,CDM,24.5,78,81,Left,193,93,77,45,60,66,83,77,Ball Playing Defender,Low/Medium,3,2
+D. Costa,Lens,Ligue 1,France,28,ST,CF,32.4,79,84,Left,189,85,80,81,75,83,28,81,Target Man,Medium/High,3,3
+C. Davies,Lens,Ligue 1,France,27,ST,RW,35.6,81,84,Left,195,97,77,85,66,86,48,88,Poacher,High/Low,5,2
+J. Horvat,Lens,Ligue 1,France,34,CM,CAM,15.0,73,78,Right,188,91,77,61,77,86,60,71,Press Resistant,Medium/High,2,1
+L. Thomas,Lens,Ligue 1,France,19,CDM,,47.7,76,89,Right,178,81,85,63,79,85,79,82,Deep Playmaker,High/Medium,2,4
+C. Moreau,Lens,Ligue 1,France,32,ST,,30.5,81,83,Right,193,90,82,87,75,90,43,79,Poacher,Medium/Medium,5,1
+J. Kovacic,Lens,Ligue 1,France,35,ST,LW,7.5,73,73,Right,188,85,78,78,82,77,25,73,Poacher,High/Medium,3,1
+J. Laurent,Lens,Ligue 1,France,32,RM,,13.0,74,76,Right,178,78,84,88,84,78,58,55,Inverted Winger,Low/Medium,4,5
+G. Martinez,Lens,Ligue 1,France,34,CM,CDM,23.5,77,81,Right,188,85,79,74,82,77,64,82,Press Resistant,High/High,2,5
+S. Simon,Lens,Ligue 1,France,25,CDM,,44.0,81,88,Left,175,71,81,60,81,88,73,72,Ball Winner,Low/Medium,5,5
+D. Novak,Lens,Ligue 1,France,17,RM,,64.6,83,94,Right,182,79,89,79,90,87,51,75,Inverted Winger,High/Medium,4,5
+M. Kovacic,Lens,Ligue 1,France,32,CAM,,29.5,80,83,Right,172,68,83,75,80,85,57,60,Inverted Winger,High/High,5,4
+L. Weber,Lens,Ligue 1,France,29,LW,RM,32.2,80,84,Right,169,74,82,72,80,83,33,67,Traditional Winger,High/Low,4,1
+L. Evans,Lens,Ligue 1,France,23,RW,CAM,32.9,75,83,Right,181,77,94,73,81,77,45,65,Inverted Winger,High/Medium,3,3
+K. Simon,Lens,Ligue 1,France,31,CDM,,36.0,82,86,Left,175,80,84,76,86,77,76,81,Box to Box,Low/Medium,4,4
+H. Thomas,Lens,Ligue 1,France,23,CM,CDM,37.9,77,85,Right,174,78,75,77,79,82,55,76,Press Resistant,High/Low,2,3
+A. Oliveira,Lens,Ligue 1,France,34,RB,LWB,17.0,75,78,Right,185,89,94,58,80,72,79,73,Press Resistant,High/Medium,4,4
+K. Thomas,Lens,Ligue 1,France,24,ST,LW,30.7,77,81,Right,175,75,84,82,79,89,28,80,Target Man,High/High,3,4
+A. Schneider,Ajax,Eredivisie,Netherlands,19,LB,LWB,40.2,73,86,Right,174,78,82,50,70,83,84,82,Traditional Winger,High/Medium,3,3
+H. Santos,Ajax,Eredivisie,Netherlands,32,CAM,,21.5,78,79,Right,179,82,94,78,90,83,42,58,Inverted Winger,Medium/Medium,4,4
+L. Santos,Ajax,Eredivisie,Netherlands,17,LM,,62.1,82,93,Left,171,75,95,84,85,85,33,51,Traditional Winger,Low/Medium,4,3
+I. Ferrari,Ajax,Eredivisie,Netherlands,20,CB,CDM,36.5,72,85,Right,191,93,60,36,60,67,76,71,Ball Playing Defender,High/Low,4,1
+J. Oliveira,Ajax,Eredivisie,Netherlands,22,CB,,45.6,79,88,Right,189,94,73,45,70,69,82,84,Ball Playing Defender,High/Medium,2,3
+B. Santos,Ajax,Eredivisie,Netherlands,24,CB,RB,53.2,83,92,Right,183,80,60,31,57,54,88,88,Ball Winner,Medium/High,4,3
+M. Laurent,Ajax,Eredivisie,Netherlands,25,CF,,38.0,81,84,Right,185,87,91,87,79,84,37,83,Target Man,High/Low,3,3
+G. Oliveira,Ajax,Eredivisie,Netherlands,29,CB,RB,23.7,76,81,Right,186,91,82,52,58,66,77,76,Ball Playing Defender,High/Low,2,4
+O. Santos,Ajax,Eredivisie,Netherlands,27,CDM,,13.1,72,75,Right,185,83,74,69,72,88,72,70,Ball Winner,Low/Medium,3,2
+A. Horvat,Ajax,Eredivisie,Netherlands,31,CDM,,5.0,72,72,Right,175,76,71,77,75,80,85,75,Box to Box,Medium/High,5,5
+J. Schneider,Ajax,Eredivisie,Netherlands,22,RM,,36.1,77,83,Right,171,67,91,73,80,82,34,50,Creative Playmaker,High/Medium,4,1
+K. Pereira,Ajax,Eredivisie,Netherlands,34,GK,,27.5,81,81,Right,187,84,34,24,63,40,29,82,Sweeper Keeper,Medium/Medium,3,1
+L. Schneider,Ajax,Eredivisie,Netherlands,28,RW,RM,7.4,72,72,Right,178,78,83,73,86,74,34,61,Traditional Winger,Medium/High,2,3
+A. Pereira,Ajax,Eredivisie,Netherlands,25,GK,,32.5,77,83,Left,189,86,31,24,63,36,29,60,Sweeper Keeper,Medium/High,2,1
+S. Thomas,Ajax,Eredivisie,Netherlands,26,CB,,36.8,81,84,Left,185,81,68,52,74,66,83,84,Ball Winner,Low/Medium,3,4
+D. Roberts,Ajax,Eredivisie,Netherlands,35,LM,,14.5,74,77,Right,181,78,87,77,88,76,57,64,Traditional Winger,High/Medium,2,2
+G. Moreau,Ajax,Eredivisie,Netherlands,24,RM,,49.2,82,90,Left,176,81,85,80,87,86,32,54,Creative Playmaker,High/Medium,2,3
+N. Schneider,Ajax,Eredivisie,Netherlands,23,CAM,,50.9,81,91,Right,178,83,87,80,85,84,39,65,Creative Playmaker,Low/Medium,3,1
+N. Brown,Ajax,Eredivisie,Netherlands,24,CB,CDM,45.7,83,87,Right,184,79,67,38,68,55,83,86,Ball Winner,High/High,4,5
+M. Rodriguez,Ajax,Eredivisie,Netherlands,35,CM,CDM,31.5,82,83,Right,178,74,68,67,87,78,69,84,Box to Box,Low/Medium,3,3
+M. Roberts,Ajax,Eredivisie,Netherlands,17,GK,,61.1,81,93,Right,191,93,39,24,70,47,22,82,Sweeper Keeper,Medium/High,2,1
+L. Jones,Ajax,Eredivisie,Netherlands,17,LM,,59.6,81,92,Right,176,77,91,70,79,83,58,59,Traditional Winger,Low/Medium,5,1
+L. Laurent,Ajax,Eredivisie,Netherlands,21,GK,,56.3,81,93,Left,193,91,43,18,75,34,28,83,Sweeper Keeper,Medium/Medium,4,1
+P. Jones,Ajax,Eredivisie,Netherlands,29,ST,RW,29.2,80,82,Right,179,82,87,84,70,82,32,82,Poacher,High/Medium,5,2
+L. Dubois,Ajax,Eredivisie,Netherlands,29,CAM,,27.2,78,82,Right,167,64,85,74,84,84,51,67,Inverted Winger,High/High,4,5
+L. Dubois,PSV,Eredivisie,Netherlands,19,CB,,35.7,73,83,Right,187,92,64,39,73,69,73,76,Ball Winner,Low/Medium,3,2
+J. Kovacic,PSV,Eredivisie,Netherlands,18,CM,CAM,56.4,79,92,Right,181,86,66,80,82,79,71,72,Press Resistant,Medium/High,4,1
+G. Michel,PSV,Eredivisie,Netherlands,28,CB,RB,14.9,75,75,Right,185,85,80,37,75,52,79,75,Ball Playing Defender,High/Low,5,5
+J. Taylor,PSV,Eredivisie,Netherlands,23,CDM,,30.9,73,83,Right,177,82,72,66,76,87,66,70,Deep Playmaker,High/Low,3,3
+T. Thomas,PSV,Eredivisie,Netherlands,31,ST,CF,38.5,83,87,Right,175,75,90,89,66,83,33,70,Poacher,Medium/High,4,4
+M. Garcia,PSV,Eredivisie,Netherlands,35,LB,RWB,40.0,83,88,Right,176,76,86,58,70,74,70,67,Traditional Winger,High/Medium,3,4
+S. Smith,PSV,Eredivisie,Netherlands,26,RW,LM,19.3,74,77,Right,167,63,94,79,76,79,48,75,Traditional Winger,High/High,4,3
+B. Weber,PSV,Eredivisie,Netherlands,35,CM,CAM,9.0,73,74,Right,179,82,65,60,73,79,56,86,Box to Box,Medium/High,3,1
+A. Rodriguez,PSV,Eredivisie,Netherlands,22,CAM,,46.1,81,87,Right,172,70,93,84,85,86,44,50,Inverted Winger,Medium/High,5,2
+L. Oliveira,PSV,Eredivisie,Netherlands,29,RW,RM,23.2,77,80,Right,168,67,95,83,90,81,34,64,Traditional Winger,Low/Medium,5,1
+C. Rodriguez,PSV,Eredivisie,Netherlands,27,LB,,25.1,75,81,Left,182,87,88,64,75,77,75,81,Press Resistant,High/Low,5,3
+C. Esposito,PSV,Eredivisie,Netherlands,35,CDM,,30.0,82,82,Left,174,79,79,78,82,86,67,88,Ball Winner,Low/Medium,4,4
+J. Laurent,PSV,Eredivisie,Netherlands,23,RB,LWB,54.4,83,92,Right,181,86,89,58,78,80,83,68,Traditional Winger,Medium/Medium,2,4
+B. Esposito,PSV,Eredivisie,Netherlands,26,CF,,25.3,74,81,Right,185,87,90,78,65,75,26,78,Target Man,High/Medium,4,1
+A. Pereira,PSV,Eredivisie,Netherlands,28,CB,CDM,16.9,74,77,Left,190,86,68,43,67,54,75,78,Ball Playing Defender,High/High,3,3
+L. Michel,PSV,Eredivisie,Netherlands,17,LM,,64.6,83,94,Left,182,87,84,71,87,85,43,75,Creative Playmaker,Medium/High,2,2
+V. Horvat,PSV,Eredivisie,Netherlands,31,RM,,33.0,82,84,Left,174,73,87,84,82,88,57,73,Inverted Winger,Medium/High,5,1
+K. Santos,PSV,Eredivisie,Netherlands,23,CB,,28.4,75,80,Right,190,91,67,34,66,52,79,80,Ball Playing Defender,High/Medium,2,4
+J. Simon,PSV,Eredivisie,Netherlands,21,CAM,,27.8,72,80,Right,172,72,85,78,82,75,31,62,Inverted Winger,High/Medium,2,4
+C. Schneider,PSV,Eredivisie,Netherlands,28,CB,RB,37.4,81,86,Right,189,94,71,48,60,57,83,83,Ball Playing Defender,Medium/Medium,4,5
+M. Santos,PSV,Eredivisie,Netherlands,30,CB,RB,10.5,73,75,Right,187,85,77,41,68,62,75,78,Ball Winner,Medium/Medium,5,2
+M. Kovacic,PSV,Eredivisie,Netherlands,32,CB,CDM,23.5,77,81,Right,193,98,74,46,56,68,81,74,Ball Playing Defender,Medium/High,2,5
+J. Johnson,PSV,Eredivisie,Netherlands,32,GK,,12.0,73,76,Left,186,84,46,18,74,34,19,83,Sweeper Keeper,Medium/Medium,5,1
+J. Rossi,PSV,Eredivisie,Netherlands,30,ST,RW,28.0,80,82,Left,182,77,88,85,67,83,35,87,Target Man,Low/Medium,2,1
+T. Muller,Feyenoord,Eredivisie,Netherlands,22,CB,CDM,39.1,77,85,Right,185,90,72,39,60,66,82,80,Ball Winner,Low/Medium,5,2
+C. Martinez,Feyenoord,Eredivisie,Netherlands,34,CB,,22.5,76,81,Left,186,87,80,31,63,51,77,82,Ball Playing Defender,Medium/Medium,4,2
+J. Weber,Feyenoord,Eredivisie,Netherlands,30,ST,RW,11.5,74,75,Right,195,91,86,79,68,88,36,71,Target Man,Low/Medium,3,1
+O. Simon,Feyenoord,Eredivisie,Netherlands,25,CM,CDM,27.0,76,80,Right,174,75,65,70,80,82,61,77,Ball Winner,Low/Medium,2,2
+J. Williams,Feyenoord,Eredivisie,Netherlands,23,CF,,33.4,77,82,Right,177,82,91,80,79,77,34,74,Poacher,High/Medium,3,4
+J. Rossi,Feyenoord,Eredivisie,Netherlands,27,RM,,25.6,77,80,Left,181,83,84,84,81,80,35,64,Traditional Winger,High/Medium,4,5
+V. Brown,Feyenoord,Eredivisie,Netherlands,32,CM,CDM,10.0,74,74,Left,176,81,77,73,79,79,59,72,Box to Box,Low/Medium,5,4
+L. Roberts,Feyenoord,Eredivisie,Netherlands,19,CM,CDM,48.2,78,88,Left,187,84,70,61,79,85,56,74,Ball Winner,High/High,5,2
+I. Gonzalez,Feyenoord,Eredivisie,Netherlands,20,ST,,55.5,82,91,Left,176,77,91,88,69,77,33,87,Target Man,Low/Medium,2,1
+L. Lopez,Feyenoord,Eredivisie,Netherlands,17,CB,,63.1,80,95,Right,191,89,71,43,72,65,82,82,Ball Winner,High/High,5,3
+K. Horvat,Feyenoord,Eredivisie,Netherlands,24,CM,CDM,21.2,72,78,Right,184,82,79,73,76,85,55,82,Ball Winner,Medium/Medium,5,2
+I. Pereira,Feyenoord,Eredivisie,Netherlands,24,CAM,,22.2,73,78,Right,167,71,82,87,75,78,50,66,Creative Playmaker,High/Low,5,3
+S. Thomas,Feyenoord,Eredivisie,Netherlands,29,CDM,,17.7,76,77,Right,175,75,80,69,79,81,74,80,Box to Box,Low/Medium,4,1
+D. Thomas,Feyenoord,Eredivisie,Netherlands,27,GK,,29.1,79,81,Right,196,96,53,19,81,31,26,62,Sweeper Keeper,High/Medium,3,1
+T. Russo,Feyenoord,Eredivisie,Netherlands,33,LB,CB,13.5,73,77,Right,180,78,80,60,74,77,80,70,Traditional Winger,High/Low,4,4
+J. Smith,Feyenoord,Eredivisie,Netherlands,20,CAM,,59.0,81,94,Right,173,68,92,73,78,83,37,64,Creative Playmaker,Medium/Medium,4,4
+T. Martinez,Feyenoord,Eredivisie,Netherlands,32,CB,,8.0,72,74,Right,186,87,71,43,66,69,77,70,Ball Playing Defender,High/Medium,3,2
+J. Popovic,Feyenoord,Eredivisie,Netherlands,17,CM,CAM,44.6,72,88,Right,178,75,79,80,72,78,57,78,Box to Box,Low/Medium,3,2
+C. Esposito,Feyenoord,Eredivisie,Netherlands,22,CAM,,36.1,77,83,Left,172,73,91,83,83,83,36,65,Traditional Winger,High/Low,4,5
+D. Muller,Feyenoord,Eredivisie,Netherlands,19,GK,,37.2,73,84,Right,199,103,52,19,67,36,19,75,Sweeper Keeper,Medium/Medium,4,1
+C. Roberts,Feyenoord,Eredivisie,Netherlands,25,LM,,32.5,77,83,Right,185,80,90,79,76,79,48,68,Traditional Winger,High/Low,3,3
+D. Santos,Feyenoord,Eredivisie,Netherlands,27,CDM,,17.1,73,77,Right,177,80,66,70,76,85,74,78,Box to Box,High/Medium,2,3
+D. Evans,Feyenoord,Eredivisie,Netherlands,26,LM,,46.3,83,89,Left,170,74,90,79,75,86,30,57,Creative Playmaker,High/High,5,1
+O. Russo,Feyenoord,Eredivisie,Netherlands,31,LW,LM,18.0,76,78,Right,169,72,85,71,78,79,54,56,Inverted Winger,Low/Medium,3,4

@@ -1,0 +1,31 @@
+find_best_transfer:
+  description: >
+    Find the best transfer target.
+
+    Club: {club}
+    Needed Position: {position}
+    Maximum Budget: {budget}
+
+    Use the Player Search Tool to analyze the player database and recommend the best player.
+    Focus on one main recommendation with exact data points from the dataset,
+    then mention 2-3 alternatives briefly.
+  expected_output: >
+    A concise scouting recommendation containing:
+    - One primary target with club, market value, age, rating, potential, play style, and technical reason
+    - 2-3 alternative players mentioned briefly
+  agent: transfer_scout
+
+generate_transfer_report:
+  description: >
+    Create a professional transfer report based on the scout's recommendation.
+    Use only the data provided in the scouting context.
+    Do not leave placeholders such as '[Insert age]'.
+    If a value is unavailable, explicitly say that the dataset did not provide it.
+    Make the main recommended player detailed, but keep the whole report compact.
+    After the main recommendation, write the alternative options as one short paragraph instead of a long list.
+  expected_output: >
+    A short markdown report containing:
+    - A detailed main recommendation
+    - A compact reasoning paragraph
+    - One short paragraph summarizing the alternatives
+  agent: report_writer
