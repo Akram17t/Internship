@@ -33,13 +33,25 @@ uvicorn backend.api.main:app --reload
 streamlit run frontend/app.py
 ```
 
+## Windows Scripts
+
+For the easiest Windows flow, use:
+
+```bat
+run.bat
+clean.bat
+```
+
+- `run.bat` uses `backend\researcher_crew\.venv`, checks the required imports, runs ingestion only when `backend\chroma_db` is empty, then starts FastAPI on port `8000` and Streamlit on port `8501`.
+- `clean.bat` removes `__pycache__`, `.pytest_cache`, `*.pyc`, and generated files inside `backend\chroma_db` except `.gitkeep`.
+
 ## Structure
 
 ```text
 Capstone/
 ├── backend/
 │   ├── api/              # FastAPI routes
-│   ├── crewai/           # CrewAI crew, agent YAML, task YAML, and CrewAI tool
+│   ├── researcher_crew/  # CrewAI project and its venv
 │   ├── preprocessing/    # ingestion, loaders, chunking, embeddings, vectorstore
 │   ├── data/             # source documents
 │   └── chroma_db/        # persisted vector database
@@ -48,5 +60,7 @@ Capstone/
 ├── .env.example
 ├── .gitignore
 ├── README.md
+├── clean.bat
+├── run.bat
 └── requirements.txt
 ```

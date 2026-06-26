@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from langchain_community.document_loaders import Docx2txtLoader, PyPDFLoader
+from langchain_community.document_loaders import Docx2txtLoader, PyPDFLoader, TextLoader
 from langchain_core.documents import Document
 
 
-SUPPORTED_EXTENSIONS = {".pdf", ".docx"}
+SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".txt"}
 
 
 def _normalize_documents(documents: list[Document], source_path: Path) -> list[Document]:
@@ -24,6 +24,8 @@ def _load_single_document(path: Path) -> list[Document]:
         documents = PyPDFLoader(str(path)).load()
     elif suffix == ".docx":
         documents = Docx2txtLoader(str(path)).load()
+    elif suffix == ".txt":
+        documents = TextLoader(str(path), encoding="utf-8").load()
     else:
         return []
 

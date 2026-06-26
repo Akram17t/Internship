@@ -1,4 +1,4 @@
-crewai[tools]==1.14.7
+crewai==1.14.7
 fastapi>=0.116.0
 uvicorn>=0.35.0
 streamlit>=1.46.0

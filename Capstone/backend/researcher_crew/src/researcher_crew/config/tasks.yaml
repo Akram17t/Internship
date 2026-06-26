@@ -1,0 +1,18 @@
+research_task:
+  description: >
+    Search the local knowledge base to answer this user question: "{question}".
+    Retrieve the most relevant SOP, guideline, or runbook context.
+    Focus on factual evidence and note the source file when available.
+  expected_output: >
+    A short evidence pack containing the most relevant retrieved points, each tied to the source context.
+  agent: researcher
+
+reporting_task:
+  description: >
+    Use the retrieved context to answer the user's question: "{question}".
+    Write the final answer in Indonesian.
+    Keep the answer concise but still useful, preferably 1-3 short paragraphs.
+    If the retrieved context is weak or missing, say that clearly instead of guessing.
+  expected_output: >
+    A grounded final answer in Indonesian based only on the retrieved context, written without markdown code fences.
+  agent: reporting_analyst

@@ -1,9 +1,17 @@
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
-from backend.crewai.crew import run_knowledge_crew
+ROOT_DIR = Path(__file__).resolve().parents[2]
+CREW_SRC_DIR = ROOT_DIR / "backend" / "researcher_crew" / "src"
+if str(CREW_SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(CREW_SRC_DIR))
+
+from researcher_crew.main import run_knowledge_crew
 
 
 app = FastAPI(title="ICS Knowledge Assistant API", version="1.0.0")

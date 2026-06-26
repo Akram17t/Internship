@@ -1,9 +1,0 @@
-description: >
-  Answer this employee question using only the retrieved context:
-
-  {question}
-
-  Write a concise answer in markdown. If the context is insufficient, say so directly.
-  End with a short "Sources" section listing the cited document names and page numbers.
-expected_output: >
-  A concise markdown answer grounded in the retrieved context, followed by source citations.
