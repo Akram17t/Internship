@@ -1,0 +1,9 @@
+description: >
+  Retrieve the best supporting context for this employee question:
+
+  {question}
+
+  Use the RAG tool to search the document knowledge base. Return the most relevant
+  chunks and preserve the source document name and page metadata whenever available.
+expected_output: >
+  A compact retrieval brief containing the top relevant chunks with source citations.
