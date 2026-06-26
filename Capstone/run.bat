@@ -5,6 +5,9 @@ cd /d "%~dp0"
 set "ROOT=%CD%"
 set "PYTHON=%ROOT%\backend\researcher_crew\.venv\Scripts\python.exe"
 
+if /I "%~1"=="__api" goto :run_api
+if /I "%~1"=="__ui" goto :run_ui
+
 if not exist "%PYTHON%" (
   echo Missing Python environment:
   echo   %PYTHON%
@@ -16,11 +19,25 @@ if not exist "%PYTHON%" (
 set "PYTHONIOENCODING=utf-8"
 set "PYTHONUTF8="
 
-call :check_port 8000 API
-if errorlevel 1 goto :fail
+call :stop_servers
 
-call :check_port 8501 Streamlit
-if errorlevel 1 goto :fail
+set "API_PORT="
+for /f "usebackq delims=" %%P in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$port = 8000; while ($port -lt 9000) { $busy = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue; if (-not $busy) { $port; exit 0 }; $port++ }; exit 1"`) do (
+  set "API_PORT=%%P"
+)
+if not defined API_PORT (
+  echo Could not find a free API port starting from 8000.
+  goto :fail
+)
+
+set "UI_PORT="
+for /f "usebackq delims=" %%P in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$port = 8501; while ($port -lt 9000) { $busy = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue; if (-not $busy) { $port; exit 0 }; $port++ }; exit 1"`) do (
+  set "UI_PORT=%%P"
+)
+if not defined UI_PORT (
+  echo Could not find a free UI port starting from 8501.
+  goto :fail
+)
 
 "%PYTHON%" -X utf8 -c "import crewai, dotenv, fastapi, requests, streamlit, yaml, langchain_chroma, langchain_community, langchain_text_splitters, langchain_ollama, pypdf, docx2txt" >nul 2>&1
 if errorlevel 1 (
@@ -52,41 +69,53 @@ if not defined HAS_DB (
   echo Existing vector DB found. Skipping ingestion.
 )
 
-echo Starting API on http://127.0.0.1:8000
-start "Capstone API" cmd /k "cd /d ""%ROOT%"" && set ""PYTHONIOENCODING=utf-8"" && set ""PYTHONUTF8="" && ""%PYTHON%"" -X utf8 -m uvicorn backend.api.main:app --host 127.0.0.1 --port 8000"
+echo Starting API on http://127.0.0.1:%API_PORT%
+start "Capstone API" /D "%ROOT%" "%COMSPEC%" /k ""%~f0" __api "%API_PORT%""
 
-echo Starting Streamlit UI on http://127.0.0.1:8501
-start "Capstone UI" cmd /k "cd /d ""%ROOT%"" && set ""PYTHONIOENCODING=utf-8"" && set ""PYTHONUTF8="" && ""%PYTHON%"" -X utf8 -m streamlit run frontend/app.py --server.headless true --server.port 8501"
+echo Starting Streamlit UI on http://127.0.0.1:%UI_PORT%
+start "Capstone UI" /D "%ROOT%" "%COMSPEC%" /k ""%~f0" __ui "%API_PORT%" "%UI_PORT%""
 
 echo.
 echo App launch requested.
-echo - API: http://127.0.0.1:8000
-echo - UI:  http://127.0.0.1:8501
+echo - API: http://127.0.0.1:%API_PORT%
+echo - UI:  http://127.0.0.1:%UI_PORT%
 goto :success
 
-:check_port
-set "PORT_PID="
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":%~1 .*LISTENING"') do (
-  set "PORT_PID=%%P"
-  goto :port_found
-)
-goto :eof
-
-:port_found
-set "TASKLINE="
-for /f "usebackq delims=" %%T in (`tasklist /FI "PID eq !PORT_PID!" /FO CSV /NH`) do (
-  set "TASKLINE=%%~T"
-)
-if /I "!TASKLINE!"=="INFO: No tasks are running which match the specified criteria." (
-  echo Ignoring stale port record for %~1 with ghost PID !PORT_PID!.
-  exit /b 0
-)
-echo %~2 port %~1 is already in use by PID !PORT_PID!.
-echo Close that process first, then run this script again.
-exit /b 1
+:stop_servers
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$root = (Get-Location).Path; " ^
+  "$patterns = 'uvicorn|streamlit|backend\.api\.main|frontend[/\\]app\.py|run\.bat.+__(api|ui)'; " ^
+  "$targets = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -and $_.ProcessId -ne $PID -and $_.CommandLine.Contains($root) -and ($_.CommandLine -match $patterns) }; " ^
+  "foreach ($target in $targets) { taskkill /PID $target.ProcessId /T /F | Out-Null }" >nul 2>&1
+exit /b 0
 
 :fail
 endlocal & exit /b 1
 
 :success
+endlocal & exit /b 0
+
+:run_api
+set "API_PORT=%~2"
+if "%API_PORT%"=="" set "API_PORT=8000"
+set "PYTHONIOENCODING=utf-8"
+set "PYTHONUTF8="
+"%PYTHON%" -X utf8 -m uvicorn backend.api.main:app --host 127.0.0.1 --port %API_PORT%
+echo.
+echo API server stopped. Press any key to close this window.
+pause >nul
+endlocal & exit /b 0
+
+:run_ui
+set "API_PORT=%~2"
+set "UI_PORT=%~3"
+if "%API_PORT%"=="" set "API_PORT=8000"
+if "%UI_PORT%"=="" set "UI_PORT=8501"
+set "API_URL=http://127.0.0.1:%API_PORT%/query"
+set "PYTHONIOENCODING=utf-8"
+set "PYTHONUTF8="
+"%PYTHON%" -X utf8 -m streamlit run frontend/app.py --server.headless true --server.port %UI_PORT%
+echo.
+echo UI server stopped. Press any key to close this window.
+pause >nul
 endlocal & exit /b 0
