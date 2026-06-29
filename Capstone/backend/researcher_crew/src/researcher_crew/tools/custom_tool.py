@@ -3,11 +3,8 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from typing import Type
 
-from crewai.tools import BaseTool
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field
 
 PROJECT_ROOT = Path(__file__).resolve().parents[5]
 if str(PROJECT_ROOT) not in sys.path:
@@ -66,22 +63,3 @@ def retrieve_knowledge(query: str, k: int | None = None) -> tuple[str, list[dict
         )
 
     return "\n\n".join(evidence_sections), citations
-
-
-class RAGSearchToolInput(BaseModel):
-    """Input schema for the local RAG search tool."""
-
-    query: str = Field(..., description="Question or search query to retrieve relevant knowledge chunks.")
-
-
-class RAGSearchTool(BaseTool):
-    name: str = "local_knowledge_search"
-    description: str = (
-        "Searches the local Chroma knowledge base and returns the most relevant document chunks "
-        "with source metadata for answering internal ICS questions."
-    )
-    args_schema: Type[BaseModel] = RAGSearchToolInput
-
-    def _run(self, query: str) -> str:
-        evidence, _ = retrieve_knowledge(query)
-        return evidence

@@ -8,14 +8,6 @@ dependencies = [
     "crewai[tools]==1.14.7"
 ]
 
-[project.scripts]
-researcher_crew = "researcher_crew.main:run"
-run_crew = "researcher_crew.main:run"
-train = "researcher_crew.main:train"
-replay = "researcher_crew.main:replay"
-test = "researcher_crew.main:test"
-run_with_trigger = "researcher_crew.main:run_with_trigger"
-
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

@@ -50,12 +50,6 @@ def rebuild_vectorstore(chunks: list[Document]) -> Chroma:
         embedding=get_embedding_model(),
         persist_directory=str(chroma_dir),
     )
-
-
-def similarity_search(query: str, k: int = 4) -> list[Document]:
-    return get_vectorstore().similarity_search(query, k=k)
-
-
 def hybrid_search(query: str, k: int = 4) -> list[Document]:
     """Combine semantic retrieval with lexical and section-heading relevance."""
     vectorstore = get_vectorstore()

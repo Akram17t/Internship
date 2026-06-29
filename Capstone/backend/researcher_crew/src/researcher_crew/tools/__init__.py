@@ -1,3 +1,3 @@
-from researcher_crew.tools.custom_tool import RAGSearchTool
+from researcher_crew.tools.custom_tool import retrieve_knowledge
 
-__all__ = ["RAGSearchTool"]
+__all__ = ["retrieve_knowledge"]

@@ -2,6 +2,8 @@
 
 RAG-based internal document assistant for SOP, guideline, and runbook search, now with a custom web frontend served directly from FastAPI.
 
+General project documentation is available in [PROJECT_DOCUMENTATION.md](PROJECT_DOCUMENTATION.md).
+
 ## Stack
 
 - FastAPI for REST backend and frontend hosting
