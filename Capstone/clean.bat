@@ -3,7 +3,7 @@ setlocal EnableExtensions EnableDelayedExpansion
 
 cd /d "%~dp0"
 
-for %%P in (8000 8501) do (
+for %%P in (8000) do (
   for /f "tokens=5" %%I in ('netstat -ano ^| findstr /R /C:":%%P .*LISTENING"') do (
     taskkill /PID %%I /T /F >nul 2>&1
   )
@@ -11,7 +11,7 @@ for %%P in (8000 8501) do (
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$root = (Get-Location).Path; " ^
-  "$patterns = 'uvicorn|streamlit|backend\.api\.main|frontend[/\\]app\.py|run\.bat.+__(api|ui)'; " ^
+  "$patterns = 'uvicorn|backend\.api\.main|run\.bat.+__api'; " ^
   "$targets = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -and $_.ProcessId -ne $PID -and $_.CommandLine.Contains($root) -and ($_.CommandLine -match $patterns) }; " ^
   "foreach ($target in $targets) { taskkill /PID $target.ProcessId /T /F 2>$null | Out-Null }; " ^
   "Get-ChildItem -Path . -Recurse -Directory -Force | Where-Object { $_.Name -in @('__pycache__','.pytest_cache') } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue; " ^

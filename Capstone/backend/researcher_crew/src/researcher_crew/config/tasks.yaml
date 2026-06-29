@@ -1,18 +1,32 @@
 research_task:
   description: >
-    Search the local knowledge base to answer this user question: "{question}".
-    Retrieve the most relevant SOP, guideline, or runbook context.
-    Focus on factual evidence and note the source file when available.
+    Evaluate the evidence below against the user's question: "{question}".
+
+    RETRIEVED EVIDENCE:
+    {evidence}
+
+    Keep only excerpts that directly answer the question. Do not combine unrelated
+    clauses, complete missing logic, or add outside knowledge. Preserve each evidence
+    marker such as [1] exactly. Never replace a numeric marker with a placeholder such
+    as [n]. If the question is ambiguous, explicitly identify the narrow interpretation
+    supported by the evidence.
   expected_output: >
-    A short evidence pack containing the most relevant retrieved points, each tied to the source context.
+    A compact evidence pack containing only directly relevant facts and their original [n] markers.
   agent: researcher
 
 reporting_task:
   description: >
-    Use the retrieved context to answer the user's question: "{question}".
-    Write the final answer in Indonesian.
-    Keep the answer concise but still useful, preferably 1-3 short paragraphs.
-    If the retrieved context is weak or missing, say that clearly instead of guessing.
+    Answer the user's question "{question}" in Indonesian using only the evidence pack.
+    Keep it concise and concrete, preferably 1-3 short paragraphs or a short list.
+    Every factual sentence or bullet must end with its actual numeric evidence marker,
+    such as [1] or [2]. Never output a generic placeholder instead. Never invent a file, page,
+    Pasal, requirement, formula, exception, or causal link. Do not create hypothetical
+    examples or perform new arithmetic; reproduce only formulas and figures explicitly
+    stated in the evidence.
+    If the evidence only supports one interpretation, state that interpretation.
+    If evidence is weak, conflicting, or missing, say what cannot be confirmed and ask
+    for the specific detail needed. Do not produce a separate sources section because
+    the application renders source details from the [n] markers.
   expected_output: >
-    A grounded final answer in Indonesian based only on the retrieved context, written without markdown code fences.
+    A grounded Indonesian answer with numeric citations such as [1] on every factual sentence, without a sources section or markdown code fences.
   agent: reporting_analyst

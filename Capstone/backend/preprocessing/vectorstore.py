@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 from pathlib import Path
 
@@ -14,6 +15,13 @@ load_dotenv()
 
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
+TERM_EXPANSIONS = {
+    "kapan": {"jadwal", "tanggal", "waktu"},
+    "dibayarkan": {"dibayar", "pembayaran"},
+    "dibayar": {"dibayarkan", "pembayaran"},
+    "gajian": {"gaji", "penggajian", "pembayaran"},
+    "jatah": {"hak", "entitlement"},
+}
 
 
 def get_chroma_dir() -> Path:
@@ -46,3 +54,51 @@ def rebuild_vectorstore(chunks: list[Document]) -> Chroma:
 
 def similarity_search(query: str, k: int = 4) -> list[Document]:
     return get_vectorstore().similarity_search(query, k=k)
+
+
+def hybrid_search(query: str, k: int = 4) -> list[Document]:
+    """Combine semantic retrieval with lexical and section-heading relevance."""
+    vectorstore = get_vectorstore()
+    vector_results = vectorstore.similarity_search_with_score(query, k=max(k * 5, 20))
+    vector_scores = {
+        document.metadata.get("chunk_id"): 1 / (1 + max(float(distance), 0))
+        for document, distance in vector_results
+    }
+
+    collection = vectorstore.get(include=["documents", "metadatas"])
+    query_terms = {
+        token
+        for token in re.findall(r"[a-z0-9]+", query.lower())
+        if len(token) >= 3
+        and token not in {"apa", "yang", "dan", "atau", "dari", "untuk", "dengan", "bagaimana", "berapa"}
+    }
+
+    ranked: list[tuple[float, Document]] = []
+    for content, metadata in zip(collection.get("documents", []), collection.get("metadatas", [])):
+        content = content or ""
+        metadata = metadata or {}
+        section = str(metadata.get("section", ""))
+        source = str(metadata.get("source", ""))
+        searchable_content = content.lower()
+        searchable_section = section.lower()
+        searchable_source = source.lower().replace("_", " ")
+
+        lexical_score = 0.0
+        matched_terms = 0
+        for term in query_terms:
+            variants = {term, *TERM_EXPANSIONS.get(term, set())}
+            content_hits = min(max(searchable_content.count(variant) for variant in variants), 3)
+            section_hit = 3 if any(variant in searchable_section for variant in variants) else 0
+            source_hit = 1 if any(variant in searchable_source for variant in variants) else 0
+            term_score = content_hits + section_hit + source_hit
+            if term_score:
+                matched_terms += 1
+                lexical_score += term_score
+
+        coverage_bonus = (matched_terms / len(query_terms) * 2) if query_terms else 0
+        semantic_score = vector_scores.get(metadata.get("chunk_id"), 0)
+        total_score = lexical_score + coverage_bonus + semantic_score
+        ranked.append((total_score, Document(page_content=content, metadata=metadata)))
+
+    ranked.sort(key=lambda item: item[0], reverse=True)
+    return [document for _, document in ranked[:k]]

@@ -1,11 +1,11 @@
 # ICS SOP & Knowledge Assistant
 
-RAG-based internal document Q&A system for SOP, guideline, and runbook search.
+RAG-based internal document assistant for SOP, guideline, and runbook search, now with a custom web frontend served directly from FastAPI.
 
 ## Stack
 
-- Streamlit for chat UI
-- FastAPI for REST backend
+- FastAPI for REST backend and frontend hosting
+- Vanilla HTML, CSS, and JavaScript for the web UI
 - CrewAI for multi-agent orchestration
 - ChromaDB for local vector storage
 - Ollama for local LLM and embedding
@@ -27,11 +27,7 @@ python -m backend.preprocessing.ingest
 uvicorn backend.api.main:app --reload
 ```
 
-6. Start the chat UI:
-
-```bash
-streamlit run frontend/app.py
-```
+6. Open `http://127.0.0.1:8000` in your browser.
 
 ## Windows Scripts
 
@@ -42,21 +38,27 @@ run.bat
 clean.bat
 ```
 
-- `run.bat` uses `backend\researcher_crew\.venv`, checks the required imports, runs ingestion only when `backend\chroma_db` is empty, then starts FastAPI on port `8000` and Streamlit on port `8501`.
+- `run.bat` uses `backend\researcher_crew\.venv`, checks the required imports, runs ingestion only when `backend\chroma_db` is empty, then starts FastAPI and opens the web frontend in your browser.
 - `clean.bat` removes `__pycache__`, `.pytest_cache`, `*.pyc`, and generated files inside `backend\chroma_db` except `.gitkeep`.
+
+## Frontend Pages
+
+- `Chat`: main conversational interface connected to `POST /query`
+- `FAQ`: curated operational starter questions
+- `Library`: indexed source document list with download links from `backend/data`
 
 ## Structure
 
 ```text
 Capstone/
 ├── backend/
-│   ├── api/              # FastAPI routes
+│   ├── api/              # FastAPI routes and frontend hosting
 │   ├── researcher_crew/  # CrewAI project and its venv
 │   ├── preprocessing/    # ingestion, loaders, chunking, embeddings, vectorstore
 │   ├── data/             # source documents
 │   └── chroma_db/        # persisted vector database
 ├── frontend/
-│   └── app.py            # Streamlit UI
+│   └── web/              # static web frontend (HTML/CSS/JS)
 ├── .env.example
 ├── .gitignore
 ├── README.md

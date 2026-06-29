@@ -7,12 +7,13 @@ from dotenv import load_dotenv
 
 from backend.preprocessing.chunker import chunk_documents
 from backend.preprocessing.loader import load_documents
-from backend.preprocessing.vectorstore import rebuild_vectorstore
+from backend.preprocessing.vectorstore import get_chroma_dir, rebuild_vectorstore
 
 load_dotenv()
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
+CITATION_SCHEMA_MARKER = ".citation-metadata-v1"
 
 
 def get_data_dir() -> Path:
@@ -27,6 +28,7 @@ def main() -> None:
     documents = load_documents(get_data_dir())
     chunks = chunk_documents(documents)
     rebuild_vectorstore(chunks)
+    (get_chroma_dir() / CITATION_SCHEMA_MARKER).write_text("1\n", encoding="ascii")
 
     print(f"Loaded {len(documents)} source documents.")
     print(f"Created {len(chunks)} chunks.")

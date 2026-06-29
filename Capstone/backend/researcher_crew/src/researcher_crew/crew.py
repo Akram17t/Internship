@@ -7,8 +7,6 @@ from crewai.project import CrewBase, agent, crew, task
 from crewai.agents.agent_builder.base_agent import BaseAgent
 from dotenv import load_dotenv
 
-from researcher_crew.tools import RAGSearchTool
-
 load_dotenv()
 
 
@@ -26,6 +24,8 @@ class ResearcherCrew():
         return LLM(
             model=os.getenv("MODEL", "ollama/llama3.1"),
             base_url=os.getenv("OLLAMA_BASE_URL", os.getenv("API_BASE", "http://localhost:11434")),
+            temperature=0.1,
+            seed=7,
         )
 
     @agent
@@ -33,7 +33,6 @@ class ResearcherCrew():
         return Agent(
             config=self.agents_config['researcher'], # type: ignore[index]
             llm=self._llm(),
-            tools=[RAGSearchTool()],
             verbose=True
         )
 

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HR AI Assistant | ICS Compute</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@500;600;700&family=Inter:ital,wght@0,400;0,500;0,600;1,400;1,600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@300,0&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body data-active-screen="chat">
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"><span class="material-symbols-outlined">bolt</span></span>
+        <div class="brand-copy">
+          <strong>HR AI Assistant</strong>
+          <span>ICS Compute</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav" aria-label="Primary navigation">
+        <button class="nav-link is-active" data-screen="chat" type="button">
+          <span class="material-symbols-outlined">chat</span><span>Chat</span>
+        </button>
+        <button class="nav-link" data-screen="faq" type="button">
+          <span class="material-symbols-outlined">quiz</span><span>FAQ</span>
+        </button>
+        <button class="nav-link" data-screen="policy" type="button">
+          <span class="material-symbols-outlined">policy</span><span>Policy</span>
+        </button>
+      </nav>
+
+    </aside>
+
+    <button class="page-backdrop" id="pageBackdrop" type="button" aria-label="Close navigation"></button>
+
+    <main class="main-panel">
+      <header class="topbar">
+        <div class="topbar-title">
+          <button class="menu-toggle material-symbols-outlined" id="menuToggle" type="button" aria-label="Open navigation">menu</button>
+          <h1 id="screenTitle">Active Session</h1>
+        </div>
+        <div class="topbar-actions">
+          <button class="new-chat-button" id="newChatButton" type="button">
+            <span class="material-symbols-outlined">add_comment</span>
+            <span class="new-chat-label">New chat</span>
+          </button>
+          <button class="icon-button notification-button" type="button" aria-label="Notifications">
+            <span class="material-symbols-outlined">notifications</span><i></i>
+          </button>
+          <button class="icon-button settings-button" type="button" aria-label="Settings">
+            <span class="material-symbols-outlined">settings</span>
+          </button>
+        </div>
+      </header>
+
+      <div class="screen-stack">
+        <section class="screen chat-screen is-active" data-screen-panel="chat">
+          <div class="chat-thread" id="chatThread" aria-live="polite"></div>
+          <form class="composer" id="chatForm">
+            <div class="composer-control">
+              <label class="sr-only" for="chatInput">Type your message</label>
+              <textarea id="chatInput" rows="1" maxlength="2000" placeholder="Type your message here..."></textarea>
+              <button class="send-button material-symbols-outlined" id="sendButton" type="submit" aria-label="Send message">send</button>
+            </div>
+            <p>AI-generated responses may contain inaccuracies. Please verify important policy details.</p>
+          </form>
+        </section>
+
+        <section class="screen faq-screen" data-screen-panel="faq">
+          <div class="faq-canvas">
+            <div class="page-intro">
+              <h2>Ada yang bisa kami bantu?</h2>
+              <p>Jawaban cepat untuk pertanyaan yang paling sering muncul<br class="desktop-break"> berdasarkan kebijakan resmi ICS Compute.</p>
+            </div>
+            <div class="faq-list" id="faqList"></div>
+          </div>
+          <footer class="faq-footer">
+            <span>(C) 2026 ICS Compute &bull; ISO Policy</span>
+            <strong>HR AGENT V2.4.0</strong>
+          </footer>
+        </section>
+
+        <section class="screen policy-screen" data-screen-panel="policy">
+          <div class="policy-canvas">
+            <div class="policy-heading">
+              <div class="policy-intro">
+                <span class="section-label">Official Documentation</span>
+                <h2>Central Policy Hub</h2>
+                <p>Access the latest version of employee handbooks, ISO compliance<br class="desktop-break"> standards, and internal operational frameworks. All documents are<br class="desktop-break"> verified for the 2024-2025 fiscal period.</p>
+              </div>
+              <div class="policy-actions">
+                <button class="outline-button" id="filterButton" type="button"><span class="material-symbols-outlined">filter_list</span>Filter</button>
+                <button class="primary-button" id="downloadAllButton" type="button"><span class="material-symbols-outlined">download</span><span>Download<br>All</span></button>
+              </div>
+            </div>
+            <label class="policy-search" id="policySearchWrap">
+              <span class="material-symbols-outlined">search</span>
+              <input id="librarySearch" type="search" placeholder="Filter documents...">
+            </label>
+            <div class="library-list" id="libraryList"></div>
+            <footer class="policy-footer">
+              <p>Can't find a document? Use the <button id="chatLink" type="button">AI Chat</button> to request specific policy files or clarify regulations.</p>
+              <span>&copy; 2026 ICS Compute &bull; All rights reserved &bull; Confidential Internal Use Only</span>
+            </footer>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <template id="messageTemplate">
+    <article class="message">
+      <div class="message-content">
+        <div class="message-bubble"></div>
+        <div class="message-citations" hidden></div>
+        <div class="message-meta"></div>
+      </div>
+    </article>
+  </template>
+
+  <template id="faqTemplate">
+    <article class="faq-item">
+      <button class="faq-trigger" type="button" aria-expanded="false">
+        <span class="faq-question"></span>
+        <span class="material-symbols-outlined faq-chevron">expand_more</span>
+      </button>
+      <div class="faq-answer-wrap">
+        <div class="faq-answer-content">
+          <p class="faq-answer"></p>
+          <div class="faq-actions">
+            <a class="faq-source" target="_blank" rel="noopener"></a>
+            <button class="faq-ask" type="button">Tanyakan di chat</button>
+          </div>
+        </div>
+      </div>
+    </article>
+  </template>
+
+  <template id="libraryItemTemplate">
+    <article class="document-row">
+      <div class="document-info">
+        <span class="material-symbols-outlined document-icon">description</span>
+        <div><h3 class="document-title"></h3><p class="document-meta"></p></div>
+      </div>
+      <a class="document-download" target="_blank" rel="noopener">Download <span class="material-symbols-outlined">download</span></a>
+    </article>
+  </template>
+
+  <script src="/assets/app.js"></script>
+</body>
+</html>
