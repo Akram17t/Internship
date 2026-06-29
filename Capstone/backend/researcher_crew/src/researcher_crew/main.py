@@ -25,6 +25,13 @@ if hasattr(sys.stderr, "reconfigure"):
 def run_knowledge_crew(question: str) -> tuple[str, list[dict[str, object]]]:
     """Run the knowledge crew and return its answer with referenced citations."""
     evidence, citations = retrieve_knowledge(question)
+    if not citations:
+        return (
+            "Informasi tersebut tidak tersedia dalam dokumen yang saat ini terindeks. "
+            "Silakan gunakan sumber lain atau tambahkan dokumen yang relevan.",
+            [],
+        )
+
     inputs = {
         "question": question,
         "evidence": evidence,

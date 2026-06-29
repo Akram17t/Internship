@@ -15,6 +15,24 @@ load_dotenv()
 
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
+MIN_TERM_COVERAGE = 0.5
+QUERY_STOPWORDS = {
+    "ada",
+    "apa",
+    "apakah",
+    "atau",
+    "bagaimana",
+    "berapa",
+    "dalam",
+    "dan",
+    "dari",
+    "dengan",
+    "ini",
+    "itu",
+    "pada",
+    "untuk",
+    "yang",
+}
 TERM_EXPANSIONS = {
     "kapan": {"jadwal", "tanggal", "waktu"},
     "dibayarkan": {"dibayar", "pembayaran"},
@@ -50,6 +68,8 @@ def rebuild_vectorstore(chunks: list[Document]) -> Chroma:
         embedding=get_embedding_model(),
         persist_directory=str(chroma_dir),
     )
+
+
 def hybrid_search(query: str, k: int = 4) -> list[Document]:
     """Combine semantic retrieval with lexical and section-heading relevance."""
     vectorstore = get_vectorstore()
@@ -64,10 +84,12 @@ def hybrid_search(query: str, k: int = 4) -> list[Document]:
         token
         for token in re.findall(r"[a-z0-9]+", query.lower())
         if len(token) >= 3
-        and token not in {"apa", "yang", "dan", "atau", "dari", "untuk", "dengan", "bagaimana", "berapa"}
+        and token not in QUERY_STOPWORDS
     }
+    if not query_terms:
+        return []
 
-    ranked: list[tuple[float, Document]] = []
+    ranked: list[tuple[float, float, Document]] = []
     for content, metadata in zip(collection.get("documents", []), collection.get("metadatas", [])):
         content = content or ""
         metadata = metadata or {}
@@ -89,10 +111,15 @@ def hybrid_search(query: str, k: int = 4) -> list[Document]:
                 matched_terms += 1
                 lexical_score += term_score
 
-        coverage_bonus = (matched_terms / len(query_terms) * 2) if query_terms else 0
+        term_coverage = matched_terms / len(query_terms)
+        coverage_bonus = term_coverage * 2
         semantic_score = vector_scores.get(metadata.get("chunk_id"), 0)
         total_score = lexical_score + coverage_bonus + semantic_score
-        ranked.append((total_score, Document(page_content=content, metadata=metadata)))
+        ranked.append((total_score, term_coverage, Document(page_content=content, metadata=metadata)))
 
     ranked.sort(key=lambda item: item[0], reverse=True)
-    return [document for _, document in ranked[:k]]
+    return [
+        document
+        for _, term_coverage, document in ranked
+        if term_coverage >= MIN_TERM_COVERAGE
+    ][:k]
