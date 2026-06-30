@@ -10,6 +10,6 @@ load_dotenv()
 
 def get_embedding_model() -> OllamaEmbeddings:
     return OllamaEmbeddings(
-        model=os.getenv("EMBED_MODEL", "nomic-embed-text"),
+        model=os.getenv("EMBED_MODEL", "aroxima/multilingual-e5-large-instruct"),
         base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
     )

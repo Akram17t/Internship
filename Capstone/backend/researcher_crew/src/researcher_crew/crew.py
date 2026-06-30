@@ -22,7 +22,7 @@ class ResearcherCrew():
 
     def _llm(self) -> LLM:
         return LLM(
-            model=os.getenv("MODEL", "ollama/llama3.1"),
+            model=os.getenv("MODEL", "ollama/qwen2.5:7b-instruct-q6_K"),
             base_url=os.getenv("OLLAMA_BASE_URL", os.getenv("API_BASE", "http://localhost:11434")),
             temperature=0.1,
             seed=7,

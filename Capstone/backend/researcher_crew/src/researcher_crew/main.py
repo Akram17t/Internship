@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import re
 import sys
+import json
+import os
+import urllib.request
 import warnings
 
-from researcher_crew.crew import ResearcherCrew
 from researcher_crew.tools import retrieve_knowledge
 
 warnings.filterwarnings("ignore", category=SyntaxWarning, module="pysbd")
@@ -22,9 +24,71 @@ if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 
-def run_knowledge_crew(question: str) -> tuple[str, list[dict[str, object]]]:
-    """Run the knowledge crew and return its answer with referenced citations."""
-    evidence, citations = retrieve_knowledge(question)
+def _ollama_model_name() -> str:
+    model = os.getenv("MODEL", "ollama/qwen2.5:7b-instruct-q6_K")
+    return model.removeprefix("ollama/")
+
+
+def _ollama_base_url() -> str:
+    return os.getenv("OLLAMA_BASE_URL", os.getenv("API_BASE", "http://localhost:11434")).rstrip("/")
+
+
+def _build_retrieval_query(question: str, conversation_context: str = "") -> str:
+    if not conversation_context:
+        return question
+    return (
+        "Konteks percakapan sebelumnya:\n"
+        f"{conversation_context}\n\n"
+        f"Pertanyaan terbaru:\n{question}"
+    )
+
+
+def _generate_answer(question: str, evidence: str, conversation_context: str = "") -> str:
+    memory_block = ""
+    if conversation_context:
+        memory_block = f"Konteks percakapan sebelumnya:\n{conversation_context}\n\n"
+
+    prompt = (
+        "Kamu adalah HR Assistant ICS Compute. Jawab pertanyaan user dalam bahasa Indonesia "
+        "dengan memperhatikan konteks percakapan sebelumnya dan evidence yang diberikan. "
+        "Pakai evidence yang paling relevan, abaikan potongan evidence yang tidak nyambung, "
+        "dan jangan bilang informasi tidak tersedia kalau ada excerpt yang menjawab pertanyaan. "
+        "Kalau pertanyaan masih umum, langsung jawab dari konteks dokumen paling relevan. "
+        "Jawab ringkas dalam 3 sampai 5 kalimat dan gunakan nomor sitasi seperti [1] pada klaim penting.\n\n"
+        f"{memory_block}"
+        f"Pertanyaan:\n{question}\n\n"
+        f"Evidence:\n{evidence}\n\n"
+        "Jawaban:"
+    )
+    payload = {
+        "model": _ollama_model_name(),
+        "prompt": prompt,
+        "stream": False,
+        "options": {
+            "temperature": 0.1,
+            "seed": 7,
+            "num_ctx": 2048,
+            "num_predict": 240,
+        },
+    }
+    request = urllib.request.Request(
+        f"{_ollama_base_url()}/api/generate",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=180) as response:
+        body = json.loads(response.read().decode("utf-8"))
+    return str(body.get("response", "")).strip()
+
+
+def run_knowledge_crew(
+    question: str,
+    conversation_context: str = "",
+) -> tuple[str, list[dict[str, object]]]:
+    """Retrieve relevant policy evidence and answer with local Ollama."""
+    retrieval_query = _build_retrieval_query(question, conversation_context)
+    evidence, citations = retrieve_knowledge(retrieval_query)
     if not citations:
         return (
             "Informasi tersebut tidak tersedia dalam dokumen yang saat ini terindeks. "
@@ -35,9 +99,9 @@ def run_knowledge_crew(question: str) -> tuple[str, list[dict[str, object]]]:
     inputs = {
         "question": question,
         "evidence": evidence,
+        "conversation_context": conversation_context,
     }
-    result = ResearcherCrew().crew().kickoff(inputs=inputs)
-    answer = GENERATED_SOURCES_SECTION.sub("", str(result)).strip()
+    answer = GENERATED_SOURCES_SECTION.sub("", _generate_answer(**inputs)).strip()
     if citations:
         answer = re.sub(r"\[[nN]\]", f"[{citations[0]['id']}]", answer)
     used_citation_ids = {int(value) for value in re.findall(r"\[(\d+)\]", answer)}

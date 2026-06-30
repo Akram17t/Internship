@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import os
-import re
 import shutil
+from functools import lru_cache
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -15,31 +15,7 @@ load_dotenv()
 
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
-MIN_TERM_COVERAGE = 0.5
-QUERY_STOPWORDS = {
-    "ada",
-    "apa",
-    "apakah",
-    "atau",
-    "bagaimana",
-    "berapa",
-    "dalam",
-    "dan",
-    "dari",
-    "dengan",
-    "ini",
-    "itu",
-    "pada",
-    "untuk",
-    "yang",
-}
-TERM_EXPANSIONS = {
-    "kapan": {"jadwal", "tanggal", "waktu"},
-    "dibayarkan": {"dibayar", "pembayaran"},
-    "dibayar": {"dibayarkan", "pembayaran"},
-    "gajian": {"gaji", "penggajian", "pembayaran"},
-    "jatah": {"hak", "entitlement"},
-}
+DEFAULT_RERANK_MODEL = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
 
 
 def get_chroma_dir() -> Path:
@@ -70,56 +46,41 @@ def rebuild_vectorstore(chunks: list[Document]) -> Chroma:
     )
 
 
+@lru_cache(maxsize=1)
+def get_reranker():
+    model_name = os.getenv("RERANK_MODEL", DEFAULT_RERANK_MODEL).strip()
+    if not model_name:
+        return None
+
+    try:
+        from sentence_transformers import CrossEncoder
+    except ImportError:
+        return None
+
+    try:
+        return CrossEncoder(model_name, max_length=int(os.getenv("RERANK_MAX_LENGTH", "256")))
+    except Exception:
+        return None
+
+
+def _rerank_documents(query: str, documents: list[Document]) -> list[Document]:
+    reranker = get_reranker()
+    if reranker is None or not documents:
+        return documents
+
+    pairs = [(query, document.page_content) for document in documents]
+    scores = reranker.predict(pairs)
+    ranked = sorted(
+        zip(documents, scores),
+        key=lambda item: float(item[1]),
+        reverse=True,
+    )
+    return [document for document, _ in ranked]
+
+
 def hybrid_search(query: str, k: int = 4) -> list[Document]:
-    """Combine semantic retrieval with lexical and section-heading relevance."""
+    """Retrieve semantically relevant chunks, then rerank them when available."""
     vectorstore = get_vectorstore()
-    vector_results = vectorstore.similarity_search_with_score(query, k=max(k * 5, 20))
-    vector_scores = {
-        document.metadata.get("chunk_id"): 1 / (1 + max(float(distance), 0))
-        for document, distance in vector_results
-    }
-
-    collection = vectorstore.get(include=["documents", "metadatas"])
-    query_terms = {
-        token
-        for token in re.findall(r"[a-z0-9]+", query.lower())
-        if len(token) >= 3
-        and token not in QUERY_STOPWORDS
-    }
-    if not query_terms:
-        return []
-
-    ranked: list[tuple[float, float, Document]] = []
-    for content, metadata in zip(collection.get("documents", []), collection.get("metadatas", [])):
-        content = content or ""
-        metadata = metadata or {}
-        section = str(metadata.get("section", ""))
-        source = str(metadata.get("source", ""))
-        searchable_content = content.lower()
-        searchable_section = section.lower()
-        searchable_source = source.lower().replace("_", " ")
-
-        lexical_score = 0.0
-        matched_terms = 0
-        for term in query_terms:
-            variants = {term, *TERM_EXPANSIONS.get(term, set())}
-            content_hits = min(max(searchable_content.count(variant) for variant in variants), 3)
-            section_hit = 3 if any(variant in searchable_section for variant in variants) else 0
-            source_hit = 1 if any(variant in searchable_source for variant in variants) else 0
-            term_score = content_hits + section_hit + source_hit
-            if term_score:
-                matched_terms += 1
-                lexical_score += term_score
-
-        term_coverage = matched_terms / len(query_terms)
-        coverage_bonus = term_coverage * 2
-        semantic_score = vector_scores.get(metadata.get("chunk_id"), 0)
-        total_score = lexical_score + coverage_bonus + semantic_score
-        ranked.append((total_score, term_coverage, Document(page_content=content, metadata=metadata)))
-
-    ranked.sort(key=lambda item: item[0], reverse=True)
-    return [
-        document
-        for _, term_coverage, document in ranked
-        if term_coverage >= MIN_TERM_COVERAGE
-    ][:k]
+    fetch_k = int(os.getenv("RERANK_CANDIDATES", str(max(k + 2, 6))))
+    vector_results = vectorstore.similarity_search(query, k=fetch_k)
+    return _rerank_documents(query, vector_results)[:k]

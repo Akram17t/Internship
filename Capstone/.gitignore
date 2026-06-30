@@ -8,3 +8,5 @@ backend/data/*
 !backend/data/.gitkeep
 backend/chroma_db/*
 !backend/chroma_db/.gitkeep
+backend/cache/*
+!backend/cache/.gitkeep
