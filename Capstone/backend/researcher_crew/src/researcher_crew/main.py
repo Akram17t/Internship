@@ -84,6 +84,38 @@ def _generate_answer(question: str, evidence: str, conversation_context: str = "
     return str(body.get("response", "")).strip()
 
 
+def _generate_faq_answer(question: str, evidence: str) -> str:
+    prompt = (
+        "Kamu adalah HR Assistant ICS Compute. Buat jawaban FAQ yang ringkas dalam bahasa Indonesia. "
+        "Jawaban harus cocok untuk accordion FAQ: cukup 1 paragraf pendek, maksimal 2 kalimat, "
+        "langsung ke inti, dan tetap memakai nomor sitasi seperti [1] untuk klaim dari evidence. "
+        "Jangan membuat pembuka panjang, jangan membuat daftar, dan jangan menambahkan bagian sumber terpisah.\n\n"
+        f"Pertanyaan FAQ:\n{question}\n\n"
+        f"Evidence:\n{evidence}\n\n"
+        "Jawaban FAQ:"
+    )
+    payload = {
+        "model": _ollama_model_name(),
+        "prompt": prompt,
+        "stream": False,
+        "options": {
+            "temperature": 0.1,
+            "seed": 11,
+            "num_ctx": 2048,
+            "num_predict": 150,
+        },
+    }
+    request = urllib.request.Request(
+        f"{_ollama_base_url()}/api/generate",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=180) as response:
+        body = json.loads(response.read().decode("utf-8"))
+    return str(body.get("response", "")).strip()
+
+
 def run_knowledge_crew(
     question: str,
     conversation_context: str = "",
@@ -104,6 +136,27 @@ def run_knowledge_crew(
         "conversation_context": conversation_context,
     }
     answer = GENERATED_SOURCES_SECTION.sub("", _generate_answer(**inputs)).strip()
+    if citations:
+        answer = re.sub(r"\[[nN]\]", f"[{citations[0]['id']}]", answer)
+    used_citation_ids = {int(value) for value in re.findall(r"\[(\d+)\]", answer)}
+    if used_citation_ids:
+        citations = [citation for citation in citations if citation["id"] in used_citation_ids]
+    elif citations:
+        answer = f"{answer} [{citations[0]['id']}]"
+        citations = citations[:1]
+    return answer, citations
+
+
+def run_faq_crew(question: str) -> tuple[str, list[dict[str, object]]]:
+    """Generate a short FAQ answer and citations from local RAG evidence."""
+    evidence, citations = retrieve_knowledge(question)
+    if not citations:
+        return (
+            "Informasi ini belum tersedia dalam dokumen yang saat ini terindeks.",
+            [],
+        )
+
+    answer = GENERATED_SOURCES_SECTION.sub("", _generate_faq_answer(question, evidence)).strip()
     if citations:
         answer = re.sub(r"\[[nN]\]", f"[{citations[0]['id']}]", answer)
     used_citation_ids = {int(value) for value in re.findall(r"\[(\d+)\]", answer)}

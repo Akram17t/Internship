@@ -1,12 +1,14 @@
 const CHAT_STORAGE_KEY = "ics-hr-ai-chat-v3";
 const AUTH_STORAGE_KEY = "ics-hr-ai-auth-v1";
 const CONVERSATION_STORAGE_KEY = "ics-hr-ai-conversation-v1";
+const REINDEX_STORAGE_KEY = "ics-hr-ai-reindex-required-v1";
+const MOBILE_QUERY = "(max-width: 640px)";
 
 const adminAccounts = [
   { email: "admin@gmail.com", password: "admin123", name: "admin" },
 ];
 
-const faqItems = [
+const fallbackFaqItems = [
   {
     question: "Berapa hak cuti tahunan karyawan?",
     answer:
@@ -133,6 +135,11 @@ const state = {
   documents: [],
   filter: "",
   session: loadSession(),
+  faqItems: fallbackFaqItems,
+  editingFaqId: "",
+  isMutatingFaq: false,
+  needsReindex: loadReindexRequired(),
+  isReindexing: false,
   pendingReplacePath: "",
   isMutatingDocument: false,
 };
@@ -140,6 +147,7 @@ const state = {
 const elements = {
   body: document.body,
   screenTitle: document.getElementById("screenTitle"),
+  sidebar: document.getElementById("sidebar"),
   navLinks: Array.from(document.querySelectorAll(".nav-link")),
   screens: Array.from(document.querySelectorAll(".screen")),
   chatScreen: document.querySelector('[data-screen-panel="chat"]'),
@@ -149,6 +157,12 @@ const elements = {
   sendButton: document.getElementById("sendButton"),
   newChatButton: document.getElementById("newChatButton"),
   faqList: document.getElementById("faqList"),
+  faqForm: document.getElementById("faqForm"),
+  faqIdInput: document.getElementById("faqIdInput"),
+  faqQuestionInput: document.getElementById("faqQuestionInput"),
+  faqSubmitButton: document.getElementById("faqSubmitButton"),
+  faqCancelButton: document.getElementById("faqCancelButton"),
+  faqStatus: document.getElementById("faqStatus"),
   libraryList: document.getElementById("libraryList"),
   librarySearch: document.getElementById("librarySearch"),
   policySearchWrap: document.getElementById("policySearchWrap"),
@@ -183,6 +197,7 @@ const elements = {
   documentFileInput: document.getElementById("documentFileInput"),
   documentFileLabel: document.getElementById("documentFileLabel"),
   documentUploadButton: document.getElementById("documentUploadButton"),
+  documentReindexButton: document.getElementById("documentReindexButton"),
   documentReplaceInput: document.getElementById("documentReplaceInput"),
   adminDocumentStatus: document.getElementById("adminDocumentStatus"),
   messageTemplate: document.getElementById("messageTemplate"),
@@ -195,15 +210,19 @@ init();
 function init() {
   bindNavigation();
   bindChat();
+  bindAdminFaqs();
   bindPolicyActions();
   bindAuth();
   bindAdminDocuments();
   syncAuth();
+  syncReindexState();
   updateComposer();
   renderMessages();
   renderFaqs();
   syncScreenFromHash();
+  void loadFaqs();
   void loadLibrary();
+  window.addEventListener("resize", updateComposer);
 }
 
 function bindNavigation() {
@@ -211,9 +230,7 @@ function bindNavigation() {
   elements.navLinks.forEach((button) => {
     button.addEventListener("click", () => navigateTo(button.dataset.screen));
   });
-  elements.menuToggle.addEventListener("click", () =>
-    elements.body.classList.add("nav-open"),
-  );
+  elements.menuToggle.addEventListener("click", openMobileNav);
   elements.pageBackdrop.addEventListener("click", closeMobileNav);
 }
 
@@ -235,6 +252,11 @@ function syncScreenFromHash() {
 
 function navigateTo(screen) {
   window.location.hash = screen || "chat";
+}
+
+function openMobileNav() {
+  elements.sidebar.scrollTop = 0;
+  elements.body.classList.add("nav-open");
 }
 
 function closeMobileNav() {
@@ -613,6 +635,7 @@ function formatDuration(milliseconds) {
 }
 
 function updateComposer() {
+  const isMobile = window.matchMedia(MOBILE_QUERY).matches;
   elements.chatInput.disabled = false;
   elements.sendButton.disabled = false;
   elements.newChatButton.disabled = state.isSubmitting;
@@ -624,21 +647,47 @@ function updateComposer() {
   elements.sendButton.classList.toggle("is-stopping", state.isSubmitting);
   elements.chatInput.placeholder = state.isSubmitting
     ? "Ketik pertanyaan berikutnya..."
-    : "Tanya soal cuti, THR, lembur, WFH, atau policy lainnya...";
+    : isMobile
+      ? "Tanya policy HR..."
+      : "Tanya soal cuti, THR, lembur, WFH, atau policy lainnya...";
 }
 
 function renderFaqs() {
   elements.faqList.innerHTML = "";
-  faqItems.forEach((item) => {
+  state.faqItems.forEach((item) => {
     const fragment = elements.faqTemplate.content.cloneNode(true);
     const container = fragment.querySelector(".faq-item");
     const trigger = fragment.querySelector(".faq-trigger");
     const source = fragment.querySelector(".faq-source");
     const askButton = fragment.querySelector(".faq-ask");
+    const editButton = fragment.querySelector(".faq-edit");
+    const deleteButton = fragment.querySelector(".faq-delete");
+    const citationContainer = fragment.querySelector(".faq-citations");
+    const citations = getFaqCitations(item);
     fragment.querySelector(".faq-question").textContent = item.question;
-    fragment.querySelector(".faq-answer").textContent = item.answer;
-    source.textContent = item.source;
-    source.href = item.source_url;
+    appendFormattedText(
+      fragment.querySelector(".faq-answer"),
+      item.answer,
+      buildCitationMap(citations),
+    );
+    if (citations.length) {
+      renderFaqCitations(citationContainer, citations);
+      source.hidden = true;
+    } else if (item.source) {
+      source.textContent = item.source;
+      if (item.source_url) {
+        source.href = item.source_url;
+      } else {
+        source.removeAttribute("href");
+        source.removeAttribute("target");
+        source.removeAttribute("rel");
+      }
+    } else {
+      source.hidden = true;
+      source.removeAttribute("href");
+      source.removeAttribute("target");
+      source.removeAttribute("rel");
+    }
     trigger.addEventListener("click", () => {
       const isOpen = container.classList.toggle("is-open");
       trigger.setAttribute("aria-expanded", String(isOpen));
@@ -648,8 +697,208 @@ function renderFaqs() {
       navigateTo("chat");
       window.setTimeout(() => elements.chatInput.focus(), 0);
     });
+    if (item.id) {
+      editButton.addEventListener("click", () => startFaqEdit(item));
+      deleteButton.addEventListener("click", () => deleteFaq(item));
+    } else {
+      editButton.hidden = true;
+      deleteButton.hidden = true;
+    }
     elements.faqList.appendChild(fragment);
   });
+  updateFaqControls();
+}
+
+async function loadFaqs() {
+  try {
+    const response = await fetch("/api/faq");
+    if (!response.ok) return;
+
+    const items = await response.json();
+    if (!Array.isArray(items) || items.length === 0) return;
+
+    state.faqItems = items
+      .filter((item) => item.question && item.answer)
+      .map(normalizeFaq);
+    if (state.faqItems.length > 0) renderFaqs();
+  } catch (error) {
+    console.warn("Unable to load FAQ", error);
+  }
+}
+
+function normalizeFaq(item) {
+  return {
+    id: item.id || "",
+    question: item.question,
+    answer: item.answer,
+    source: item.source || "",
+    source_url: item.source_url || "",
+    suggested_query: item.suggested_query || item.question,
+    citations: Array.isArray(item.citations) ? item.citations : [],
+  };
+}
+
+function getFaqCitations(item) {
+  if (Array.isArray(item.citations) && item.citations.length) {
+    return item.citations;
+  }
+  if (!item.source) return [];
+  return [
+    {
+      id: 1,
+      source: item.source,
+      download_url: item.source_url || "",
+    },
+  ];
+}
+
+function renderFaqCitations(container, citations) {
+  const list = document.createElement("div");
+  list.className = "faq-citation-list";
+  citations.forEach((citation) => {
+    const source = citation.download_url
+      ? document.createElement("a")
+      : document.createElement("span");
+    source.className = "faq-citation-link";
+    source.textContent = formatCitationText(citation);
+    if (citation.download_url) {
+      source.href = citation.download_url;
+      source.target = "_blank";
+      source.rel = "noopener";
+    }
+    list.appendChild(source);
+  });
+  container.appendChild(list);
+  container.hidden = false;
+}
+
+function formatCitationText(citation) {
+  return [
+    citation.source || "Unknown source",
+    citation.section || null,
+    citation.page ? `PDF halaman ${citation.page}` : null,
+  ]
+    .filter(Boolean)
+    .join(" - ");
+}
+
+function bindAdminFaqs() {
+  elements.faqForm.addEventListener("submit", saveFaq);
+  elements.faqCancelButton.addEventListener("click", resetFaqForm);
+}
+
+async function saveFaq(event) {
+  event.preventDefault();
+  if (!isAdminSession() || state.isMutatingFaq || state.needsReindex || state.isReindexing) {
+    if (state.needsReindex || state.isReindexing) {
+      showFaqStatus("Rebuild embeddings dulu sebelum mengubah FAQ.", true);
+    }
+    return;
+  }
+
+  const faqId = elements.faqIdInput.value;
+  const payload = {
+    question: elements.faqQuestionInput.value.trim(),
+  };
+  if (!payload.question) {
+    showFaqStatus("Pertanyaan wajib diisi.", true);
+    return;
+  }
+
+  state.isMutatingFaq = true;
+  updateFaqControls();
+  showFaqStatus(faqId ? "Regenerating FAQ answer..." : "Generating FAQ answer...");
+
+  try {
+    const response = await fetch(faqId ? `/api/admin/faq/${encodeURIComponent(faqId)}` : "/api/admin/faq", {
+      method: faqId ? "PUT" : "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Admin-Email": state.session.email,
+      },
+      body: JSON.stringify(payload),
+    });
+    const responsePayload = await readJsonResponse(response);
+    if (!response.ok) throw new Error(responsePayload.detail || "FAQ update failed.");
+
+    showFaqStatus(responsePayload.message || "FAQ saved.");
+    resetFaqForm(false);
+    await loadFaqs();
+  } catch (error) {
+    showFaqStatus(error.message || "FAQ update failed.", true);
+  } finally {
+    state.isMutatingFaq = false;
+    updateFaqControls();
+  }
+}
+
+function startFaqEdit(item) {
+  if (!isAdminSession() || state.isMutatingFaq || state.needsReindex || state.isReindexing) return;
+  state.editingFaqId = item.id;
+  elements.faqIdInput.value = item.id;
+  elements.faqQuestionInput.value = item.question;
+  elements.faqSubmitButton.textContent = "Regenerate FAQ";
+  elements.faqCancelButton.hidden = false;
+  showFaqStatus("Editing FAQ item.");
+  elements.faqQuestionInput.focus();
+  elements.faqForm.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+async function deleteFaq(item) {
+  if (!isAdminSession() || state.isMutatingFaq || state.needsReindex || state.isReindexing || !item.id) return;
+  const confirmed = window.confirm(`Delete FAQ "${item.question}"?`);
+  if (!confirmed) return;
+
+  state.isMutatingFaq = true;
+  updateFaqControls();
+  showFaqStatus("Deleting FAQ...");
+
+  try {
+    const response = await fetch(`/api/admin/faq/${encodeURIComponent(item.id)}`, {
+      method: "DELETE",
+      headers: { "X-Admin-Email": state.session.email },
+    });
+    const payload = await readJsonResponse(response);
+    if (!response.ok) throw new Error(payload.detail || "FAQ delete failed.");
+    showFaqStatus(payload.message || "FAQ deleted.");
+    if (state.editingFaqId === item.id) resetFaqForm(false);
+    await loadFaqs();
+  } catch (error) {
+    showFaqStatus(error.message || "FAQ delete failed.", true);
+  } finally {
+    state.isMutatingFaq = false;
+    updateFaqControls();
+  }
+}
+
+function resetFaqForm(clearStatus = true) {
+  state.editingFaqId = "";
+  elements.faqForm.reset();
+  elements.faqIdInput.value = "";
+  elements.faqSubmitButton.textContent = "Generate FAQ";
+  elements.faqCancelButton.hidden = true;
+  if (clearStatus) clearFaqStatus();
+}
+
+function updateFaqControls() {
+  const isLocked = state.isMutatingFaq || state.needsReindex || state.isReindexing;
+  elements.faqSubmitButton.disabled = isLocked;
+  elements.faqQuestionInput.disabled = isLocked;
+  elements.faqList
+    .querySelectorAll(".faq-edit, .faq-delete")
+    .forEach((button) => {
+      button.disabled = isLocked;
+    });
+}
+
+function showFaqStatus(message, isError = false) {
+  elements.faqStatus.textContent = message;
+  elements.faqStatus.classList.toggle("is-error", isError);
+}
+
+function clearFaqStatus() {
+  elements.faqStatus.textContent = "";
+  elements.faqStatus.classList.remove("is-error");
 }
 
 function bindPolicyActions() {
@@ -819,7 +1068,10 @@ function syncAuth() {
     "aria-label",
     isAdmin ? "Logout admin" : "Login admin",
   );
+  if (!isAdmin) resetFaqForm();
   clearDocumentStatus();
+  syncReindexState();
+  updateFaqControls();
   renderLibrary();
 }
 
@@ -859,10 +1111,12 @@ function bindAdminDocuments() {
     elements.documentReplaceInput.value = "";
     state.pendingReplacePath = "";
   });
+
+  elements.documentReindexButton.addEventListener("click", rebuildEmbeddings);
 }
 
 async function saveDocuments(files) {
-  if (!isAdminSession() || state.isMutatingDocument) return;
+  if (!isAdminSession() || state.isMutatingDocument || state.needsReindex || state.isReindexing) return;
   state.isMutatingDocument = true;
   updateDocumentControls();
 
@@ -879,7 +1133,6 @@ async function saveDocuments(files) {
   }
 
   state.isMutatingDocument = false;
-  updateDocumentControls();
   await loadLibrary();
 
   if (failures.length) {
@@ -887,21 +1140,30 @@ async function saveDocuments(files) {
       `${successCount} uploaded, ${failures.length} failed. ${failures.join("; ")}`,
       true,
     );
+    if (successCount > 0) markReindexRequired();
+    updateDocumentControls();
     return;
   }
-  showDocumentStatus(`${successCount} document${successCount === 1 ? "" : "s"} uploaded.`);
+  if (successCount > 0) {
+    markReindexRequired(
+      `${successCount} document${successCount === 1 ? "" : "s"} uploaded. Rebuild embeddings before continuing.`,
+    );
+  }
+  updateDocumentControls();
 }
 
 async function saveDocument(file, replacePath = "") {
-  if (!isAdminSession() || state.isMutatingDocument) return;
+  if (!isAdminSession() || state.isMutatingDocument || state.needsReindex || state.isReindexing) return;
   state.isMutatingDocument = true;
   updateDocumentControls();
   showDocumentStatus(replacePath ? "Updating document..." : "Uploading document...");
 
   try {
     const payload = await saveDocumentRequest(file, replacePath);
-    showDocumentStatus(payload.message || "Document saved.");
     await loadLibrary();
+    markReindexRequired(
+      `${payload.message || "Document saved."} Rebuild embeddings before continuing.`,
+    );
   } catch (error) {
     showDocumentStatus(error.message || "Document update failed.", true);
   } finally {
@@ -931,7 +1193,7 @@ async function saveDocumentRequest(file, replacePath = "") {
 }
 
 async function deleteDocument(item) {
-  if (!isAdminSession() || state.isMutatingDocument) return;
+  if (!isAdminSession() || state.isMutatingDocument || state.needsReindex || state.isReindexing) return;
   const confirmed = window.confirm(`Delete "${item.display_name}"?`);
   if (!confirmed) return;
 
@@ -946,8 +1208,10 @@ async function deleteDocument(item) {
     });
     const payload = await readJsonResponse(response);
     if (!response.ok) throw new Error(payload.detail || "Document delete failed.");
-    showDocumentStatus(payload.message || "Document deleted.");
     await loadLibrary();
+    markReindexRequired(
+      `${payload.message || "Document deleted."} Rebuild embeddings before continuing.`,
+    );
   } catch (error) {
     showDocumentStatus(error.message || "Document delete failed.", true);
   } finally {
@@ -957,19 +1221,78 @@ async function deleteDocument(item) {
 }
 
 function startDocumentReplace(item) {
-  if (!isAdminSession() || state.isMutatingDocument) return;
+  if (!isAdminSession() || state.isMutatingDocument || state.needsReindex || state.isReindexing) return;
   state.pendingReplacePath = item.relative_path;
   elements.documentReplaceInput.value = "";
   elements.documentReplaceInput.click();
 }
 
 function updateDocumentControls() {
-  elements.documentUploadButton.disabled = state.isMutatingDocument;
+  const isLocked = state.isMutatingDocument || state.needsReindex || state.isReindexing;
+  elements.documentUploadButton.disabled = isLocked;
+  elements.documentFileInput.disabled = isLocked;
+  elements.documentReindexButton.disabled =
+    !isAdminSession() || state.isMutatingDocument || state.isReindexing || !state.needsReindex;
   elements.libraryList
     .querySelectorAll(".document-update, .document-delete")
     .forEach((button) => {
-      button.disabled = state.isMutatingDocument;
+      button.disabled = isLocked;
     });
+}
+
+async function rebuildEmbeddings() {
+  if (!isAdminSession() || state.isReindexing || !state.needsReindex) return;
+
+  state.isReindexing = true;
+  syncReindexState();
+  updateDocumentControls();
+  updateFaqControls();
+  showDocumentStatus("Rebuilding embeddings. Please wait...");
+
+  try {
+    const response = await fetch("/api/admin/reindex", {
+      method: "POST",
+      headers: { "X-Admin-Email": state.session.email },
+    });
+    const payload = await readJsonResponse(response);
+    if (!response.ok) throw new Error(payload.detail || "Rebuild embeddings failed.");
+    clearReindexRequired(payload.message || "Embeddings rebuilt.");
+  } catch (error) {
+    showDocumentStatus(error.message || "Rebuild embeddings failed.", true);
+  } finally {
+    state.isReindexing = false;
+    syncReindexState();
+    updateDocumentControls();
+    updateFaqControls();
+  }
+}
+
+function markReindexRequired(message = "Document library changed. Rebuild embeddings before continuing.") {
+  state.needsReindex = true;
+  window.localStorage.setItem(REINDEX_STORAGE_KEY, "1");
+  syncReindexState();
+  showDocumentStatus(message, false);
+}
+
+function clearReindexRequired(message = "Embeddings rebuilt.") {
+  state.needsReindex = false;
+  window.localStorage.removeItem(REINDEX_STORAGE_KEY);
+  syncReindexState();
+  showDocumentStatus(message, false);
+}
+
+function syncReindexState() {
+  elements.body.dataset.reindexState = state.isReindexing
+    ? "running"
+    : state.needsReindex
+      ? "required"
+      : "clean";
+  if (!isAdminSession()) return;
+  if (state.isReindexing) {
+    showDocumentStatus("Rebuilding embeddings. Please wait...");
+  } else if (state.needsReindex && !elements.adminDocumentStatus.textContent) {
+    showDocumentStatus("Document library changed. Rebuild embeddings before continuing.");
+  }
 }
 
 function showDocumentStatus(message, isError = false) {
@@ -1098,6 +1421,10 @@ function loadConversationId() {
   const nextId = createConversationId();
   window.localStorage.setItem(CONVERSATION_STORAGE_KEY, nextId);
   return nextId;
+}
+
+function loadReindexRequired() {
+  return window.localStorage.getItem(REINDEX_STORAGE_KEY) === "1";
 }
 
 function loadSession() {

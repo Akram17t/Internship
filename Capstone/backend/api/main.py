@@ -30,39 +30,108 @@ MAX_DOCUMENT_BYTES = 25 * 1024 * 1024
 MAX_CONVERSATIONS = 50
 MAX_CONVERSATION_MESSAGES = 12
 CONVERSATION_LOCK = threading.Lock()
+FAQ_LOCK = threading.Lock()
+REINDEX_LOCK = threading.Lock()
 
-FAQ_ITEMS = [
+DEFAULT_FAQ_ITEMS = [
     {
-        "question": "Apa respons pertama saat Priority 1 alarm muncul?",
+        "id": "cuti-tahunan",
+        "question": "Berapa hak cuti tahunan karyawan?",
         "answer": (
-            "Operator harus acknowledge alarm, memastikan apakah alarm itu genuine atau terkait maintenance, "
-            "memberi tahu supervisor dalam lima menit, membuka incident ticket, lalu mulai runbook yang relevan."
+            "Karyawan yang telah bekerja 12 bulan terus-menerus berhak atas 12 hari kerja cuti tahunan. "
+            "Maksimal 5 hari dapat dibawa ke tahun berikutnya dan akan hangus pada 31 Maret jika tidak digunakan."
         ),
-        "suggested_query": "Apa yang harus dilakukan pertama kali ketika Priority 1 alarm muncul?",
+        "source": "ICS_PP03_Kebijakan_Cuti.pdf - Pasal 1 - PDF halaman 2",
+        "source_url": "/api/documents/ICS_PP03_Kebijakan_Cuti.pdf",
+        "suggested_query": "Jelaskan hak, pengajuan, dan carry over cuti tahunan karyawan.",
     },
     {
-        "question": "Apa saja isi wajib shift handover?",
+        "id": "upah-lembur",
+        "question": "Bagaimana mekanisme dan perhitungan upah lembur?",
         "answer": (
-            "Handover harus mencakup status sistem, alarm aktif atau belum selesai, aset yang degraded, "
-            "aktivitas maintenance, perubahan akses sementara, work permit, dan ticket yang belum selesai."
+            "Lembur dilakukan atas permintaan tertulis Atasan Langsung dengan persetujuan Karyawan. "
+            "Jam pertama dibayar 1,5 kali upah per jam, jam berikutnya 2 kali, dengan batas maksimal 4 jam per hari dan 18 jam per minggu."
         ),
-        "suggested_query": "Apa saja yang wajib dimasukkan ke catatan shift handover?",
+        "source": "ICS_PP01_Peraturan_Perusahaan.pdf - Pasal 6 - PDF halaman 2-3",
+        "source_url": "/api/documents/ICS_PP01_Peraturan_Perusahaan.pdf",
+        "suggested_query": "Bagaimana mekanisme dan perhitungan upah lembur?",
     },
     {
-        "question": "Informasi apa yang dibutuhkan untuk request akses baru?",
+        "id": "gaji-bulanan",
+        "question": "Kapan gaji bulanan dibayarkan?",
         "answer": (
-            "Minimal berisi nama lengkap, employee ID, departemen, supervisor, sistem yang dibutuhkan, "
-            "business justification, dan durasi jika aksesnya sementara."
+            "Gaji dibayarkan setiap tanggal 25 melalui transfer bank. Jika tanggal 25 jatuh pada hari libur atau akhir pekan, "
+            "pembayaran dilakukan pada hari kerja sebelumnya."
         ),
-        "suggested_query": "Apa syarat untuk request akses user baru ke sistem ICS?",
+        "source": "ICS_PP02_Kebijakan_Penggajian.pdf - Pasal 4 - PDF halaman 3",
+        "source_url": "/api/documents/ICS_PP02_Kebijakan_Penggajian.pdf",
+        "suggested_query": "Kapan dan bagaimana gaji bulanan dibayarkan?",
     },
     {
-        "question": "Kapan isu harus di-escalate ke supervisor atau tim lain?",
+        "id": "password-perusahaan",
+        "question": "Apa ketentuan password akun perusahaan?",
         "answer": (
-            "Escalation dilakukan berdasarkan dampak dan urgensi. Supervisor on duty selalu jadi first line, "
-            "lalu diteruskan ke engineering, OT security, platform owner, atau vendor coordinator sesuai kategori insidennya."
+            "Password minimal terdiri dari 12 karakter dengan kombinasi huruf besar, huruf kecil, angka, dan simbol. "
+            "Password sistem kritikal diganti minimal setiap 90 hari dan MFA wajib untuk layanan cloud serta email perusahaan."
         ),
-        "suggested_query": "Ke siapa insiden ICS harus di-escalate dan kapan?",
+        "source": "ICS_PP04_Kebijakan_IT.pdf - Pasal 4 - PDF halaman 3",
+        "source_url": "/api/documents/ICS_PP04_Kebijakan_IT.pdf",
+        "suggested_query": "Apa seluruh ketentuan keamanan password dan MFA perusahaan?",
+    },
+    {
+        "id": "insiden-it",
+        "question": "Bagaimana melaporkan insiden keamanan IT?",
+        "answer": (
+            "Insiden atau dugaan insiden harus segera dilaporkan ke Departemen IT melalui security@icscompute.com atau hotline IT dalam 1x24 jam. "
+            "Penanganan berikutnya meliputi isolasi, investigasi, pemulihan, dan dokumentasi oleh tim IT."
+        ),
+        "source": "ICS_PP04_Kebijakan_IT.pdf - Pasal 7 - PDF halaman 3",
+        "source_url": "/api/documents/ICS_PP04_Kebijakan_IT.pdf",
+        "suggested_query": "Jelaskan prosedur lengkap pelaporan dan penanganan insiden keamanan IT.",
+    },
+    {
+        "id": "cuti-sakit",
+        "question": "Apa ketentuan pengajuan cuti sakit?",
+        "answer": (
+            "Cuti sakit diberikan selama sakit berlangsung dengan Surat Keterangan Dokter. Sakit satu hari tanpa surat dokter diperbolehkan maksimal dua kali dalam setahun; "
+            "kejadian ketiga wajib menyertakan surat dokter."
+        ),
+        "source": "ICS_PP03_Kebijakan_Cuti.pdf - Pasal 3 - PDF halaman 2",
+        "source_url": "/api/documents/ICS_PP03_Kebijakan_Cuti.pdf",
+        "suggested_query": "Jelaskan hak, bukti, dan ketentuan lengkap cuti sakit karyawan.",
+    },
+    {
+        "id": "thr",
+        "question": "Siapa yang berhak menerima THR dan kapan dibayarkan?",
+        "answer": (
+            "THR diberikan kepada karyawan dengan masa kerja minimal satu bulan secara terus-menerus. "
+            "Besarannya satu kali gaji untuk masa kerja minimal 12 bulan atau proporsional untuk masa kerja 1-12 bulan, dan dibayarkan paling lambat tujuh hari sebelum hari raya."
+        ),
+        "source": "ICS_PP02_Kebijakan_Penggajian.pdf - Pasal 7 - PDF halaman 3",
+        "source_url": "/api/documents/ICS_PP02_Kebijakan_Penggajian.pdf",
+        "suggested_query": "Jelaskan syarat, perhitungan, dan jadwal pembayaran THR.",
+    },
+    {
+        "id": "work-from-home",
+        "question": "Apa ketentuan Work From Home?",
+        "answer": (
+            "Work From Home diperbolehkan sesuai kebijakan Departemen SDM dan harus mendapat persetujuan Atasan Langsung. "
+            "Jam kerja normal tetap 40 jam per minggu dengan core hours pukul 10.00-16.00 WIB."
+        ),
+        "source": "ICS_PP01_Peraturan_Perusahaan.pdf - Pasal 5 - PDF halaman 2",
+        "source_url": "/api/documents/ICS_PP01_Peraturan_Perusahaan.pdf",
+        "suggested_query": "Jelaskan aturan Work From Home, jam kerja, dan persetujuan yang dibutuhkan.",
+    },
+    {
+        "id": "ai-generatif",
+        "question": "Apa aturan penggunaan AI generatif untuk pekerjaan?",
+        "answer": (
+            "AI generatif boleh digunakan untuk drafting, brainstorming, dan analisis non-sensitif. "
+            "Data Konfidensial atau Rahasia dilarang dimasukkan ke layanan AI publik, dan seluruh output AI wajib diverifikasi sebelum digunakan."
+        ),
+        "source": "ICS_PP04_Kebijakan_IT.pdf - Pasal 9 - PDF halaman 4",
+        "source_url": "/api/documents/ICS_PP04_Kebijakan_IT.pdf",
+        "suggested_query": "Jelaskan hal yang boleh dan dilarang dalam penggunaan AI generatif untuk pekerjaan.",
     },
 ]
 
@@ -88,9 +157,23 @@ class QueryResponse(BaseModel):
 
 
 class FAQItem(BaseModel):
+    id: str
     question: str
     answer: str
+    source: str = ""
+    source_url: str = ""
     suggested_query: str
+    citations: list[CitationResponse] = Field(default_factory=list)
+    updated_at: str | None = None
+
+
+class AdminFAQPayload(BaseModel):
+    question: str = Field(..., min_length=3)
+
+
+class AdminFAQResponse(BaseModel):
+    message: str
+    item: FAQItem | None = None
 
 
 class LibraryItem(BaseModel):
@@ -112,6 +195,10 @@ class AdminDocumentPayload(BaseModel):
 class AdminDocumentResponse(BaseModel):
     message: str
     item: LibraryItem | None = None
+
+
+class AdminReindexResponse(BaseModel):
+    message: str
 
 
 def _get_data_dir() -> Path:
@@ -194,6 +281,10 @@ def _get_conversation_file() -> Path:
     return _get_cache_dir() / "conversations.json"
 
 
+def _get_faq_file() -> Path:
+    return _get_cache_dir() / "faqs.json"
+
+
 def _clean_conversation_id(value: str | None) -> str:
     if not value:
         return uuid.uuid4().hex
@@ -264,6 +355,152 @@ def _append_conversation_turn(conversation_id: str, question: str, answer: str) 
         _save_conversations(conversations)
 
 
+def _citation_download_url(source: str) -> str:
+    return f"/api/documents/{quote(source, safe='')}" if source else ""
+
+
+def _normalize_citation(raw_item: object, index: int) -> CitationResponse | None:
+    if not isinstance(raw_item, dict):
+        return None
+
+    source = str(raw_item.get("source", "")).strip()
+    if not source:
+        return None
+
+    return CitationResponse(
+        id=int(raw_item.get("id") or index + 1),
+        source=source,
+        page=raw_item.get("page") if isinstance(raw_item.get("page"), int) else None,
+        section=str(raw_item.get("section", "")).strip() or None,
+        chunk_id=raw_item.get("chunk_id") if isinstance(raw_item.get("chunk_id"), int) else None,
+        download_url=str(raw_item.get("download_url", "")).strip() or _citation_download_url(source),
+    )
+
+
+def _normalize_citations(item: dict[str, object]) -> list[CitationResponse]:
+    raw_citations = item.get("citations")
+    if isinstance(raw_citations, list):
+        citations = [
+            citation
+            for citation in (
+                _normalize_citation(raw_item, index)
+                for index, raw_item in enumerate(raw_citations)
+            )
+            if citation is not None
+        ]
+        if citations:
+            return citations
+
+    source = str(item.get("source", "")).strip()
+    source_url = str(item.get("source_url", "")).strip()
+    if not source:
+        return []
+
+    return [
+        CitationResponse(
+            id=1,
+            source=source,
+            download_url=source_url or _citation_download_url(source),
+        )
+    ]
+
+
+def _normalize_faq_item(item: dict[str, object]) -> FAQItem | None:
+    question = str(item.get("question", "")).strip()
+    answer = str(item.get("answer", "")).strip()
+    if not question or not answer:
+        return None
+
+    citations = _normalize_citations(item)
+    source = str(item.get("source", "")).strip()
+    source_url = str(item.get("source_url", "")).strip()
+    if citations and not source:
+        source = citations[0].source
+    if citations and not source_url:
+        source_url = citations[0].download_url or ""
+
+    return FAQItem(
+        id=str(item.get("id") or uuid.uuid4().hex),
+        question=question,
+        answer=answer,
+        source=source,
+        source_url=source_url,
+        suggested_query=str(item.get("suggested_query", "")).strip() or question,
+        citations=citations,
+        updated_at=str(item.get("updated_at", "")).strip() or None,
+    )
+
+
+def _load_faqs() -> list[FAQItem]:
+    path = _get_faq_file()
+    if not path.exists():
+        return [
+            item
+            for item in (_normalize_faq_item(default_item) for default_item in DEFAULT_FAQ_ITEMS)
+            if item is not None
+        ]
+
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+
+    if not isinstance(data, list):
+        return []
+
+    return [
+        item
+        for item in (_normalize_faq_item(raw_item) for raw_item in data if isinstance(raw_item, dict))
+        if item is not None
+    ]
+
+
+def _save_faqs(items: list[FAQItem]) -> None:
+    cache_dir = _get_cache_dir()
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    payload = [
+        item.model_dump() if hasattr(item, "model_dump") else item.dict()
+        for item in items
+    ]
+    _get_faq_file().write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def _find_faq_index(items: list[FAQItem], faq_id: str) -> int:
+    for index, item in enumerate(items):
+        if item.id == faq_id:
+            return index
+    raise HTTPException(status_code=404, detail="FAQ not found.")
+
+
+def _build_faq_item(payload: AdminFAQPayload, faq_id: str | None = None) -> FAQItem:
+    from researcher_crew.main import run_faq_crew
+
+    question = payload.question.strip()
+    answer, raw_citations = run_faq_crew(question)
+    citations = [
+        CitationResponse(
+            **citation,
+            download_url=f"/api/documents/{quote(str(citation['source']), safe='')}",
+        )
+        for citation in raw_citations
+    ]
+    source = citations[0].source if citations else ""
+    source_url = citations[0].download_url if citations else ""
+    return FAQItem(
+        id=faq_id or uuid.uuid4().hex,
+        question=question,
+        answer=answer,
+        source=source,
+        source_url=source_url or "",
+        suggested_query=question,
+        citations=citations,
+        updated_at=datetime.now().isoformat(timespec="seconds"),
+    )
+
+
 if ASSETS_DIR.exists():
     app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
 
@@ -293,7 +530,52 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
 
 @app.get("/api/faq", response_model=list[FAQItem])
 def get_faq() -> list[FAQItem]:
-    return [FAQItem(**item) for item in FAQ_ITEMS]
+    with FAQ_LOCK:
+        return _load_faqs()
+
+
+@app.post("/api/admin/faq", response_model=AdminFAQResponse)
+def create_faq(
+    payload: AdminFAQPayload,
+    x_admin_email: str = Header(default=""),
+) -> AdminFAQResponse:
+    _require_admin(x_admin_email)
+    item = _build_faq_item(payload)
+    with FAQ_LOCK:
+        items = _load_faqs()
+        items.append(item)
+        _save_faqs(items)
+    return AdminFAQResponse(message="FAQ inserted.", item=item)
+
+
+@app.put("/api/admin/faq/{faq_id}", response_model=AdminFAQResponse)
+def update_faq(
+    faq_id: str,
+    payload: AdminFAQPayload,
+    x_admin_email: str = Header(default=""),
+) -> AdminFAQResponse:
+    _require_admin(x_admin_email)
+    with FAQ_LOCK:
+        items = _load_faqs()
+        index = _find_faq_index(items, faq_id)
+        item = _build_faq_item(payload, faq_id=items[index].id)
+        items[index] = item
+        _save_faqs(items)
+    return AdminFAQResponse(message="FAQ updated.", item=item)
+
+
+@app.delete("/api/admin/faq/{faq_id}", response_model=AdminFAQResponse)
+def delete_faq(
+    faq_id: str,
+    x_admin_email: str = Header(default=""),
+) -> AdminFAQResponse:
+    _require_admin(x_admin_email)
+    with FAQ_LOCK:
+        items = _load_faqs()
+        index = _find_faq_index(items, faq_id)
+        items.pop(index)
+        _save_faqs(items)
+    return AdminFAQResponse(message="FAQ deleted.")
 
 
 @app.get("/api/library", response_model=list[LibraryItem])
@@ -359,6 +641,22 @@ def delete_document(
 
     target_path.unlink()
     return AdminDocumentResponse(message="Document deleted.")
+
+
+@app.post("/api/admin/reindex", response_model=AdminReindexResponse)
+def reindex_documents(x_admin_email: str = Header(default="")) -> AdminReindexResponse:
+    _require_admin(x_admin_email)
+    if not REINDEX_LOCK.acquire(blocking=False):
+        raise HTTPException(status_code=409, detail="Reindex is already running.")
+
+    try:
+        from backend.preprocessing.ingest import main as rebuild_knowledge_base
+
+        rebuild_knowledge_base()
+    finally:
+        REINDEX_LOCK.release()
+
+    return AdminReindexResponse(message="Embeddings rebuilt.")
 
 
 @app.get("/api/documents/{document_path:path}")

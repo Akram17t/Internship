@@ -146,6 +146,46 @@
                   Compute.
                 </p>
               </div>
+              <section
+                class="admin-faq-panel"
+                id="adminFaqPanel"
+                aria-label="Admin FAQ tools"
+              >
+                <div class="admin-faq-copy">
+                  <span>Admin tools</span>
+                  <strong>Manage FAQ items</strong>
+                </div>
+                <form class="admin-faq-form" id="faqForm">
+                  <input id="faqIdInput" type="hidden" />
+                  <label class="admin-faq-wide">
+                    <span>Pertanyaan</span>
+                    <input
+                      id="faqQuestionInput"
+                      type="text"
+                      placeholder="Tulis pertanyaan FAQ"
+                      required
+                    />
+                  </label>
+                  <div class="admin-faq-actions">
+                    <button
+                      class="admin-submit"
+                      id="faqSubmitButton"
+                      type="submit"
+                    >
+                      Generate FAQ
+                    </button>
+                    <button
+                      class="outline-button"
+                      id="faqCancelButton"
+                      type="button"
+                      hidden
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+                <p class="admin-document-status" id="faqStatus"></p>
+              </section>
               <div class="faq-list" id="faqList"></div>
             </div>
             <footer class="faq-footer">
@@ -223,6 +263,21 @@
                     Insert documents
                   </button>
                 </form>
+                <div class="document-reindex-panel">
+                  <p>
+                    Rebuild embeddings after document changes so AI retrieval
+                    uses the latest files.
+                  </p>
+                  <button
+                    class="document-reindex-button"
+                    id="documentReindexButton"
+                    type="button"
+                    disabled
+                  >
+                    <span class="material-symbols-outlined">sync</span>
+                    Rebuild embeddings
+                  </button>
+                </div>
                 <p class="admin-document-status" id="adminDocumentStatus"></p>
                 <input
                   id="documentReplaceInput"
@@ -268,9 +323,18 @@
         <div class="faq-answer-wrap">
           <div class="faq-answer-content">
             <p class="faq-answer"></p>
+            <div class="faq-citations" hidden></div>
             <div class="faq-actions">
               <a class="faq-source" target="_blank" rel="noopener"></a>
               <button class="faq-ask" type="button">Tanyakan di chat</button>
+              <button class="faq-edit admin-only" type="button">
+                <span class="material-symbols-outlined">edit_document</span>
+                Update
+              </button>
+              <button class="faq-delete admin-only" type="button">
+                <span class="material-symbols-outlined">delete</span>
+                Delete
+              </button>
             </div>
           </div>
         </div>
