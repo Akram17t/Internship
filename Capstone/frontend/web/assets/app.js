@@ -165,6 +165,10 @@ const elements = {
   accountActionButton: document.getElementById("accountActionButton"),
   accountActionIcon: document.getElementById("accountActionIcon"),
   accountActionText: document.getElementById("accountActionText"),
+  accountPopover: document.getElementById("accountPopover"),
+  accountPopoverRole: document.getElementById("accountPopoverRole"),
+  accountPopoverName: document.getElementById("accountPopoverName"),
+  accountPopoverHint: document.getElementById("accountPopoverHint"),
   authModal: document.getElementById("authModal"),
   authForm: document.getElementById("authForm"),
   adminEmail: document.getElementById("adminEmail"),
@@ -268,7 +272,7 @@ function resetChat() {
   window.localStorage.removeItem(CHAT_STORAGE_KEY);
   window.localStorage.setItem(CONVERSATION_STORAGE_KEY, state.conversationId);
   elements.chatInput.value = "";
-  renderMessages();
+  renderMessages("smooth");
   navigateTo("chat");
   window.setTimeout(() => elements.chatInput.focus(), 0);
 }
@@ -288,7 +292,7 @@ async function submitQuestion(rawQuestion) {
     { role: "assistant", loading: true, timestamp: "thinking" },
   );
   elements.chatInput.value = "";
-  renderMessages();
+  renderMessages("smooth");
 
   try {
     const response = await fetch("/query", {
@@ -330,7 +334,7 @@ async function submitQuestion(rawQuestion) {
     state.activeRequestStartedAt = null;
     updateComposer();
     persistMessages();
-    renderMessages();
+    renderMessages("smooth");
   }
 }
 
@@ -354,7 +358,7 @@ function stopGeneration() {
   state.activeRequestStartedAt = null;
   updateComposer();
   persistMessages();
-  renderMessages();
+  renderMessages("smooth");
   elements.chatInput.focus();
 }
 
@@ -364,14 +368,13 @@ function replaceLoading(message) {
   else state.messages.splice(index, 1, message);
 }
 
-function renderMessages() {
+function renderMessages(scrollBehavior = "auto") {
   elements.chatThread.innerHTML = "";
   elements.chatScreen.classList.toggle("is-empty", state.messages.length === 0);
   state.messages.forEach((message) => {
     const fragment = elements.messageTemplate.content.cloneNode(true);
     const article = fragment.querySelector(".message");
     const bubble = fragment.querySelector(".message-bubble");
-    const citations = fragment.querySelector(".message-citations");
     const meta = fragment.querySelector(".message-meta");
     const isAssistant = message.role === "assistant";
 
@@ -381,8 +384,7 @@ function renderMessages() {
       bubble.innerHTML =
         '<span class="loading-dots"><span></span><span></span><span></span></span>Searching policies...';
     } else {
-      bubble.appendChild(formatMessage(message.content));
-      renderMessageCitations(citations, message.citations);
+      bubble.appendChild(formatMessage(message.content, message.citations));
     }
 
     meta.textContent = `${isAssistant ? "AI Assistant" : "You"} • ${message.timestamp || "Just now"}`;
@@ -394,10 +396,26 @@ function renderMessages() {
     }
     elements.chatThread.appendChild(fragment);
   });
-  elements.chatThread.scrollTop = elements.chatThread.scrollHeight;
+  scrollChatToBottom(scrollBehavior);
 }
 
-function renderMessageCitations(container, citations) {
+function scrollChatToBottom(behavior = "auto") {
+  window.requestAnimationFrame(() => {
+    elements.chatThread.scrollTo({
+      top: elements.chatThread.scrollHeight,
+      behavior,
+    });
+
+    window.requestAnimationFrame(() => {
+      elements.chatThread.scrollTo({
+        top: elements.chatThread.scrollHeight,
+        behavior,
+      });
+    });
+  });
+}
+
+function renderMessageCitationsLegacy(container, citations) {
   if (!Array.isArray(citations) || !citations.length) return;
 
   const heading = document.createElement("strong");
@@ -434,9 +452,97 @@ function renderMessageCitations(container, citations) {
   container.hidden = false;
 }
 
-function formatMessage(content) {
+function renderMessageCitations(container, citations) {
+  if (!Array.isArray(citations) || !citations.length) return;
+
+  const list = document.createElement("div");
+  list.className = "citation-chips";
+
+  citations.forEach((citation, index) => {
+    list.appendChild(createCitationChip(citation, index));
+  });
+
+  container.appendChild(list);
+  container.hidden = false;
+}
+
+function createCitationChip(citation, index, isInline = false) {
+  const chip = citation.download_url
+    ? document.createElement("a")
+    : document.createElement("button");
+  const fileType = getCitationFileType(citation);
+  chip.className = `citation-chip citation-chip--${fileType}`;
+  if (isInline) chip.classList.add("is-inline");
+  chip.setAttribute("aria-label", formatCitationLabel(citation, index));
+
+  if (citation.download_url) {
+    chip.href = citation.download_url;
+    chip.target = "_blank";
+    chip.rel = "noopener";
+  } else {
+    chip.type = "button";
+  }
+
+  const icon = document.createElement("span");
+  icon.className = "material-symbols-outlined citation-chip-icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.textContent = getCitationIcon(fileType);
+
+  const number = document.createElement("span");
+  number.className = "citation-chip-number";
+  number.textContent = String(citation.id || index + 1);
+
+  const tooltip = document.createElement("span");
+  tooltip.className = "citation-tooltip";
+  tooltip.setAttribute("role", "tooltip");
+
+  const title = document.createElement("strong");
+  title.textContent = citation.source || "Unknown source";
+
+  const meta = document.createElement("span");
+  meta.textContent = formatCitationLocation(citation);
+
+  tooltip.append(title, meta);
+  chip.append(icon, number, tooltip);
+  return chip;
+}
+
+function getCitationFileType(citation) {
+  const source = String(citation.source || "").toLowerCase();
+  if (source.endsWith(".pdf")) return "pdf";
+  if (source.endsWith(".doc") || source.endsWith(".docx")) return "doc";
+  if (source.endsWith(".txt")) return "txt";
+  return "file";
+}
+
+function getCitationIcon(fileType) {
+  if (fileType === "pdf") return "picture_as_pdf";
+  if (fileType === "doc") return "article";
+  if (fileType === "txt") return "text_snippet";
+  return "description";
+}
+
+function formatCitationLocation(citation) {
+  return (
+    [
+      citation.section || null,
+      citation.page ? `PDF halaman ${citation.page}` : null,
+    ]
+      .filter(Boolean)
+      .join(" - ") || "Lokasi tidak tersedia"
+  );
+}
+
+function formatCitationLabel(citation, index) {
+  return `Sumber ${citation.id || index + 1}: ${
+    citation.source || "Unknown source"
+  } - ${formatCitationLocation(citation)}`;
+}
+
+function formatMessage(content, citations = []) {
   const wrapper = document.createElement("div");
   const lines = String(content).split(/\r?\n/);
+  const citationMap = buildCitationMap(citations);
   let list = null;
   lines.forEach((line) => {
     const value = line.trim();
@@ -447,16 +553,54 @@ function formatMessage(content) {
         wrapper.appendChild(list);
       }
       const item = document.createElement("li");
-      item.textContent = value.slice(2);
+      appendFormattedText(item, value.slice(2), citationMap);
       list.appendChild(item);
       return;
     }
     list = null;
     const paragraph = document.createElement("p");
-    paragraph.textContent = value;
+    appendFormattedText(paragraph, value, citationMap);
     wrapper.appendChild(paragraph);
   });
   return wrapper;
+}
+
+function buildCitationMap(citations) {
+  const entries = Array.isArray(citations) ? citations : [];
+  return new Map(
+    entries.map((citation, index) => [
+      String(citation.id || index + 1),
+      { citation, index },
+    ]),
+  );
+}
+
+function appendFormattedText(container, text, citationMap) {
+  const pattern = /\[(\d+)\]/g;
+  let cursor = 0;
+  let match = pattern.exec(text);
+
+  while (match) {
+    if (match.index > cursor) {
+      container.append(document.createTextNode(text.slice(cursor, match.index)));
+    }
+
+    const citationEntry = citationMap.get(match[1]);
+    if (citationEntry) {
+      container.append(
+        createCitationChip(citationEntry.citation, citationEntry.index, true),
+      );
+    } else {
+      container.append(document.createTextNode(match[0]));
+    }
+
+    cursor = pattern.lastIndex;
+    match = pattern.exec(text);
+  }
+
+  if (cursor < text.length) {
+    container.append(document.createTextNode(text.slice(cursor)));
+  }
 }
 
 function formatDuration(milliseconds) {
@@ -532,7 +676,13 @@ function bindPolicyActions() {
 }
 
 function bindAuth() {
-  elements.accountPanel.addEventListener("click", () => {
+  elements.accountAvatar.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleAccountPopover();
+  });
+  elements.accountActionButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    closeAccountPopover();
     if (state.session.role === "admin") {
       openLogoutModal();
       return;
@@ -552,12 +702,36 @@ function bindAuth() {
   elements.authForm.addEventListener("submit", handleAdminLogin);
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
+    closeAccountPopover();
     if (elements.authModal.classList.contains("is-open")) closeAuthModal();
     if (elements.logoutModal.classList.contains("is-open")) closeLogoutModal();
   });
+  document.addEventListener("click", (event) => {
+    if (elements.accountPanel.contains(event.target)) return;
+    closeAccountPopover();
+  });
+}
+
+function toggleAccountPopover() {
+  if (elements.accountPopover.hidden) {
+    openAccountPopover();
+    return;
+  }
+  closeAccountPopover();
+}
+
+function openAccountPopover() {
+  elements.accountPopover.hidden = false;
+  elements.accountAvatar.setAttribute("aria-expanded", "true");
+}
+
+function closeAccountPopover() {
+  elements.accountPopover.hidden = true;
+  elements.accountAvatar.setAttribute("aria-expanded", "false");
 }
 
 function openAuthModal() {
+  closeAccountPopover();
   clearAuthError();
   elements.authForm.reset();
   elements.authModal.classList.add("is-open");
@@ -574,6 +748,7 @@ function closeAuthModal() {
 }
 
 function openLogoutModal() {
+  closeAccountPopover();
   elements.logoutModal.classList.add("is-open");
   elements.logoutModal.setAttribute("aria-hidden", "false");
   elements.body.classList.add("logout-open");
@@ -631,6 +806,13 @@ function syncAuth() {
   elements.accountHint.textContent = isAdmin
     ? "Admin"
     : "Login admin";
+  elements.accountPopoverRole.textContent = isAdmin ? "Admin mode" : "Guest access";
+  elements.accountPopoverName.textContent = isAdmin
+    ? state.session.email || state.session.name
+    : "Guest";
+  elements.accountPopoverHint.textContent = isAdmin
+    ? "Klik ikon kanan untuk logout."
+    : "Klik ikon kanan untuk login admin.";
   elements.accountActionIcon.textContent = isAdmin ? "logout" : "login";
   elements.accountActionText.textContent = isAdmin ? "Logout" : "Admin login";
   elements.accountActionButton.setAttribute(

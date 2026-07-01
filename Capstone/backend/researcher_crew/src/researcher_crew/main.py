@@ -51,10 +51,12 @@ def _generate_answer(question: str, evidence: str, conversation_context: str = "
     prompt = (
         "Kamu adalah HR Assistant ICS Compute. Jawab pertanyaan user dalam bahasa Indonesia "
         "dengan memperhatikan konteks percakapan sebelumnya dan evidence yang diberikan. "
+        "Tentukan sendiri bentuk jawaban yang paling enak dibaca: boleh paragraf, poin-poin, "
+        "jawaban singkat, atau penjelasan lebih detail sesuai kebutuhan pertanyaan. "
+        "Jangan memaksakan format, jumlah kalimat, atau gaya tertentu. "
         "Pakai evidence yang paling relevan, abaikan potongan evidence yang tidak nyambung, "
-        "dan jangan bilang informasi tidak tersedia kalau ada excerpt yang menjawab pertanyaan. "
-        "Kalau pertanyaan masih umum, langsung jawab dari konteks dokumen paling relevan. "
-        "Jawab ringkas dalam 3 sampai 5 kalimat dan gunakan nomor sitasi seperti [1] pada klaim penting.\n\n"
+        "dan gunakan nomor sitasi seperti [1] untuk klaim yang berasal dari evidence. "
+        "Kalau evidence memang tidak cukup, jelaskan dengan natural bagian mana yang belum tersedia.\n\n"
         f"{memory_block}"
         f"Pertanyaan:\n{question}\n\n"
         f"Evidence:\n{evidence}\n\n"
@@ -68,7 +70,7 @@ def _generate_answer(question: str, evidence: str, conversation_context: str = "
             "temperature": 0.1,
             "seed": 7,
             "num_ctx": 2048,
-            "num_predict": 240,
+            "num_predict": 360,
         },
     }
     request = urllib.request.Request(

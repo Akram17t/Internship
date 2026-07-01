@@ -27,7 +27,7 @@
           />
           <div class="brand-copy">
             <strong>HR Assistant</strong>
-            <span>ICS Compute Policy AI</span>
+            <span>ICS Compute</span>
           </div>
         </div>
 
@@ -45,7 +45,15 @@
         </nav>
 
         <section class="account-panel" aria-label="Current access">
-          <div class="account-avatar" id="accountAvatar">G</div>
+          <button
+            class="account-avatar"
+            id="accountAvatar"
+            type="button"
+            aria-expanded="false"
+            aria-haspopup="dialog"
+          >
+            G
+          </button>
           <div class="account-copy">
             <span id="accountRoleLabel">Guest access</span>
             <strong id="accountName">Guest</strong>
@@ -60,6 +68,11 @@
             >
             <span class="sr-only" id="accountActionText">Admin login</span>
           </button>
+          <div class="account-popover" id="accountPopover" hidden>
+            <span id="accountPopoverRole">Guest access</span>
+            <strong id="accountPopoverName">Guest</strong>
+            <small id="accountPopoverHint">Klik ikon kanan untuk login.</small>
+          </div>
         </section>
       </aside>
 
@@ -139,7 +152,7 @@
             </div>
             <footer class="faq-footer">
               <span>(C) 2026 ICS Compute &bull; ISO Policy</span>
-              <strong>HR AGENT V2.4.0</strong>
+              <strong>HR AGENT</strong>
             </footer>
           </section>
 
