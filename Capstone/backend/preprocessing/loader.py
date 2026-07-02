@@ -9,11 +9,22 @@ from langchain_core.documents import Document
 SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".txt"}
 
 
+def classify_document_kind(path: Path) -> str:
+    name = path.stem.lower()
+    if path.suffix.lower() == ".xlsx" or name.startswith("form"):
+        return "form"
+    if name.startswith("sop"):
+        return "sop"
+    return "document"
+
+
 def _normalize_documents(documents: list[Document], source_path: Path) -> list[Document]:
     for document in documents:
         metadata = document.metadata
         metadata["source"] = source_path.name
         metadata["doc_type"] = source_path.suffix.lower().lstrip(".")
+        metadata["document_kind"] = classify_document_kind(source_path)
+        metadata["title"] = source_path.stem
         metadata.setdefault("page", "N/A")
     return documents
 

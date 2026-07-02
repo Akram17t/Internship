@@ -24,114 +24,113 @@ if str(CREW_SRC_DIR) not in sys.path:
 app = FastAPI(title="ICS Knowledge Assistant API", version="1.0.0")
 FRONTEND_DIR = ROOT_DIR / "frontend" / "web"
 ASSETS_DIR = FRONTEND_DIR / "assets"
-SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".txt"}
+EMBEDDABLE_EXTENSIONS = {".pdf", ".docx", ".txt"}
+LIBRARY_EXTENSIONS = EMBEDDABLE_EXTENSIONS | {".xlsx"}
 ADMIN_EMAILS = {"admin@gmail.com"}
 MAX_DOCUMENT_BYTES = 25 * 1024 * 1024
 MAX_CONVERSATIONS = 50
-MAX_CONVERSATION_MESSAGES = 12
+MAX_CONVERSATION_TURNS = 10
+MAX_CONVERSATION_MESSAGES = MAX_CONVERSATION_TURNS * 2
+MAX_CONVERSATION_CONTEXT_CHARS = 3200
 CONVERSATION_LOCK = threading.Lock()
 FAQ_LOCK = threading.Lock()
 REINDEX_LOCK = threading.Lock()
 
-DEFAULT_FAQ_ITEMS = [
+DEFAULT_FAQ_ITEMS: list[dict[str, object]] = [
     {
-        "id": "cuti-tahunan",
-        "question": "Berapa hak cuti tahunan karyawan?",
+        "id": "alur-perjalanan-dinas",
+        "question": "Bagaimana alur pengajuan perjalanan dinas?",
         "answer": (
-            "Karyawan yang telah bekerja 12 bulan terus-menerus berhak atas 12 hari kerja cuti tahunan. "
-            "Maksimal 5 hari dapat dibawa ke tahun berikutnya dan akan hangus pada 31 Maret jika tidak digunakan."
+            "Requestor mengisi Form Permohonan Perjalanan Dinas sebelum berangkat dan meminta persetujuan atasan terkait serta Director. "
+            "Jika membutuhkan uang muka, requestor juga mengajukan Form Permohonan Uang Muka, lalu setelah perjalanan selesai wajib menyerahkan "
+            "Form Penyelesaian Perjalanan Dinas ke General Affair. [1][2][3]"
         ),
-        "source": "ICS_PP03_Kebijakan_Cuti.pdf - Pasal 1 - PDF halaman 2",
-        "source_url": "/api/documents/ICS_PP03_Kebijakan_Cuti.pdf",
-        "suggested_query": "Jelaskan hak, pengajuan, dan carry over cuti tahunan karyawan.",
+        "source": "SOP - Perjalanan Dinas.pdf",
+        "source_url": "/api/documents/SOP%20-%20Perjalanan%20Dinas.pdf",
+        "suggested_query": "Jelaskan alur lengkap pengajuan perjalanan dinas beserta approval dan form yang digunakan.",
+        "citations": [
+            {"id": 1, "source": "SOP - Perjalanan Dinas.pdf", "page": 7, "section": "6. AKTIVITAS", "chunk_id": 32},
+            {"id": 2, "source": "SOP - Perjalanan Dinas.pdf", "page": 7, "section": "6. AKTIVITAS", "chunk_id": 34},
+            {"id": 3, "source": "SOP - Perjalanan Dinas.pdf", "page": 8, "section": "6. AKTIVITAS", "chunk_id": 35},
+        ],
     },
     {
-        "id": "upah-lembur",
-        "question": "Bagaimana mekanisme dan perhitungan upah lembur?",
+        "id": "form-perjalanan-dinas",
+        "question": "Form apa saja yang digunakan untuk perjalanan dinas?",
         "answer": (
-            "Lembur dilakukan atas permintaan tertulis Atasan Langsung dengan persetujuan Karyawan. "
-            "Jam pertama dibayar 1,5 kali upah per jam, jam berikutnya 2 kali, dengan batas maksimal 4 jam per hari dan 18 jam per minggu."
+            "SOP Perjalanan Dinas mencantumkan tiga form utama: Form Permohonan Uang Muka Perjalanan Dinas, "
+            "Form Penyelesaian Perjalanan Dinas, dan Form Permohonan Perjalanan Dinas. Ketiganya tercantum pada bagian Dokumen Terkait "
+            "dan dipakai sesuai tahap proses perjalanan dinas. [1]"
         ),
-        "source": "ICS_PP01_Peraturan_Perusahaan.pdf - Pasal 6 - PDF halaman 2-3",
-        "source_url": "/api/documents/ICS_PP01_Peraturan_Perusahaan.pdf",
-        "suggested_query": "Bagaimana mekanisme dan perhitungan upah lembur?",
+        "source": "SOP - Perjalanan Dinas.pdf",
+        "source_url": "/api/documents/SOP%20-%20Perjalanan%20Dinas.pdf",
+        "suggested_query": "Sebutkan seluruh form yang dipakai dalam proses perjalanan dinas.",
+        "citations": [
+            {"id": 1, "source": "SOP - Perjalanan Dinas.pdf", "page": 8, "section": "8. DOKUMEN TERKAIT", "chunk_id": 38},
+        ],
     },
     {
-        "id": "gaji-bulanan",
-        "question": "Kapan gaji bulanan dibayarkan?",
+        "id": "persiapan-onboarding",
+        "question": "Apa saja persiapan onboarding karyawan baru?",
         "answer": (
-            "Gaji dibayarkan setiap tanggal 25 melalui transfer bank. Jika tanggal 25 jatuh pada hari libur atau akhir pekan, "
-            "pembayaran dilakukan pada hari kerja sebelumnya."
+            "Persiapan onboarding mencakup penyiapan perlengkapan kerja, perkenalan lingkungan kerja dan Peraturan Perusahaan, "
+            "pembuatan akun HRIS, sampai evaluasi kontrak karyawan. HR Personnel juga berkoordinasi dengan General Affair dan IT Internal "
+            "agar kebutuhan kerja karyawan baru siap sejak awal. [1][2]"
         ),
-        "source": "ICS_PP02_Kebijakan_Penggajian.pdf - Pasal 4 - PDF halaman 3",
-        "source_url": "/api/documents/ICS_PP02_Kebijakan_Penggajian.pdf",
-        "suggested_query": "Kapan dan bagaimana gaji bulanan dibayarkan?",
+        "source": "SOP - Administrasi Karyawan.pdf",
+        "source_url": "/api/documents/SOP%20-%20Administrasi%20Karyawan.pdf",
+        "suggested_query": "Jelaskan persiapan onboarding karyawan baru berdasarkan SOP Administrasi Karyawan.",
+        "citations": [
+            {"id": 1, "source": "SOP - Administrasi Karyawan.pdf", "page": 5, "section": "2. RUANG LINGKUP", "chunk_id": 2},
+            {"id": 2, "source": "SOP - Administrasi Karyawan.pdf", "page": 6, "section": "6. AKTIVITAS", "chunk_id": 7},
+        ],
     },
     {
-        "id": "password-perusahaan",
-        "question": "Apa ketentuan password akun perusahaan?",
+        "id": "fasilitas-karyawan-baru",
+        "question": "Siapa yang menyiapkan fasilitas kerja untuk karyawan baru?",
         "answer": (
-            "Password minimal terdiri dari 12 karakter dengan kombinasi huruf besar, huruf kecil, angka, dan simbol. "
-            "Password sistem kritikal diganti minimal setiap 90 hari dan MFA wajib untuk layanan cloud serta email perusahaan."
+            "General Affair Staff bertugas menyiapkan fasilitas dan perlengkapan kerja karyawan baru. "
+            "HR Personnel Staff berkoordinasi dengan General Affair dan IT Internal agar perlengkapan kerja siap saat onboarding. [1][2]"
         ),
-        "source": "ICS_PP04_Kebijakan_IT.pdf - Pasal 4 - PDF halaman 3",
-        "source_url": "/api/documents/ICS_PP04_Kebijakan_IT.pdf",
-        "suggested_query": "Apa seluruh ketentuan keamanan password dan MFA perusahaan?",
+        "source": "SOP - Administrasi Karyawan.pdf",
+        "source_url": "/api/documents/SOP%20-%20Administrasi%20Karyawan.pdf",
+        "suggested_query": "Siapa PIC penyiapan fasilitas dan perlengkapan kerja untuk karyawan baru?",
+        "citations": [
+            {"id": 1, "source": "SOP - Administrasi Karyawan.pdf", "page": 6, "section": "5. TUGAS DAN TANGGUNG JAWAB", "chunk_id": 6},
+            {"id": 2, "source": "SOP - Administrasi Karyawan.pdf", "page": 6, "section": "6. AKTIVITAS", "chunk_id": 7},
+        ],
     },
     {
-        "id": "insiden-it",
-        "question": "Bagaimana melaporkan insiden keamanan IT?",
+        "id": "terminasi-karyawan",
+        "question": "Apa yang wajib diselesaikan saat terminasi hubungan kerja?",
         "answer": (
-            "Insiden atau dugaan insiden harus segera dilaporkan ke Departemen IT melalui security@icscompute.com atau hotline IT dalam 1x24 jam. "
-            "Penanganan berikutnya meliputi isolasi, investigasi, pemulihan, dan dokumentasi oleh tim IT."
+            "Saat terminasi, karyawan wajib menyelesaikan handover kepada atasan atau pihak yang ditunjuk, "
+            "menuntaskan Exit Clearance termasuk pengembalian aset, dan keluar dari media komunikasi operasional perusahaan. "
+            "Proses terminasi juga mencakup exit interview oleh HR Personnel serta verifikasi penyelesaian kewajiban oleh pihak terkait. [1][2][3]"
         ),
-        "source": "ICS_PP04_Kebijakan_IT.pdf - Pasal 7 - PDF halaman 3",
-        "source_url": "/api/documents/ICS_PP04_Kebijakan_IT.pdf",
-        "suggested_query": "Jelaskan prosedur lengkap pelaporan dan penanganan insiden keamanan IT.",
+        "source": "SOP - Terminasi Hubungan Kerja.pdf",
+        "source_url": "/api/documents/SOP%20-%20Terminasi%20Hubungan%20Kerja.pdf",
+        "suggested_query": "Jelaskan kewajiban utama karyawan dan tim terkait dalam proses terminasi hubungan kerja.",
+        "citations": [
+            {"id": 1, "source": "SOP - Terminasi Hubungan Kerja.pdf", "page": 5, "section": "2. RUANG LINGKUP", "chunk_id": 41},
+            {"id": 2, "source": "SOP - Terminasi Hubungan Kerja.pdf", "page": 6, "section": "6. AKTIVITAS", "chunk_id": 46},
+            {"id": 3, "source": "SOP - Terminasi Hubungan Kerja.pdf", "page": 6, "section": "6. AKTIVITAS", "chunk_id": 48},
+        ],
     },
     {
-        "id": "cuti-sakit",
-        "question": "Apa ketentuan pengajuan cuti sakit?",
+        "id": "deadline-exit-clearance",
+        "question": "Kapan Exit Clearance harus diselesaikan?",
         "answer": (
-            "Cuti sakit diberikan selama sakit berlangsung dengan Surat Keterangan Dokter. Sakit satu hari tanpa surat dokter diperbolehkan maksimal dua kali dalam setahun; "
-            "kejadian ketiga wajib menyertakan surat dokter."
+            "Exit Clearance wajib diselesaikan pada hari terakhir efektif bekerja, termasuk pengembalian seluruh aset perusahaan. "
+            "Form Exit Clearance juga harus lengkap, ditandatangani pihak terkait, dan paling lambat selesai pada hari terakhir bekerja. [1][2]"
         ),
-        "source": "ICS_PP03_Kebijakan_Cuti.pdf - Pasal 3 - PDF halaman 2",
-        "source_url": "/api/documents/ICS_PP03_Kebijakan_Cuti.pdf",
-        "suggested_query": "Jelaskan hak, bukti, dan ketentuan lengkap cuti sakit karyawan.",
-    },
-    {
-        "id": "thr",
-        "question": "Siapa yang berhak menerima THR dan kapan dibayarkan?",
-        "answer": (
-            "THR diberikan kepada karyawan dengan masa kerja minimal satu bulan secara terus-menerus. "
-            "Besarannya satu kali gaji untuk masa kerja minimal 12 bulan atau proporsional untuk masa kerja 1-12 bulan, dan dibayarkan paling lambat tujuh hari sebelum hari raya."
-        ),
-        "source": "ICS_PP02_Kebijakan_Penggajian.pdf - Pasal 7 - PDF halaman 3",
-        "source_url": "/api/documents/ICS_PP02_Kebijakan_Penggajian.pdf",
-        "suggested_query": "Jelaskan syarat, perhitungan, dan jadwal pembayaran THR.",
-    },
-    {
-        "id": "work-from-home",
-        "question": "Apa ketentuan Work From Home?",
-        "answer": (
-            "Work From Home diperbolehkan sesuai kebijakan Departemen SDM dan harus mendapat persetujuan Atasan Langsung. "
-            "Jam kerja normal tetap 40 jam per minggu dengan core hours pukul 10.00-16.00 WIB."
-        ),
-        "source": "ICS_PP01_Peraturan_Perusahaan.pdf - Pasal 5 - PDF halaman 2",
-        "source_url": "/api/documents/ICS_PP01_Peraturan_Perusahaan.pdf",
-        "suggested_query": "Jelaskan aturan Work From Home, jam kerja, dan persetujuan yang dibutuhkan.",
-    },
-    {
-        "id": "ai-generatif",
-        "question": "Apa aturan penggunaan AI generatif untuk pekerjaan?",
-        "answer": (
-            "AI generatif boleh digunakan untuk drafting, brainstorming, dan analisis non-sensitif. "
-            "Data Konfidensial atau Rahasia dilarang dimasukkan ke layanan AI publik, dan seluruh output AI wajib diverifikasi sebelum digunakan."
-        ),
-        "source": "ICS_PP04_Kebijakan_IT.pdf - Pasal 9 - PDF halaman 4",
-        "source_url": "/api/documents/ICS_PP04_Kebijakan_IT.pdf",
-        "suggested_query": "Jelaskan hal yang boleh dan dilarang dalam penggunaan AI generatif untuk pekerjaan.",
+        "source": "SOP - Terminasi Hubungan Kerja.pdf",
+        "source_url": "/api/documents/SOP%20-%20Terminasi%20Hubungan%20Kerja.pdf",
+        "suggested_query": "Kapan deadline Exit Clearance dan apa saja syarat penyelesaiannya?",
+        "citations": [
+            {"id": 1, "source": "SOP - Terminasi Hubungan Kerja.pdf", "page": 6, "section": "6. AKTIVITAS", "chunk_id": 47},
+            {"id": 2, "source": "SOP - Terminasi Hubungan Kerja.pdf", "page": 6, "section": "6. AKTIVITAS", "chunk_id": 48},
+        ],
     },
 ]
 
@@ -150,9 +149,16 @@ class CitationResponse(BaseModel):
     download_url: str | None = None
 
 
+class FormDownloadResponse(BaseModel):
+    name: str
+    display_name: str
+    download_url: str
+
+
 class QueryResponse(BaseModel):
     answer: str
     citations: list[CitationResponse] = Field(default_factory=list)
+    form_downloads: list[FormDownloadResponse] = Field(default_factory=list)
     conversation_id: str
 
 
@@ -181,6 +187,8 @@ class LibraryItem(BaseModel):
     relative_path: str
     display_name: str
     doc_type: str
+    document_kind: str
+    is_embeddable: bool
     size_bytes: int
     updated_at: str
     download_url: str
@@ -194,6 +202,7 @@ class AdminDocumentPayload(BaseModel):
 
 class AdminDocumentResponse(BaseModel):
     message: str
+    requires_reindex: bool = False
     item: LibraryItem | None = None
 
 
@@ -209,6 +218,19 @@ def _get_data_dir() -> Path:
     return path
 
 
+def _document_kind_for_path(path: Path) -> str:
+    name = path.stem.lower()
+    if path.suffix.lower() == ".xlsx" or name.startswith("form"):
+        return "form"
+    if name.startswith("sop"):
+        return "sop"
+    return "document"
+
+
+def _is_embeddable_path(path: Path) -> bool:
+    return path.suffix.lower() in EMBEDDABLE_EXTENSIONS
+
+
 def _to_library_item(path: Path, data_dir: Path) -> LibraryItem:
     relative_path = path.relative_to(data_dir).as_posix()
     stat = path.stat()
@@ -218,6 +240,8 @@ def _to_library_item(path: Path, data_dir: Path) -> LibraryItem:
         relative_path=relative_path,
         display_name=display_name.title(),
         doc_type=path.suffix.lower().lstrip("."),
+        document_kind=_document_kind_for_path(path),
+        is_embeddable=_is_embeddable_path(path),
         size_bytes=stat.st_size,
         updated_at=datetime.fromtimestamp(stat.st_mtime).isoformat(),
         download_url=f"/api/documents/{quote(relative_path, safe='/')}",
@@ -231,12 +255,69 @@ def _iter_library_items() -> list[LibraryItem]:
 
     items: list[LibraryItem] = []
     for path in sorted(data_dir.rglob("*")):
-        if not path.is_file() or path.suffix.lower() not in SUPPORTED_EXTENSIONS:
+        if not path.is_file() or path.suffix.lower() not in LIBRARY_EXTENSIONS:
             continue
 
         items.append(_to_library_item(path, data_dir))
 
     return items
+
+
+def _form_keywords_for_path(path: Path) -> list[str]:
+    name = path.name.lower()
+    if "perjalanan dinas" in name:
+        return [
+            "perjalanan dinas",
+            "uang muka",
+            "penyelesaian perjalanan",
+            "permohonan perjalanan",
+        ]
+    if "onboarding" in name:
+        return ["onboarding", "on boarding", "karyawan baru", "preparation"]
+    if "exit" in name:
+        return [
+            "exit clearance",
+            "exit interview",
+            "terminasi",
+            "resign",
+            "pengunduran diri",
+            "offboarding",
+        ]
+    return [path.stem.lower()]
+
+
+def _format_form_display_name(path: Path) -> str:
+    return (
+        path.stem.replace("Form - ", "")
+        .replace("(Template)", "")
+        .replace("_", " ")
+        .strip()
+    )
+
+
+def _matching_form_downloads(*texts: str) -> list[FormDownloadResponse]:
+    haystack = " ".join(texts).lower()
+    data_dir = _get_data_dir()
+    if not data_dir.exists():
+        return []
+
+    matches: list[FormDownloadResponse] = []
+    for path in sorted(data_dir.rglob("*.xlsx")):
+        if not path.is_file():
+            continue
+        keywords = _form_keywords_for_path(path)
+        is_form_request = "form" in haystack or any(keyword in haystack for keyword in keywords)
+        if not is_form_request or not any(keyword in haystack for keyword in keywords):
+            continue
+        relative_path = path.relative_to(data_dir).as_posix()
+        matches.append(
+            FormDownloadResponse(
+                name=path.name,
+                display_name=_format_form_display_name(path),
+                download_url=f"/api/documents/{quote(relative_path, safe='/')}",
+            )
+        )
+    return matches
 
 
 def _require_admin(x_admin_email: str) -> None:
@@ -331,13 +412,13 @@ def _get_conversation_context(conversation_id: str) -> str:
         messages = _load_conversations().get(conversation_id, [])
 
     context_lines: list[str] = []
-    for message in messages[-6:]:
+    for message in messages[-MAX_CONVERSATION_MESSAGES:]:
         role = "User" if message.get("role") == "user" else "Assistant"
         content = str(message.get("content", "")).strip()
         if content:
             context_lines.append(f"{role}: {content}")
 
-    return "\n".join(context_lines)[-1600:]
+    return "\n".join(context_lines)[-MAX_CONVERSATION_CONTEXT_CHARS:]
 
 
 def _append_conversation_turn(conversation_id: str, question: str, answer: str) -> None:
@@ -525,7 +606,12 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
         )
         for citation in raw_citations
     ]
-    return QueryResponse(answer=answer, citations=citations, conversation_id=conversation_id)
+    return QueryResponse(
+        answer=answer,
+        citations=citations,
+        form_downloads=_matching_form_downloads(payload.question, answer),
+        conversation_id=conversation_id,
+    )
 
 
 @app.get("/api/faq", response_model=list[FAQItem])
@@ -579,7 +665,8 @@ def delete_faq(
 
 
 @app.get("/api/library", response_model=list[LibraryItem])
-def get_library() -> list[LibraryItem]:
+def get_library(x_admin_email: str = Header(default="")) -> list[LibraryItem]:
+    _require_admin(x_admin_email)
     return _iter_library_items()
 
 
@@ -594,7 +681,7 @@ def save_document(
 
     filename = Path(unquote(payload.filename)).name
     suffix = Path(filename).suffix.lower()
-    if suffix not in SUPPORTED_EXTENSIONS:
+    if suffix not in LIBRARY_EXTENSIONS:
         raise HTTPException(status_code=400, detail="Unsupported document type.")
 
     content = _decode_document(payload.content_base64)
@@ -620,8 +707,10 @@ def save_document(
         action = "inserted"
 
     target_path.write_bytes(content)
+    requires_reindex = _is_embeddable_path(target_path)
     return AdminDocumentResponse(
         message=f"Document {action}.",
+        requires_reindex=requires_reindex,
         item=_to_library_item(target_path, data_dir),
     )
 
@@ -636,11 +725,12 @@ def delete_document(
 
     if not target_path.exists() or not target_path.is_file():
         raise HTTPException(status_code=404, detail="Document not found.")
-    if target_path.suffix.lower() not in SUPPORTED_EXTENSIONS:
+    if target_path.suffix.lower() not in LIBRARY_EXTENSIONS:
         raise HTTPException(status_code=400, detail="Unsupported document type.")
 
+    requires_reindex = _is_embeddable_path(target_path)
     target_path.unlink()
-    return AdminDocumentResponse(message="Document deleted.")
+    return AdminDocumentResponse(message="Document deleted.", requires_reindex=requires_reindex)
 
 
 @app.post("/api/admin/reindex", response_model=AdminReindexResponse)
@@ -653,6 +743,11 @@ def reindex_documents(x_admin_email: str = Header(default="")) -> AdminReindexRe
         from backend.preprocessing.ingest import main as rebuild_knowledge_base
 
         rebuild_knowledge_base()
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Rebuild embeddings failed: {error}",
+        ) from error
     finally:
         REINDEX_LOCK.release()
 
@@ -660,11 +755,16 @@ def reindex_documents(x_admin_email: str = Header(default="")) -> AdminReindexRe
 
 
 @app.get("/api/documents/{document_path:path}")
-def download_document(document_path: str) -> FileResponse:
+def download_document(
+    document_path: str,
+    x_admin_email: str = Header(default=""),
+) -> FileResponse:
     resolved_path = _resolve_document_path(document_path)
 
     if not resolved_path.exists() or not resolved_path.is_file():
         raise HTTPException(status_code=404, detail="Document not found.")
+    if _document_kind_for_path(resolved_path) != "form":
+        _require_admin(x_admin_email)
 
     return FileResponse(path=resolved_path, filename=resolved_path.name)
 

@@ -20,7 +20,7 @@ reporting_task:
     Keep it concise and concrete, preferably 1-3 short paragraphs or a short list.
     Every factual sentence or bullet must end with its actual numeric evidence marker,
     such as [1] or [2]. Never output a generic placeholder instead. Never invent a file, page,
-    Pasal, requirement, formula, exception, or causal link. Do not create hypothetical
+    section title, clause, numbering, requirement, formula, exception, or causal link. Do not create hypothetical
     examples or perform new arithmetic; reproduce only formulas and figures explicitly
     stated in the evidence.
     If the evidence only supports one interpretation, state that interpretation.

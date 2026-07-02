@@ -40,7 +40,7 @@
           </button>
           <button class="nav-link" data-screen="policy" type="button">
             <span class="material-symbols-outlined">policy</span
-            ><span>Policy</span>
+            ><span>Docs</span>
           </button>
         </nav>
 
@@ -130,7 +130,7 @@
               </div>
               <p>
                 AI-generated responses may contain inaccuracies. Please verify
-                important policy details.
+                important document details.
               </p>
             </form>
           </section>
@@ -139,10 +139,10 @@
             <div class="faq-canvas">
               <div class="page-intro">
                 <h2>
-                  FAQ <span class="accent-text">Policy</span>
+                  FAQ <span class="accent-text">HR</span>
                 </h2>
                 <p>
-                  Kumpulan pertanyaan umum seputar kebijakan internal ICS
+                  Kumpulan pertanyaan umum dari SOP dan dokumen internal ICS
                   Compute.
                 </p>
               </div>
@@ -189,7 +189,7 @@
               <div class="faq-list" id="faqList"></div>
             </div>
             <footer class="faq-footer">
-              <span>(C) 2026 ICS Compute &bull; ISO Policy</span>
+              <span>(C) 2026 ICS Compute &bull; Internal Documents</span>
               <strong>HR AGENT</strong>
             </footer>
           </section>
@@ -198,14 +198,14 @@
             <div class="policy-canvas">
               <div class="policy-heading">
                 <div class="policy-intro">
-                  <span class="section-label">Official Documentation</span>
-                  <h2>Central <span class="accent-text">Policy</span> Hub</h2>
+                  <span class="section-label">Internal Documentation</span>
+                  <h2>Central <span class="accent-text">Document</span> Hub</h2>
                   <p>
-                    Access the latest version of employee handbooks, ISO
-                    compliance<br class="desktop-break" />
-                    standards, and internal operational frameworks. All
-                    documents are<br class="desktop-break" />
-                    verified for the 2024-2025 fiscal period.
+                    Access SOP, supporting forms, and internal HR operational
+                    documents<br class="desktop-break" />
+                    in one place. SOP files are used for retrieval, while
+                    forms stay available<br class="desktop-break" />
+                    as direct downloads.
                   </p>
                 </div>
                 <div class="policy-actions">
@@ -242,14 +242,14 @@
               >
                 <div class="admin-document-copy">
                   <span>Admin tools</span>
-                  <strong>Manage policy documents</strong>
+                  <strong>Manage SOP & form files</strong>
                 </div>
                 <form class="admin-document-form" id="adminDocumentForm">
                   <label class="file-picker">
                     <input
                       id="documentFileInput"
                       type="file"
-                      accept=".pdf,.docx,.txt"
+                      accept=".pdf,.docx,.txt,.xlsx"
                       multiple
                     />
                     <span class="material-symbols-outlined">upload_file</span>
@@ -260,29 +260,40 @@
                     id="documentUploadButton"
                     type="submit"
                   >
-                    Insert documents
+                    Insert files
                   </button>
                 </form>
                 <div class="document-reindex-panel">
                   <p>
-                    Rebuild embeddings after document changes so AI retrieval
-                    uses the latest files.
+                    Rebuild embeddings after SOP or knowledge document changes
+                    so AI retrieval uses the latest files.
                   </p>
-                  <button
-                    class="document-reindex-button"
-                    id="documentReindexButton"
-                    type="button"
-                    disabled
-                  >
-                    <span class="material-symbols-outlined">sync</span>
-                    Rebuild embeddings
-                  </button>
+                  <div class="document-maintenance-actions">
+                    <button
+                      class="document-undo-button"
+                      id="documentUndoButton"
+                      type="button"
+                      hidden
+                    >
+                      <span class="material-symbols-outlined">undo</span>
+                      Undo all
+                    </button>
+                    <button
+                      class="document-reindex-button"
+                      id="documentReindexButton"
+                      type="button"
+                      disabled
+                    >
+                      <span class="material-symbols-outlined">sync</span>
+                      Rebuild embeddings
+                    </button>
+                  </div>
                 </div>
                 <p class="admin-document-status" id="adminDocumentStatus"></p>
                 <input
                   id="documentReplaceInput"
                   type="file"
-                  accept=".pdf,.docx,.txt"
+                  accept=".pdf,.docx,.txt,.xlsx"
                   hidden
                 />
               </section>
@@ -291,7 +302,7 @@
                 <p>
                   Can't find a document? Use the
                   <button id="chatLink" type="button">AI Chat</button> to
-                  request specific policy files or clarify regulations.
+                  request a specific SOP, form, or internal document.
                 </p>
                 <span
                   >&copy; 2026 ICS Compute &bull; All rights reserved &bull;
@@ -441,6 +452,29 @@
             Logout
           </button>
         </div>
+      </div>
+    </div>
+
+    <div
+      class="document-error-modal"
+      id="documentErrorModal"
+      aria-hidden="true"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="documentErrorTitle"
+    >
+      <div class="document-error-card">
+        <span class="auth-kicker">Document Error</span>
+        <h2 id="documentErrorTitle">Upload belum selesai</h2>
+        <p id="documentErrorSummary"></p>
+        <ul id="documentErrorList"></ul>
+        <button
+          class="document-error-close"
+          id="documentErrorCloseButton"
+          type="button"
+        >
+          OK
+        </button>
       </div>
     </div>
 

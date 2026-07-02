@@ -70,7 +70,7 @@ echo Starting FastAPI app in this terminal.
 echo - App: http://127.0.0.1:%API_PORT%
 echo - Press Ctrl+C to stop the server.
 echo.
-"%PYTHON%" -X utf8 -m uvicorn backend.api.main:app --host 127.0.0.1 --port %API_PORT%
+"%PYTHON%" -X utf8 -m uvicorn backend.api.main:app --host 127.0.0.1 --port %API_PORT% --timeout-keep-alive 1 --timeout-graceful-shutdown 3
 set "APP_EXIT=%ERRORLEVEL%"
 endlocal & exit /b %APP_EXIT%
 

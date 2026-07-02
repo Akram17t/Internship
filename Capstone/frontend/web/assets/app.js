@@ -10,119 +10,189 @@ const adminAccounts = [
 
 const fallbackFaqItems = [
   {
-    question: "Berapa hak cuti tahunan karyawan?",
+    id: "alur-perjalanan-dinas",
+    question: "Bagaimana alur pengajuan perjalanan dinas?",
     answer:
-      "Karyawan yang telah bekerja 12 bulan terus-menerus berhak atas 12 hari kerja cuti tahunan. Maksimal 5 hari dapat dibawa ke tahun berikutnya dan akan hangus pada 31 Maret jika tidak digunakan.",
-    source: "ICS_PP03_Kebijakan_Cuti.pdf - Pasal 1 - PDF halaman 2",
-    source_url: "/api/documents/ICS_PP03_Kebijakan_Cuti.pdf",
+      "Requestor mengisi Form Permohonan Perjalanan Dinas sebelum berangkat dan meminta persetujuan atasan terkait serta Director. Jika membutuhkan uang muka, requestor juga mengajukan Form Permohonan Uang Muka, lalu setelah perjalanan selesai wajib menyerahkan Form Penyelesaian Perjalanan Dinas ke General Affair. [1][2][3]",
+    source: "SOP - Perjalanan Dinas.pdf",
+    source_url: "/api/documents/SOP%20-%20Perjalanan%20Dinas.pdf",
     suggested_query:
-      "Jelaskan hak, pengajuan, dan carry over cuti tahunan karyawan.",
+      "Jelaskan alur lengkap pengajuan perjalanan dinas beserta approval dan form yang digunakan.",
+    citations: [
+      {
+        id: 1,
+        source: "SOP - Perjalanan Dinas.pdf",
+        page: 7,
+        section: "6. AKTIVITAS",
+        chunk_id: 32,
+        download_url: "/api/documents/SOP%20-%20Perjalanan%20Dinas.pdf",
+      },
+      {
+        id: 2,
+        source: "SOP - Perjalanan Dinas.pdf",
+        page: 7,
+        section: "6. AKTIVITAS",
+        chunk_id: 34,
+        download_url: "/api/documents/SOP%20-%20Perjalanan%20Dinas.pdf",
+      },
+      {
+        id: 3,
+        source: "SOP - Perjalanan Dinas.pdf",
+        page: 8,
+        section: "6. AKTIVITAS",
+        chunk_id: 35,
+        download_url: "/api/documents/SOP%20-%20Perjalanan%20Dinas.pdf",
+      },
+    ],
   },
   {
-    question: "Bagaimana mekanisme dan perhitungan upah lembur?",
+    id: "form-perjalanan-dinas",
+    question: "Form apa saja yang digunakan untuk perjalanan dinas?",
     answer:
-      "Lembur dilakukan atas permintaan tertulis Atasan Langsung dengan persetujuan Karyawan. Jam pertama dibayar 1,5 kali upah per jam, jam berikutnya 2 kali, dengan batas maksimal 4 jam per hari dan 18 jam per minggu.",
-    source: "ICS_PP01_Peraturan_Perusahaan.pdf - Pasal 6 - PDF halaman 2-3",
-    source_url: "/api/documents/ICS_PP01_Peraturan_Perusahaan.pdf",
-    suggested_query: "Bagaimana mekanisme dan perhitungan upah lembur?",
-  },
-  {
-    question: "Kapan gaji bulanan dibayarkan?",
-    answer:
-      "Gaji dibayarkan setiap tanggal 25 melalui transfer bank. Jika tanggal 25 jatuh pada hari libur atau akhir pekan, pembayaran dilakukan pada hari kerja sebelumnya.",
-    source: "ICS_PP02_Kebijakan_Penggajian.pdf - Pasal 4 - PDF halaman 3",
-    source_url: "/api/documents/ICS_PP02_Kebijakan_Penggajian.pdf",
-    suggested_query: "Kapan dan bagaimana gaji bulanan dibayarkan?",
-  },
-  {
-    question: "Apa ketentuan password akun perusahaan?",
-    answer:
-      "Password minimal terdiri dari 12 karakter dengan kombinasi huruf besar, huruf kecil, angka, dan simbol. Password sistem kritikal diganti minimal setiap 90 hari dan MFA wajib untuk layanan cloud serta email perusahaan.",
-    source: "ICS_PP04_Kebijakan_IT.pdf - Pasal 4 - PDF halaman 3",
-    source_url: "/api/documents/ICS_PP04_Kebijakan_IT.pdf",
+      "SOP Perjalanan Dinas mencantumkan tiga form utama: Form Permohonan Uang Muka Perjalanan Dinas, Form Penyelesaian Perjalanan Dinas, dan Form Permohonan Perjalanan Dinas. Ketiganya tercantum pada bagian Dokumen Terkait dan dipakai sesuai tahap proses perjalanan dinas. [1]",
+    source: "SOP - Perjalanan Dinas.pdf",
+    source_url: "/api/documents/SOP%20-%20Perjalanan%20Dinas.pdf",
     suggested_query:
-      "Apa seluruh ketentuan keamanan password dan MFA perusahaan?",
+      "Sebutkan seluruh form yang dipakai dalam proses perjalanan dinas.",
+    citations: [
+      {
+        id: 1,
+        source: "SOP - Perjalanan Dinas.pdf",
+        page: 8,
+        section: "8. DOKUMEN TERKAIT",
+        chunk_id: 38,
+        download_url: "/api/documents/SOP%20-%20Perjalanan%20Dinas.pdf",
+      },
+    ],
   },
   {
-    question: "Bagaimana melaporkan insiden keamanan IT?",
+    id: "persiapan-onboarding",
+    question: "Apa saja persiapan onboarding karyawan baru?",
     answer:
-      "Insiden atau dugaan insiden harus segera dilaporkan ke Departemen IT melalui security@icscompute.com atau hotline IT dalam 1x24 jam. Penanganan berikutnya meliputi isolasi, investigasi, pemulihan, dan dokumentasi oleh tim IT.",
-    source: "ICS_PP04_Kebijakan_IT.pdf - Pasal 7 - PDF halaman 3",
-    source_url: "/api/documents/ICS_PP04_Kebijakan_IT.pdf",
+      "Persiapan onboarding mencakup penyiapan perlengkapan kerja, perkenalan lingkungan kerja dan Peraturan Perusahaan, pembuatan akun HRIS, sampai evaluasi kontrak karyawan. HR Personnel juga berkoordinasi dengan General Affair dan IT Internal agar kebutuhan kerja karyawan baru siap sejak awal. [1][2]",
+    source: "SOP - Administrasi Karyawan.pdf",
+    source_url: "/api/documents/SOP%20-%20Administrasi%20Karyawan.pdf",
     suggested_query:
-      "Jelaskan prosedur lengkap pelaporan dan penanganan insiden keamanan IT.",
+      "Jelaskan persiapan onboarding karyawan baru berdasarkan SOP Administrasi Karyawan.",
+    citations: [
+      {
+        id: 1,
+        source: "SOP - Administrasi Karyawan.pdf",
+        page: 5,
+        section: "2. RUANG LINGKUP",
+        chunk_id: 2,
+        download_url: "/api/documents/SOP%20-%20Administrasi%20Karyawan.pdf",
+      },
+      {
+        id: 2,
+        source: "SOP - Administrasi Karyawan.pdf",
+        page: 6,
+        section: "6. AKTIVITAS",
+        chunk_id: 7,
+        download_url: "/api/documents/SOP%20-%20Administrasi%20Karyawan.pdf",
+      },
+    ],
   },
   {
-    question: "Apa ketentuan pengajuan cuti sakit?",
+    id: "fasilitas-karyawan-baru",
+    question: "Siapa yang menyiapkan fasilitas kerja untuk karyawan baru?",
     answer:
-      "Cuti sakit diberikan selama sakit berlangsung dengan Surat Keterangan Dokter. Sakit satu hari tanpa surat dokter diperbolehkan maksimal dua kali dalam setahun; kejadian ketiga wajib menyertakan surat dokter.",
-    source: "ICS_PP03_Kebijakan_Cuti.pdf - Pasal 3 - PDF halaman 2",
-    source_url: "/api/documents/ICS_PP03_Kebijakan_Cuti.pdf",
+      "General Affair Staff bertugas menyiapkan fasilitas dan perlengkapan kerja karyawan baru. HR Personnel Staff berkoordinasi dengan General Affair dan IT Internal agar perlengkapan kerja siap saat onboarding. [1][2]",
+    source: "SOP - Administrasi Karyawan.pdf",
+    source_url: "/api/documents/SOP%20-%20Administrasi%20Karyawan.pdf",
     suggested_query:
-      "Jelaskan hak, bukti, dan ketentuan lengkap cuti sakit karyawan.",
+      "Siapa PIC penyiapan fasilitas dan perlengkapan kerja untuk karyawan baru?",
+    citations: [
+      {
+        id: 1,
+        source: "SOP - Administrasi Karyawan.pdf",
+        page: 6,
+        section: "5. TUGAS DAN TANGGUNG JAWAB",
+        chunk_id: 6,
+        download_url: "/api/documents/SOP%20-%20Administrasi%20Karyawan.pdf",
+      },
+      {
+        id: 2,
+        source: "SOP - Administrasi Karyawan.pdf",
+        page: 6,
+        section: "6. AKTIVITAS",
+        chunk_id: 7,
+        download_url: "/api/documents/SOP%20-%20Administrasi%20Karyawan.pdf",
+      },
+    ],
   },
   {
-    question: "Siapa yang berhak menerima THR dan kapan dibayarkan?",
+    id: "terminasi-karyawan",
+    question: "Apa yang wajib diselesaikan saat terminasi hubungan kerja?",
     answer:
-      "THR diberikan kepada karyawan dengan masa kerja minimal satu bulan secara terus-menerus. Besarannya satu kali gaji untuk masa kerja minimal 12 bulan atau proporsional untuk masa kerja 1-12 bulan, dan dibayarkan paling lambat tujuh hari sebelum hari raya.",
-    source: "ICS_PP02_Kebijakan_Penggajian.pdf - Pasal 7 - PDF halaman 3",
-    source_url: "/api/documents/ICS_PP02_Kebijakan_Penggajian.pdf",
-    suggested_query: "Jelaskan syarat, perhitungan, dan jadwal pembayaran THR.",
-  },
-  {
-    question: "Apa ketentuan Work From Home?",
-    answer:
-      "Work From Home diperbolehkan sesuai kebijakan Departemen SDM dan harus mendapat persetujuan Atasan Langsung. Jam kerja normal tetap 40 jam per minggu dengan core hours pukul 10.00-16.00 WIB.",
-    source: "ICS_PP01_Peraturan_Perusahaan.pdf - Pasal 5 - PDF halaman 2",
-    source_url: "/api/documents/ICS_PP01_Peraturan_Perusahaan.pdf",
+      "Saat terminasi, karyawan wajib menyelesaikan handover kepada atasan atau pihak yang ditunjuk, menuntaskan Exit Clearance termasuk pengembalian aset, dan keluar dari media komunikasi operasional perusahaan. Proses terminasi juga mencakup exit interview oleh HR Personnel serta verifikasi penyelesaian kewajiban oleh pihak terkait. [1][2][3]",
+    source: "SOP - Terminasi Hubungan Kerja.pdf",
+    source_url: "/api/documents/SOP%20-%20Terminasi%20Hubungan%20Kerja.pdf",
     suggested_query:
-      "Jelaskan aturan Work From Home, jam kerja, dan persetujuan yang dibutuhkan.",
+      "Jelaskan kewajiban utama karyawan dan tim terkait dalam proses terminasi hubungan kerja.",
+    citations: [
+      {
+        id: 1,
+        source: "SOP - Terminasi Hubungan Kerja.pdf",
+        page: 5,
+        section: "2. RUANG LINGKUP",
+        chunk_id: 41,
+        download_url: "/api/documents/SOP%20-%20Terminasi%20Hubungan%20Kerja.pdf",
+      },
+      {
+        id: 2,
+        source: "SOP - Terminasi Hubungan Kerja.pdf",
+        page: 6,
+        section: "6. AKTIVITAS",
+        chunk_id: 46,
+        download_url: "/api/documents/SOP%20-%20Terminasi%20Hubungan%20Kerja.pdf",
+      },
+      {
+        id: 3,
+        source: "SOP - Terminasi Hubungan Kerja.pdf",
+        page: 6,
+        section: "6. AKTIVITAS",
+        chunk_id: 48,
+        download_url: "/api/documents/SOP%20-%20Terminasi%20Hubungan%20Kerja.pdf",
+      },
+    ],
   },
   {
-    question: "Apa aturan penggunaan AI generatif untuk pekerjaan?",
+    id: "deadline-exit-clearance",
+    question: "Kapan Exit Clearance harus diselesaikan?",
     answer:
-      "AI generatif boleh digunakan untuk drafting, brainstorming, dan analisis non-sensitif. Data Konfidensial atau Rahasia dilarang dimasukkan ke layanan AI publik, dan seluruh output AI wajib diverifikasi sebelum digunakan untuk keputusan atau diserahkan kepada klien.",
-    source: "ICS_PP04_Kebijakan_IT.pdf - Pasal 9 - PDF halaman 4",
-    source_url: "/api/documents/ICS_PP04_Kebijakan_IT.pdf",
+      "Exit Clearance wajib diselesaikan pada hari terakhir efektif bekerja, termasuk pengembalian seluruh aset perusahaan. Form Exit Clearance juga harus lengkap, ditandatangani pihak terkait, dan paling lambat selesai pada hari terakhir bekerja. [1][2]",
+    source: "SOP - Terminasi Hubungan Kerja.pdf",
+    source_url: "/api/documents/SOP%20-%20Terminasi%20Hubungan%20Kerja.pdf",
     suggested_query:
-      "Jelaskan hal yang boleh dan dilarang dalam penggunaan AI generatif untuk pekerjaan.",
+      "Kapan deadline Exit Clearance dan apa saja syarat penyelesaiannya?",
+    citations: [
+      {
+        id: 1,
+        source: "SOP - Terminasi Hubungan Kerja.pdf",
+        page: 6,
+        section: "6. AKTIVITAS",
+        chunk_id: 47,
+        download_url: "/api/documents/SOP%20-%20Terminasi%20Hubungan%20Kerja.pdf",
+      },
+      {
+        id: 2,
+        source: "SOP - Terminasi Hubungan Kerja.pdf",
+        page: 6,
+        section: "6. AKTIVITAS",
+        chunk_id: 48,
+        download_url: "/api/documents/SOP%20-%20Terminasi%20Hubungan%20Kerja.pdf",
+      },
+    ],
   },
 ];
-
-const fallbackDocuments = [
-  [
-    "Global Employee Handbook",
-    "Ref: POL-2024-001 • Comprehensive guide for workplace conduct and values.",
-  ],
-  [
-    "ISO 27001 Security Policy",
-    "Ref: SEC-2024-012 • Information security management and compliance protocols.",
-  ],
-  [
-    "Travel & Reimbursement Policy",
-    "Ref: FIN-2024-005 • Guidelines for business travel and expense filing.",
-  ],
-  ["Data Privacy Addendum (DPA)", "Ref: APP-2024-001 • Last Review: Dec 2023"],
-  [
-    "Remote Work Agreement Template",
-    "Ref: APP-2024-005 • Last Review: Jan 2024",
-  ],
-  [
-    "Whistleblower Protection Policy",
-    "Ref: APP-2024-009 • Last Review: Mar 2024",
-  ],
-].map(([display_name, description]) => ({
-  display_name,
-  description,
-  download_url: "",
-}));
 
 const initialMessages = [];
 
 const screens = {
   chat: "Active Session",
   faq: "Frequently Asked Questions",
-  policy: "Policy Library",
+  policy: "Document Library",
 };
 
 const state = {
@@ -142,6 +212,9 @@ const state = {
   isReindexing: false,
   pendingReplacePath: "",
   isMutatingDocument: false,
+  documentUndo: null,
+  documentUndoStack: [],
+  documentChanges: [],
 };
 
 const elements = {
@@ -166,6 +239,7 @@ const elements = {
   libraryList: document.getElementById("libraryList"),
   librarySearch: document.getElementById("librarySearch"),
   policySearchWrap: document.getElementById("policySearchWrap"),
+  policyNavLink: document.querySelector('.nav-link[data-screen="policy"]'),
   filterButton: document.getElementById("filterButton"),
   downloadAllButton: document.getElementById("downloadAllButton"),
   chatLink: document.getElementById("chatLink"),
@@ -192,11 +266,16 @@ const elements = {
   logoutModal: document.getElementById("logoutModal"),
   logoutCancelButton: document.getElementById("logoutCancelButton"),
   logoutConfirmButton: document.getElementById("logoutConfirmButton"),
+  documentErrorModal: document.getElementById("documentErrorModal"),
+  documentErrorSummary: document.getElementById("documentErrorSummary"),
+  documentErrorList: document.getElementById("documentErrorList"),
+  documentErrorCloseButton: document.getElementById("documentErrorCloseButton"),
   adminDocumentPanel: document.getElementById("adminDocumentPanel"),
   adminDocumentForm: document.getElementById("adminDocumentForm"),
   documentFileInput: document.getElementById("documentFileInput"),
   documentFileLabel: document.getElementById("documentFileLabel"),
   documentUploadButton: document.getElementById("documentUploadButton"),
+  documentUndoButton: document.getElementById("documentUndoButton"),
   documentReindexButton: document.getElementById("documentReindexButton"),
   documentReplaceInput: document.getElementById("documentReplaceInput"),
   adminDocumentStatus: document.getElementById("adminDocumentStatus"),
@@ -221,7 +300,6 @@ function init() {
   renderFaqs();
   syncScreenFromHash();
   void loadFaqs();
-  void loadLibrary();
   window.addEventListener("resize", updateComposer);
 }
 
@@ -236,7 +314,9 @@ function bindNavigation() {
 
 function syncScreenFromHash() {
   const hash = window.location.hash.slice(1);
-  const target = screens[hash] ? hash : "chat";
+  const target = screens[hash] && (hash !== "policy" || isAdminSession())
+    ? hash
+    : "chat";
   state.activeScreen = target;
   elements.body.dataset.activeScreen = target;
   elements.screenTitle.textContent = screens[target];
@@ -251,7 +331,8 @@ function syncScreenFromHash() {
 }
 
 function navigateTo(screen) {
-  window.location.hash = screen || "chat";
+  const target = screen === "policy" && !isAdminSession() ? "chat" : screen || "chat";
+  window.location.hash = target;
 }
 
 function openMobileNav() {
@@ -336,6 +417,9 @@ async function submitQuestion(rawQuestion) {
       role: "assistant",
       content: payload.answer || "No answer was returned.",
       citations: Array.isArray(payload.citations) ? payload.citations : [],
+      form_downloads: Array.isArray(payload.form_downloads)
+        ? payload.form_downloads
+        : [],
       duration_ms: Math.round(performance.now() - startedAt),
       timestamp: "Just now",
     });
@@ -344,7 +428,7 @@ async function submitQuestion(rawQuestion) {
     replaceLoading({
       role: "assistant",
       content:
-        "I couldn't reach the knowledge service. Please make sure the FastAPI server and vector database are running.",
+        "Aku belum bisa menghubungi layanan knowledge base. Pastikan server FastAPI dan database embedding sedang berjalan.",
       citations: [],
       duration_ms: Math.round(performance.now() - startedAt),
       timestamp: "Just now",
@@ -404,9 +488,10 @@ function renderMessages(scrollBehavior = "auto") {
     if (message.loading) {
       article.classList.add("message--loading");
       bubble.innerHTML =
-        '<span class="loading-dots"><span></span><span></span><span></span></span>Searching policies...';
+        '<span class="loading-dots"><span></span><span></span><span></span></span>Mencari dokumen...';
     } else {
       bubble.appendChild(formatMessage(message.content, message.citations));
+      renderFormDownloads(bubble, message.form_downloads);
     }
 
     meta.textContent = `${isAssistant ? "AI Assistant" : "You"} • ${message.timestamp || "Just now"}`;
@@ -422,18 +507,23 @@ function renderMessages(scrollBehavior = "auto") {
 }
 
 function scrollChatToBottom(behavior = "auto") {
-  window.requestAnimationFrame(() => {
-    elements.chatThread.scrollTo({
-      top: elements.chatThread.scrollHeight,
-      behavior,
+  const scrollToLatest = () => {
+    const lastMessage = elements.chatThread.lastElementChild;
+    lastMessage?.scrollIntoView({ behavior, block: "end" });
+    elements.chatThread.scrollTop = elements.chatThread.scrollHeight;
+    elements.chatScreen.scrollTop = elements.chatScreen.scrollHeight;
+    document.scrollingElement?.scrollTo({
+      top: document.scrollingElement.scrollHeight,
+      behavior: "auto",
     });
+  };
 
-    window.requestAnimationFrame(() => {
-      elements.chatThread.scrollTo({
-        top: elements.chatThread.scrollHeight,
-        behavior,
-      });
-    });
+  window.requestAnimationFrame(() => {
+    scrollToLatest();
+    window.setTimeout(scrollToLatest, 60);
+    window.setTimeout(scrollToLatest, 180);
+    window.setTimeout(scrollToLatest, 320);
+    window.setTimeout(scrollToLatest, 520);
   });
 }
 
@@ -489,20 +579,27 @@ function renderMessageCitations(container, citations) {
 }
 
 function createCitationChip(citation, index, isInline = false) {
-  const chip = citation.download_url
+  const fileType = getCitationFileType(citation);
+  const canOpenDocument = Boolean(citation.download_url) && isAdminSession();
+  const isPublicForm = Boolean(citation.download_url) && fileType === "sheet";
+  const chip = isPublicForm
     ? document.createElement("a")
     : document.createElement("button");
-  const fileType = getCitationFileType(citation);
   chip.className = `citation-chip citation-chip--${fileType}`;
   if (isInline) chip.classList.add("is-inline");
   chip.setAttribute("aria-label", formatCitationLabel(citation, index));
 
-  if (citation.download_url) {
+  if (isPublicForm) {
     chip.href = citation.download_url;
     chip.target = "_blank";
     chip.rel = "noopener";
   } else {
     chip.type = "button";
+    if (canOpenDocument) {
+      chip.addEventListener("click", () =>
+        downloadDocument(citation.download_url, citation.source),
+      );
+    }
   }
 
   const icon = document.createElement("span");
@@ -529,10 +626,55 @@ function createCitationChip(citation, index, isInline = false) {
   return chip;
 }
 
+function renderFormDownloads(container, downloads = []) {
+  if (!Array.isArray(downloads) || !downloads.length) return;
+
+  const seen = new Set();
+  const items = downloads.filter((item) => {
+    const key = item.download_url || item.name || item.display_name;
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  if (!items.length) return;
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "form-downloads";
+
+  items.forEach((item) => {
+    const link = document.createElement("a");
+    link.className = "form-download-card";
+    link.href = item.download_url || "#";
+    link.target = "_blank";
+    link.rel = "noopener";
+
+    const icon = document.createElement("span");
+    icon.className = "material-symbols-outlined";
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = "download";
+
+    const copy = document.createElement("span");
+    copy.className = "form-download-copy";
+
+    const title = document.createElement("strong");
+    title.textContent = item.display_name || item.name || "Form";
+
+    const hint = document.createElement("small");
+    hint.textContent = "Download form";
+
+    copy.append(title, hint);
+    link.append(icon, copy);
+    wrapper.appendChild(link);
+  });
+
+  container.appendChild(wrapper);
+}
+
 function getCitationFileType(citation) {
   const source = String(citation.source || "").toLowerCase();
   if (source.endsWith(".pdf")) return "pdf";
   if (source.endsWith(".doc") || source.endsWith(".docx")) return "doc";
+  if (source.endsWith(".xls") || source.endsWith(".xlsx")) return "sheet";
   if (source.endsWith(".txt")) return "txt";
   return "file";
 }
@@ -540,6 +682,7 @@ function getCitationFileType(citation) {
 function getCitationIcon(fileType) {
   if (fileType === "pdf") return "picture_as_pdf";
   if (fileType === "doc") return "article";
+  if (fileType === "sheet") return "table_chart";
   if (fileType === "txt") return "text_snippet";
   return "description";
 }
@@ -598,26 +741,32 @@ function buildCitationMap(citations) {
 }
 
 function appendFormattedText(container, text, citationMap) {
-  const pattern = /\[(\d+)\]/g;
+  const tokenPattern = /(\[(\d+)\]|\*\*([^*]+)\*\*)/g;
   let cursor = 0;
-  let match = pattern.exec(text);
+  let match = tokenPattern.exec(text);
 
   while (match) {
     if (match.index > cursor) {
       container.append(document.createTextNode(text.slice(cursor, match.index)));
     }
 
-    const citationEntry = citationMap.get(match[1]);
-    if (citationEntry) {
-      container.append(
-        createCitationChip(citationEntry.citation, citationEntry.index, true),
-      );
-    } else {
-      container.append(document.createTextNode(match[0]));
+    if (match[2]) {
+      const citationEntry = citationMap.get(match[2]);
+      if (citationEntry) {
+        container.append(
+          createCitationChip(citationEntry.citation, citationEntry.index, true),
+        );
+      } else {
+        container.append(document.createTextNode(match[0]));
+      }
+    } else if (match[3]) {
+      const strong = document.createElement("strong");
+      strong.textContent = match[3];
+      container.append(strong);
     }
 
-    cursor = pattern.lastIndex;
-    match = pattern.exec(text);
+    cursor = tokenPattern.lastIndex;
+    match = tokenPattern.exec(text);
   }
 
   if (cursor < text.length) {
@@ -647,9 +796,9 @@ function updateComposer() {
   elements.sendButton.classList.toggle("is-stopping", state.isSubmitting);
   elements.chatInput.placeholder = state.isSubmitting
     ? "Ketik pertanyaan berikutnya..."
-    : isMobile
-      ? "Tanya policy HR..."
-      : "Tanya soal cuti, THR, lembur, WFH, atau policy lainnya...";
+      : isMobile
+      ? "Tanya dokumen HR..."
+      : "Tanya soal SOP HR, onboarding, perjalanan dinas, terminasi, atau dokumen internal lainnya...";
 }
 
 function renderFaqs() {
@@ -675,8 +824,12 @@ function renderFaqs() {
       source.hidden = true;
     } else if (item.source) {
       source.textContent = item.source;
-      if (item.source_url) {
+      if (item.source_url && isAdminSession()) {
         source.href = item.source_url;
+        source.addEventListener("click", (event) => {
+          event.preventDefault();
+          downloadDocument(item.source_url, item.source);
+        });
       } else {
         source.removeAttribute("href");
         source.removeAttribute("target");
@@ -756,15 +909,20 @@ function renderFaqCitations(container, citations) {
   const list = document.createElement("div");
   list.className = "faq-citation-list";
   citations.forEach((citation) => {
-    const source = citation.download_url
+    const canOpenDocument = Boolean(citation.download_url) && isAdminSession();
+    const source = canOpenDocument
       ? document.createElement("a")
       : document.createElement("span");
     source.className = "faq-citation-link";
     source.textContent = formatCitationText(citation);
-    if (citation.download_url) {
+    if (canOpenDocument) {
       source.href = citation.download_url;
       source.target = "_blank";
       source.rel = "noopener";
+      source.addEventListener("click", (event) => {
+        event.preventDefault();
+        downloadDocument(citation.download_url, citation.source);
+      });
     }
     list.appendChild(source);
   });
@@ -948,12 +1106,19 @@ function bindAuth() {
   elements.logoutModal.addEventListener("click", (event) => {
     if (event.target === elements.logoutModal) closeLogoutModal();
   });
+  elements.documentErrorCloseButton.addEventListener("click", closeDocumentErrorModal);
+  elements.documentErrorModal.addEventListener("click", (event) => {
+    if (event.target === elements.documentErrorModal) closeDocumentErrorModal();
+  });
   elements.authForm.addEventListener("submit", handleAdminLogin);
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
     closeAccountPopover();
     if (elements.authModal.classList.contains("is-open")) closeAuthModal();
     if (elements.logoutModal.classList.contains("is-open")) closeLogoutModal();
+    if (elements.documentErrorModal.classList.contains("is-open")) {
+      closeDocumentErrorModal();
+    }
   });
   document.addEventListener("click", (event) => {
     if (elements.accountPanel.contains(event.target)) return;
@@ -1010,6 +1175,30 @@ function closeLogoutModal() {
   elements.body.classList.remove("logout-open");
 }
 
+function openDocumentErrorModal(summary, failures = []) {
+  elements.documentErrorSummary.textContent = summary;
+  elements.documentErrorList.innerHTML = "";
+  failures.forEach((failure) => {
+    const item = document.createElement("li");
+    const name = document.createElement("strong");
+    name.textContent = failure.name || "Document";
+    const reason = document.createElement("span");
+    reason.textContent = failure.reason || "Upload failed.";
+    item.append(name, reason);
+    elements.documentErrorList.appendChild(item);
+  });
+  elements.documentErrorModal.classList.add("is-open");
+  elements.documentErrorModal.setAttribute("aria-hidden", "false");
+  elements.body.classList.add("document-error-open");
+  window.setTimeout(() => elements.documentErrorCloseButton.focus(), 0);
+}
+
+function closeDocumentErrorModal() {
+  elements.documentErrorModal.classList.remove("is-open");
+  elements.documentErrorModal.setAttribute("aria-hidden", "true");
+  elements.body.classList.remove("document-error-open");
+}
+
 function handleAdminLogin(event) {
   event.preventDefault();
   const email = elements.adminEmail.value.trim().toLowerCase();
@@ -1037,6 +1226,7 @@ function handleAdminLogin(event) {
 
 function logoutAdmin() {
   state.session = { role: "guest", email: "", name: "Guest" };
+  clearDocumentUndo();
   window.localStorage.removeItem(AUTH_STORAGE_KEY);
   closeLogoutModal();
   syncAuth();
@@ -1068,11 +1258,18 @@ function syncAuth() {
     "aria-label",
     isAdmin ? "Logout admin" : "Login admin",
   );
+  if (elements.policyNavLink) elements.policyNavLink.hidden = !isAdmin;
+  if (!isAdmin && state.activeScreen === "policy") navigateTo("chat");
   if (!isAdmin) resetFaqForm();
   clearDocumentStatus();
   syncReindexState();
   updateFaqControls();
-  renderLibrary();
+  if (isAdmin) {
+    void loadLibrary();
+  } else {
+    state.documents = [];
+    renderLibrary();
+  }
 }
 
 function showAuthError(message) {
@@ -1113,22 +1310,27 @@ function bindAdminDocuments() {
   });
 
   elements.documentReindexButton.addEventListener("click", rebuildEmbeddings);
+  elements.documentUndoButton.addEventListener("click", undoDocumentChange);
 }
 
 async function saveDocuments(files) {
-  if (!isAdminSession() || state.isMutatingDocument || state.needsReindex || state.isReindexing) return;
+  if (!isAdminSession() || state.isMutatingDocument || state.isReindexing) return;
   state.isMutatingDocument = true;
   updateDocumentControls();
 
   let successCount = 0;
+  let embeddableCount = 0;
   const failures = [];
+  const insertedItems = [];
   for (const [index, file] of files.entries()) {
     showDocumentStatus(`Uploading ${index + 1}/${files.length}: ${file.name}`);
     try {
-      await saveDocumentRequest(file);
+      const payload = await saveDocumentRequest(file);
       successCount += 1;
+      if (payload.item) insertedItems.push(payload.item);
+      if (payload.requires_reindex) embeddableCount += 1;
     } catch (error) {
-      failures.push(`${file.name}: ${error.message || "failed"}`);
+      failures.push({ name: file.name, reason: error.message || "Upload failed." });
     }
   }
 
@@ -1136,34 +1338,83 @@ async function saveDocuments(files) {
   await loadLibrary();
 
   if (failures.length) {
-    showDocumentStatus(
-      `${successCount} uploaded, ${failures.length} failed. ${failures.join("; ")}`,
-      true,
+    if (insertedItems.length) {
+      pushDocumentChange({
+        type: "insert",
+        label: `Undo insert ${insertedItems.length} file${insertedItems.length === 1 ? "" : "s"}`,
+        items: insertedItems,
+        requires_reindex: embeddableCount > 0,
+      });
+    }
+    const summary = `${successCount} uploaded, ${failures.length} failed.`;
+    showDocumentStatus(summary, true);
+    openDocumentErrorModal(
+      summary,
+      failures,
     );
-    if (successCount > 0) markReindexRequired();
+    if (embeddableCount > 0) markReindexRequired();
     updateDocumentControls();
     return;
   }
-  if (successCount > 0) {
+  if (embeddableCount > 0) {
+    pushDocumentChange({
+      type: "insert",
+      label: `Undo insert ${successCount} file${successCount === 1 ? "" : "s"}`,
+      items: insertedItems,
+      requires_reindex: true,
+    });
     markReindexRequired(
-      `${successCount} document${successCount === 1 ? "" : "s"} uploaded. Rebuild embeddings before continuing.`,
+      `${embeddableCount} dokumen knowledge diperbarui. Rebuild embeddings sebelum lanjut.`,
+    );
+  } else if (successCount > 0) {
+    pushDocumentChange({
+      type: "insert",
+      label: `Undo insert ${successCount} file${successCount === 1 ? "" : "s"}`,
+      items: insertedItems,
+      requires_reindex: false,
+    });
+    showDocumentStatus(
+      `${successCount} file berhasil diunggah. Tidak perlu rebuild embeddings.`,
     );
   }
   updateDocumentControls();
 }
 
 async function saveDocument(file, replacePath = "") {
-  if (!isAdminSession() || state.isMutatingDocument || state.needsReindex || state.isReindexing) return;
+  if (!isAdminSession() || state.isMutatingDocument || state.isReindexing) return;
   state.isMutatingDocument = true;
   updateDocumentControls();
   showDocumentStatus(replacePath ? "Updating document..." : "Uploading document...");
 
   try {
+    const previousSnapshot = replacePath
+      ? await createDocumentSnapshot(findDocumentByPath(replacePath))
+      : null;
     const payload = await saveDocumentRequest(file, replacePath);
     await loadLibrary();
-    markReindexRequired(
-      `${payload.message || "Document saved."} Rebuild embeddings before continuing.`,
-    );
+    if (payload.requires_reindex) {
+      pushDocumentChange({
+        type: replacePath ? "update" : "insert",
+        label: replacePath ? "Undo update file" : "Undo insert file",
+        item: payload.item,
+        previous: previousSnapshot,
+        requires_reindex: true,
+      });
+      markReindexRequired(
+        `${payload.message || "Document saved."} Rebuild embeddings sebelum lanjut.`,
+      );
+    } else {
+      pushDocumentChange({
+        type: replacePath ? "update" : "insert",
+        label: replacePath ? "Undo update file" : "Undo insert file",
+        item: payload.item,
+        previous: previousSnapshot,
+        requires_reindex: false,
+      });
+      showDocumentStatus(
+        `${payload.message || "File saved."} Tidak perlu rebuild embeddings.`,
+      );
+    }
   } catch (error) {
     showDocumentStatus(error.message || "Document update failed.", true);
   } finally {
@@ -1173,17 +1424,21 @@ async function saveDocument(file, replacePath = "") {
 }
 
 async function saveDocumentRequest(file, replacePath = "") {
+  return saveDocumentPayload({
+    filename: file.name,
+    content_base64: await fileToBase64(file),
+    replace_path: replacePath || null,
+  });
+}
+
+async function saveDocumentPayload(body) {
   const response = await fetch("/api/admin/documents", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "X-Admin-Email": state.session.email,
     },
-    body: JSON.stringify({
-      filename: file.name,
-      content_base64: await fileToBase64(file),
-      replace_path: replacePath || null,
-    }),
+    body: JSON.stringify(body),
   });
   const payload = await readJsonResponse(response);
   if (!response.ok) {
@@ -1193,15 +1448,14 @@ async function saveDocumentRequest(file, replacePath = "") {
 }
 
 async function deleteDocument(item) {
-  if (!isAdminSession() || state.isMutatingDocument || state.needsReindex || state.isReindexing) return;
-  const confirmed = window.confirm(`Delete "${item.display_name}"?`);
-  if (!confirmed) return;
+  if (!isAdminSession() || state.isMutatingDocument || state.isReindexing) return;
 
   state.isMutatingDocument = true;
   updateDocumentControls();
   showDocumentStatus("Deleting document...");
 
   try {
+    const deletedSnapshot = await createDocumentSnapshot(item);
     const response = await fetch(`/api/admin/documents/${encodeURIComponent(item.relative_path)}`, {
       method: "DELETE",
       headers: { "X-Admin-Email": state.session.email },
@@ -1209,9 +1463,27 @@ async function deleteDocument(item) {
     const payload = await readJsonResponse(response);
     if (!response.ok) throw new Error(payload.detail || "Document delete failed.");
     await loadLibrary();
-    markReindexRequired(
-      `${payload.message || "Document deleted."} Rebuild embeddings before continuing.`,
-    );
+    if (payload.requires_reindex) {
+      pushDocumentChange({
+        type: "delete",
+        label: "Undo delete file",
+        previous: deletedSnapshot,
+        requires_reindex: true,
+      });
+      markReindexRequired(
+        `${payload.message || "Document deleted."} Rebuild embeddings sebelum lanjut.`,
+      );
+    } else {
+      pushDocumentChange({
+        type: "delete",
+        label: "Undo delete file",
+        previous: deletedSnapshot,
+        requires_reindex: false,
+      });
+      showDocumentStatus(
+        `${payload.message || "File deleted."} Tidak perlu rebuild embeddings.`,
+      );
+    }
   } catch (error) {
     showDocumentStatus(error.message || "Document delete failed.", true);
   } finally {
@@ -1221,16 +1493,21 @@ async function deleteDocument(item) {
 }
 
 function startDocumentReplace(item) {
-  if (!isAdminSession() || state.isMutatingDocument || state.needsReindex || state.isReindexing) return;
+  if (!isAdminSession() || state.isMutatingDocument || state.isReindexing) return;
   state.pendingReplacePath = item.relative_path;
   elements.documentReplaceInput.value = "";
   elements.documentReplaceInput.click();
 }
 
 function updateDocumentControls() {
-  const isLocked = state.isMutatingDocument || state.needsReindex || state.isReindexing;
+  const isLocked = state.isMutatingDocument || state.isReindexing;
   elements.documentUploadButton.disabled = isLocked;
   elements.documentFileInput.disabled = isLocked;
+  elements.documentUndoButton.hidden = state.documentUndoStack.length === 0;
+  elements.documentUndoButton.disabled = state.isMutatingDocument || state.isReindexing;
+  if (state.documentUndoStack.length) {
+    elements.documentUndoButton.title = `Undo ${state.documentUndoStack.length} pending document change${state.documentUndoStack.length === 1 ? "" : "s"}`;
+  }
   elements.documentReindexButton.disabled =
     !isAdminSession() || state.isMutatingDocument || state.isReindexing || !state.needsReindex;
   elements.libraryList
@@ -1238,6 +1515,143 @@ function updateDocumentControls() {
     .forEach((button) => {
       button.disabled = isLocked;
     });
+}
+
+function pushDocumentChange(undo) {
+  const change = {
+    id: `change-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    type: undo.type,
+    label: formatDocumentChangeLabel(undo),
+    requires_reindex: Boolean(undo.requires_reindex),
+  };
+  undo.change_id = change.id;
+  state.documentUndoStack.push(undo);
+  state.documentChanges.push(change);
+  state.documentUndo = undo;
+  updateDocumentControls();
+}
+
+function clearDocumentUndo() {
+  state.documentUndoStack = [];
+  state.documentChanges = [];
+  state.documentUndo = null;
+  updateDocumentControls();
+}
+
+function formatDocumentChangeLabel(undo) {
+  const actionLabels = {
+    insert: "Inserted",
+    update: "Updated",
+    delete: "Deleted",
+  };
+  const action = actionLabels[undo.type] || "Changed";
+  const items = undo.items || [undo.item || undo.previous].filter(Boolean);
+  if (items.length > 1) return `${action} ${items.length} files`;
+  const item = items[0];
+  return `${action} ${item?.display_name || item?.name || "file"}`;
+}
+
+function findDocumentByPath(relativePath) {
+  return state.documents.find((item) => item.relative_path === relativePath) || null;
+}
+
+async function createDocumentSnapshot(item) {
+  if (!item?.download_url || !item.relative_path) {
+    throw new Error("Snapshot dokumen gagal dibuat.");
+  }
+  return {
+    name: item.name || item.relative_path.split("/").pop() || "document",
+    relative_path: item.relative_path,
+    display_name: item.display_name || item.name || "document",
+    content_base64: await fetchDocumentBase64(item.download_url),
+  };
+}
+
+async function fetchDocumentBase64(url) {
+  const response = await fetch(url, {
+    headers: { "X-Admin-Email": state.session.email },
+  });
+  if (!response.ok) throw new Error(`Snapshot dokumen gagal: HTTP ${response.status}`);
+  return blobToBase64(await response.blob());
+}
+
+async function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      const value = String(reader.result || "");
+      resolve(value.includes(",") ? value.split(",").pop() : value);
+    });
+    reader.addEventListener("error", () => reject(reader.error));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function deleteDocumentRequest(relativePath) {
+  const response = await fetch(`/api/admin/documents/${encodeURIComponent(relativePath)}`, {
+    method: "DELETE",
+    headers: { "X-Admin-Email": state.session.email },
+  });
+  const payload = await readJsonResponse(response);
+  if (!response.ok && response.status !== 404) {
+    throw new Error(payload.detail || "Undo delete failed.");
+  }
+  return payload;
+}
+
+async function restoreDocumentSnapshot(snapshot, replace = false) {
+  return saveDocumentPayload({
+    filename: snapshot.name,
+    content_base64: snapshot.content_base64,
+    replace_path: replace ? snapshot.relative_path : null,
+  });
+}
+
+async function applyDocumentUndo(undo) {
+  if (undo.type === "insert") {
+    for (const item of [...(undo.items || [undo.item])].reverse()) {
+      if (item?.relative_path) await deleteDocumentRequest(item.relative_path);
+    }
+    return;
+  }
+  if (undo.type === "delete") {
+    await restoreDocumentSnapshot(undo.previous, false);
+    return;
+  }
+  if (undo.type === "update") {
+    await restoreDocumentSnapshot(undo.previous, true);
+  }
+}
+
+async function undoDocumentChange() {
+  const changes = [...state.documentUndoStack];
+  if (!changes.length || !isAdminSession() || state.isMutatingDocument || state.isReindexing) return;
+
+  state.isMutatingDocument = true;
+  updateDocumentControls();
+  showDocumentStatus(`Undoing ${changes.length} document change${changes.length === 1 ? "" : "s"}...`);
+
+  try {
+    for (const undo of changes.reverse()) {
+      await applyDocumentUndo(undo);
+    }
+
+    await loadLibrary();
+    const touchedEmbeddings = changes.some((undo) => undo.requires_reindex);
+    state.documentUndoStack = [];
+    state.documentChanges = [];
+    state.documentUndo = null;
+    if (touchedEmbeddings) {
+      clearReindexRequired("Semua perubahan dokumen dibatalkan. Embeddings kembali sesuai.");
+    } else {
+      showDocumentStatus("Semua perubahan dokumen dibatalkan. Tidak perlu rebuild embeddings.");
+    }
+  } catch (error) {
+    showDocumentStatus(error.message || "Undo dokumen gagal.", true);
+  } finally {
+    state.isMutatingDocument = false;
+    updateDocumentControls();
+  }
 }
 
 async function rebuildEmbeddings() {
@@ -1276,6 +1690,7 @@ function markReindexRequired(message = "Document library changed. Rebuild embedd
 
 function clearReindexRequired(message = "Embeddings rebuilt.") {
   state.needsReindex = false;
+  clearDocumentUndo();
   window.localStorage.removeItem(REINDEX_STORAGE_KEY);
   syncReindexState();
   showDocumentStatus(message, false);
@@ -1316,35 +1731,67 @@ function formatSelectedFiles(files) {
 }
 
 async function loadLibrary() {
+  if (!isAdminSession()) {
+    state.documents = [];
+    renderLibrary();
+    return;
+  }
+
   try {
-    const response = await fetch("/api/library");
+    const response = await fetch("/api/library", {
+      headers: { "X-Admin-Email": state.session.email },
+    });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const documents = await response.json();
-    state.documents = documents.length
+    state.documents = Array.isArray(documents)
       ? documents.map(normalizeDocument)
-      : fallbackDocuments;
+      : [];
   } catch (error) {
-    state.documents = fallbackDocuments;
+    state.documents = [];
     console.error(error);
   }
   renderLibrary();
 }
 
 function normalizeDocument(item, index) {
+  const documentKind = item.document_kind || "document";
   return {
     ...item,
+    document_kind: documentKind,
+    is_embeddable: Boolean(item.is_embeddable),
     display_name: formatDocumentTitle(
-      item.display_name || `Policy Document ${index + 1}`,
+      item.display_name || `Document ${index + 1}`,
     ),
-    description: `Ref: ${item.doc_type || "DOC"}-${String(index + 1).padStart(3, "0")} • ${item.relative_path || "Internal policy document"}`,
+    description: buildDocumentDescription(item, index, documentKind),
   };
 }
 
 function formatDocumentTitle(value) {
   return String(value)
+    .replace(/\bsop\b/gi, "SOP")
     .replace(/\bics\b/gi, "ICS")
     .replace(/\bpp(\d+)\b/gi, (_, number) => `PP${number}`)
     .replace(/\bit\b/gi, "IT");
+}
+
+function buildDocumentDescription(item, index, documentKind) {
+  const refCode = `${(item.doc_type || "doc").toUpperCase()}-${String(index + 1).padStart(3, "0")}`;
+  if (documentKind === "form") {
+    return `Ref: ${refCode} • Template form untuk diunduh langsung.`;
+  }
+  if (documentKind === "sop") {
+    return `Ref: ${refCode} • Dokumen SOP yang dipakai untuk knowledge retrieval.`;
+  }
+  return `Ref: ${refCode} • ${item.relative_path || "Dokumen internal."}`;
+}
+
+function getLibraryIcon(item) {
+  const type = String(item.doc_type || "").toLowerCase();
+  if (type === "pdf") return "picture_as_pdf";
+  if (type === "doc" || type === "docx") return "article";
+  if (type === "xls" || type === "xlsx") return "table_chart";
+  if (type === "txt") return "text_snippet";
+  return item.document_kind === "form" ? "table_chart" : "description";
 }
 
 function renderLibrary() {
@@ -1358,37 +1805,105 @@ function renderLibrary() {
   if (!documents.length) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    empty.textContent = "No policy documents match this filter.";
+    empty.textContent = "Tidak ada dokumen yang cocok dengan filter ini.";
     elements.libraryList.appendChild(empty);
     return;
   }
 
-  documents.forEach((item) => {
-    const fragment = elements.libraryItemTemplate.content.cloneNode(true);
-    fragment.querySelector(".document-title").textContent = item.display_name;
-    fragment.querySelector(".document-meta").textContent =
-      item.description || item.relative_path || "Internal policy document";
-    const link = fragment.querySelector(".document-download");
-    const updateButton = fragment.querySelector(".document-update");
-    const deleteButton = fragment.querySelector(".document-delete");
-    if (item.download_url) link.href = item.download_url;
-    else {
-      link.href = "#chat";
-      link.addEventListener("click", (event) => {
-        event.preventDefault();
-        navigateTo("chat");
-      });
-    }
-    if (item.relative_path) {
-      updateButton.addEventListener("click", () => startDocumentReplace(item));
-      deleteButton.addEventListener("click", () => deleteDocument(item));
-    } else {
-      updateButton.hidden = true;
-      deleteButton.hidden = true;
-    }
-    elements.libraryList.appendChild(fragment);
-  });
+  const documentItems = documents.filter((item) => item.document_kind !== "form");
+  const formItems = documents.filter((item) => item.document_kind === "form");
+  appendLibrarySection(
+    "Knowledge Documents",
+    "SOP and internal files used by AI retrieval.",
+    documentItems,
+  );
+  appendLibrarySection(
+    "Forms",
+    "Templates available as direct downloads.",
+    formItems,
+  );
   updateDocumentControls();
+}
+
+function appendLibrarySection(title, description, items) {
+  if (!items.length) return;
+
+  const section = document.createElement("section");
+  section.className = "library-section";
+
+  const heading = document.createElement("div");
+  heading.className = "library-section-heading";
+
+  const headingTitle = document.createElement("h3");
+  headingTitle.textContent = title;
+
+  const headingDescription = document.createElement("p");
+  headingDescription.textContent = description;
+
+  heading.append(headingTitle, headingDescription);
+  section.appendChild(heading);
+
+  items.forEach((item) => {
+    section.appendChild(createLibraryRow(item));
+  });
+
+  elements.libraryList.appendChild(section);
+}
+
+function createLibraryRow(item) {
+  const fragment = elements.libraryItemTemplate.content.cloneNode(true);
+  const row = fragment.querySelector(".document-row");
+  row.dataset.kind = item.document_kind || "document";
+  fragment.querySelector(".document-icon").textContent = getLibraryIcon(item);
+  fragment.querySelector(".document-title").textContent = item.display_name;
+  fragment.querySelector(".document-meta").textContent =
+    item.description || item.relative_path || "Dokumen internal";
+  const link = fragment.querySelector(".document-download");
+  const updateButton = fragment.querySelector(".document-update");
+  const deleteButton = fragment.querySelector(".document-delete");
+  if (item.download_url) {
+    link.href = item.download_url;
+    link.addEventListener("click", (event) => {
+      if (!isAdminSession()) return;
+      event.preventDefault();
+      downloadDocument(item.download_url, item.name || item.display_name);
+    });
+  } else {
+    link.href = "#chat";
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      navigateTo("chat");
+    });
+  }
+  if (item.relative_path) {
+    updateButton.addEventListener("click", () => startDocumentReplace(item));
+    deleteButton.addEventListener("click", () => deleteDocument(item));
+  } else {
+    updateButton.hidden = true;
+    deleteButton.hidden = true;
+  }
+  return row;
+}
+
+async function downloadDocument(url, filename = "document") {
+  try {
+    const response = await fetch(url, {
+      headers: isAdminSession() ? { "X-Admin-Email": state.session.email } : {},
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = filename || "document";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+  } catch (error) {
+    console.error(error);
+    showDocumentStatus("Download dokumen gagal.", true);
+  }
 }
 
 function loadMessages() {

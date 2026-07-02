@@ -56,6 +56,7 @@ def _generate_answer(question: str, evidence: str, conversation_context: str = "
         "Jangan memaksakan format, jumlah kalimat, atau gaya tertentu. "
         "Pakai evidence yang paling relevan, abaikan potongan evidence yang tidak nyambung, "
         "dan gunakan nomor sitasi seperti [1] untuk klaim yang berasal dari evidence. "
+        "Kalau evidence menyebut form yang perlu diisi atau diunduh, sebutkan nama formnya dengan jelas. "
         "Kalau evidence memang tidak cukup, jelaskan dengan natural bagian mana yang belum tersedia.\n\n"
         f"{memory_block}"
         f"Pertanyaan:\n{question}\n\n"
@@ -120,7 +121,7 @@ def run_knowledge_crew(
     question: str,
     conversation_context: str = "",
 ) -> tuple[str, list[dict[str, object]]]:
-    """Retrieve relevant policy evidence and answer with local Ollama."""
+    """Retrieve relevant document evidence and answer with local Ollama."""
     retrieval_query = _build_retrieval_query(question, conversation_context)
     evidence, citations = retrieve_knowledge(retrieval_query)
     if not citations:

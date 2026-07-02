@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-import shutil
+import uuid
 from functools import lru_cache
 from pathlib import Path
 
@@ -16,14 +16,31 @@ load_dotenv()
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_RERANK_MODEL = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
+ACTIVE_INDEX_FILE = ".active-chroma-index"
+VERSIONED_INDEX_DIR = "indexes"
 
 
-def get_chroma_dir() -> Path:
+def _get_chroma_base_dir() -> Path:
     raw_dir = os.getenv("CHROMA_DIR", "backend/chroma_db")
     path = Path(raw_dir)
     if not path.is_absolute():
         path = BACKEND_DIR.parent / path
     return path
+
+
+def get_chroma_dir() -> Path:
+    base_dir = _get_chroma_base_dir()
+    active_file = base_dir / ACTIVE_INDEX_FILE
+    if active_file.exists():
+        active_name = active_file.read_text(encoding="utf-8").strip()
+        active_dir = (base_dir / active_name).resolve()
+        try:
+            active_dir.relative_to(base_dir.resolve())
+        except ValueError:
+            return base_dir
+        if active_dir.exists():
+            return active_dir
+    return base_dir
 
 
 def get_vectorstore() -> Chroma:
@@ -34,16 +51,18 @@ def get_vectorstore() -> Chroma:
 
 
 def rebuild_vectorstore(chunks: list[Document]) -> Chroma:
-    chroma_dir = get_chroma_dir()
-    if chroma_dir.exists():
-        shutil.rmtree(chroma_dir)
+    base_dir = _get_chroma_base_dir()
+    index_name = f"{VERSIONED_INDEX_DIR}/{uuid.uuid4().hex}"
+    chroma_dir = base_dir / index_name
     chroma_dir.mkdir(parents=True, exist_ok=True)
 
-    return Chroma.from_documents(
+    vectorstore = Chroma.from_documents(
         documents=chunks,
         embedding=get_embedding_model(),
         persist_directory=str(chroma_dir),
     )
+    (base_dir / ACTIVE_INDEX_FILE).write_text(index_name, encoding="utf-8")
+    return vectorstore
 
 
 @lru_cache(maxsize=1)

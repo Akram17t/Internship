@@ -852,6 +852,67 @@ body[data-role="admin"] .account-action:hover {
   transform: translateY(0);
 }
 
+.form-downloads {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.form-download-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--red);
+  border-radius: 8px;
+  background: var(--red);
+  color: var(--paper);
+  text-decoration: none;
+  box-shadow: 6px 6px 0 var(--paper-deep);
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.form-download-card:hover,
+.form-download-card:focus-visible {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+  transform: translateY(-1px);
+}
+
+.form-download-card > .material-symbols-outlined {
+  flex: 0 0 auto;
+  font-size: 22px;
+}
+
+.form-download-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.form-download-copy strong {
+  font-size: 13px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+
+.form-download-copy small {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 14px;
+  text-transform: uppercase;
+  opacity: 0.72;
+}
+
 .message--loading .message-bubble {
   display: flex;
   align-items: center;
@@ -959,6 +1020,8 @@ body[data-role="admin"] .account-action:hover {
   position: absolute;
   right: 12px;
   top: 12px;
+  display: grid;
+  place-items: center;
   width: 44px;
   height: 44px;
   padding: 0;
@@ -983,7 +1046,20 @@ body[data-role="admin"] .account-action:hover {
 }
 .send-button.is-stopping {
   background: var(--ink);
-  font-size: 18px;
+  color: transparent;
+  font-size: 0;
+  line-height: 0;
+}
+.send-button.is-stopping::before {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--paper);
+  content: "";
+  transform: translate(-50%, -50%);
 }
 .send-button.is-stopping:hover {
   background: var(--red);
@@ -1499,7 +1575,16 @@ body[data-role="admin"] .admin-document-panel {
   line-height: 1.45;
 }
 
-.document-reindex-button {
+.document-maintenance-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.document-reindex-button,
+.document-undo-button {
   display: flex;
   height: 42px;
   flex: 0 0 auto;
@@ -1515,12 +1600,24 @@ body[data-role="admin"] .admin-document-panel {
   font-weight: 650;
 }
 
+.document-undo-button {
+  border-color: var(--ink);
+  background: transparent;
+  color: var(--ink);
+}
+
+.document-undo-button:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
 .document-reindex-button:hover {
   border-color: var(--ink);
   background: var(--ink);
 }
 
-.document-reindex-button:disabled {
+.document-reindex-button:disabled,
+.document-undo-button:disabled {
   cursor: not-allowed;
   border-color: var(--line);
   background: transparent;
@@ -1528,12 +1625,11 @@ body[data-role="admin"] .admin-document-panel {
   opacity: 0.55;
 }
 
-.document-reindex-button .material-symbols-outlined {
+.document-reindex-button .material-symbols-outlined,
+.document-undo-button .material-symbols-outlined {
   font-size: 17px;
 }
 
-body[data-reindex-state="required"] .admin-document-form,
-body[data-reindex-state="required"] .library-list,
 body[data-reindex-state="required"] .admin-faq-form,
 body[data-reindex-state="running"] .admin-document-form,
 body[data-reindex-state="running"] .library-list,
@@ -1630,6 +1726,45 @@ body[data-reindex-state="running"] .document-reindex-button .material-symbols-ou
   flex-direction: column;
   border-top: 1px solid var(--ink);
 }
+
+.library-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.library-section + .library-section {
+  margin-top: 34px;
+  border-top: 1px solid var(--ink);
+}
+
+.library-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 22px 8px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.library-section-heading h3 {
+  margin: 0;
+  color: var(--red);
+  font:
+    600 11px/16px "JetBrains Mono",
+    monospace;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.library-section-heading p {
+  max-width: 420px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: right;
+}
+
 .document-row {
   display: flex;
   min-height: 94px;
@@ -1703,6 +1838,25 @@ body[data-reindex-state="running"] .document-reindex-button .material-symbols-ou
 
 .admin-only {
   display: none;
+}
+
+.document-row[data-kind="form"] .document-icon {
+  color: #b46a00;
+}
+
+.document-row[data-kind="form"] .document-title::after {
+  display: inline-flex;
+  margin-left: 10px;
+  padding: 2px 7px;
+  border: 1px solid rgba(180, 106, 0, 0.32);
+  border-radius: 999px;
+  color: #8b5200;
+  content: "FORM";
+  font:
+    600 9px/13px "JetBrains Mono",
+    monospace;
+  letter-spacing: 0.08em;
+  vertical-align: middle;
 }
 
 .admin-only[hidden] {
@@ -1832,7 +1986,8 @@ body[data-role="admin"] .admin-only {
 }
 
 .auth-modal.is-open,
-.logout-modal.is-open {
+.logout-modal.is-open,
+.document-error-modal.is-open {
   opacity: 1;
   pointer-events: auto;
 }
@@ -1963,6 +2118,19 @@ body[data-role="admin"] .admin-only {
   transition: opacity 0.2s ease;
 }
 
+.document-error-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  padding: 24px;
+  place-items: center;
+  background: rgba(10, 10, 10, 0.58);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
 .logout-card {
   width: min(390px, 100%);
   padding: 30px;
@@ -1975,6 +2143,85 @@ body[data-role="admin"] .admin-only {
 
 .logout-modal.is-open .logout-card {
   transform: translateY(0);
+}
+
+.document-error-card {
+  width: min(520px, 100%);
+  padding: 32px;
+  border: 1px solid var(--red);
+  background: var(--paper-light);
+  box-shadow: 12px 12px 0 rgba(188, 24, 35, 0.22);
+  transform: translateY(10px);
+  transition: transform 0.2s ease;
+}
+
+.document-error-modal.is-open .document-error-card {
+  transform: translateY(0);
+}
+
+.document-error-card h2 {
+  margin: 10px 0 10px;
+  font:
+    600 28px/1.08 "Instrument Sans",
+    sans-serif;
+  letter-spacing: 0;
+}
+
+.document-error-card p {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.document-error-card ul {
+  display: grid;
+  max-height: 240px;
+  gap: 10px;
+  margin: 0 0 22px;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.document-error-card li {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid rgba(188, 24, 35, 0.22);
+  background: rgba(188, 24, 35, 0.06);
+}
+
+.document-error-card li strong {
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+
+.document-error-card li span {
+  color: var(--red);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  line-height: 17px;
+}
+
+.document-error-close {
+  display: inline-flex;
+  height: 44px;
+  min-width: 112px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--ink);
+  border-radius: 100px;
+  background: var(--ink);
+  color: var(--paper);
+  font-weight: 650;
+}
+
+.document-error-close:hover {
+  border-color: var(--red);
+  background: var(--red);
 }
 
 .logout-card h2 {
@@ -2362,6 +2609,16 @@ body.logout-open {
     gap: 16px;
     padding: 22px 0;
   }
+  .library-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+    padding-inline: 0;
+  }
+  .library-section-heading p {
+    max-width: none;
+    text-align: left;
+  }
   .document-info {
     align-items: flex-start;
     gap: 14px;
@@ -2390,7 +2647,12 @@ body.logout-open {
     align-items: stretch;
     flex-direction: column;
   }
-  .document-reindex-button {
+  .document-maintenance-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+  .document-reindex-button,
+  .document-undo-button {
     width: 100%;
   }
   .admin-submit {
