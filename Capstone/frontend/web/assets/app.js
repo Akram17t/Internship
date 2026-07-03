@@ -137,7 +137,8 @@ const fallbackFaqItems = [
         page: 5,
         section: "2. RUANG LINGKUP",
         chunk_id: 41,
-        download_url: "/api/documents/SOP%20-%20Terminasi%20Hubungan%20Kerja.pdf",
+        download_url:
+          "/api/documents/SOP%20-%20Terminasi%20Hubungan%20Kerja.pdf",
       },
       {
         id: 2,
@@ -145,7 +146,8 @@ const fallbackFaqItems = [
         page: 6,
         section: "6. AKTIVITAS",
         chunk_id: 46,
-        download_url: "/api/documents/SOP%20-%20Terminasi%20Hubungan%20Kerja.pdf",
+        download_url:
+          "/api/documents/SOP%20-%20Terminasi%20Hubungan%20Kerja.pdf",
       },
       {
         id: 3,
@@ -153,7 +155,8 @@ const fallbackFaqItems = [
         page: 6,
         section: "6. AKTIVITAS",
         chunk_id: 48,
-        download_url: "/api/documents/SOP%20-%20Terminasi%20Hubungan%20Kerja.pdf",
+        download_url:
+          "/api/documents/SOP%20-%20Terminasi%20Hubungan%20Kerja.pdf",
       },
     ],
   },
@@ -173,7 +176,8 @@ const fallbackFaqItems = [
         page: 6,
         section: "6. AKTIVITAS",
         chunk_id: 47,
-        download_url: "/api/documents/SOP%20-%20Terminasi%20Hubungan%20Kerja.pdf",
+        download_url:
+          "/api/documents/SOP%20-%20Terminasi%20Hubungan%20Kerja.pdf",
       },
       {
         id: 2,
@@ -181,7 +185,8 @@ const fallbackFaqItems = [
         page: 6,
         section: "6. AKTIVITAS",
         chunk_id: 48,
-        download_url: "/api/documents/SOP%20-%20Terminasi%20Hubungan%20Kerja.pdf",
+        download_url:
+          "/api/documents/SOP%20-%20Terminasi%20Hubungan%20Kerja.pdf",
       },
     ],
   },
@@ -241,7 +246,6 @@ const elements = {
   policySearchWrap: document.getElementById("policySearchWrap"),
   policyNavLink: document.querySelector('.nav-link[data-screen="policy"]'),
   filterButton: document.getElementById("filterButton"),
-  downloadAllButton: document.getElementById("downloadAllButton"),
   chatLink: document.getElementById("chatLink"),
   menuToggle: document.getElementById("menuToggle"),
   pageBackdrop: document.getElementById("pageBackdrop"),
@@ -267,6 +271,7 @@ const elements = {
   logoutCancelButton: document.getElementById("logoutCancelButton"),
   logoutConfirmButton: document.getElementById("logoutConfirmButton"),
   documentErrorModal: document.getElementById("documentErrorModal"),
+  documentErrorTitle: document.getElementById("documentErrorTitle"),
   documentErrorSummary: document.getElementById("documentErrorSummary"),
   documentErrorList: document.getElementById("documentErrorList"),
   documentErrorCloseButton: document.getElementById("documentErrorCloseButton"),
@@ -314,9 +319,8 @@ function bindNavigation() {
 
 function syncScreenFromHash() {
   const hash = window.location.hash.slice(1);
-  const target = screens[hash] && (hash !== "policy" || isAdminSession())
-    ? hash
-    : "chat";
+  const target =
+    screens[hash] && (hash !== "policy" || isAdminSession()) ? hash : "chat";
   state.activeScreen = target;
   elements.body.dataset.activeScreen = target;
   elements.screenTitle.textContent = screens[target];
@@ -331,7 +335,8 @@ function syncScreenFromHash() {
 }
 
 function navigateTo(screen) {
-  const target = screen === "policy" && !isAdminSession() ? "chat" : screen || "chat";
+  const target =
+    screen === "policy" && !isAdminSession() ? "chat" : screen || "chat";
   window.location.hash = target;
 }
 
@@ -411,7 +416,10 @@ async function submitQuestion(rawQuestion) {
     const payload = await response.json();
     if (payload.conversation_id) {
       state.conversationId = payload.conversation_id;
-      window.localStorage.setItem(CONVERSATION_STORAGE_KEY, state.conversationId);
+      window.localStorage.setItem(
+        CONVERSATION_STORAGE_KEY,
+        state.conversationId,
+      );
     }
     replaceLoading({
       role: "assistant",
@@ -747,7 +755,9 @@ function appendFormattedText(container, text, citationMap) {
 
   while (match) {
     if (match.index > cursor) {
-      container.append(document.createTextNode(text.slice(cursor, match.index)));
+      container.append(
+        document.createTextNode(text.slice(cursor, match.index)),
+      );
     }
 
     if (match[2]) {
@@ -796,7 +806,7 @@ function updateComposer() {
   elements.sendButton.classList.toggle("is-stopping", state.isSubmitting);
   elements.chatInput.placeholder = state.isSubmitting
     ? "Ketik pertanyaan berikutnya..."
-      : isMobile
+    : isMobile
       ? "Tanya dokumen HR..."
       : "Tanya soal SOP HR, onboarding, perjalanan dinas, terminasi, atau dokumen internal lainnya...";
 }
@@ -816,8 +826,8 @@ function renderFaqs() {
     fragment.querySelector(".faq-question").textContent = item.question;
     appendFormattedText(
       fragment.querySelector(".faq-answer"),
-      item.answer,
-      buildCitationMap(citations),
+      stripCitationMarkers(item.answer),
+      new Map(),
     );
     if (citations.length) {
       renderFaqCitations(citationContainer, citations);
@@ -860,6 +870,13 @@ function renderFaqs() {
     elements.faqList.appendChild(fragment);
   });
   updateFaqControls();
+}
+
+function stripCitationMarkers(value) {
+  return String(value)
+    .replace(/\s*\[(\d+)\]/g, "")
+    .replace(/\s+([.,;:!?])/g, "$1")
+    .trim();
 }
 
 async function loadFaqs() {
@@ -942,12 +959,22 @@ function formatCitationText(citation) {
 
 function bindAdminFaqs() {
   elements.faqForm.addEventListener("submit", saveFaq);
-  elements.faqCancelButton.addEventListener("click", resetFaqForm);
+  elements.faqCancelButton.addEventListener("click", cancelFaqEdit);
+}
+
+function cancelFaqEdit() {
+  if (state.isMutatingFaq || state.needsReindex || state.isReindexing) return;
+  resetFaqForm();
 }
 
 async function saveFaq(event) {
   event.preventDefault();
-  if (!isAdminSession() || state.isMutatingFaq || state.needsReindex || state.isReindexing) {
+  if (
+    !isAdminSession() ||
+    state.isMutatingFaq ||
+    state.needsReindex ||
+    state.isReindexing
+  ) {
     if (state.needsReindex || state.isReindexing) {
       showFaqStatus("Rebuild embeddings dulu sebelum mengubah FAQ.", true);
     }
@@ -965,25 +992,37 @@ async function saveFaq(event) {
 
   state.isMutatingFaq = true;
   updateFaqControls();
-  showFaqStatus(faqId ? "Regenerating FAQ answer..." : "Generating FAQ answer...");
+  showFaqStatus(
+    faqId ? "Regenerating FAQ answer..." : "Generating FAQ answer...",
+  );
 
   try {
-    const response = await fetch(faqId ? `/api/admin/faq/${encodeURIComponent(faqId)}` : "/api/admin/faq", {
-      method: faqId ? "PUT" : "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Admin-Email": state.session.email,
+    const response = await fetch(
+      faqId ? `/api/admin/faq/${encodeURIComponent(faqId)}` : "/api/admin/faq",
+      {
+        method: faqId ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Admin-Email": state.session.email,
+        },
+        body: JSON.stringify(payload),
       },
-      body: JSON.stringify(payload),
-    });
+    );
     const responsePayload = await readJsonResponse(response);
-    if (!response.ok) throw new Error(responsePayload.detail || "FAQ update failed.");
+    if (!response.ok)
+      throw new Error(formatApiError(responsePayload.detail, "FAQ update failed."));
 
     showFaqStatus(responsePayload.message || "FAQ saved.");
     resetFaqForm(false);
     await loadFaqs();
   } catch (error) {
-    showFaqStatus(error.message || "FAQ update failed.", true);
+    const message = error.message || "FAQ update failed.";
+    showFaqStatus("FAQ tidak disimpan.", true);
+    openDocumentErrorModal(
+      message,
+      [],
+      faqId ? "FAQ tidak diupdate" : "FAQ tidak dibuat",
+    );
   } finally {
     state.isMutatingFaq = false;
     updateFaqControls();
@@ -991,7 +1030,13 @@ async function saveFaq(event) {
 }
 
 function startFaqEdit(item) {
-  if (!isAdminSession() || state.isMutatingFaq || state.needsReindex || state.isReindexing) return;
+  if (
+    !isAdminSession() ||
+    state.isMutatingFaq ||
+    state.needsReindex ||
+    state.isReindexing
+  )
+    return;
   state.editingFaqId = item.id;
   elements.faqIdInput.value = item.id;
   elements.faqQuestionInput.value = item.question;
@@ -1003,7 +1048,14 @@ function startFaqEdit(item) {
 }
 
 async function deleteFaq(item) {
-  if (!isAdminSession() || state.isMutatingFaq || state.needsReindex || state.isReindexing || !item.id) return;
+  if (
+    !isAdminSession() ||
+    state.isMutatingFaq ||
+    state.needsReindex ||
+    state.isReindexing ||
+    !item.id
+  )
+    return;
   const confirmed = window.confirm(`Delete FAQ "${item.question}"?`);
   if (!confirmed) return;
 
@@ -1012,12 +1064,15 @@ async function deleteFaq(item) {
   showFaqStatus("Deleting FAQ...");
 
   try {
-    const response = await fetch(`/api/admin/faq/${encodeURIComponent(item.id)}`, {
-      method: "DELETE",
-      headers: { "X-Admin-Email": state.session.email },
-    });
+    const response = await fetch(
+      `/api/admin/faq/${encodeURIComponent(item.id)}`,
+      {
+        method: "DELETE",
+        headers: { "X-Admin-Email": state.session.email },
+      },
+    );
     const payload = await readJsonResponse(response);
-    if (!response.ok) throw new Error(payload.detail || "FAQ delete failed.");
+    if (!response.ok) throw new Error(formatApiError(payload.detail, "FAQ delete failed."));
     showFaqStatus(payload.message || "FAQ deleted.");
     if (state.editingFaqId === item.id) resetFaqForm(false);
     await loadFaqs();
@@ -1039,8 +1094,11 @@ function resetFaqForm(clearStatus = true) {
 }
 
 function updateFaqControls() {
-  const isLocked = state.isMutatingFaq || state.needsReindex || state.isReindexing;
+  const isLocked =
+    state.isMutatingFaq || state.needsReindex || state.isReindexing;
+  elements.body.dataset.faqState = state.isMutatingFaq ? "running" : "idle";
   elements.faqSubmitButton.disabled = isLocked;
+  elements.faqCancelButton.disabled = isLocked;
   elements.faqQuestionInput.disabled = isLocked;
   elements.faqList
     .querySelectorAll(".faq-edit, .faq-delete")
@@ -1069,16 +1127,6 @@ function bindPolicyActions() {
     state.filter = elements.librarySearch.value.trim().toLowerCase();
     renderLibrary();
   });
-  elements.downloadAllButton.addEventListener("click", () => {
-    state.documents
-      .filter((item) => item.download_url)
-      .forEach((item, index) => {
-        window.setTimeout(
-          () => window.open(item.download_url, "_blank", "noopener"),
-          index * 150,
-        );
-      });
-  });
   elements.chatLink.addEventListener("click", () => navigateTo("chat"));
 }
 
@@ -1106,7 +1154,10 @@ function bindAuth() {
   elements.logoutModal.addEventListener("click", (event) => {
     if (event.target === elements.logoutModal) closeLogoutModal();
   });
-  elements.documentErrorCloseButton.addEventListener("click", closeDocumentErrorModal);
+  elements.documentErrorCloseButton.addEventListener(
+    "click",
+    closeDocumentErrorModal,
+  );
   elements.documentErrorModal.addEventListener("click", (event) => {
     if (event.target === elements.documentErrorModal) closeDocumentErrorModal();
   });
@@ -1175,7 +1226,8 @@ function closeLogoutModal() {
   elements.body.classList.remove("logout-open");
 }
 
-function openDocumentErrorModal(summary, failures = []) {
+function openDocumentErrorModal(summary, failures = [], title = "Upload belum selesai") {
+  elements.documentErrorTitle.textContent = title;
   elements.documentErrorSummary.textContent = summary;
   elements.documentErrorList.innerHTML = "";
   failures.forEach((failure) => {
@@ -1242,10 +1294,10 @@ function syncAuth() {
   elements.accountName.textContent = isAdmin
     ? state.session.name || state.session.email
     : "Guest";
-  elements.accountHint.textContent = isAdmin
-    ? "Admin"
-    : "Login admin";
-  elements.accountPopoverRole.textContent = isAdmin ? "Admin mode" : "Guest access";
+  elements.accountHint.textContent = isAdmin ? "Admin" : "Login admin";
+  elements.accountPopoverRole.textContent = isAdmin
+    ? "Admin mode"
+    : "Guest access";
   elements.accountPopoverName.textContent = isAdmin
     ? state.session.email || state.session.name
     : "Guest";
@@ -1314,7 +1366,8 @@ function bindAdminDocuments() {
 }
 
 async function saveDocuments(files) {
-  if (!isAdminSession() || state.isMutatingDocument || state.isReindexing) return;
+  if (!isAdminSession() || state.isMutatingDocument || state.isReindexing)
+    return;
   state.isMutatingDocument = true;
   updateDocumentControls();
 
@@ -1330,7 +1383,10 @@ async function saveDocuments(files) {
       if (payload.item) insertedItems.push(payload.item);
       if (payload.requires_reindex) embeddableCount += 1;
     } catch (error) {
-      failures.push({ name: file.name, reason: error.message || "Upload failed." });
+      failures.push({
+        name: file.name,
+        reason: error.message || "Upload failed.",
+      });
     }
   }
 
@@ -1348,10 +1404,7 @@ async function saveDocuments(files) {
     }
     const summary = `${successCount} uploaded, ${failures.length} failed.`;
     showDocumentStatus(summary, true);
-    openDocumentErrorModal(
-      summary,
-      failures,
-    );
+    openDocumentErrorModal(summary, failures);
     if (embeddableCount > 0) markReindexRequired();
     updateDocumentControls();
     return;
@@ -1381,10 +1434,13 @@ async function saveDocuments(files) {
 }
 
 async function saveDocument(file, replacePath = "") {
-  if (!isAdminSession() || state.isMutatingDocument || state.isReindexing) return;
+  if (!isAdminSession() || state.isMutatingDocument || state.isReindexing)
+    return;
   state.isMutatingDocument = true;
   updateDocumentControls();
-  showDocumentStatus(replacePath ? "Updating document..." : "Uploading document...");
+  showDocumentStatus(
+    replacePath ? "Updating document..." : "Uploading document...",
+  );
 
   try {
     const previousSnapshot = replacePath
@@ -1448,7 +1504,8 @@ async function saveDocumentPayload(body) {
 }
 
 async function deleteDocument(item) {
-  if (!isAdminSession() || state.isMutatingDocument || state.isReindexing) return;
+  if (!isAdminSession() || state.isMutatingDocument || state.isReindexing)
+    return;
 
   state.isMutatingDocument = true;
   updateDocumentControls();
@@ -1456,12 +1513,16 @@ async function deleteDocument(item) {
 
   try {
     const deletedSnapshot = await createDocumentSnapshot(item);
-    const response = await fetch(`/api/admin/documents/${encodeURIComponent(item.relative_path)}`, {
-      method: "DELETE",
-      headers: { "X-Admin-Email": state.session.email },
-    });
+    const response = await fetch(
+      `/api/admin/documents/${encodeURIComponent(item.relative_path)}`,
+      {
+        method: "DELETE",
+        headers: { "X-Admin-Email": state.session.email },
+      },
+    );
     const payload = await readJsonResponse(response);
-    if (!response.ok) throw new Error(payload.detail || "Document delete failed.");
+    if (!response.ok)
+      throw new Error(payload.detail || "Document delete failed.");
     await loadLibrary();
     if (payload.requires_reindex) {
       pushDocumentChange({
@@ -1493,7 +1554,8 @@ async function deleteDocument(item) {
 }
 
 function startDocumentReplace(item) {
-  if (!isAdminSession() || state.isMutatingDocument || state.isReindexing) return;
+  if (!isAdminSession() || state.isMutatingDocument || state.isReindexing)
+    return;
   state.pendingReplacePath = item.relative_path;
   elements.documentReplaceInput.value = "";
   elements.documentReplaceInput.click();
@@ -1504,12 +1566,16 @@ function updateDocumentControls() {
   elements.documentUploadButton.disabled = isLocked;
   elements.documentFileInput.disabled = isLocked;
   elements.documentUndoButton.hidden = state.documentUndoStack.length === 0;
-  elements.documentUndoButton.disabled = state.isMutatingDocument || state.isReindexing;
+  elements.documentUndoButton.disabled =
+    state.isMutatingDocument || state.isReindexing;
   if (state.documentUndoStack.length) {
     elements.documentUndoButton.title = `Undo ${state.documentUndoStack.length} pending document change${state.documentUndoStack.length === 1 ? "" : "s"}`;
   }
   elements.documentReindexButton.disabled =
-    !isAdminSession() || state.isMutatingDocument || state.isReindexing || !state.needsReindex;
+    !isAdminSession() ||
+    state.isMutatingDocument ||
+    state.isReindexing ||
+    !state.needsReindex;
   elements.libraryList
     .querySelectorAll(".document-update, .document-delete")
     .forEach((button) => {
@@ -1552,7 +1618,9 @@ function formatDocumentChangeLabel(undo) {
 }
 
 function findDocumentByPath(relativePath) {
-  return state.documents.find((item) => item.relative_path === relativePath) || null;
+  return (
+    state.documents.find((item) => item.relative_path === relativePath) || null
+  );
 }
 
 async function createDocumentSnapshot(item) {
@@ -1571,7 +1639,8 @@ async function fetchDocumentBase64(url) {
   const response = await fetch(url, {
     headers: { "X-Admin-Email": state.session.email },
   });
-  if (!response.ok) throw new Error(`Snapshot dokumen gagal: HTTP ${response.status}`);
+  if (!response.ok)
+    throw new Error(`Snapshot dokumen gagal: HTTP ${response.status}`);
   return blobToBase64(await response.blob());
 }
 
@@ -1588,10 +1657,13 @@ async function blobToBase64(blob) {
 }
 
 async function deleteDocumentRequest(relativePath) {
-  const response = await fetch(`/api/admin/documents/${encodeURIComponent(relativePath)}`, {
-    method: "DELETE",
-    headers: { "X-Admin-Email": state.session.email },
-  });
+  const response = await fetch(
+    `/api/admin/documents/${encodeURIComponent(relativePath)}`,
+    {
+      method: "DELETE",
+      headers: { "X-Admin-Email": state.session.email },
+    },
+  );
   const payload = await readJsonResponse(response);
   if (!response.ok && response.status !== 404) {
     throw new Error(payload.detail || "Undo delete failed.");
@@ -1625,11 +1697,19 @@ async function applyDocumentUndo(undo) {
 
 async function undoDocumentChange() {
   const changes = [...state.documentUndoStack];
-  if (!changes.length || !isAdminSession() || state.isMutatingDocument || state.isReindexing) return;
+  if (
+    !changes.length ||
+    !isAdminSession() ||
+    state.isMutatingDocument ||
+    state.isReindexing
+  )
+    return;
 
   state.isMutatingDocument = true;
   updateDocumentControls();
-  showDocumentStatus(`Undoing ${changes.length} document change${changes.length === 1 ? "" : "s"}...`);
+  showDocumentStatus(
+    `Undoing ${changes.length} document change${changes.length === 1 ? "" : "s"}...`,
+  );
 
   try {
     for (const undo of changes.reverse()) {
@@ -1642,9 +1722,13 @@ async function undoDocumentChange() {
     state.documentChanges = [];
     state.documentUndo = null;
     if (touchedEmbeddings) {
-      clearReindexRequired("Semua perubahan dokumen dibatalkan. Embeddings kembali sesuai.");
+      clearReindexRequired(
+        "Semua perubahan dokumen dibatalkan. Embeddings kembali sesuai.",
+      );
     } else {
-      showDocumentStatus("Semua perubahan dokumen dibatalkan. Tidak perlu rebuild embeddings.");
+      showDocumentStatus(
+        "Semua perubahan dokumen dibatalkan. Tidak perlu rebuild embeddings.",
+      );
     }
   } catch (error) {
     showDocumentStatus(error.message || "Undo dokumen gagal.", true);
@@ -1661,7 +1745,7 @@ async function rebuildEmbeddings() {
   syncReindexState();
   updateDocumentControls();
   updateFaqControls();
-  showDocumentStatus("Rebuilding embeddings. Please wait...");
+  clearDocumentStatus();
 
   try {
     const response = await fetch("/api/admin/reindex", {
@@ -1669,7 +1753,8 @@ async function rebuildEmbeddings() {
       headers: { "X-Admin-Email": state.session.email },
     });
     const payload = await readJsonResponse(response);
-    if (!response.ok) throw new Error(payload.detail || "Rebuild embeddings failed.");
+    if (!response.ok)
+      throw new Error(payload.detail || "Rebuild embeddings failed.");
     clearReindexRequired(payload.message || "Embeddings rebuilt.");
   } catch (error) {
     showDocumentStatus(error.message || "Rebuild embeddings failed.", true);
@@ -1681,7 +1766,9 @@ async function rebuildEmbeddings() {
   }
 }
 
-function markReindexRequired(message = "Document library changed. Rebuild embeddings before continuing.") {
+function markReindexRequired(
+  message = "Document library changed. Rebuild embeddings before continuing.",
+) {
   state.needsReindex = true;
   window.localStorage.setItem(REINDEX_STORAGE_KEY, "1");
   syncReindexState();
@@ -1704,9 +1791,11 @@ function syncReindexState() {
       : "clean";
   if (!isAdminSession()) return;
   if (state.isReindexing) {
-    showDocumentStatus("Rebuilding embeddings. Please wait...");
+    clearDocumentStatus();
   } else if (state.needsReindex && !elements.adminDocumentStatus.textContent) {
-    showDocumentStatus("Document library changed. Rebuild embeddings before continuing.");
+    showDocumentStatus(
+      "Document library changed. Rebuild embeddings before continuing.",
+    );
   }
 }
 
@@ -1762,7 +1851,7 @@ function normalizeDocument(item, index) {
     display_name: formatDocumentTitle(
       item.display_name || `Document ${index + 1}`,
     ),
-    description: buildDocumentDescription(item, index, documentKind),
+    description: "",
   };
 }
 
@@ -1772,17 +1861,6 @@ function formatDocumentTitle(value) {
     .replace(/\bics\b/gi, "ICS")
     .replace(/\bpp(\d+)\b/gi, (_, number) => `PP${number}`)
     .replace(/\bit\b/gi, "IT");
-}
-
-function buildDocumentDescription(item, index, documentKind) {
-  const refCode = `${(item.doc_type || "doc").toUpperCase()}-${String(index + 1).padStart(3, "0")}`;
-  if (documentKind === "form") {
-    return `Ref: ${refCode} • Template form untuk diunduh langsung.`;
-  }
-  if (documentKind === "sop") {
-    return `Ref: ${refCode} • Dokumen SOP yang dipakai untuk knowledge retrieval.`;
-  }
-  return `Ref: ${refCode} • ${item.relative_path || "Dokumen internal."}`;
 }
 
 function getLibraryIcon(item) {
@@ -1810,22 +1888,16 @@ function renderLibrary() {
     return;
   }
 
-  const documentItems = documents.filter((item) => item.document_kind !== "form");
+  const documentItems = documents.filter(
+    (item) => item.document_kind !== "form",
+  );
   const formItems = documents.filter((item) => item.document_kind === "form");
-  appendLibrarySection(
-    "Knowledge Documents",
-    "SOP and internal files used by AI retrieval.",
-    documentItems,
-  );
-  appendLibrarySection(
-    "Forms",
-    "Templates available as direct downloads.",
-    formItems,
-  );
+  appendLibrarySection("Documents", documentItems);
+  appendLibrarySection("Forms", formItems);
   updateDocumentControls();
 }
 
-function appendLibrarySection(title, description, items) {
+function appendLibrarySection(title, items) {
   if (!items.length) return;
 
   const section = document.createElement("section");
@@ -1836,11 +1908,7 @@ function appendLibrarySection(title, description, items) {
 
   const headingTitle = document.createElement("h3");
   headingTitle.textContent = title;
-
-  const headingDescription = document.createElement("p");
-  headingDescription.textContent = description;
-
-  heading.append(headingTitle, headingDescription);
+  heading.appendChild(headingTitle);
   section.appendChild(heading);
 
   items.forEach((item) => {
@@ -1856,8 +1924,9 @@ function createLibraryRow(item) {
   row.dataset.kind = item.document_kind || "document";
   fragment.querySelector(".document-icon").textContent = getLibraryIcon(item);
   fragment.querySelector(".document-title").textContent = item.display_name;
-  fragment.querySelector(".document-meta").textContent =
-    item.description || item.relative_path || "Dokumen internal";
+  const meta = fragment.querySelector(".document-meta");
+  meta.textContent = "";
+  meta.hidden = true;
   const link = fragment.querySelector(".document-download");
   const updateButton = fragment.querySelector(".document-update");
   const deleteButton = fragment.querySelector(".document-delete");
@@ -1989,4 +2058,22 @@ async function readJsonResponse(response) {
   } catch {
     return {};
   }
+}
+
+function formatApiError(detail, fallback = "Request failed.") {
+  if (!detail) return fallback;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((item) => formatApiError(item, ""))
+      .filter(Boolean);
+    return messages.join("; ") || fallback;
+  }
+  if (typeof detail === "object") {
+    if (typeof detail.message === "string") return detail.message;
+    if (typeof detail.msg === "string") return detail.msg;
+    if (typeof detail.detail === "string") return detail.detail;
+    return JSON.stringify(detail);
+  }
+  return String(detail);
 }

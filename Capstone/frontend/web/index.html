@@ -184,6 +184,12 @@
                     </button>
                   </div>
                 </form>
+                <div class="faq-progress" aria-live="polite">
+                  <strong>Generating FAQ answer</strong>
+                  <span class="linear-loader" aria-hidden="true">
+                    <span></span>
+                  </span>
+                </div>
                 <p class="admin-document-status" id="faqStatus"></p>
               </section>
               <div class="faq-list" id="faqList"></div>
@@ -216,14 +222,6 @@
                   >
                     <span class="material-symbols-outlined">filter_list</span
                     >Filter
-                  </button>
-                  <button
-                    class="primary-button"
-                    id="downloadAllButton"
-                    type="button"
-                  >
-                    <span class="material-symbols-outlined">download</span
-                    ><span>Download<br />All</span>
                   </button>
                 </div>
               </div>
@@ -264,9 +262,17 @@
                   </button>
                 </form>
                 <div class="document-reindex-panel">
-                  <p>
-                    Rebuild embeddings after SOP or knowledge document changes
-                    so AI retrieval uses the latest files.
+                  <p class="document-reindex-copy">
+                    <span class="document-reindex-copy-default">
+                      Rebuild embeddings after SOP or knowledge document changes
+                      so AI retrieval uses the latest files.
+                    </span>
+                    <span class="document-reindex-progress" aria-live="polite">
+                      <strong>Rebuilding embeddings</strong>
+                      <span class="linear-loader" aria-hidden="true">
+                        <span></span>
+                      </span>
+                    </span>
                   </p>
                   <div class="document-maintenance-actions">
                     <button
@@ -464,7 +470,7 @@
       aria-labelledby="documentErrorTitle"
     >
       <div class="document-error-card">
-        <span class="auth-kicker">Document Error</span>
+        <span class="auth-kicker">Admin Notice</span>
         <h2 id="documentErrorTitle">Upload belum selesai</h2>
         <p id="documentErrorSummary"></p>
         <ul id="documentErrorList"></ul>

@@ -8,6 +8,7 @@ import sys
 import threading
 import uuid
 from datetime import datetime
+from datetime import timedelta
 from pathlib import Path
 from urllib.parse import quote, unquote
 
@@ -29,9 +30,10 @@ LIBRARY_EXTENSIONS = EMBEDDABLE_EXTENSIONS | {".xlsx"}
 ADMIN_EMAILS = {"admin@gmail.com"}
 MAX_DOCUMENT_BYTES = 25 * 1024 * 1024
 MAX_CONVERSATIONS = 50
-MAX_CONVERSATION_TURNS = 10
+MAX_CONVERSATION_TURNS = 5
 MAX_CONVERSATION_MESSAGES = MAX_CONVERSATION_TURNS * 2
 MAX_CONVERSATION_CONTEXT_CHARS = 3200
+CONVERSATION_TTL = timedelta(days=1)
 CONVERSATION_LOCK = threading.Lock()
 FAQ_LOCK = threading.Lock()
 REINDEX_LOCK = threading.Lock()
@@ -376,6 +378,42 @@ def _clean_conversation_id(value: str | None) -> str:
     return uuid.uuid4().hex
 
 
+def _parse_conversation_timestamp(value: object) -> datetime | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def _prune_expired_conversations(
+    conversations: dict[str, list[dict[str, object]]],
+) -> dict[str, list[dict[str, object]]]:
+    cutoff = datetime.now() - CONVERSATION_TTL
+    pruned: dict[str, list[dict[str, object]]] = {}
+
+    for conversation_id, messages in conversations.items():
+        if not isinstance(messages, list) or not messages:
+            continue
+
+        latest_timestamp: datetime | None = None
+        for message in reversed(messages):
+            if not isinstance(message, dict):
+                continue
+            latest_timestamp = _parse_conversation_timestamp(message.get("created_at"))
+            if latest_timestamp is not None:
+                break
+
+        if latest_timestamp is None or latest_timestamp < cutoff:
+            continue
+
+        pruned[conversation_id] = messages
+
+    return pruned
+
+
 def _load_conversations() -> dict[str, list[dict[str, object]]]:
     path = _get_conversation_file()
     if not path.exists():
@@ -388,18 +426,21 @@ def _load_conversations() -> dict[str, list[dict[str, object]]]:
 
     if not isinstance(data, dict):
         return {}
-    return {
+
+    conversations = {
         str(key): value
         for key, value in data.items()
         if isinstance(value, list)
     }
+    return _prune_expired_conversations(conversations)
 
 
 def _save_conversations(conversations: dict[str, list[dict[str, object]]]) -> None:
     cache_dir = _get_cache_dir()
     cache_dir.mkdir(parents=True, exist_ok=True)
 
-    trimmed_items = list(conversations.items())[-MAX_CONVERSATIONS:]
+    active_conversations = _prune_expired_conversations(conversations)
+    trimmed_items = list(active_conversations.items())[-MAX_CONVERSATIONS:]
     payload = {key: value[-MAX_CONVERSATION_MESSAGES:] for key, value in trimmed_items}
     _get_conversation_file().write_text(
         json.dumps(payload, ensure_ascii=False, indent=2),
@@ -556,6 +597,21 @@ def _find_faq_index(items: list[FAQItem], faq_id: str) -> int:
     raise HTTPException(status_code=404, detail="FAQ not found.")
 
 
+def _is_unusable_faq_answer(answer: str, citations: list[CitationResponse]) -> bool:
+    normalized = " ".join(answer.lower().split())
+    blocked_phrases = (
+        "informasi ini belum tersedia",
+        "informasi tersebut tidak tersedia",
+        "tidak tersedia dalam dokumen",
+        "tidak ditemukan dalam dokumen",
+        "pertanyaan anda tidak jelas",
+        "mohon berikan detail",
+        "berikan detail lebih lanjut",
+        "[nama perusahaan]",
+    )
+    return not citations or any(phrase in normalized for phrase in blocked_phrases)
+
+
 def _build_faq_item(payload: AdminFAQPayload, faq_id: str | None = None) -> FAQItem:
     from researcher_crew.main import run_faq_crew
 
@@ -568,6 +624,14 @@ def _build_faq_item(payload: AdminFAQPayload, faq_id: str | None = None) -> FAQI
         )
         for citation in raw_citations
     ]
+    if _is_unusable_faq_answer(answer, citations):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "FAQ tidak disimpan karena jawabannya belum ditemukan atau "
+                "pertanyaannya masih kurang jelas di dokumen. Coba tulis pertanyaan yang lebih spesifik."
+            ),
+        )
     source = citations[0].source if citations else ""
     source_url = citations[0].download_url if citations else ""
     return FAQItem(
