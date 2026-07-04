@@ -1,27 +1,25 @@
 from __future__ import annotations
 
-import os
 import uuid
 from functools import lru_cache
 from pathlib import Path
 
-from dotenv import load_dotenv
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 
+from backend.settings import get_env, get_int_env, get_required_env, load_capstone_env
 from backend.preprocessing.embedding import get_embedding_model
 
-load_dotenv()
+load_capstone_env()
 
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
-DEFAULT_RERANK_MODEL = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
 ACTIVE_INDEX_FILE = ".active-chroma-index"
 VERSIONED_INDEX_DIR = "indexes"
 
 
 def _get_chroma_base_dir() -> Path:
-    raw_dir = os.getenv("CHROMA_DIR", "backend/chroma_db")
+    raw_dir = get_env("CHROMA_DIR", "backend/chroma_db")
     path = Path(raw_dir)
     if not path.is_absolute():
         path = BACKEND_DIR.parent / path
@@ -67,7 +65,7 @@ def rebuild_vectorstore(chunks: list[Document]) -> Chroma:
 
 @lru_cache(maxsize=1)
 def get_reranker():
-    model_name = os.getenv("RERANK_MODEL", DEFAULT_RERANK_MODEL).strip()
+    model_name = get_required_env("RERANK_MODEL")
     if not model_name:
         return None
 
@@ -77,7 +75,7 @@ def get_reranker():
         return None
 
     try:
-        return CrossEncoder(model_name, max_length=int(os.getenv("RERANK_MAX_LENGTH", "256")))
+        return CrossEncoder(model_name, max_length=get_int_env("RERANK_MAX_LENGTH", 256))
     except Exception:
         return None
 
@@ -100,6 +98,6 @@ def _rerank_documents(query: str, documents: list[Document]) -> list[Document]:
 def hybrid_search(query: str, k: int = 4) -> list[Document]:
     """Retrieve semantically relevant chunks, then rerank them when available."""
     vectorstore = get_vectorstore()
-    fetch_k = int(os.getenv("RERANK_CANDIDATES", str(max(k + 2, 6))))
+    fetch_k = get_int_env("RERANK_CANDIDATES", max(k + 2, 6))
     vector_results = vectorstore.similarity_search(query, k=fetch_k)
     return _rerank_documents(query, vector_results)[:k]

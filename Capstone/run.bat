@@ -35,26 +35,25 @@ if errorlevel 1 (
   goto :fail
 )
 
-set "HAS_DB="
-for /f "delims=" %%F in ('dir /b /a "backend\chroma_db" 2^>nul') do (
-  if /I not "%%F"==".gitkeep" set "HAS_DB=1"
-)
-
-if defined HAS_DB if not exist "backend\chroma_db\.citation-metadata-v1" (
-  echo Existing vector DB needs citation metadata. Rebuilding it once...
+"%PYTHON%" -X utf8 -m backend.scripts.storage_status vector-db >nul 2>&1
+if errorlevel 1 (
   set "HAS_DB="
+) else (
+  set "HAS_DB=1"
 )
 
 if not defined HAS_DB (
-  set "HAS_SOURCE_DOCS="
-  for /f "delims=" %%F in ('dir /b /s "backend\data\*.pdf" "backend\data\*.docx" "backend\data\*.txt" 2^>nul') do (
+  "%PYTHON%" -X utf8 -m backend.scripts.storage_status source-docs >nul 2>&1
+  if errorlevel 1 (
+    set "HAS_SOURCE_DOCS="
+  ) else (
     set "HAS_SOURCE_DOCS=1"
   )
   if not defined HAS_SOURCE_DOCS (
     echo Warning: no vector DB or source documents were found.
-    echo The frontend will still open, but AI queries need documents in backend\data.
+    echo The frontend will still open, but AI queries need documents in DATA_DIR.
   ) else (
-    echo No vector DB found. Running ingestion first...
+    echo No valid vector DB found. Running ingestion first...
     "%PYTHON%" -X utf8 -m backend.preprocessing.ingest
     if errorlevel 1 goto :fail
   )

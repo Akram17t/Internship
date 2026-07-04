@@ -412,7 +412,16 @@ async function submitQuestion(rawQuestion) {
       }),
       signal: controller.signal,
     });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (!response.ok) {
+      let detail = `HTTP ${response.status}`;
+      try {
+        const errorPayload = await response.json();
+        detail = errorPayload.detail || detail;
+      } catch (_) {
+        // Keep the generic HTTP status when the server did not return JSON.
+      }
+      throw new Error(detail);
+    }
     const payload = await response.json();
     if (payload.conversation_id) {
       state.conversationId = payload.conversation_id;
@@ -435,8 +444,7 @@ async function submitQuestion(rawQuestion) {
     if (error.name === "AbortError") return;
     replaceLoading({
       role: "assistant",
-      content:
-        "Aku belum bisa menghubungi layanan knowledge base. Pastikan server FastAPI dan database embedding sedang berjalan.",
+      content: `Aku belum bisa menyelesaikan jawaban ini. ${error.message || "Pastikan FastAPI, Ollama, dan database embedding sedang berjalan."}`,
       citations: [],
       duration_ms: Math.round(performance.now() - startedAt),
       timestamp: "Just now",
@@ -498,8 +506,11 @@ function renderMessages(scrollBehavior = "auto") {
       bubble.innerHTML =
         '<span class="loading-dots"><span></span><span></span><span></span></span>Mencari dokumen...';
     } else {
-      bubble.appendChild(formatMessage(message.content, message.citations));
-      renderFormDownloads(bubble, message.form_downloads);
+      const formDownloads = normalizeFormDownloads(message.form_downloads);
+      bubble.appendChild(
+        formatMessage(message.content, message.citations, formDownloads),
+      );
+      renderFormDownloads(bubble, formDownloads.filter((item) => !item.used));
     }
 
     meta.textContent = `${isAssistant ? "AI Assistant" : "You"} • ${message.timestamp || "Just now"}`;
@@ -596,6 +607,7 @@ function createCitationChip(citation, index, isInline = false) {
   chip.className = `citation-chip citation-chip--${fileType}`;
   if (isInline) chip.classList.add("is-inline");
   chip.setAttribute("aria-label", formatCitationLabel(citation, index));
+  chip.title = formatCitationLabel(citation, index);
 
   if (isPublicForm) {
     chip.href = citation.download_url;
@@ -635,47 +647,66 @@ function createCitationChip(citation, index, isInline = false) {
 }
 
 function renderFormDownloads(container, downloads = []) {
-  if (!Array.isArray(downloads) || !downloads.length) return;
-
-  const seen = new Set();
-  const items = downloads.filter((item) => {
-    const key = item.download_url || item.name || item.display_name;
-    if (!key || seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  const items = Array.isArray(downloads) ? downloads : [];
   if (!items.length) return;
 
   const wrapper = document.createElement("div");
   wrapper.className = "form-downloads";
 
+  const label = document.createElement("span");
+  label.className = "form-downloads-label";
+  label.textContent = "Form yang bisa diunduh";
+
+  const actions = document.createElement("span");
+  actions.className = "form-downloads-actions";
+
   items.forEach((item) => {
-    const link = document.createElement("a");
-    link.className = "form-download-card";
-    link.href = item.download_url || "#";
-    link.target = "_blank";
-    link.rel = "noopener";
-
-    const icon = document.createElement("span");
-    icon.className = "material-symbols-outlined";
-    icon.setAttribute("aria-hidden", "true");
-    icon.textContent = "download";
-
-    const copy = document.createElement("span");
-    copy.className = "form-download-copy";
-
-    const title = document.createElement("strong");
-    title.textContent = item.display_name || item.name || "Form";
-
-    const hint = document.createElement("small");
-    hint.textContent = "Download form";
-
-    copy.append(title, hint);
-    link.append(icon, copy);
-    wrapper.appendChild(link);
+    actions.appendChild(createFormDownloadChip(item));
   });
 
+  wrapper.append(label, actions);
   container.appendChild(wrapper);
+}
+
+function normalizeFormDownloads(downloads = []) {
+  if (!Array.isArray(downloads) || !downloads.length) return [];
+
+  const seen = new Set();
+  return downloads
+    .filter((item) => {
+      const key = item.download_url || item.name || item.display_name;
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .map((item) => ({
+      ...item,
+      label: item.display_name || item.name || "Form",
+      used: false,
+    }));
+}
+
+function createFormDownloadChip(item, isInline = false) {
+  const link = document.createElement("a");
+  link.className = "form-download-chip";
+  if (isInline) link.classList.add("is-inline");
+  link.href = item.download_url || "#";
+  link.target = "_blank";
+  link.rel = "noopener";
+  link.setAttribute("aria-label", `Download ${item.label || item.name || "form"}`);
+  link.title = `Download ${item.label || item.name || "form"}`;
+
+  const icon = document.createElement("span");
+  icon.className = "material-symbols-outlined form-download-icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.textContent = "table_chart";
+
+  const text = document.createElement("span");
+  text.className = "form-download-label";
+  text.textContent = isInline ? "XLSX" : item.label || item.name || "Form";
+
+  link.append(icon, text);
+  return link;
 }
 
 function getCitationFileType(citation) {
@@ -712,7 +743,7 @@ function formatCitationLabel(citation, index) {
   } - ${formatCitationLocation(citation)}`;
 }
 
-function formatMessage(content, citations = []) {
+function formatMessage(content, citations = [], formDownloads = []) {
   const wrapper = document.createElement("div");
   const lines = String(content).split(/\r?\n/);
   const citationMap = buildCitationMap(citations);
@@ -726,13 +757,13 @@ function formatMessage(content, citations = []) {
         wrapper.appendChild(list);
       }
       const item = document.createElement("li");
-      appendFormattedText(item, value.slice(2), citationMap);
+      appendFormattedText(item, value.slice(2), citationMap, formDownloads);
       list.appendChild(item);
       return;
     }
     list = null;
     const paragraph = document.createElement("p");
-    appendFormattedText(paragraph, value, citationMap);
+    appendFormattedText(paragraph, value, citationMap, formDownloads);
     wrapper.appendChild(paragraph);
   });
   return wrapper;
@@ -748,15 +779,19 @@ function buildCitationMap(citations) {
   );
 }
 
-function appendFormattedText(container, text, citationMap) {
+function appendFormattedText(container, text, citationMap, formDownloads = []) {
+  const formMatches = findFormDownloadMatches(text, formDownloads);
   const tokenPattern = /(\[(\d+)\]|\*\*([^*]+)\*\*)/g;
   let cursor = 0;
   let match = tokenPattern.exec(text);
 
   while (match) {
     if (match.index > cursor) {
-      container.append(
-        document.createTextNode(text.slice(cursor, match.index)),
+      appendTextWithFormChips(
+        container,
+        text.slice(cursor, match.index),
+        cursor,
+        formMatches,
       );
     }
 
@@ -771,13 +806,72 @@ function appendFormattedText(container, text, citationMap) {
       }
     } else if (match[3]) {
       const strong = document.createElement("strong");
-      strong.textContent = match[3];
+      appendTextWithFormChips(strong, match[3], match.index + 2, formMatches);
       container.append(strong);
     }
 
     cursor = tokenPattern.lastIndex;
     match = tokenPattern.exec(text);
   }
+
+  if (cursor < text.length) {
+    appendTextWithFormChips(
+      container,
+      text.slice(cursor),
+      cursor,
+      formMatches,
+    );
+  }
+}
+
+function findFormDownloadMatches(text, formDownloads = []) {
+  const items = formDownloads.filter((item) => !item.used);
+  if (!items.length) return [];
+
+  const match = /\bforms?\b/i.exec(text);
+  if (!match) return [];
+
+  items.forEach((item) => {
+    item.used = true;
+  });
+
+  return [
+    {
+      start: match.index,
+      end: match.index + match[0].length,
+      items,
+    },
+  ];
+}
+
+function appendTextWithFormChips(container, text, offset, formMatches) {
+  const segmentStart = offset;
+  const segmentEnd = offset + text.length;
+  const matches = formMatches.filter(
+    (match) => match.start >= segmentStart && match.end <= segmentEnd,
+  );
+
+  if (!matches.length) {
+    container.append(document.createTextNode(text));
+    return;
+  }
+
+  let cursor = 0;
+  matches.forEach((match) => {
+    const localStart = match.start - segmentStart;
+    const localEnd = match.end - segmentStart;
+    if (localStart > cursor) {
+      container.append(document.createTextNode(text.slice(cursor, localStart)));
+    }
+    container.append(document.createTextNode(text.slice(localStart, localEnd)));
+    const group = document.createElement("span");
+    group.className = "form-download-inline-group";
+    match.items.forEach((item) => {
+      group.appendChild(createFormDownloadChip(item, true));
+    });
+    container.append(group);
+    cursor = localEnd;
+  });
 
   if (cursor < text.length) {
     container.append(document.createTextNode(text.slice(cursor)));

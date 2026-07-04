@@ -1,6 +1,6 @@
 # ICS SOP & Knowledge Assistant
 
-RAG-based internal document assistant for SOP, guideline, and runbook search, now with a custom web frontend served directly from FastAPI.
+RAG-based internal document assistant for SOP, guideline, and runbook search, with a custom web frontend served directly from FastAPI.
 
 General project documentation is available in [PROJECT_DOCUMENTATION.md](PROJECT_DOCUMENTATION.md).
 
@@ -40,8 +40,8 @@ run.bat
 clean.bat
 ```
 
-- `run.bat` uses `backend\researcher_crew\.venv`, checks the required imports, runs ingestion only when `backend\chroma_db` is empty, then starts FastAPI and opens the web frontend in your browser.
-- `clean.bat` removes `__pycache__`, `.pytest_cache`, `*.pyc`, and generated files inside `backend\chroma_db` except `.gitkeep`.
+- `run.bat` uses `backend\researcher_crew\.venv`, checks the required imports, reads `CHROMA_DIR` and `DATA_DIR` from `.env`, runs ingestion only when no valid vector index exists, then starts FastAPI and opens the web frontend in your browser.
+- `clean.bat` removes `__pycache__`, `.pytest_cache`, and `*.pyc` while preserving the vector database. Use `clean.bat /vectors` only when you intentionally want to remove the `CHROMA_DIR` index and rebuild embeddings.
 
 ## Frontend Pages
 
@@ -53,18 +53,18 @@ clean.bat
 
 ```text
 Capstone/
-├── backend/
-│   ├── api/              # FastAPI routes and frontend hosting
-│   ├── researcher_crew/  # CrewAI project and its venv
-│   ├── preprocessing/    # ingestion, loaders, chunking, embeddings, vectorstore
-│   ├── data/             # source documents
-│   └── chroma_db/        # persisted vector database
-├── frontend/
-│   └── web/              # static web frontend (HTML/CSS/JS)
-├── .env.example
-├── .gitignore
-├── README.md
-├── clean.bat
-├── run.bat
-└── requirements.txt
+|-- backend/
+|   |-- api/              # FastAPI routes and frontend hosting
+|   |-- researcher_crew/  # CrewAI project and its venv
+|   |-- preprocessing/    # ingestion, loaders, chunking, embeddings, vectorstore
+|   |-- scripts/          # small command-line helpers used by Windows scripts
+|   |-- data/             # source documents
+|   `-- chroma_db/        # persisted vector database
+|-- frontend/
+|   `-- web/              # static web frontend (HTML/CSS/JS)
+|-- .env.example
+|-- README.md
+|-- clean.bat
+|-- run.bat
+`-- requirements.txt
 ```

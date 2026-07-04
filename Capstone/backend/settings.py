@@ -1,0 +1,40 @@
+from __future__ import annotations
+
+import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
+ENV_FILE = ROOT_DIR / ".env"
+_ENV_LOADED = False
+
+
+def load_capstone_env() -> None:
+    global _ENV_LOADED
+    if _ENV_LOADED:
+        return
+    load_dotenv(ENV_FILE)
+    _ENV_LOADED = True
+
+
+def get_required_env(name: str) -> str:
+    load_capstone_env()
+    value = os.getenv(name, "").strip()
+    if not value:
+        raise RuntimeError(f"{name} must be set in {ENV_FILE}")
+    return value
+
+
+def get_env(name: str, default: str) -> str:
+    load_capstone_env()
+    return os.getenv(name, default).strip() or default
+
+
+def get_int_env(name: str, default: int) -> int:
+    raw_value = get_env(name, str(default))
+    try:
+        return int(raw_value)
+    except ValueError as error:
+        raise RuntimeError(f"{name} must be an integer in {ENV_FILE}") from error

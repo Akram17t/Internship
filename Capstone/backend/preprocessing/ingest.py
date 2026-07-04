@@ -1,15 +1,13 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
-from dotenv import load_dotenv
-
+from backend.settings import get_env, load_capstone_env
 from backend.preprocessing.chunker import chunk_documents
 from backend.preprocessing.loader import load_documents
 from backend.preprocessing.vectorstore import get_chroma_dir, rebuild_vectorstore
 
-load_dotenv()
+load_capstone_env()
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -17,7 +15,7 @@ CITATION_SCHEMA_MARKER = ".citation-metadata-v1"
 
 
 def get_data_dir() -> Path:
-    raw_dir = os.getenv("DATA_DIR", "backend/data")
+    raw_dir = get_env("DATA_DIR", "backend/data")
     path = Path(raw_dir)
     if not path.is_absolute():
         path = ROOT_DIR / path

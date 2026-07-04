@@ -128,7 +128,7 @@ Policy Library menampilkan dokumen yang tersedia pada direktori sumber. Pengguna
 
 ### 7.5 Ingestion Otomatis
 
-Script Windows memeriksa keberadaan vector database. Jika database belum tersedia atau metadata citation perlu diperbarui, sistem menjalankan ingestion sebelum membuka aplikasi.
+Script Windows memeriksa keberadaan vector database berdasarkan `CHROMA_DIR` di `.env`. Jika index aktif belum valid, sistem menjalankan ingestion sebelum membuka aplikasi.
 
 ## 8. Alur Penggunaan
 
@@ -170,9 +170,14 @@ Konfigurasi dapat diatur melalui file `.env` dengan mengacu pada `.env.example`.
 
 | Variabel | Keterangan | Nilai Default |
 | --- | --- | --- |
-| `MODEL` | Model bahasa yang digunakan CrewAI. | `ollama/llama3.1` |
+| `MODEL` | Model bahasa yang digunakan untuk jawaban. | `ollama/gemma3:12b` |
 | `OLLAMA_BASE_URL` | Alamat layanan Ollama. | `http://localhost:11434` |
-| `EMBED_MODEL` | Model embedding dokumen. | `nomic-embed-text` |
+| `EMBED_MODEL` | Model embedding dokumen. | `aroxima/multilingual-e5-large-instruct` |
+| `RERANK_MODEL` | Model reranker untuk mengurutkan kandidat hasil retrieval. | `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` |
+| `OLLAMA_NUM_CTX` | Panjang konteks Ollama untuk prompt jawaban. | `4096` |
+| `OLLAMA_NUM_PREDICT` | Batas token output untuk jawaban chat. | `900` |
+| `FAQ_NUM_PREDICT` | Batas token output untuk jawaban FAQ. | `220` |
+| `OLLAMA_TIMEOUT_SECONDS` | Timeout request ke Ollama untuk proses generasi jawaban. | `240` |
 | `CHROMA_DIR` | Lokasi penyimpanan vector database. | `backend/chroma_db` |
 | `DATA_DIR` | Lokasi dokumen sumber. | `backend/data` |
 | `TOP_K` | Jumlah chunk teratas yang diambil. | `4` |
@@ -195,7 +200,7 @@ Cara paling sederhana adalah menjalankan:
 run.bat
 ```
 
-Script akan memeriksa environment, mencari port yang tersedia, menjalankan ingestion bila dibutuhkan, membuka browser, dan menjalankan FastAPI pada terminal aktif.
+Script akan memeriksa environment, mencari port yang tersedia, membaca lokasi data dari `.env`, menjalankan ingestion hanya bila vector index belum valid, membuka browser, dan menjalankan FastAPI pada terminal aktif.
 
 ### 11.3 Membersihkan File Generated
 
@@ -203,7 +208,7 @@ Script akan memeriksa environment, mencari port yang tersedia, menjalankan inges
 clean.bat
 ```
 
-Perintah tersebut membersihkan cache Python dan data vector database yang dihasilkan. Setelah database dibersihkan, ingestion perlu dijalankan kembali sebelum dokumen dapat dicari.
+Perintah tersebut membersihkan cache Python tanpa menghapus vector database. Gunakan `clean.bat /vectors` bila memang ingin menghapus embedding dan memaksa ingestion ulang.
 
 ## 12. Keamanan dan Tata Kelola
 

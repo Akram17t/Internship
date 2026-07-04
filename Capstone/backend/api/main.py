@@ -3,7 +3,6 @@ from __future__ import annotations
 import base64
 import binascii
 import json
-import os
 import sys
 import threading
 import uuid
@@ -17,7 +16,10 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from backend.settings import get_env, load_capstone_env
+
 ROOT_DIR = Path(__file__).resolve().parents[2]
+load_capstone_env()
 CREW_SRC_DIR = ROOT_DIR / "backend" / "researcher_crew" / "src"
 if str(CREW_SRC_DIR) not in sys.path:
     sys.path.insert(0, str(CREW_SRC_DIR))
@@ -213,7 +215,7 @@ class AdminReindexResponse(BaseModel):
 
 
 def _get_data_dir() -> Path:
-    raw_dir = os.getenv("DATA_DIR", "backend/data")
+    raw_dir = get_env("DATA_DIR", "backend/data")
     path = Path(raw_dir)
     if not path.is_absolute():
         path = ROOT_DIR / path
@@ -353,7 +355,7 @@ def _decode_document(content_base64: str) -> bytes:
 
 
 def _get_cache_dir() -> Path:
-    raw_dir = os.getenv("CONVERSATION_CACHE_DIR", "backend/cache")
+    raw_dir = get_env("CONVERSATION_CACHE_DIR", "backend/cache")
     path = Path(raw_dir)
     if not path.is_absolute():
         path = ROOT_DIR / path
@@ -613,10 +615,13 @@ def _is_unusable_faq_answer(answer: str, citations: list[CitationResponse]) -> b
 
 
 def _build_faq_item(payload: AdminFAQPayload, faq_id: str | None = None) -> FAQItem:
-    from researcher_crew.main import run_faq_crew
+    from researcher_crew.main import OllamaGenerationError, run_faq_crew
 
     question = payload.question.strip()
-    answer, raw_citations = run_faq_crew(question)
+    try:
+        answer, raw_citations = run_faq_crew(question)
+    except OllamaGenerationError as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
     citations = [
         CitationResponse(
             **citation,
@@ -657,11 +662,14 @@ def health_check() -> dict[str, str]:
 
 @app.post("/query", response_model=QueryResponse)
 def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
-    from researcher_crew.main import run_knowledge_crew
+    from researcher_crew.main import OllamaGenerationError, run_knowledge_crew
 
     conversation_id = _clean_conversation_id(payload.conversation_id)
     conversation_context = _get_conversation_context(conversation_id)
-    answer, raw_citations = run_knowledge_crew(payload.question, conversation_context)
+    try:
+        answer, raw_citations = run_knowledge_crew(payload.question, conversation_context)
+    except OllamaGenerationError as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
     _append_conversation_turn(conversation_id, payload.question, answer)
     citations = [
         CitationResponse(
