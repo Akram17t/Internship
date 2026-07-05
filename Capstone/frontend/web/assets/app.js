@@ -1228,21 +1228,41 @@ async function saveFaq(event) {
 function formatFaqSaveError(error) {
   const rawMessage = String(error?.message || "").trim();
   if (!rawMessage) {
-    return "FAQ tidak disimpan karena tidak ada sumber dari dokumen terindeks.";
+    return "FAQ belum bisa dibuat karena AI belum mengembalikan jawaban. Coba lagi sebentar lagi.";
   }
 
+  const noSourcePatterns = [
+    /tidak ada sumber/i,
+    /belum punya sumber/i,
+    /tidak tersedia dalam dokumen/i,
+    /tidak ditemukan dalam dokumen/i,
+  ];
   const technicalPatterns = [
     /crewai/i,
-    /citation/i,
-    /evidence/i,
     /llm/i,
     /ollama/i,
     /tidak mengembalikan/i,
+    /jawaban kosong/i,
+    /empty/i,
+  ];
+
+  if (noSourcePatterns.some((pattern) => pattern.test(rawMessage))) {
+    return "FAQ tidak disimpan karena tidak ada sumber dari dokumen terindeks.";
+  }
+
+  if (technicalPatterns.some((pattern) => pattern.test(rawMessage))) {
+    console.warn("FAQ generation detail:", rawMessage);
+    return "FAQ belum bisa dibuat karena AI belum mengembalikan jawaban. Coba lagi sebentar lagi.";
+  }
+
+  const missingCitationPatterns = [
+    /citation/i,
+    /evidence/i,
     /tidak ada sumber/i,
     /belum punya sumber/i,
   ];
 
-  if (technicalPatterns.some((pattern) => pattern.test(rawMessage))) {
+  if (missingCitationPatterns.some((pattern) => pattern.test(rawMessage))) {
     console.warn("FAQ generation detail:", rawMessage);
     return "FAQ tidak disimpan karena tidak ada sumber dari dokumen terindeks.";
   }
