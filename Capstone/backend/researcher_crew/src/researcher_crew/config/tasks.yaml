@@ -1,32 +1,56 @@
-research_task:
+chat_answer_task:
   description: >
-    Evaluate the evidence below against the user's question: "{question}".
+    Answer the user's latest question in Indonesian using only the retrieved evidence.
 
-    RETRIEVED EVIDENCE:
+    Latest question:
+    {question}
+
+    Conversation context:
+    {conversation_context}
+
+    Retrieved evidence:
     {evidence}
 
-    Keep only excerpts that directly answer the question. Do not combine unrelated
-    clauses, complete missing logic, or add outside knowledge. Preserve each evidence
-    marker such as [1] exactly. Never replace a numeric marker with a placeholder such
-    as [n]. If the question is ambiguous, explicitly identify the narrow interpretation
-    supported by the evidence.
-  expected_output: >
-    A compact evidence pack containing only directly relevant facts and their original [n] markers.
-  agent: researcher
+    Be natural and helpful. Choose the format that best fits the question:
+    short paragraphs, bullets, numbered steps, a small table, or a mix. Do not force
+    a fixed template. If the user asks about a process or SOP, make the flow clear,
+    but only include actors, forms, approvals, outputs, or deadlines that are supported
+    by the evidence.
 
-reporting_task:
-  description: >
-    Answer the user's question "{question}" in Indonesian using only the evidence pack.
-    Keep it concise and concrete, preferably 1-3 short paragraphs or a short list.
-    Every factual sentence or bullet must end with its actual numeric evidence marker,
-    such as [1] or [2]. Never output a generic placeholder instead. Never invent a file, page,
-    section title, clause, numbering, requirement, formula, exception, or causal link. Do not create hypothetical
-    examples or perform new arithmetic; reproduce only formulas and figures explicitly
-    stated in the evidence.
-    If the evidence only supports one interpretation, state that interpretation.
-    If evidence is weak, conflicting, or missing, say what cannot be confirmed and ask
-    for the specific detail needed. Do not produce a separate sources section because
-    the application renders source details from the [n] markers.
+    Citation rules:
+    - Keep citation markers like [1] and [2] in the answer.
+    - Put citations at the end of important paragraphs, bullets, or table rows.
+    - Do not cite every small phrase if one citation can support the whole sentence.
+    - Never output a generic marker like [n].
+    - Do not write a separate sources/references section because the app renders
+      source details from the markers.
+
+    Reliability rules:
+    - Do not invent policy details, files, page numbers, form numbers, approvals,
+      actors, calculations, requirements, exceptions, or recommendations.
+    - If something is not confirmed by the evidence, say that briefly.
+    - Avoid long narrative filler.
   expected_output: >
-    A grounded Indonesian answer with numeric citations such as [1] on every factual sentence, without a sources section or markdown code fences.
-  agent: reporting_analyst
+    A clear grounded Indonesian answer with tidy numeric citation markers and no
+    separate sources section.
+  agent: answer_writer
+
+faq_answer_task:
+  description: >
+    Write a short Indonesian FAQ answer for this question using only the retrieved evidence.
+
+    Question:
+    {question}
+
+    Retrieved evidence:
+    {evidence}
+
+    The answer must fit an accordion FAQ card: one short paragraph, maximum two
+    sentences, direct to the point. Keep citation markers like [1] at the end of
+    the sentence. Never output [n]. Do not create bullets, headings, tables,
+    markdown code fences, or a separate sources section. If the evidence is
+    insufficient, say briefly that the information is not confirmed in the indexed
+    documents.
+  expected_output: >
+    One short FAQ paragraph in Indonesian with numeric citation markers.
+  agent: faq_writer

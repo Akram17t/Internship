@@ -633,8 +633,8 @@ def _build_faq_item(payload: AdminFAQPayload, faq_id: str | None = None) -> FAQI
         raise HTTPException(
             status_code=422,
             detail=(
-                "FAQ tidak disimpan karena jawabannya belum ditemukan atau "
-                "pertanyaannya masih kurang jelas di dokumen. Coba tulis pertanyaan yang lebih spesifik."
+                "FAQ tidak disimpan karena tidak ada sumber dari dokumen terindeks. "
+                "Coba tulis pertanyaan yang lebih spesifik atau tambahkan dokumen yang relevan."
             ),
         )
     source = citations[0].source if citations else ""

@@ -1,13 +1,19 @@
 from __future__ import annotations
 
-import os
+import sys
+from pathlib import Path
 
 from crewai import Agent, Crew, LLM, Process, Task
-from crewai.project import CrewBase, agent, crew, task
 from crewai.agents.agent_builder.base_agent import BaseAgent
-from dotenv import load_dotenv
+from crewai.project import CrewBase, agent, crew, task
 
-load_dotenv()
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from backend.settings import get_int_env, get_required_env, load_capstone_env
+
+load_capstone_env()
 
 
 @CrewBase
@@ -20,49 +26,62 @@ class ResearcherCrew():
     agents: list[BaseAgent]
     tasks: list[Task]
 
-    def _llm(self) -> LLM:
+    def _llm(self, temperature: float = 0.2, max_tokens: int | None = None) -> LLM:
         return LLM(
-            model=os.getenv("MODEL", "ollama/qwen2.5:7b-instruct-q6_K"),
-            base_url=os.getenv("OLLAMA_BASE_URL", os.getenv("API_BASE", "http://localhost:11434")),
-            temperature=0.1,
+            model=get_required_env("MODEL"),
+            base_url=get_required_env("OLLAMA_BASE_URL"),
+            temperature=temperature,
+            max_tokens=max_tokens or get_int_env("OLLAMA_NUM_PREDICT", 1100),
+            timeout=get_int_env("OLLAMA_TIMEOUT_SECONDS", 240),
             seed=7,
         )
 
     @agent
-    def researcher(self) -> Agent:
+    def answer_writer(self) -> Agent:
         return Agent(
-            config=self.agents_config['researcher'], # type: ignore[index]
-            llm=self._llm(),
-            verbose=True
+            config=self.agents_config["answer_writer"],  # type: ignore[index]
+            llm=self._llm(temperature=0.3),
+            verbose=False,
         )
 
     @agent
-    def reporting_analyst(self) -> Agent:
+    def faq_writer(self) -> Agent:
         return Agent(
-            config=self.agents_config['reporting_analyst'], # type: ignore[index]
-            llm=self._llm(),
-            verbose=True
+            config=self.agents_config["faq_writer"],  # type: ignore[index]
+            llm=self._llm(
+                temperature=0.1,
+                max_tokens=get_int_env("FAQ_NUM_PREDICT", 180),
+            ),
+            verbose=False,
         )
 
     @task
-    def research_task(self) -> Task:
+    def chat_answer_task(self) -> Task:
         return Task(
-            config=self.tasks_config['research_task'], # type: ignore[index]
+            config=self.tasks_config["chat_answer_task"],  # type: ignore[index]
         )
 
     @task
-    def reporting_task(self) -> Task:
+    def faq_answer_task(self) -> Task:
         return Task(
-            config=self.tasks_config['reporting_task'], # type: ignore[index]
-            context=[self.research_task()],
+            config=self.tasks_config["faq_answer_task"],  # type: ignore[index]
         )
 
     @crew
     def crew(self) -> Crew:
-        """Creates the ResearcherCrew crew"""
+        """Creates the chat answer crew."""
         return Crew(
-            agents=self.agents,
-            tasks=self.tasks,
+            agents=[self.answer_writer()],
+            tasks=[self.chat_answer_task()],
             process=Process.sequential,
-            verbose=True,
+            verbose=False,
+        )
+
+    def faq_crew(self) -> Crew:
+        """Creates the short FAQ answer crew."""
+        return Crew(
+            agents=[self.faq_writer()],
+            tasks=[self.faq_answer_task()],
+            process=Process.sequential,
+            verbose=False,
         )

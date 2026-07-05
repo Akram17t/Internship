@@ -748,9 +748,24 @@ function formatMessage(content, citations = [], formDownloads = []) {
   const lines = String(content).split(/\r?\n/);
   const citationMap = buildCitationMap(citations);
   let list = null;
-  lines.forEach((line) => {
+  for (let index = 0; index < lines.length; index += 1) {
+    const tableRange = getMarkdownTableRange(lines, index);
+    if (tableRange) {
+      list = null;
+      wrapper.appendChild(
+        createMarkdownTable(
+          lines.slice(tableRange.start, tableRange.end),
+          citationMap,
+          formDownloads,
+        ),
+      );
+      index = tableRange.end - 1;
+      continue;
+    }
+
+    const line = lines[index];
     const value = line.trim();
-    if (!value) return;
+    if (!value) continue;
     if (value.startsWith("- ")) {
       if (!list) {
         list = document.createElement("ul");
@@ -759,13 +774,79 @@ function formatMessage(content, citations = [], formDownloads = []) {
       const item = document.createElement("li");
       appendFormattedText(item, value.slice(2), citationMap, formDownloads);
       list.appendChild(item);
-      return;
+      continue;
     }
     list = null;
     const paragraph = document.createElement("p");
     appendFormattedText(paragraph, value, citationMap, formDownloads);
     wrapper.appendChild(paragraph);
+  }
+  return wrapper;
+}
+
+function getMarkdownTableRange(lines, start) {
+  if (!isMarkdownTableRow(lines[start])) return null;
+  if (!isMarkdownTableSeparator(lines[start + 1] || "")) return null;
+
+  let end = start + 2;
+  while (end < lines.length && isMarkdownTableRow(lines[end])) {
+    end += 1;
+  }
+
+  return end > start + 2 ? { start, end } : null;
+}
+
+function isMarkdownTableRow(line) {
+  const value = String(line || "").trim();
+  return value.startsWith("|") && value.endsWith("|") && value.split("|").length > 3;
+}
+
+function isMarkdownTableSeparator(line) {
+  const cells = splitMarkdownTableRow(line);
+  return (
+    cells.length > 1 &&
+    cells.every((cell) => /^:?-{3,}:?$/.test(cell.replace(/\s/g, "")))
+  );
+}
+
+function splitMarkdownTableRow(line) {
+  return String(line || "")
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((cell) => cell.trim());
+}
+
+function createMarkdownTable(lines, citationMap, formDownloads = []) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "message-table-wrap";
+  const table = document.createElement("table");
+  table.className = "message-table";
+  const headerCells = splitMarkdownTableRow(lines[0]);
+  const bodyRows = lines.slice(2).map(splitMarkdownTableRow);
+  const thead = document.createElement("thead");
+  const headerRow = document.createElement("tr");
+  headerCells.forEach((cell) => {
+    const th = document.createElement("th");
+    appendFormattedText(th, cell, citationMap, formDownloads);
+    headerRow.appendChild(th);
   });
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  bodyRows.forEach((row) => {
+    const tr = document.createElement("tr");
+    headerCells.forEach((_, cellIndex) => {
+      const td = document.createElement("td");
+      appendFormattedText(td, row[cellIndex] || "", citationMap, formDownloads);
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  wrapper.appendChild(table);
   return wrapper;
 }
 
@@ -781,7 +862,7 @@ function buildCitationMap(citations) {
 
 function appendFormattedText(container, text, citationMap, formDownloads = []) {
   const formMatches = findFormDownloadMatches(text, formDownloads);
-  const tokenPattern = /(\[(\d+)\]|\*\*([^*]+)\*\*)/g;
+  const tokenPattern = /(\[(\d+)\]|\*\*([^*]+)\*\*|\*([^*\s][^*]*?)\*)/g;
   let cursor = 0;
   let match = tokenPattern.exec(text);
 
@@ -808,6 +889,10 @@ function appendFormattedText(container, text, citationMap, formDownloads = []) {
       const strong = document.createElement("strong");
       appendTextWithFormChips(strong, match[3], match.index + 2, formMatches);
       container.append(strong);
+    } else if (match[4]) {
+      const emphasis = document.createElement("em");
+      appendTextWithFormChips(emphasis, match[4], match.index + 1, formMatches);
+      container.append(emphasis);
     }
 
     cursor = tokenPattern.lastIndex;
@@ -950,6 +1035,14 @@ function renderFaqs() {
       trigger.setAttribute("aria-expanded", String(isOpen));
     });
     askButton.addEventListener("click", () => {
+      if (!hasFaqEvidence(item)) {
+        openDocumentErrorModal(
+          "FAQ ini belum punya sumber dari dokumen terindeks, jadi belum bisa dipakai untuk bertanya di chat.",
+          [],
+          "FAQ tidak ada sumbernya",
+        );
+        return;
+      }
       elements.chatInput.value = item.suggested_query || item.question;
       navigateTo("chat");
       window.setTimeout(() => elements.chatInput.focus(), 0);
@@ -1014,6 +1107,10 @@ function getFaqCitations(item) {
       download_url: item.source_url || "",
     },
   ];
+}
+
+function hasFaqEvidence(item) {
+  return getFaqCitations(item).length > 0;
 }
 
 function renderFaqCitations(container, citations) {
@@ -1105,12 +1202,17 @@ async function saveFaq(event) {
     const responsePayload = await readJsonResponse(response);
     if (!response.ok)
       throw new Error(formatApiError(responsePayload.detail, "FAQ update failed."));
+    if (responsePayload.item && !hasFaqEvidence(normalizeFaq(responsePayload.item))) {
+      throw new Error(
+        "FAQ tidak disimpan karena tidak ada sumber dari dokumen terindeks.",
+      );
+    }
 
     showFaqStatus(responsePayload.message || "FAQ saved.");
     resetFaqForm(false);
     await loadFaqs();
   } catch (error) {
-    const message = error.message || "FAQ update failed.";
+    const message = formatFaqSaveError(error);
     showFaqStatus("FAQ tidak disimpan.", true);
     openDocumentErrorModal(
       message,
@@ -1121,6 +1223,31 @@ async function saveFaq(event) {
     state.isMutatingFaq = false;
     updateFaqControls();
   }
+}
+
+function formatFaqSaveError(error) {
+  const rawMessage = String(error?.message || "").trim();
+  if (!rawMessage) {
+    return "FAQ tidak disimpan karena tidak ada sumber dari dokumen terindeks.";
+  }
+
+  const technicalPatterns = [
+    /crewai/i,
+    /citation/i,
+    /evidence/i,
+    /llm/i,
+    /ollama/i,
+    /tidak mengembalikan/i,
+    /tidak ada sumber/i,
+    /belum punya sumber/i,
+  ];
+
+  if (technicalPatterns.some((pattern) => pattern.test(rawMessage))) {
+    console.warn("FAQ generation detail:", rawMessage);
+    return "FAQ tidak disimpan karena tidak ada sumber dari dokumen terindeks.";
+  }
+
+  return rawMessage;
 }
 
 function startFaqEdit(item) {
