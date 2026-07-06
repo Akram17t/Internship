@@ -2,13 +2,13 @@
 
 RAG-based internal document assistant for SOP, guideline, and runbook search, with a custom web frontend served directly from FastAPI.
 
-General project documentation is available in [PROJECT_DOCUMENTATION.md](PROJECT_DOCUMENTATION.md).
+Architecture and design docs, including a topology diagram, are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Stack
 
 - FastAPI for REST backend and frontend hosting
 - Vanilla HTML, CSS, and JavaScript for the web UI
-- CrewAI for multi-agent orchestration
+- CrewAI for the chat answer agent (FAQ answers use a direct Ollama call)
 - ChromaDB for local vector storage
 - Ollama for local LLM and embedding
 

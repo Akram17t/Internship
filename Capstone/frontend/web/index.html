@@ -138,12 +138,9 @@
           <section class="screen faq-screen" data-screen-panel="faq">
             <div class="faq-canvas">
               <div class="page-intro">
-                <h2>
-                  FAQ <span class="accent-text">HR</span>
-                </h2>
+                <h2>FAQ <span class="accent-text">HR</span></h2>
                 <p>
-                  Kumpulan pertanyaan umum dari SOP dan dokumen internal ICS
-                  Compute.
+                  Common questions from ICS Compute SOPs and internal documents.
                 </p>
               </div>
               <section
@@ -158,11 +155,11 @@
                 <form class="admin-faq-form" id="faqForm">
                   <input id="faqIdInput" type="hidden" />
                   <label class="admin-faq-wide">
-                    <span>Pertanyaan</span>
+                    <span>Question</span>
                     <input
                       id="faqQuestionInput"
                       type="text"
-                      placeholder="Tulis pertanyaan FAQ"
+                      placeholder="Write an FAQ question"
                       required
                     />
                   </label>
@@ -181,6 +178,15 @@
                       hidden
                     >
                       Cancel
+                    </button>
+                    <button
+                      class="document-undo-button"
+                      id="faqStopButton"
+                      type="button"
+                      hidden
+                    >
+                      <span class="material-symbols-outlined">close</span>
+                      Undo
                     </button>
                   </div>
                 </form>
@@ -209,8 +215,8 @@
                   <p>
                     Access SOP, supporting forms, and internal HR operational
                     documents<br class="desktop-break" />
-                    in one place. SOP files are used for retrieval, while
-                    forms stay available<br class="desktop-break" />
+                    in one place. SOP files are used for retrieval, while forms
+                    stay available<br class="desktop-break" />
                     as direct downloads.
                   </p>
                 </div>
@@ -371,8 +377,7 @@
         </div>
         <div class="document-actions">
           <a class="document-download" target="_blank" rel="noopener"
-            >Download
-            <span class="material-symbols-outlined">download</span></a
+            >Download <span class="material-symbols-outlined">download</span></a
           >
           <button class="document-update admin-only" type="button">
             <span class="material-symbols-outlined">edit_document</span>
@@ -422,7 +427,7 @@
               id="adminPassword"
               type="password"
               autocomplete="current-password"
-              placeholder="Masukkan password"
+              placeholder="Enter password"
               required
             />
           </label>

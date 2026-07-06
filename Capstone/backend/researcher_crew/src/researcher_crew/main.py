@@ -90,16 +90,6 @@ def _post_ollama_generate(payload: dict[str, object]) -> str:
     return str(body.get("response", "")).strip()
 
 
-def _build_retrieval_query(question: str, conversation_context: str = "") -> str:
-    if not conversation_context:
-        return question
-    return (
-        "Konteks percakapan sebelumnya:\n"
-        f"{conversation_context}\n\n"
-        f"Pertanyaan terbaru:\n{question}"
-    )
-
-
 def _crew_output_to_text(result: object) -> str:
     raw = getattr(result, "raw", None)
     return str(raw if raw is not None else result).strip()
@@ -119,29 +109,45 @@ def _generate_answer(question: str, evidence: str, conversation_context: str = "
     return _crew_output_to_text(result)
 
 
+FAQ_MAX_WORDS = 45
+
+
 def _generate_faq_answer(question: str, evidence: str) -> str:
     prompt = (
         "Kamu adalah HR Assistant ICS Compute. Buat jawaban FAQ singkat dalam bahasa Indonesia. "
-        "Gunakan hanya evidence yang diberikan. Jawaban harus 1 paragraf, maksimal 2 kalimat, "
-        "langsung ke inti, dan tetap memakai marker sitasi seperti [1] di akhir klaim. "
-        "Jangan tulis sumber terpisah, heading, bullet, atau markdown table. Jangan gunakan [n].\n\n"
+        "Gunakan hanya evidence yang diberikan. Jawaban harus 1 paragraf, "
+        f"MAKSIMAL {FAQ_MAX_WORDS} kata, dan HARUS berupa kalimat yang utuh dan selesai "
+        "(jangan berhenti di tengah kalimat). Langsung ke inti, dan tetap memakai "
+        "marker sitasi seperti [1] di akhir klaim. Jangan tulis sumber terpisah, heading, "
+        "bullet, atau markdown table. Jangan gunakan [n].\n\n"
         f"Pertanyaan:\n{question}\n\n"
         f"Evidence:\n{evidence}\n\n"
         "Jawaban FAQ:"
     )
-    answer = _post_ollama_generate(
-        {
-            "model": _ollama_model_name(),
-            "prompt": prompt,
-            "stream": False,
-            "options": {
-                "temperature": 0.1,
-                "seed": 11,
-                "num_ctx": get_int_env("OLLAMA_NUM_CTX", 4096),
-                "num_predict": max(get_int_env("FAQ_NUM_PREDICT", 180), 240),
-            },
-        }
-    )
+    payload = {
+        "model": _ollama_model_name(),
+        "prompt": prompt,
+        "stream": False,
+        # Disable hidden reasoning so the whole token budget goes to the
+        # answer itself; otherwise a thinking model (e.g. qwen3) spends
+        # num_predict on <think> tokens and the answer gets cut off midway.
+        "think": False,
+        "options": {
+            "temperature": 0.1,
+            "seed": 11,
+            "num_ctx": get_int_env("OLLAMA_NUM_CTX", 4096),
+            "num_predict": max(get_int_env("FAQ_NUM_PREDICT", 180), 256),
+        },
+    }
+    try:
+        answer = _post_ollama_generate(payload)
+    except OllamaGenerationError as error:
+        # Non-thinking models (e.g. gemma3) reject the `think` flag; retry once
+        # without it so the FAQ still generates on any local model.
+        if "think" not in str(error).lower():
+            raise
+        payload.pop("think", None)
+        answer = _post_ollama_generate(payload)
     if not answer:
         raise OllamaGenerationError("Ollama mengembalikan jawaban FAQ kosong.")
     return answer
@@ -152,8 +158,12 @@ def run_knowledge_crew(
     conversation_context: str = "",
 ) -> tuple[str, list[dict[str, object]]]:
     """Retrieve relevant document evidence and answer through the chat crew."""
-    retrieval_query = _build_retrieval_query(question, conversation_context)
-    evidence, citations = retrieve_knowledge(retrieval_query)
+    # Retrieve on the raw question only. Folding the previous turn into the
+    # retrieval query lets a long earlier answer dominate the embedding and pull
+    # the wrong topic's documents (e.g. a follow-up about "terminasi" retrieving
+    # the previous "perjalanan dinas" chunks). The conversation context is still
+    # passed to the LLM below so it can resolve follow-up phrasing.
+    evidence, citations = retrieve_knowledge(question)
     if not citations:
         return (
             "Informasi tersebut tidak tersedia dalam dokumen yang saat ini terindeks. "

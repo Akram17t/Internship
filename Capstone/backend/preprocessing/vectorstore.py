@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import uuid
 from functools import lru_cache
 from pathlib import Path
@@ -7,7 +8,13 @@ from pathlib import Path
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 
-from backend.settings import get_env, get_int_env, get_required_env, load_capstone_env
+from backend.settings import (
+    get_env,
+    get_float_env,
+    get_int_env,
+    get_required_env,
+    load_capstone_env,
+)
 from backend.preprocessing.embedding import get_embedding_model
 
 load_capstone_env()
@@ -80,10 +87,13 @@ def get_reranker():
         return None
 
 
-def _rerank_documents(query: str, documents: list[Document]) -> list[Document]:
+def _rerank_documents(
+    query: str, documents: list[Document]
+) -> list[tuple[Document, float | None]]:
+    """Order documents by reranker relevance; score is a 0-1 value (None if no reranker)."""
     reranker = get_reranker()
     if reranker is None or not documents:
-        return documents
+        return [(document, None) for document in documents]
 
     pairs = [(query, document.page_content) for document in documents]
     scores = reranker.predict(pairs)
@@ -92,12 +102,23 @@ def _rerank_documents(query: str, documents: list[Document]) -> list[Document]:
         key=lambda item: float(item[1]),
         reverse=True,
     )
-    return [document for document, _ in ranked]
+    # CrossEncoder outputs relevance logits; sigmoid normalizes them to 0-1
+    # so RETRIEVAL_MIN_SCORE is an intuitive, model-agnostic threshold.
+    return [(document, 1.0 / (1.0 + math.exp(-float(score)))) for document, score in ranked]
 
 
 def hybrid_search(query: str, k: int = 4) -> list[Document]:
-    """Retrieve semantically relevant chunks, then rerank them when available."""
+    """Retrieve semantically relevant chunks, rerank, and drop off-topic matches."""
     vectorstore = get_vectorstore()
     fetch_k = get_int_env("RERANK_CANDIDATES", max(k + 2, 6))
     vector_results = vectorstore.similarity_search(query, k=fetch_k)
-    return _rerank_documents(query, vector_results)[:k]
+    ranked = _rerank_documents(query, vector_results)
+
+    # When the best rerank score is below the threshold, treat the query as
+    # having no relevant source so callers can short-circuit before hitting the
+    # LLM (e.g. an off-topic FAQ question -> instant "no source" response).
+    min_score = get_float_env("RETRIEVAL_MIN_SCORE", 0.0)
+    if min_score > 0:
+        ranked = [item for item in ranked if item[1] is None or item[1] >= min_score]
+
+    return [document for document, _ in ranked][:k]

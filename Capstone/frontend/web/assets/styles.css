@@ -748,13 +748,12 @@ body[data-role="admin"] .account-action:hover {
 
 .citation-chip {
   position: relative;
-  display: inline-grid;
-  grid-template-columns: 18px auto;
+  display: inline-flex;
   align-items: center;
-  gap: 3px;
-  min-width: 42px;
+  justify-content: center;
+  min-width: 0;
   height: 26px;
-  padding: 0 8px 0 6px;
+  padding: 0 6px;
   border: 1px solid rgba(10, 10, 10, 0.16);
   border-radius: 999px;
   background: rgba(250, 248, 242, 0.92);
@@ -774,12 +773,10 @@ body[data-role="admin"] .account-action:hover {
 }
 
 .citation-chip.is-inline {
-  min-width: 34px;
+  min-width: 0;
   height: 22px;
-  grid-template-columns: 15px auto;
-  gap: 2px;
   margin: 0 3px;
-  padding: 0 7px 0 5px;
+  padding: 0 5px;
   transform: translateY(4px);
 }
 
@@ -822,10 +819,6 @@ body[data-role="admin"] .account-action:hover {
 .citation-chip:hover .citation-chip-icon,
 .citation-chip:focus-visible .citation-chip-icon {
   color: var(--paper);
-}
-
-.citation-chip-number {
-  transform: translateY(1px);
 }
 
 .citation-tooltip {

@@ -38,3 +38,11 @@ def get_int_env(name: str, default: int) -> int:
         return int(raw_value)
     except ValueError as error:
         raise RuntimeError(f"{name} must be an integer in {ENV_FILE}") from error
+
+
+def get_float_env(name: str, default: float) -> float:
+    raw_value = get_env(name, str(default))
+    try:
+        return float(raw_value)
+    except ValueError as error:
+        raise RuntimeError(f"{name} must be a number in {ENV_FILE}") from error

@@ -213,6 +213,7 @@ const state = {
   faqItems: fallbackFaqItems,
   editingFaqId: "",
   isMutatingFaq: false,
+  activeFaqGeneration: null,
   needsReindex: loadReindexRequired(),
   isReindexing: false,
   pendingReplacePath: "",
@@ -240,6 +241,7 @@ const elements = {
   faqQuestionInput: document.getElementById("faqQuestionInput"),
   faqSubmitButton: document.getElementById("faqSubmitButton"),
   faqCancelButton: document.getElementById("faqCancelButton"),
+  faqStopButton: document.getElementById("faqStopButton"),
   faqStatus: document.getElementById("faqStatus"),
   libraryList: document.getElementById("libraryList"),
   librarySearch: document.getElementById("librarySearch"),
@@ -627,10 +629,6 @@ function createCitationChip(citation, index, isInline = false) {
   icon.setAttribute("aria-hidden", "true");
   icon.textContent = getCitationIcon(fileType);
 
-  const number = document.createElement("span");
-  number.className = "citation-chip-number";
-  number.textContent = String(citation.id || index + 1);
-
   const tooltip = document.createElement("span");
   tooltip.className = "citation-tooltip";
   tooltip.setAttribute("role", "tooltip");
@@ -642,7 +640,7 @@ function createCitationChip(citation, index, isInline = false) {
   meta.textContent = formatCitationLocation(citation);
 
   tooltip.append(title, meta);
-  chip.append(icon, number, tooltip);
+  chip.append(icon, tooltip);
   return chip;
 }
 
@@ -984,10 +982,10 @@ function updateComposer() {
   );
   elements.sendButton.classList.toggle("is-stopping", state.isSubmitting);
   elements.chatInput.placeholder = state.isSubmitting
-    ? "Ketik pertanyaan berikutnya..."
+    ? "Type your next question..."
     : isMobile
-      ? "Tanya dokumen HR..."
-      : "Tanya soal SOP HR, onboarding, perjalanan dinas, terminasi, atau dokumen internal lainnya...";
+      ? "Ask about HR docs..."
+      : "Ask about HR SOPs, onboarding, travel, or internal documents...";
 }
 
 function renderFaqs() {
@@ -1151,6 +1149,43 @@ function formatCitationText(citation) {
 function bindAdminFaqs() {
   elements.faqForm.addEventListener("submit", saveFaq);
   elements.faqCancelButton.addEventListener("click", cancelFaqEdit);
+  if (elements.faqStopButton) {
+    elements.faqStopButton.addEventListener("click", cancelFaqGeneration);
+  }
+}
+
+function showFaqStop() {
+  if (!elements.faqStopButton) return;
+  elements.faqStopButton.hidden = false;
+  elements.faqStopButton.disabled = false;
+}
+
+function hideFaqStop() {
+  if (elements.faqStopButton) elements.faqStopButton.hidden = true;
+}
+
+// Deletes a FAQ in the background without touching the UI. Used to roll back a
+// generation the admin cancelled while the request was still in flight.
+function discardFaqSilently(faqId) {
+  if (!faqId) return;
+  fetch(`/api/admin/faq/${encodeURIComponent(faqId)}`, {
+    method: "DELETE",
+    headers: { "X-Admin-Email": state.session.email },
+  }).catch(() => {});
+}
+
+function cancelFaqGeneration() {
+  const generation = state.activeFaqGeneration;
+  if (!generation || !state.isMutatingFaq) return;
+  // Mark this generation as cancelled; when its request resolves it will roll
+  // back any FAQ the server already created instead of updating the UI.
+  generation.cancelled = true;
+  state.activeFaqGeneration = null;
+  state.isMutatingFaq = false;
+  hideFaqStop();
+  resetFaqForm(false);
+  showFaqStatus("Generate dibatalkan.");
+  updateFaqControls();
 }
 
 function cancelFaqEdit() {
@@ -1181,8 +1216,11 @@ async function saveFaq(event) {
     return;
   }
 
+  const generation = { cancelled: false };
+  state.activeFaqGeneration = generation;
   state.isMutatingFaq = true;
   updateFaqControls();
+  showFaqStop();
   showFaqStatus(
     faqId ? "Regenerating FAQ answer..." : "Generating FAQ answer...",
   );
@@ -1200,8 +1238,23 @@ async function saveFaq(event) {
       },
     );
     const responsePayload = await readJsonResponse(response);
-    if (!response.ok)
-      throw new Error(formatApiError(responsePayload.detail, "FAQ update failed."));
+
+    // Admin cancelled while this request was in flight: roll back any FAQ the
+    // server created and leave the UI (already reset by cancel) untouched.
+    if (generation.cancelled) {
+      if (response.ok && !faqId && responsePayload.item?.id) {
+        discardFaqSilently(responsePayload.item.id);
+      }
+      return;
+    }
+
+    if (!response.ok) {
+      const failure = new Error(
+        formatApiError(responsePayload.detail, "FAQ update failed."),
+      );
+      failure.status = response.status;
+      throw failure;
+    }
     if (responsePayload.item && !hasFaqEvidence(normalizeFaq(responsePayload.item))) {
       throw new Error(
         "FAQ tidak disimpan karena tidak ada sumber dari dokumen terindeks.",
@@ -1212,6 +1265,7 @@ async function saveFaq(event) {
     resetFaqForm(false);
     await loadFaqs();
   } catch (error) {
+    if (generation.cancelled) return;
     const message = formatFaqSaveError(error);
     showFaqStatus("FAQ tidak disimpan.", true);
     openDocumentErrorModal(
@@ -1220,51 +1274,47 @@ async function saveFaq(event) {
       faqId ? "FAQ tidak diupdate" : "FAQ tidak dibuat",
     );
   } finally {
-    state.isMutatingFaq = false;
-    updateFaqControls();
+    // Only clear state if this generation is still the active one; a cancel (or
+    // a newer generation) has already reset it otherwise.
+    if (state.activeFaqGeneration === generation) {
+      state.activeFaqGeneration = null;
+      state.isMutatingFaq = false;
+      hideFaqStop();
+      updateFaqControls();
+    }
   }
 }
 
 function formatFaqSaveError(error) {
+  const status = Number(error?.status) || 0;
   const rawMessage = String(error?.message || "").trim();
-  if (!rawMessage) {
-    return "FAQ belum bisa dibuat karena AI belum mengembalikan jawaban. Coba lagi sebentar lagi.";
+
+  // 422: backend sudah memvalidasi bahwa pertanyaan tidak punya sumber
+  // relevan di dokumen terindeks (mis. pertanyaan di luar topik).
+  if (status === 422) {
+    return "FAQ tidak dibuat karena pertanyaan ini tidak punya sumber yang relevan di dokumen terindeks. Coba pertanyaan lain atau tambahkan dokumen terkait.";
   }
 
+  // 5xx: layanan AI lokal (Ollama) mati atau gagal membuat jawaban.
+  if (status >= 500) {
+    console.warn("FAQ generation detail:", rawMessage);
+    return "FAQ belum bisa dibuat karena layanan AI (Ollama) gagal merespons. Pastikan Ollama berjalan lalu coba lagi.";
+  }
+
+  // Error dari sisi klien (tanpa status HTTP) — fallback ke isi pesannya.
+  if (!rawMessage) {
+    return "FAQ belum bisa dibuat. Coba lagi sebentar lagi.";
+  }
   const noSourcePatterns = [
     /tidak ada sumber/i,
     /belum punya sumber/i,
     /tidak tersedia dalam dokumen/i,
     /tidak ditemukan dalam dokumen/i,
-  ];
-  const technicalPatterns = [
-    /crewai/i,
-    /llm/i,
-    /ollama/i,
-    /tidak mengembalikan/i,
-    /jawaban kosong/i,
-    /empty/i,
-  ];
-
-  if (noSourcePatterns.some((pattern) => pattern.test(rawMessage))) {
-    return "FAQ tidak disimpan karena tidak ada sumber dari dokumen terindeks.";
-  }
-
-  if (technicalPatterns.some((pattern) => pattern.test(rawMessage))) {
-    console.warn("FAQ generation detail:", rawMessage);
-    return "FAQ belum bisa dibuat karena AI belum mengembalikan jawaban. Coba lagi sebentar lagi.";
-  }
-
-  const missingCitationPatterns = [
     /citation/i,
     /evidence/i,
-    /tidak ada sumber/i,
-    /belum punya sumber/i,
   ];
-
-  if (missingCitationPatterns.some((pattern) => pattern.test(rawMessage))) {
-    console.warn("FAQ generation detail:", rawMessage);
-    return "FAQ tidak disimpan karena tidak ada sumber dari dokumen terindeks.";
+  if (noSourcePatterns.some((pattern) => pattern.test(rawMessage))) {
+    return "FAQ tidak dibuat karena tidak ada sumber yang relevan di dokumen terindeks.";
   }
 
   return rawMessage;
@@ -1278,6 +1328,7 @@ function startFaqEdit(item) {
     state.isReindexing
   )
     return;
+  hideFaqStop();
   state.editingFaqId = item.id;
   elements.faqIdInput.value = item.id;
   elements.faqQuestionInput.value = item.question;
@@ -1340,6 +1391,10 @@ function updateFaqControls() {
   elements.body.dataset.faqState = state.isMutatingFaq ? "running" : "idle";
   elements.faqSubmitButton.disabled = isLocked;
   elements.faqCancelButton.disabled = isLocked;
+  // The stop button must stay clickable while a generation is running so the
+  // admin can actually cancel it.
+  if (elements.faqStopButton)
+    elements.faqStopButton.disabled = !state.isMutatingFaq;
   elements.faqQuestionInput.disabled = isLocked;
   elements.faqList
     .querySelectorAll(".faq-edit, .faq-delete")
