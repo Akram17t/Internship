@@ -158,11 +158,10 @@ def _crew_output_to_text(result: object) -> str:
     return str(raw if raw is not None else result).strip()
 
 
-def _generate_answer(question: str, evidence: str, conversation_context: str = "") -> str:
+def _generate_answer(question: str, evidence: str) -> str:
     inputs = {
         "question": question,
         "evidence": evidence,
-        "conversation_context": conversation_context or "-",
     }
     try:
         result = ResearcherCrew().crew().kickoff(inputs=inputs)
@@ -203,10 +202,12 @@ def run_knowledge_crew(
     conversation_context: str = "",
 ) -> tuple[str, list[dict[str, object]]]:
     """Retrieve relevant document evidence and answer through the chat crew."""
-    # Rewrite follow-ups ("form untuk itu?") into a standalone query so retrieval
-    # keeps the right topic without being polluted by the long previous answer.
-    retrieval_query = _rewrite_query(question, conversation_context)
-    evidence, citations = retrieve_knowledge(retrieval_query)
+    # Rewrite follow-ups ("form untuk itu?") into a standalone query. That query
+    # is used for BOTH retrieval and generation, and the conversation context is
+    # deliberately NOT passed to generation: once the question is standalone, the
+    # previous turn only bleeds the old topic into the new answer.
+    standalone_question = _rewrite_query(question, conversation_context)
+    evidence, citations = retrieve_knowledge(standalone_question)
     if not citations:
         return (
             "Informasi tersebut tidak tersedia dalam dokumen yang saat ini terindeks. "
@@ -214,12 +215,9 @@ def run_knowledge_crew(
             [],
         )
 
-    inputs = {
-        "question": question,
-        "evidence": evidence,
-        "conversation_context": conversation_context,
-    }
-    answer = GENERATED_SOURCES_SECTION.sub("", _generate_answer(**inputs)).strip()
+    answer = GENERATED_SOURCES_SECTION.sub(
+        "", _generate_answer(standalone_question, evidence)
+    ).strip()
     if citations:
         answer = re.sub(r"\[[nN]\]", f"[{citations[0]['id']}]", answer)
     used_citation_ids = {int(value) for value in re.findall(r"\[(\d+)\]", answer)}

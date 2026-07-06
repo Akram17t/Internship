@@ -221,6 +221,7 @@ const state = {
   documentUndo: null,
   documentUndoStack: [],
   documentChanges: [],
+  pendingFormFill: null,
 };
 
 const elements = {
@@ -277,6 +278,11 @@ const elements = {
   documentErrorSummary: document.getElementById("documentErrorSummary"),
   documentErrorList: document.getElementById("documentErrorList"),
   documentErrorCloseButton: document.getElementById("documentErrorCloseButton"),
+  formFillModal: document.getElementById("formFillModal"),
+  formFillForm: document.getElementById("formFillForm"),
+  formFillCloseButton: document.getElementById("formFillCloseButton"),
+  formFillSubtitle: document.getElementById("formFillSubtitle"),
+  formFillFields: document.getElementById("formFillFields"),
   adminDocumentPanel: document.getElementById("adminDocumentPanel"),
   adminDocumentForm: document.getElementById("adminDocumentForm"),
   documentFileInput: document.getElementById("documentFileInput"),
@@ -655,15 +661,53 @@ function renderFormDownloads(container, downloads = []) {
   label.className = "form-downloads-label";
   label.textContent = "Form yang bisa diunduh";
 
-  const actions = document.createElement("span");
-  actions.className = "form-downloads-actions";
+  const list = document.createElement("div");
+  list.className = "form-downloads-list";
 
   items.forEach((item) => {
-    actions.appendChild(createFormDownloadChip(item));
+    list.appendChild(createFormDownloadRow(item));
   });
 
-  wrapper.append(label, actions);
+  wrapper.append(label, list);
   container.appendChild(wrapper);
+}
+
+function createFormDownloadRow(item) {
+  const row = document.createElement("div");
+  row.className = "form-download-row";
+
+  const name = document.createElement("span");
+  name.className = "form-download-name";
+  const icon = document.createElement("span");
+  icon.className = "material-symbols-outlined form-download-icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.textContent = "table_chart";
+  const text = document.createElement("span");
+  text.textContent = item.label || item.name || "Form";
+  name.append(icon, text);
+
+  const fileName = `${item.label || item.name || "form"}.xlsx`;
+
+  const templateButton = document.createElement("button");
+  templateButton.type = "button";
+  templateButton.className = "form-download-action";
+  templateButton.textContent = "Template";
+  templateButton.title = "Unduh form kosong";
+  templateButton.addEventListener("click", () => {
+    if (item.download_url) downloadDocument(item.download_url, fileName);
+  });
+
+  const filledButton = document.createElement("button");
+  filledButton.type = "button";
+  filledButton.className = "form-download-action is-primary";
+  filledButton.textContent = "Isi & download";
+  filledButton.title = "Isi data lalu unduh form yang sudah terisi";
+  filledButton.addEventListener("click", () => {
+    if (item.download_url) openFormFillModal(item);
+  });
+
+  row.append(name, templateButton, filledButton);
+  return row;
 }
 
 function normalizeFormDownloads(downloads = []) {
@@ -993,6 +1037,31 @@ function renderFaqs() {
       stripCitationMarkers(item.answer),
       new Map(),
     );
+    if (item.image_url) {
+      const image = document.createElement("img");
+      image.className = "faq-answer-image";
+      image.src = item.image_url;
+      image.alt = item.question;
+      image.loading = "lazy";
+      fragment.querySelector(".faq-answer").after(image);
+      askButton.hidden = true;
+      if (isAdminSession()) {
+        const actions = fragment.querySelector(".faq-actions");
+        const fileInput = document.createElement("input");
+        fileInput.type = "file";
+        fileInput.accept = "image/webp,image/png,image/jpeg";
+        fileInput.hidden = true;
+        const changeButton = document.createElement("button");
+        changeButton.type = "button";
+        changeButton.className = "faq-ask";
+        changeButton.textContent = "Ganti gambar";
+        changeButton.addEventListener("click", () => fileInput.click());
+        fileInput.addEventListener("change", () => {
+          uploadPinnedFaqImage(fileInput.files && fileInput.files[0]);
+        });
+        actions.append(changeButton, fileInput);
+      }
+    }
     if (citations.length) {
       renderFaqCitations(citationContainer, citations);
       source.hidden = true;
@@ -1044,6 +1113,31 @@ function renderFaqs() {
   updateFaqControls();
 }
 
+async function uploadPinnedFaqImage(file) {
+  if (!file || !isAdminSession()) return;
+  showFaqStatus("Mengunggah gambar...");
+  try {
+    const response = await fetch("/api/admin/faq-image", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Admin-Email": state.session.email,
+      },
+      body: JSON.stringify({
+        filename: file.name,
+        content_base64: await fileToBase64(file),
+      }),
+    });
+    const payload = await readJsonResponse(response);
+    if (!response.ok)
+      throw new Error(formatApiError(payload.detail, "Gagal mengunggah gambar."));
+    showFaqStatus("Gambar FAQ diperbarui.");
+    await loadFaqs();
+  } catch (error) {
+    showFaqStatus(error.message || "Gagal mengunggah gambar.", true);
+  }
+}
+
 function stripCitationMarkers(value) {
   return String(value)
     .replace(/\s*\[(\d+)\]/g, "")
@@ -1077,6 +1171,7 @@ function normalizeFaq(item) {
     source_url: item.source_url || "",
     suggested_query: item.suggested_query || item.question,
     citations: Array.isArray(item.citations) ? item.citations : [],
+    image_url: item.image_url || "",
   };
 }
 
@@ -1437,6 +1532,11 @@ function bindAuth() {
   elements.logoutModal.addEventListener("click", (event) => {
     if (event.target === elements.logoutModal) closeLogoutModal();
   });
+  elements.formFillCloseButton.addEventListener("click", closeFormFillModal);
+  elements.formFillForm.addEventListener("submit", submitFormFill);
+  elements.formFillModal.addEventListener("click", (event) => {
+    if (event.target === elements.formFillModal) closeFormFillModal();
+  });
   elements.documentErrorCloseButton.addEventListener(
     "click",
     closeDocumentErrorModal,
@@ -1452,6 +1552,9 @@ function bindAuth() {
     if (elements.logoutModal.classList.contains("is-open")) closeLogoutModal();
     if (elements.documentErrorModal.classList.contains("is-open")) {
       closeDocumentErrorModal();
+    }
+    if (elements.formFillModal.classList.contains("is-open")) {
+      closeFormFillModal();
     }
   });
   document.addEventListener("click", (event) => {
@@ -2292,6 +2395,106 @@ function loadConversationId() {
 
 function loadReindexRequired() {
   return window.localStorage.getItem(REINDEX_STORAGE_KEY) === "1";
+}
+
+function formPathFromUrl(url) {
+  // download_url looks like "/api/documents/<encoded relative path>"; the fill
+  // endpoint unquotes it again, so pass the still-encoded path through.
+  return String(url || "").replace(/^\/api\/documents\//, "");
+}
+
+async function openFormFillModal(item) {
+  const path = formPathFromUrl(item.download_url);
+  state.pendingFormFill = { path, label: item.label || item.name || "Form" };
+  elements.formFillSubtitle.textContent = `Isi kolom yang perlu, lalu unduh: ${state.pendingFormFill.label}`;
+  elements.formFillFields.innerHTML =
+    '<p class="form-fill-note">Memuat kolom dari form…</p>';
+  elements.formFillModal.classList.add("is-open");
+  elements.formFillModal.setAttribute("aria-hidden", "false");
+
+  try {
+    const response = await fetch(`/api/forms/fields?path=${encodeURIComponent(path)}`);
+    const payload = await readJsonResponse(response);
+    if (!response.ok)
+      throw new Error(formatApiError(payload.detail, "Gagal memuat kolom form."));
+    // Ignore a stale response if the user already closed/switched forms.
+    if (state.pendingFormFill?.path !== path) return;
+    renderFormFillFields(Array.isArray(payload.fields) ? payload.fields : []);
+  } catch (error) {
+    elements.formFillFields.innerHTML = "";
+    const note = document.createElement("p");
+    note.className = "form-fill-note";
+    note.textContent = error.message || "Gagal memuat kolom form.";
+    elements.formFillFields.appendChild(note);
+  }
+}
+
+function renderFormFillFields(fields) {
+  elements.formFillFields.innerHTML = "";
+  if (!fields.length) {
+    const note = document.createElement("p");
+    note.className = "form-fill-note";
+    note.textContent = "Form ini tidak punya kolom isian yang terdeteksi.";
+    elements.formFillFields.appendChild(note);
+    return;
+  }
+  fields.forEach((field) => {
+    const label = document.createElement("label");
+    const span = document.createElement("span");
+    span.textContent = field.label;
+    const input = document.createElement("input");
+    input.type = "text";
+    input.dataset.key = field.key;
+    label.append(span, input);
+    elements.formFillFields.appendChild(label);
+  });
+  const firstInput = elements.formFillFields.querySelector("input");
+  if (firstInput) window.setTimeout(() => firstInput.focus(), 0);
+}
+
+function closeFormFillModal() {
+  state.pendingFormFill = null;
+  elements.formFillModal.classList.remove("is-open");
+  elements.formFillModal.setAttribute("aria-hidden", "true");
+}
+
+async function submitFormFill(event) {
+  event.preventDefault();
+  const pending = state.pendingFormFill;
+  if (!pending) return;
+
+  const values = {};
+  elements.formFillFields.querySelectorAll("input[data-key]").forEach((input) => {
+    values[input.dataset.key] = input.value.trim();
+  });
+
+  try {
+    const response = await fetch("/api/forms/fill", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: pending.path, values }),
+    });
+    if (!response.ok) {
+      const payload = await readJsonResponse(response);
+      throw new Error(formatApiError(payload.detail, "Gagal mengisi form."));
+    }
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = `${pending.label}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+    closeFormFillModal();
+  } catch (error) {
+    openDocumentErrorModal(
+      error.message || "Gagal mengisi form.",
+      [],
+      "Form gagal diisi",
+    );
+  }
 }
 
 function loadSession() {

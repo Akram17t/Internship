@@ -363,6 +363,29 @@ textarea:focus-visible {
   display: none;
 }
 
+.form-fill-sub {
+  margin: -4px 0 4px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+#formFillModal .auth-card {
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.form-fill-fields {
+  display: grid;
+  gap: 12px;
+  max-height: 52vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.form-fill-note {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .account-popover::after {
   position: absolute;
   left: 24px;
@@ -881,9 +904,9 @@ body[data-role="admin"] .account-action:hover {
 
 .form-downloads {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
   margin-top: 16px;
   padding-top: 12px;
   border-top: 1px solid rgba(10, 10, 10, 0.08);
@@ -894,6 +917,61 @@ body[data-role="admin"] .account-action:hover {
   font-size: 13px;
   font-weight: 500;
   line-height: 20px;
+}
+
+.form-downloads-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-download-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.form-download-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: auto;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 500;
+}
+.form-download-name .form-download-icon {
+  font-size: 18px;
+  color: #145c37;
+}
+
+.form-download-action {
+  min-height: 30px;
+  padding: 0 14px;
+  border: 1px solid rgba(10, 10, 10, 0.18);
+  border-radius: 999px;
+  background: rgba(250, 248, 242, 0.92);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+}
+.form-download-action:hover {
+  border-color: var(--ink);
+}
+.form-download-action.is-primary {
+  border-color: var(--red);
+  background: var(--red);
+  color: var(--paper);
+}
+.form-download-action.is-primary:hover {
+  background: var(--ink);
+  border-color: var(--ink);
 }
 
 .form-downloads-actions {
@@ -1444,6 +1522,15 @@ body[data-faq-state="running"] #faqStatus {
   margin: 0 0 0 16px;
   color: var(--muted);
   line-height: 1.7;
+}
+.faq-answer-image {
+  grid-column: 1;
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 14px 0 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
 }
 .faq-citations {
   grid-column: 1;

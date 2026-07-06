@@ -41,7 +41,7 @@ clean.bat
 ```
 
 - `run.bat` uses `backend\researcher_crew\.venv`, checks the required imports, reads `CHROMA_DIR` and `DATA_DIR` from `.env`, runs ingestion only when no valid vector index exists, then starts FastAPI and opens the web frontend in your browser.
-- `clean.bat` removes `__pycache__`, `.pytest_cache`, and `*.pyc` while preserving the vector database. Use `clean.bat /vectors` only when you intentionally want to remove the `CHROMA_DIR` index and rebuild embeddings.
+- `clean.bat` stops the server, removes `__pycache__`, `.pytest_cache`, and `*.pyc`, and clears the `CHROMA_DIR` vector index (keeping `.gitkeep`) so the next `run.bat` re-ingests documents.
 
 ## Frontend Pages
 

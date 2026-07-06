@@ -5,9 +5,6 @@ chat_answer_task:
     Latest question:
     {question}
 
-    Conversation context:
-    {conversation_context}
-
     Retrieved evidence:
     {evidence}
 

@@ -3,16 +3,18 @@ from __future__ import annotations
 import base64
 import binascii
 import json
+import re
 import sys
 import threading
 import uuid
 from datetime import datetime
 from datetime import timedelta
+from io import BytesIO
 from pathlib import Path
 from urllib.parse import quote, unquote
 
 from fastapi import FastAPI, Header, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -174,6 +176,7 @@ class FAQItem(BaseModel):
     source_url: str = ""
     suggested_query: str
     citations: list[CitationResponse] = Field(default_factory=list)
+    image_url: str = ""
     updated_at: str | None = None
 
 
@@ -299,6 +302,15 @@ def _format_form_display_name(path: Path) -> str:
     )
 
 
+def _form_download_response(path: Path, data_dir: Path) -> FormDownloadResponse:
+    relative_path = path.relative_to(data_dir).as_posix()
+    return FormDownloadResponse(
+        name=path.name,
+        display_name=_format_form_display_name(path),
+        download_url=f"/api/documents/{quote(relative_path, safe='/')}",
+    )
+
+
 def _matching_form_downloads(*texts: str) -> list[FormDownloadResponse]:
     haystack = " ".join(texts).lower()
     data_dir = _get_data_dir()
@@ -313,14 +325,7 @@ def _matching_form_downloads(*texts: str) -> list[FormDownloadResponse]:
         is_form_request = "form" in haystack or any(keyword in haystack for keyword in keywords)
         if not is_form_request or not any(keyword in haystack for keyword in keywords):
             continue
-        relative_path = path.relative_to(data_dir).as_posix()
-        matches.append(
-            FormDownloadResponse(
-                name=path.name,
-                display_name=_format_form_display_name(path),
-                download_url=f"/api/documents/{quote(relative_path, safe='/')}",
-            )
-        )
+        matches.append(_form_download_response(path, data_dir))
     return matches
 
 
@@ -551,6 +556,7 @@ def _normalize_faq_item(item: dict[str, object]) -> FAQItem | None:
         source_url=source_url,
         suggested_query=str(item.get("suggested_query", "")).strip() or question,
         citations=citations,
+        image_url=str(item.get("image_url", "")).strip(),
         updated_at=str(item.get("updated_at", "")).strip() or None,
     )
 
@@ -686,10 +692,73 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
     )
 
 
+# Static, pinned FAQ shown at the top for everyone. Not stored in faqs.json and
+# not editable/deletable via the admin FAQ endpoints (id is empty). Only its
+# image can be replaced, via POST /api/admin/faq-image.
+PINNED_IMAGE_STEM = "organogram"
+PINNED_IMAGE_EXTENSIONS = {".webp", ".png", ".jpg", ".jpeg"}
+
+
+def _pinned_image_name() -> str:
+    for extension in (".webp", ".png", ".jpg", ".jpeg"):
+        if (ASSETS_DIR / f"{PINNED_IMAGE_STEM}{extension}").exists():
+            return f"{PINNED_IMAGE_STEM}{extension}"
+    return f"{PINNED_IMAGE_STEM}.webp"
+
+
+def _pinned_image_url() -> str:
+    name = _pinned_image_name()
+    path = ASSETS_DIR / name
+    # Cache-bust with mtime so the browser reloads after the image is replaced.
+    version = int(path.stat().st_mtime) if path.exists() else 0
+    return f"/assets/{name}?v={version}"
+
+
+def _pinned_faq_items() -> list[FAQItem]:
+    return [
+        FAQItem(
+            id="",
+            question="Bagaimana struktur organisasi ICS Compute?",
+            answer="Berikut struktur organisasi (organogram) ICS Compute.",
+            suggested_query="Bagaimana struktur organisasi ICS Compute?",
+            image_url=_pinned_image_url(),
+        ),
+    ]
+
+
 @app.get("/api/faq", response_model=list[FAQItem])
 def get_faq() -> list[FAQItem]:
     with FAQ_LOCK:
-        return _load_faqs()
+        stored = _load_faqs()
+    return [*_pinned_faq_items(), *stored]
+
+
+@app.post("/api/admin/faq-image", response_model=AdminDocumentResponse)
+def upload_pinned_faq_image(
+    payload: AdminDocumentPayload,
+    x_admin_email: str = Header(default=""),
+) -> AdminDocumentResponse:
+    _require_admin(x_admin_email)
+    extension = Path(unquote(payload.filename)).suffix.lower()
+    if extension not in PINNED_IMAGE_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail="Gambar harus berformat .webp, .png, atau .jpg.",
+        )
+
+    content = _decode_document(payload.content_base64)
+    ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Keep a single organogram image: drop any other extension variants first.
+    for other_extension in PINNED_IMAGE_EXTENSIONS:
+        if other_extension == extension:
+            continue
+        stale = ASSETS_DIR / f"{PINNED_IMAGE_STEM}{other_extension}"
+        if stale.exists():
+            stale.unlink()
+
+    (ASSETS_DIR / f"{PINNED_IMAGE_STEM}{extension}").write_bytes(content)
+    return AdminDocumentResponse(message="Gambar FAQ diperbarui.")
 
 
 @app.post("/api/admin/faq", response_model=AdminFAQResponse)
@@ -826,6 +895,96 @@ def reindex_documents(x_admin_email: str = Header(default="")) -> AdminReindexRe
     return AdminReindexResponse(message="Embeddings rebuilt.")
 
 
+XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+# Matches placeholder brackets the form templates use, e.g. "[  ]", "[Tanggal]".
+FORM_PLACEHOLDER_PATTERN = re.compile(r"\[[^\[\]]*\]")
+
+
+class FormFillPayload(BaseModel):
+    path: str = Field(..., min_length=1)
+    values: dict[str, str] = Field(default_factory=dict)
+
+
+def _field_label(worksheet, cell) -> str:
+    """Derive a human label for a placeholder cell from the form itself."""
+    text = str(cell.value)
+    match = FORM_PLACEHOLDER_PATTERN.search(text)
+    prefix = text[: match.start()].strip().rstrip(":").strip()
+    if prefix:
+        return prefix
+    inside = match.group(0)[1:-1].strip()
+    if inside:
+        return inside
+    # Empty "[  ]": use the nearest label to the left, then the cell above.
+    for column in range(cell.column - 1, 0, -1):
+        left = worksheet.cell(row=cell.row, column=column).value
+        if (
+            isinstance(left, str)
+            and left.strip()
+            and not FORM_PLACEHOLDER_PATTERN.search(left)
+        ):
+            return left.strip().rstrip(":").strip()
+    if cell.row > 1:
+        above = worksheet.cell(row=cell.row - 1, column=cell.column).value
+        if isinstance(above, str) and above.strip():
+            return above.strip().rstrip(":").strip()
+    return "Isian"
+
+
+def _scan_form_fields(path: Path) -> list[dict[str, str]]:
+    """List the fillable placeholders in a form as {key, label} entries."""
+    from openpyxl import load_workbook
+
+    workbook = load_workbook(path)
+    fields: list[dict[str, str]] = []
+    for index, worksheet in enumerate(workbook.worksheets):
+        for row in worksheet.iter_rows():
+            for cell in row:
+                if isinstance(cell.value, str) and FORM_PLACEHOLDER_PATTERN.search(cell.value):
+                    fields.append(
+                        {
+                            "key": f"{index}:{cell.coordinate}",
+                            "label": _field_label(worksheet, cell),
+                        }
+                    )
+    return fields
+
+
+def _fill_form_placeholders(path: Path, values: dict[str, str]) -> bytes:
+    """Replace each filled placeholder with its value; leave blanks as-is."""
+    from openpyxl import load_workbook
+
+    workbook = load_workbook(path)
+    for key, raw_value in values.items():
+        value = str(raw_value).strip()
+        if not value:
+            continue
+        try:
+            index_str, coordinate = key.split(":", 1)
+            worksheet = workbook.worksheets[int(index_str)]
+            cell = worksheet[coordinate]
+        except (ValueError, IndexError, KeyError):
+            continue
+        if isinstance(cell.value, str) and FORM_PLACEHOLDER_PATTERN.search(cell.value):
+            cell.value = FORM_PLACEHOLDER_PATTERN.sub(lambda _match: value, cell.value, count=1)
+
+    buffer = BytesIO()
+    workbook.save(buffer)
+    return buffer.getvalue()
+
+
+def _resolve_form_path(path: str) -> Path:
+    resolved_path = _resolve_document_path(path)
+    if not resolved_path.exists() or not resolved_path.is_file():
+        raise HTTPException(status_code=404, detail="Form not found.")
+    if (
+        resolved_path.suffix.lower() != ".xlsx"
+        or _document_kind_for_path(resolved_path) != "form"
+    ):
+        raise HTTPException(status_code=400, detail="Dokumen ini bukan form yang bisa diisi.")
+    return resolved_path
+
+
 @app.get("/api/documents/{document_path:path}")
 def download_document(
     document_path: str,
@@ -839,6 +998,31 @@ def download_document(
         _require_admin(x_admin_email)
 
     return FileResponse(path=resolved_path, filename=resolved_path.name)
+
+
+@app.get("/api/forms/fields")
+def form_fields(path: str) -> dict[str, object]:
+    resolved_path = _resolve_form_path(path)
+    return {"fields": _scan_form_fields(resolved_path)}
+
+
+@app.post("/api/forms/fill")
+def fill_form(payload: FormFillPayload) -> Response:
+    resolved_path = _resolve_form_path(payload.path)
+    content = _fill_form_placeholders(resolved_path, payload.values)
+    nama = next(
+        (v.strip() for v in payload.values.values() if v.strip()),
+        "",
+    )
+    suffix = f" - {nama}" if nama else ""
+    filename = f"{resolved_path.stem}{suffix}.xlsx"
+    return Response(
+        content=content,
+        media_type=XLSX_MIME,
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"
+        },
+    )
 
 
 @app.get("/", response_class=FileResponse, include_in_schema=False)
