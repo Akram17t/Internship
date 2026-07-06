@@ -44,27 +44,10 @@ class ResearcherCrew():
             verbose=False,
         )
 
-    @agent
-    def faq_writer(self) -> Agent:
-        return Agent(
-            config=self.agents_config["faq_writer"],  # type: ignore[index]
-            llm=self._llm(
-                temperature=0.1,
-                max_tokens=get_int_env("FAQ_NUM_PREDICT", 180),
-            ),
-            verbose=False,
-        )
-
     @task
     def chat_answer_task(self) -> Task:
         return Task(
             config=self.tasks_config["chat_answer_task"],  # type: ignore[index]
-        )
-
-    @task
-    def faq_answer_task(self) -> Task:
-        return Task(
-            config=self.tasks_config["faq_answer_task"],  # type: ignore[index]
         )
 
     @crew
@@ -73,15 +56,6 @@ class ResearcherCrew():
         return Crew(
             agents=[self.answer_writer()],
             tasks=[self.chat_answer_task()],
-            process=Process.sequential,
-            verbose=False,
-        )
-
-    def faq_crew(self) -> Crew:
-        """Creates the short FAQ answer crew."""
-        return Crew(
-            agents=[self.faq_writer()],
-            tasks=[self.faq_answer_task()],
             process=Process.sequential,
             verbose=False,
         )

@@ -34,23 +34,3 @@ chat_answer_task:
     A clear grounded Indonesian answer with tidy numeric citation markers and no
     separate sources section.
   agent: answer_writer
-
-faq_answer_task:
-  description: >
-    Write a short Indonesian FAQ answer for this question using only the retrieved evidence.
-
-    Question:
-    {question}
-
-    Retrieved evidence:
-    {evidence}
-
-    The answer must fit an accordion FAQ card: one short paragraph, maximum two
-    sentences, direct to the point. Keep citation markers like [1] at the end of
-    the sentence. Never output [n]. Do not create bullets, headings, tables,
-    markdown code fences, or a separate sources section. If the evidence is
-    insufficient, say briefly that the information is not confirmed in the indexed
-    documents.
-  expected_output: >
-    One short FAQ paragraph in Indonesian with numeric citation markers.
-  agent: faq_writer

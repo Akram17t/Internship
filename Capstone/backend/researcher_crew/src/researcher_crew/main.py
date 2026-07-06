@@ -80,11 +80,11 @@ def _post_ollama_generate(payload: dict[str, object]) -> str:
     except urllib.error.HTTPError as error:
         detail = _read_ollama_error(error)
         raise OllamaGenerationError(
-            f"Ollama gagal membuat jawaban fallback: {detail}"
+            f"Ollama gagal membuat jawaban: {detail}"
         ) from error
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as error:
         raise OllamaGenerationError(
-            f"Ollama fallback belum bisa dihubungi atau responsnya tidak valid: {error}"
+            f"Ollama belum bisa dihubungi atau responsnya tidak valid: {error}"
         ) from error
 
     return str(body.get("response", "")).strip()
@@ -120,22 +120,6 @@ def _generate_answer(question: str, evidence: str, conversation_context: str = "
 
 
 def _generate_faq_answer(question: str, evidence: str) -> str:
-    inputs = {
-        "question": question,
-        "evidence": evidence,
-    }
-    try:
-        result = ResearcherCrew().faq_crew().kickoff(inputs=inputs)
-        answer = _crew_output_to_text(result)
-        if answer:
-            return answer
-    except Exception as error:
-        print(f"FAQ CrewAI fallback triggered: {error}", file=sys.stderr)
-
-    return _generate_faq_answer_direct(question, evidence)
-
-
-def _generate_faq_answer_direct(question: str, evidence: str) -> str:
     prompt = (
         "Kamu adalah HR Assistant ICS Compute. Buat jawaban FAQ singkat dalam bahasa Indonesia. "
         "Gunakan hanya evidence yang diberikan. Jawaban harus 1 paragraf, maksimal 2 kalimat, "
@@ -159,7 +143,7 @@ def _generate_faq_answer_direct(question: str, evidence: str) -> str:
         }
     )
     if not answer:
-        raise OllamaGenerationError("Ollama fallback mengembalikan jawaban kosong.")
+        raise OllamaGenerationError("Ollama mengembalikan jawaban FAQ kosong.")
     return answer
 
 
