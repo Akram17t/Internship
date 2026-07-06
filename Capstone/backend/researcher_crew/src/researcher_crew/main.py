@@ -90,6 +90,69 @@ def _post_ollama_generate(payload: dict[str, object]) -> str:
     return str(body.get("response", "")).strip()
 
 
+def _ollama_generate(
+    prompt: str,
+    *,
+    num_predict: int,
+    temperature: float = 0.1,
+    seed: int | None = None,
+) -> str:
+    """Send a prompt to Ollama, disabling hidden reasoning (with a safe retry)."""
+    options: dict[str, object] = {
+        "temperature": temperature,
+        "num_ctx": get_int_env("OLLAMA_NUM_CTX", 4096),
+        "num_predict": num_predict,
+    }
+    if seed is not None:
+        options["seed"] = seed
+
+    payload: dict[str, object] = {
+        "model": _ollama_model_name(),
+        "prompt": prompt,
+        "stream": False,
+        # Keep the whole token budget for the output, not hidden <think> tokens.
+        "think": False,
+        "options": options,
+    }
+    try:
+        return _post_ollama_generate(payload)
+    except OllamaGenerationError as error:
+        # Non-thinking models (e.g. gemma3) reject the `think` flag; retry once.
+        if "think" not in str(error).lower():
+            raise
+        payload.pop("think", None)
+        return _post_ollama_generate(payload)
+
+
+def _rewrite_query(question: str, conversation_context: str = "") -> str:
+    """Rewrite a follow-up into a standalone search query using recent context.
+
+    Falls back to the original question when there is no context or the rewrite
+    fails, so retrieval always has a usable query.
+    """
+    if not conversation_context.strip():
+        return question
+
+    prompt = (
+        "Tugas Anda hanya menulis ulang pertanyaan, bukan menjawabnya. "
+        "Berdasarkan percakapan sebelumnya, ubah pertanyaan terakhir menjadi satu "
+        "pertanyaan mandiri yang bisa dicari tanpa konteks: ganti rujukan seperti "
+        "'itu', 'nya', 'tersebut', atau 'tadi' dengan topik yang sebenarnya. "
+        "Jika pertanyaan sudah mandiri, kembalikan persis apa adanya. "
+        "Balas HANYA dengan satu kalimat pertanyaan, tanpa penjelasan.\n\n"
+        f"Percakapan sebelumnya:\n{conversation_context}\n\n"
+        f"Pertanyaan terakhir:\n{question}\n\n"
+        "Pertanyaan mandiri:"
+    )
+    try:
+        rewritten = _ollama_generate(prompt, num_predict=120, temperature=0.0)
+    except OllamaGenerationError:
+        return question
+
+    rewritten = rewritten.strip().strip('"').strip()
+    return rewritten or question
+
+
 def _crew_output_to_text(result: object) -> str:
     raw = getattr(result, "raw", None)
     return str(raw if raw is not None else result).strip()
@@ -124,30 +187,12 @@ def _generate_faq_answer(question: str, evidence: str) -> str:
         f"Evidence:\n{evidence}\n\n"
         "Jawaban FAQ:"
     )
-    payload = {
-        "model": _ollama_model_name(),
-        "prompt": prompt,
-        "stream": False,
-        # Disable hidden reasoning so the whole token budget goes to the
-        # answer itself; otherwise a thinking model (e.g. qwen3) spends
-        # num_predict on <think> tokens and the answer gets cut off midway.
-        "think": False,
-        "options": {
-            "temperature": 0.1,
-            "seed": 11,
-            "num_ctx": get_int_env("OLLAMA_NUM_CTX", 4096),
-            "num_predict": max(get_int_env("FAQ_NUM_PREDICT", 180), 256),
-        },
-    }
-    try:
-        answer = _post_ollama_generate(payload)
-    except OllamaGenerationError as error:
-        # Non-thinking models (e.g. gemma3) reject the `think` flag; retry once
-        # without it so the FAQ still generates on any local model.
-        if "think" not in str(error).lower():
-            raise
-        payload.pop("think", None)
-        answer = _post_ollama_generate(payload)
+    answer = _ollama_generate(
+        prompt,
+        num_predict=max(get_int_env("FAQ_NUM_PREDICT", 180), 256),
+        temperature=0.1,
+        seed=11,
+    )
     if not answer:
         raise OllamaGenerationError("Ollama mengembalikan jawaban FAQ kosong.")
     return answer
@@ -158,12 +203,10 @@ def run_knowledge_crew(
     conversation_context: str = "",
 ) -> tuple[str, list[dict[str, object]]]:
     """Retrieve relevant document evidence and answer through the chat crew."""
-    # Retrieve on the raw question only. Folding the previous turn into the
-    # retrieval query lets a long earlier answer dominate the embedding and pull
-    # the wrong topic's documents (e.g. a follow-up about "terminasi" retrieving
-    # the previous "perjalanan dinas" chunks). The conversation context is still
-    # passed to the LLM below so it can resolve follow-up phrasing.
-    evidence, citations = retrieve_knowledge(question)
+    # Rewrite follow-ups ("form untuk itu?") into a standalone query so retrieval
+    # keeps the right topic without being polluted by the long previous answer.
+    retrieval_query = _rewrite_query(question, conversation_context)
+    evidence, citations = retrieve_knowledge(retrieval_query)
     if not citations:
         return (
             "Informasi tersebut tidak tersedia dalam dokumen yang saat ini terindeks. "

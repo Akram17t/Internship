@@ -907,24 +907,11 @@ function appendFormattedText(container, text, citationMap, formDownloads = []) {
   }
 }
 
-function findFormDownloadMatches(text, formDownloads = []) {
-  const items = formDownloads.filter((item) => !item.used);
-  if (!items.length) return [];
-
-  const match = /\bforms?\b/i.exec(text);
-  if (!match) return [];
-
-  items.forEach((item) => {
-    item.used = true;
-  });
-
-  return [
-    {
-      start: match.index,
-      end: match.index + match[0].length,
-      items,
-    },
-  ];
+function findFormDownloadMatches() {
+  // Form downloads always render in the bottom "Form yang bisa diunduh" block.
+  // Returning no matches keeps them out of the answer text so their placement is
+  // consistent regardless of whether the answer happens to use the word "form".
+  return [];
 }
 
 function appendTextWithFormChips(container, text, offset, formMatches) {
