@@ -2,13 +2,17 @@ from __future__ import annotations
 
 import base64
 import binascii
+import hashlib
+import hmac
 import json
 import re
 import sys
 import threading
+import time
 import uuid
 from datetime import datetime
 from datetime import timedelta
+from datetime import timezone
 from io import BytesIO
 from pathlib import Path
 from urllib.parse import quote, unquote
@@ -31,8 +35,8 @@ FRONTEND_DIR = ROOT_DIR / "frontend" / "web"
 ASSETS_DIR = FRONTEND_DIR / "assets"
 EMBEDDABLE_EXTENSIONS = {".pdf", ".docx", ".txt"}
 LIBRARY_EXTENSIONS = EMBEDDABLE_EXTENSIONS | {".xlsx"}
-ADMIN_EMAILS = {"admin@gmail.com"}
 MAX_DOCUMENT_BYTES = 25 * 1024 * 1024
+ADMIN_SESSION_TTL = timedelta(hours=12)
 MAX_CONVERSATIONS = 50
 MAX_CONVERSATION_TURNS = 5
 MAX_CONVERSATION_MESSAGES = MAX_CONVERSATION_TURNS * 2
@@ -41,105 +45,6 @@ CONVERSATION_TTL = timedelta(days=1)
 CONVERSATION_LOCK = threading.Lock()
 FAQ_LOCK = threading.Lock()
 REINDEX_LOCK = threading.Lock()
-
-DEFAULT_FAQ_ITEMS: list[dict[str, object]] = [
-    {
-        "id": "alur-perjalanan-dinas",
-        "question": "Bagaimana alur pengajuan perjalanan dinas?",
-        "answer": (
-            "Requestor mengisi Form Permohonan Perjalanan Dinas sebelum berangkat dan meminta persetujuan atasan terkait serta Director. "
-            "Jika membutuhkan uang muka, requestor juga mengajukan Form Permohonan Uang Muka, lalu setelah perjalanan selesai wajib menyerahkan "
-            "Form Penyelesaian Perjalanan Dinas ke General Affair. [1][2][3]"
-        ),
-        "source": "SOP - Perjalanan Dinas.pdf",
-        "source_url": "/api/documents/SOP%20-%20Perjalanan%20Dinas.pdf",
-        "suggested_query": "Jelaskan alur lengkap pengajuan perjalanan dinas beserta approval dan form yang digunakan.",
-        "citations": [
-            {"id": 1, "source": "SOP - Perjalanan Dinas.pdf", "page": 7, "section": "6. AKTIVITAS", "chunk_id": 32},
-            {"id": 2, "source": "SOP - Perjalanan Dinas.pdf", "page": 7, "section": "6. AKTIVITAS", "chunk_id": 34},
-            {"id": 3, "source": "SOP - Perjalanan Dinas.pdf", "page": 8, "section": "6. AKTIVITAS", "chunk_id": 35},
-        ],
-    },
-    {
-        "id": "form-perjalanan-dinas",
-        "question": "Form apa saja yang digunakan untuk perjalanan dinas?",
-        "answer": (
-            "SOP Perjalanan Dinas mencantumkan tiga form utama: Form Permohonan Uang Muka Perjalanan Dinas, "
-            "Form Penyelesaian Perjalanan Dinas, dan Form Permohonan Perjalanan Dinas. Ketiganya tercantum pada bagian Dokumen Terkait "
-            "dan dipakai sesuai tahap proses perjalanan dinas. [1]"
-        ),
-        "source": "SOP - Perjalanan Dinas.pdf",
-        "source_url": "/api/documents/SOP%20-%20Perjalanan%20Dinas.pdf",
-        "suggested_query": "Sebutkan seluruh form yang dipakai dalam proses perjalanan dinas.",
-        "citations": [
-            {"id": 1, "source": "SOP - Perjalanan Dinas.pdf", "page": 8, "section": "8. DOKUMEN TERKAIT", "chunk_id": 38},
-        ],
-    },
-    {
-        "id": "persiapan-onboarding",
-        "question": "Apa saja persiapan onboarding karyawan baru?",
-        "answer": (
-            "Persiapan onboarding mencakup penyiapan perlengkapan kerja, perkenalan lingkungan kerja dan Peraturan Perusahaan, "
-            "pembuatan akun HRIS, sampai evaluasi kontrak karyawan. HR Personnel juga berkoordinasi dengan General Affair dan IT Internal "
-            "agar kebutuhan kerja karyawan baru siap sejak awal. [1][2]"
-        ),
-        "source": "SOP - Administrasi Karyawan.pdf",
-        "source_url": "/api/documents/SOP%20-%20Administrasi%20Karyawan.pdf",
-        "suggested_query": "Jelaskan persiapan onboarding karyawan baru berdasarkan SOP Administrasi Karyawan.",
-        "citations": [
-            {"id": 1, "source": "SOP - Administrasi Karyawan.pdf", "page": 5, "section": "2. RUANG LINGKUP", "chunk_id": 2},
-            {"id": 2, "source": "SOP - Administrasi Karyawan.pdf", "page": 6, "section": "6. AKTIVITAS", "chunk_id": 7},
-        ],
-    },
-    {
-        "id": "fasilitas-karyawan-baru",
-        "question": "Siapa yang menyiapkan fasilitas kerja untuk karyawan baru?",
-        "answer": (
-            "General Affair Staff bertugas menyiapkan fasilitas dan perlengkapan kerja karyawan baru. "
-            "HR Personnel Staff berkoordinasi dengan General Affair dan IT Internal agar perlengkapan kerja siap saat onboarding. [1][2]"
-        ),
-        "source": "SOP - Administrasi Karyawan.pdf",
-        "source_url": "/api/documents/SOP%20-%20Administrasi%20Karyawan.pdf",
-        "suggested_query": "Siapa PIC penyiapan fasilitas dan perlengkapan kerja untuk karyawan baru?",
-        "citations": [
-            {"id": 1, "source": "SOP - Administrasi Karyawan.pdf", "page": 6, "section": "5. TUGAS DAN TANGGUNG JAWAB", "chunk_id": 6},
-            {"id": 2, "source": "SOP - Administrasi Karyawan.pdf", "page": 6, "section": "6. AKTIVITAS", "chunk_id": 7},
-        ],
-    },
-    {
-        "id": "terminasi-karyawan",
-        "question": "Apa yang wajib diselesaikan saat terminasi hubungan kerja?",
-        "answer": (
-            "Saat terminasi, karyawan wajib menyelesaikan handover kepada atasan atau pihak yang ditunjuk, "
-            "menuntaskan Exit Clearance termasuk pengembalian aset, dan keluar dari media komunikasi operasional perusahaan. "
-            "Proses terminasi juga mencakup exit interview oleh HR Personnel serta verifikasi penyelesaian kewajiban oleh pihak terkait. [1][2][3]"
-        ),
-        "source": "SOP - Terminasi Hubungan Kerja.pdf",
-        "source_url": "/api/documents/SOP%20-%20Terminasi%20Hubungan%20Kerja.pdf",
-        "suggested_query": "Jelaskan kewajiban utama karyawan dan tim terkait dalam proses terminasi hubungan kerja.",
-        "citations": [
-            {"id": 1, "source": "SOP - Terminasi Hubungan Kerja.pdf", "page": 5, "section": "2. RUANG LINGKUP", "chunk_id": 41},
-            {"id": 2, "source": "SOP - Terminasi Hubungan Kerja.pdf", "page": 6, "section": "6. AKTIVITAS", "chunk_id": 46},
-            {"id": 3, "source": "SOP - Terminasi Hubungan Kerja.pdf", "page": 6, "section": "6. AKTIVITAS", "chunk_id": 48},
-        ],
-    },
-    {
-        "id": "deadline-exit-clearance",
-        "question": "Kapan Exit Clearance harus diselesaikan?",
-        "answer": (
-            "Exit Clearance wajib diselesaikan pada hari terakhir efektif bekerja, termasuk pengembalian seluruh aset perusahaan. "
-            "Form Exit Clearance juga harus lengkap, ditandatangani pihak terkait, dan paling lambat selesai pada hari terakhir bekerja. [1][2]"
-        ),
-        "source": "SOP - Terminasi Hubungan Kerja.pdf",
-        "source_url": "/api/documents/SOP%20-%20Terminasi%20Hubungan%20Kerja.pdf",
-        "suggested_query": "Kapan deadline Exit Clearance dan apa saja syarat penyelesaiannya?",
-        "citations": [
-            {"id": 1, "source": "SOP - Terminasi Hubungan Kerja.pdf", "page": 6, "section": "6. AKTIVITAS", "chunk_id": 47},
-            {"id": 2, "source": "SOP - Terminasi Hubungan Kerja.pdf", "page": 6, "section": "6. AKTIVITAS", "chunk_id": 48},
-        ],
-    },
-]
-
 
 class QueryRequest(BaseModel):
     question: str = Field(..., min_length=3, description="Natural language question from the user.")
@@ -187,6 +92,18 @@ class AdminFAQPayload(BaseModel):
 class AdminFAQResponse(BaseModel):
     message: str
     item: FAQItem | None = None
+
+
+class AdminLoginPayload(BaseModel):
+    email: str = Field(..., min_length=3)
+    password: str = Field(..., min_length=1)
+
+
+class AdminLoginResponse(BaseModel):
+    email: str
+    name: str
+    token: str
+    expires_at: str
 
 
 class LibraryItem(BaseModel):
@@ -274,25 +191,80 @@ def _iter_library_items() -> list[LibraryItem]:
 
 def _form_keywords_for_path(path: Path) -> list[str]:
     name = path.name.lower()
+    display_name = _format_form_display_name(path).lower()
+    keywords = {display_name, path.stem.lower()}
+
     if "perjalanan dinas" in name:
-        return [
-            "perjalanan dinas",
-            "uang muka",
-            "penyelesaian perjalanan",
-            "permohonan perjalanan",
-        ]
+        keywords.update(
+            [
+                "perjalanan dinas",
+                "dinas",
+                "uang muka",
+                "penyelesaian perjalanan",
+                "permohonan perjalanan",
+                "travel request",
+            ]
+        )
     if "onboarding" in name:
-        return ["onboarding", "on boarding", "karyawan baru", "preparation"]
+        keywords.update(
+            [
+                "onboarding",
+                "on boarding",
+                "karyawan baru",
+                "preparation",
+                "persiapan onboarding",
+                "persiapan karyawan baru",
+            ]
+        )
     if "exit" in name:
-        return [
-            "exit clearance",
-            "exit interview",
-            "terminasi",
-            "resign",
-            "pengunduran diri",
-            "offboarding",
-        ]
-    return [path.stem.lower()]
+        keywords.update(
+            [
+                "exit clearance",
+                "exit interview",
+                "terminasi",
+                "resign",
+                "pengunduran diri",
+                "offboarding",
+                "clearance",
+                "paklaring",
+            ]
+        )
+    if "backup log" in name:
+        keywords.update(
+            [
+                "backup log",
+                "backup",
+                "log backup",
+                "backup informasi",
+                "pencatatan backup",
+            ]
+        )
+    if "incident report" in name:
+        keywords.update(
+            [
+                "incident report",
+                "insiden",
+                "incident",
+                "laporan insiden",
+                "manajemen insiden",
+                "pelaporan insiden",
+            ]
+        )
+    if "system access control list" in name:
+        keywords.update(
+            [
+                "system access control list",
+                "access control list",
+                "kontrol akses",
+                "akses sistem",
+                "hak akses",
+                "system access",
+                "user access",
+                "acl",
+            ]
+        )
+
+    return sorted(keyword for keyword in keywords if keyword)
 
 
 def _format_form_display_name(path: Path) -> str:
@@ -355,9 +327,75 @@ def _answer_has_supported_form_context(answer: str) -> bool:
     return not any(marker in normalized for marker in unsupported_markers)
 
 
-def _require_admin(x_admin_email: str) -> None:
-    if x_admin_email.strip().lower() not in ADMIN_EMAILS:
-        raise HTTPException(status_code=403, detail="Admin access required.")
+def _admin_email() -> str:
+    return get_env("ADMIN_EMAIL", "admin@gmail.com").strip().lower()
+
+
+def _admin_name() -> str:
+    return get_env("ADMIN_NAME", "Admin").strip() or "Admin"
+
+
+def _admin_password() -> str:
+    return get_env("ADMIN_PASSWORD", "admin123")
+
+
+def _admin_session_secret() -> str:
+    return get_env("ADMIN_SESSION_SECRET", "dev-admin-session-secret-change-me")
+
+
+def _base64url_encode(value: bytes) -> str:
+    return base64.urlsafe_b64encode(value).rstrip(b"=").decode("ascii")
+
+
+def _base64url_decode(value: str) -> bytes:
+    padding = "=" * (-len(value) % 4)
+    return base64.urlsafe_b64decode((value + padding).encode("ascii"))
+
+
+def _sign_admin_payload(payload: str) -> str:
+    return hmac.new(
+        _admin_session_secret().encode("utf-8"),
+        payload.encode("ascii"),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def _create_admin_token(email: str) -> tuple[str, datetime]:
+    expires_at = datetime.now(timezone.utc) + ADMIN_SESSION_TTL
+    payload = _base64url_encode(
+        json.dumps(
+            {"email": email, "exp": int(expires_at.timestamp())},
+            separators=(",", ":"),
+        ).encode("utf-8")
+    )
+    return f"{payload}.{_sign_admin_payload(payload)}", expires_at
+
+
+def _verify_admin_token(authorization: str) -> str:
+    scheme, _, token = authorization.strip().partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        raise HTTPException(status_code=401, detail="Admin login required.")
+
+    payload, separator, signature = token.partition(".")
+    if not separator or not payload or not signature:
+        raise HTTPException(status_code=401, detail="Invalid admin session.")
+    if not hmac.compare_digest(signature, _sign_admin_payload(payload)):
+        raise HTTPException(status_code=401, detail="Invalid admin session.")
+
+    try:
+        data = json.loads(_base64url_decode(payload).decode("utf-8"))
+    except (ValueError, json.JSONDecodeError, binascii.Error) as error:
+        raise HTTPException(status_code=401, detail="Invalid admin session.") from error
+
+    email = str(data.get("email", "")).strip().lower()
+    expires_at = int(data.get("exp", 0))
+    if email != _admin_email() or expires_at <= int(time.time()):
+        raise HTTPException(status_code=401, detail="Admin session expired.")
+    return email
+
+
+def _require_admin(authorization: str) -> str:
+    return _verify_admin_token(authorization)
 
 
 def _resolve_document_path(document_path: str) -> Path:
@@ -590,11 +628,7 @@ def _normalize_faq_item(item: dict[str, object]) -> FAQItem | None:
 def _load_faqs() -> list[FAQItem]:
     path = _get_faq_file()
     if not path.exists():
-        return [
-            item
-            for item in (_normalize_faq_item(default_item) for default_item in DEFAULT_FAQ_ITEMS)
-            if item is not None
-        ]
+        return []
 
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -692,6 +726,25 @@ def health_check() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.post("/api/admin/login", response_model=AdminLoginResponse)
+def login_admin(payload: AdminLoginPayload) -> AdminLoginResponse:
+    email = payload.email.strip().lower()
+    password = payload.password
+    if (
+        not hmac.compare_digest(email, _admin_email())
+        or not hmac.compare_digest(password, _admin_password())
+    ):
+        raise HTTPException(status_code=401, detail="Email atau password admin salah.")
+
+    token, expires_at = _create_admin_token(email)
+    return AdminLoginResponse(
+        email=email,
+        name=_admin_name(),
+        token=token,
+        expires_at=expires_at.isoformat(timespec="seconds"),
+    )
+
+
 @app.post("/query", response_model=QueryResponse)
 def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
     from researcher_crew.main import OllamaGenerationError, run_knowledge_crew
@@ -766,9 +819,9 @@ def get_faq() -> list[FAQItem]:
 @app.post("/api/admin/faq-image", response_model=AdminDocumentResponse)
 def upload_pinned_faq_image(
     payload: AdminDocumentPayload,
-    x_admin_email: str = Header(default=""),
+    authorization: str = Header(default=""),
 ) -> AdminDocumentResponse:
-    _require_admin(x_admin_email)
+    _require_admin(authorization)
     extension = Path(unquote(payload.filename)).suffix.lower()
     if extension not in PINNED_IMAGE_EXTENSIONS:
         raise HTTPException(
@@ -794,9 +847,9 @@ def upload_pinned_faq_image(
 @app.post("/api/admin/faq", response_model=AdminFAQResponse)
 def create_faq(
     payload: AdminFAQPayload,
-    x_admin_email: str = Header(default=""),
+    authorization: str = Header(default=""),
 ) -> AdminFAQResponse:
-    _require_admin(x_admin_email)
+    _require_admin(authorization)
     item = _build_faq_item(payload)
     with FAQ_LOCK:
         items = _load_faqs()
@@ -809,9 +862,9 @@ def create_faq(
 def update_faq(
     faq_id: str,
     payload: AdminFAQPayload,
-    x_admin_email: str = Header(default=""),
+    authorization: str = Header(default=""),
 ) -> AdminFAQResponse:
-    _require_admin(x_admin_email)
+    _require_admin(authorization)
     with FAQ_LOCK:
         items = _load_faqs()
         index = _find_faq_index(items, faq_id)
@@ -824,9 +877,9 @@ def update_faq(
 @app.delete("/api/admin/faq/{faq_id}", response_model=AdminFAQResponse)
 def delete_faq(
     faq_id: str,
-    x_admin_email: str = Header(default=""),
+    authorization: str = Header(default=""),
 ) -> AdminFAQResponse:
-    _require_admin(x_admin_email)
+    _require_admin(authorization)
     with FAQ_LOCK:
         items = _load_faqs()
         index = _find_faq_index(items, faq_id)
@@ -836,17 +889,17 @@ def delete_faq(
 
 
 @app.get("/api/library", response_model=list[LibraryItem])
-def get_library(x_admin_email: str = Header(default="")) -> list[LibraryItem]:
-    _require_admin(x_admin_email)
+def get_library(authorization: str = Header(default="")) -> list[LibraryItem]:
+    _require_admin(authorization)
     return _iter_library_items()
 
 
 @app.post("/api/admin/documents", response_model=AdminDocumentResponse)
 def save_document(
     payload: AdminDocumentPayload,
-    x_admin_email: str = Header(default=""),
+    authorization: str = Header(default=""),
 ) -> AdminDocumentResponse:
-    _require_admin(x_admin_email)
+    _require_admin(authorization)
     data_dir = _get_data_dir().resolve()
     data_dir.mkdir(parents=True, exist_ok=True)
 
@@ -889,9 +942,9 @@ def save_document(
 @app.delete("/api/admin/documents/{document_path:path}", response_model=AdminDocumentResponse)
 def delete_document(
     document_path: str,
-    x_admin_email: str = Header(default=""),
+    authorization: str = Header(default=""),
 ) -> AdminDocumentResponse:
-    _require_admin(x_admin_email)
+    _require_admin(authorization)
     target_path = _resolve_document_path(document_path)
 
     if not target_path.exists() or not target_path.is_file():
@@ -905,8 +958,8 @@ def delete_document(
 
 
 @app.post("/api/admin/reindex", response_model=AdminReindexResponse)
-def reindex_documents(x_admin_email: str = Header(default="")) -> AdminReindexResponse:
-    _require_admin(x_admin_email)
+def reindex_documents(authorization: str = Header(default="")) -> AdminReindexResponse:
+    _require_admin(authorization)
     if not REINDEX_LOCK.acquire(blocking=False):
         raise HTTPException(status_code=409, detail="Reindex is already running.")
 
@@ -1051,14 +1104,14 @@ def _resolve_form_path(path: str) -> Path:
 @app.get("/api/documents/{document_path:path}")
 def download_document(
     document_path: str,
-    x_admin_email: str = Header(default=""),
+    authorization: str = Header(default=""),
 ) -> FileResponse:
     resolved_path = _resolve_document_path(document_path)
 
     if not resolved_path.exists() or not resolved_path.is_file():
         raise HTTPException(status_code=404, detail="Document not found.")
     if _document_kind_for_path(resolved_path) != "form":
-        _require_admin(x_admin_email)
+        _require_admin(authorization)
 
     return FileResponse(
         path=resolved_path,

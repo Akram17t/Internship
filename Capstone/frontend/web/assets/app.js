@@ -4,194 +4,6 @@ const CONVERSATION_STORAGE_KEY = "ics-hr-ai-conversation-v1";
 const REINDEX_STORAGE_KEY = "ics-hr-ai-reindex-required-v1";
 const MOBILE_QUERY = "(max-width: 640px)";
 
-const adminAccounts = [
-  { email: "admin@gmail.com", password: "admin123", name: "admin" },
-];
-
-const fallbackFaqItems = [
-  {
-    id: "alur-perjalanan-dinas",
-    question: "Bagaimana alur pengajuan perjalanan dinas?",
-    answer:
-      "Requestor mengisi Form Permohonan Perjalanan Dinas sebelum berangkat dan meminta persetujuan atasan terkait serta Director. Jika membutuhkan uang muka, requestor juga mengajukan Form Permohonan Uang Muka, lalu setelah perjalanan selesai wajib menyerahkan Form Penyelesaian Perjalanan Dinas ke General Affair. [1][2][3]",
-    source: "SOP - Perjalanan Dinas.pdf",
-    source_url: "/api/documents/SOP%20-%20Perjalanan%20Dinas.pdf",
-    suggested_query:
-      "Jelaskan alur lengkap pengajuan perjalanan dinas beserta approval dan form yang digunakan.",
-    citations: [
-      {
-        id: 1,
-        source: "SOP - Perjalanan Dinas.pdf",
-        page: 7,
-        section: "6. AKTIVITAS",
-        chunk_id: 32,
-        download_url: "/api/documents/SOP%20-%20Perjalanan%20Dinas.pdf",
-      },
-      {
-        id: 2,
-        source: "SOP - Perjalanan Dinas.pdf",
-        page: 7,
-        section: "6. AKTIVITAS",
-        chunk_id: 34,
-        download_url: "/api/documents/SOP%20-%20Perjalanan%20Dinas.pdf",
-      },
-      {
-        id: 3,
-        source: "SOP - Perjalanan Dinas.pdf",
-        page: 8,
-        section: "6. AKTIVITAS",
-        chunk_id: 35,
-        download_url: "/api/documents/SOP%20-%20Perjalanan%20Dinas.pdf",
-      },
-    ],
-  },
-  {
-    id: "form-perjalanan-dinas",
-    question: "Form apa saja yang digunakan untuk perjalanan dinas?",
-    answer:
-      "SOP Perjalanan Dinas mencantumkan tiga form utama: Form Permohonan Uang Muka Perjalanan Dinas, Form Penyelesaian Perjalanan Dinas, dan Form Permohonan Perjalanan Dinas. Ketiganya tercantum pada bagian Dokumen Terkait dan dipakai sesuai tahap proses perjalanan dinas. [1]",
-    source: "SOP - Perjalanan Dinas.pdf",
-    source_url: "/api/documents/SOP%20-%20Perjalanan%20Dinas.pdf",
-    suggested_query:
-      "Sebutkan seluruh form yang dipakai dalam proses perjalanan dinas.",
-    citations: [
-      {
-        id: 1,
-        source: "SOP - Perjalanan Dinas.pdf",
-        page: 8,
-        section: "8. DOKUMEN TERKAIT",
-        chunk_id: 38,
-        download_url: "/api/documents/SOP%20-%20Perjalanan%20Dinas.pdf",
-      },
-    ],
-  },
-  {
-    id: "persiapan-onboarding",
-    question: "Apa saja persiapan onboarding karyawan baru?",
-    answer:
-      "Persiapan onboarding mencakup penyiapan perlengkapan kerja, perkenalan lingkungan kerja dan Peraturan Perusahaan, pembuatan akun HRIS, sampai evaluasi kontrak karyawan. HR Personnel juga berkoordinasi dengan General Affair dan IT Internal agar kebutuhan kerja karyawan baru siap sejak awal. [1][2]",
-    source: "SOP - Administrasi Karyawan.pdf",
-    source_url: "/api/documents/SOP%20-%20Administrasi%20Karyawan.pdf",
-    suggested_query:
-      "Jelaskan persiapan onboarding karyawan baru berdasarkan SOP Administrasi Karyawan.",
-    citations: [
-      {
-        id: 1,
-        source: "SOP - Administrasi Karyawan.pdf",
-        page: 5,
-        section: "2. RUANG LINGKUP",
-        chunk_id: 2,
-        download_url: "/api/documents/SOP%20-%20Administrasi%20Karyawan.pdf",
-      },
-      {
-        id: 2,
-        source: "SOP - Administrasi Karyawan.pdf",
-        page: 6,
-        section: "6. AKTIVITAS",
-        chunk_id: 7,
-        download_url: "/api/documents/SOP%20-%20Administrasi%20Karyawan.pdf",
-      },
-    ],
-  },
-  {
-    id: "fasilitas-karyawan-baru",
-    question: "Siapa yang menyiapkan fasilitas kerja untuk karyawan baru?",
-    answer:
-      "General Affair Staff bertugas menyiapkan fasilitas dan perlengkapan kerja karyawan baru. HR Personnel Staff berkoordinasi dengan General Affair dan IT Internal agar perlengkapan kerja siap saat onboarding. [1][2]",
-    source: "SOP - Administrasi Karyawan.pdf",
-    source_url: "/api/documents/SOP%20-%20Administrasi%20Karyawan.pdf",
-    suggested_query:
-      "Siapa PIC penyiapan fasilitas dan perlengkapan kerja untuk karyawan baru?",
-    citations: [
-      {
-        id: 1,
-        source: "SOP - Administrasi Karyawan.pdf",
-        page: 6,
-        section: "5. TUGAS DAN TANGGUNG JAWAB",
-        chunk_id: 6,
-        download_url: "/api/documents/SOP%20-%20Administrasi%20Karyawan.pdf",
-      },
-      {
-        id: 2,
-        source: "SOP - Administrasi Karyawan.pdf",
-        page: 6,
-        section: "6. AKTIVITAS",
-        chunk_id: 7,
-        download_url: "/api/documents/SOP%20-%20Administrasi%20Karyawan.pdf",
-      },
-    ],
-  },
-  {
-    id: "terminasi-karyawan",
-    question: "Apa yang wajib diselesaikan saat terminasi hubungan kerja?",
-    answer:
-      "Saat terminasi, karyawan wajib menyelesaikan handover kepada atasan atau pihak yang ditunjuk, menuntaskan Exit Clearance termasuk pengembalian aset, dan keluar dari media komunikasi operasional perusahaan. Proses terminasi juga mencakup exit interview oleh HR Personnel serta verifikasi penyelesaian kewajiban oleh pihak terkait. [1][2][3]",
-    source: "SOP - Terminasi Hubungan Kerja.pdf",
-    source_url: "/api/documents/SOP%20-%20Terminasi%20Hubungan%20Kerja.pdf",
-    suggested_query:
-      "Jelaskan kewajiban utama karyawan dan tim terkait dalam proses terminasi hubungan kerja.",
-    citations: [
-      {
-        id: 1,
-        source: "SOP - Terminasi Hubungan Kerja.pdf",
-        page: 5,
-        section: "2. RUANG LINGKUP",
-        chunk_id: 41,
-        download_url:
-          "/api/documents/SOP%20-%20Terminasi%20Hubungan%20Kerja.pdf",
-      },
-      {
-        id: 2,
-        source: "SOP - Terminasi Hubungan Kerja.pdf",
-        page: 6,
-        section: "6. AKTIVITAS",
-        chunk_id: 46,
-        download_url:
-          "/api/documents/SOP%20-%20Terminasi%20Hubungan%20Kerja.pdf",
-      },
-      {
-        id: 3,
-        source: "SOP - Terminasi Hubungan Kerja.pdf",
-        page: 6,
-        section: "6. AKTIVITAS",
-        chunk_id: 48,
-        download_url:
-          "/api/documents/SOP%20-%20Terminasi%20Hubungan%20Kerja.pdf",
-      },
-    ],
-  },
-  {
-    id: "deadline-exit-clearance",
-    question: "Kapan Exit Clearance harus diselesaikan?",
-    answer:
-      "Exit Clearance wajib diselesaikan pada hari terakhir efektif bekerja, termasuk pengembalian seluruh aset perusahaan. Form Exit Clearance juga harus lengkap, ditandatangani pihak terkait, dan paling lambat selesai pada hari terakhir bekerja. [1][2]",
-    source: "SOP - Terminasi Hubungan Kerja.pdf",
-    source_url: "/api/documents/SOP%20-%20Terminasi%20Hubungan%20Kerja.pdf",
-    suggested_query:
-      "Kapan deadline Exit Clearance dan apa saja syarat penyelesaiannya?",
-    citations: [
-      {
-        id: 1,
-        source: "SOP - Terminasi Hubungan Kerja.pdf",
-        page: 6,
-        section: "6. AKTIVITAS",
-        chunk_id: 47,
-        download_url:
-          "/api/documents/SOP%20-%20Terminasi%20Hubungan%20Kerja.pdf",
-      },
-      {
-        id: 2,
-        source: "SOP - Terminasi Hubungan Kerja.pdf",
-        page: 6,
-        section: "6. AKTIVITAS",
-        chunk_id: 48,
-        download_url:
-          "/api/documents/SOP%20-%20Terminasi%20Hubungan%20Kerja.pdf",
-      },
-    ],
-  },
-];
-
 const initialMessages = [];
 
 const screens = {
@@ -210,7 +22,7 @@ const state = {
   documents: [],
   filter: "",
   session: loadSession(),
-  faqItems: fallbackFaqItems,
+  faqItems: [],
   editingFaqId: "",
   isMutatingFaq: false,
   activeFaqGeneration: null,
@@ -1119,10 +931,7 @@ async function uploadPinnedFaqImage(file) {
   try {
     const response = await fetch("/api/admin/faq-image", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Admin-Email": state.session.email,
-      },
+      headers: adminAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({
         filename: file.name,
         content_base64: await fileToBase64(file),
@@ -1148,16 +957,26 @@ function stripCitationMarkers(value) {
 async function loadFaqs() {
   try {
     const response = await fetch("/api/faq");
-    if (!response.ok) return;
+    if (!response.ok) {
+      state.faqItems = [];
+      renderFaqs();
+      return;
+    }
 
     const items = await response.json();
-    if (!Array.isArray(items) || items.length === 0) return;
+    if (!Array.isArray(items) || items.length === 0) {
+      state.faqItems = [];
+      renderFaqs();
+      return;
+    }
 
     state.faqItems = items
       .filter((item) => item.question && item.answer)
       .map(normalizeFaq);
-    if (state.faqItems.length > 0) renderFaqs();
+    renderFaqs();
   } catch (error) {
+    state.faqItems = [];
+    renderFaqs();
     console.warn("Unable to load FAQ", error);
   }
 }
@@ -1252,7 +1071,7 @@ function discardFaqSilently(faqId) {
   if (!faqId) return;
   fetch(`/api/admin/faq/${encodeURIComponent(faqId)}`, {
     method: "DELETE",
-    headers: { "X-Admin-Email": state.session.email },
+    headers: adminAuthHeaders(),
   }).catch(() => {});
 }
 
@@ -1312,10 +1131,7 @@ async function saveFaq(event) {
       faqId ? `/api/admin/faq/${encodeURIComponent(faqId)}` : "/api/admin/faq",
       {
         method: faqId ? "PUT" : "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Admin-Email": state.session.email,
-        },
+        headers: adminAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify(payload),
       },
     );
@@ -1442,7 +1258,7 @@ async function deleteFaq(item) {
       `/api/admin/faq/${encodeURIComponent(item.id)}`,
       {
         method: "DELETE",
-        headers: { "X-Admin-Email": state.session.email },
+        headers: adminAuthHeaders(),
       },
     );
     const payload = await readJsonResponse(response);
@@ -1637,25 +1453,38 @@ function closeDocumentErrorModal() {
   elements.body.classList.remove("document-error-open");
 }
 
-function handleAdminLogin(event) {
+async function handleAdminLogin(event) {
   event.preventDefault();
   const email = elements.adminEmail.value.trim().toLowerCase();
   const password = elements.adminPassword.value;
-  const account = adminAccounts.find(
-    (item) => item.email === email && item.password === password,
-  );
 
-  if (!account) {
-    showAuthError("Email atau password admin belum cocok.");
+  try {
+    const response = await fetch("/api/admin/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const payload = await readJsonResponse(response);
+    if (!response.ok) {
+      throw new Error(formatApiError(payload.detail, "Email atau password admin belum cocok."));
+    }
+
+    state.session = {
+      role: "admin",
+      email: payload.email || email,
+      name: payload.name || "Admin",
+      token: payload.token || "",
+      expires_at: payload.expires_at || "",
+    };
+    if (!isAdminSession()) {
+      throw new Error("Sesi admin tidak valid. Coba login ulang.");
+    }
+  } catch (error) {
+    showAuthError(error.message || "Email atau password admin belum cocok.");
     elements.adminPassword.select();
     return;
   }
 
-  state.session = {
-    role: "admin",
-    email: account.email,
-    name: account.name,
-  };
   window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(state.session));
   syncAuth();
   closeAuthModal();
@@ -1663,7 +1492,13 @@ function handleAdminLogin(event) {
 }
 
 function logoutAdmin() {
-  state.session = { role: "guest", email: "", name: "Guest" };
+  state.session = {
+    role: "guest",
+    email: "",
+    name: "Guest",
+    token: "",
+    expires_at: "",
+  };
   clearDocumentUndo();
   window.localStorage.removeItem(AUTH_STORAGE_KEY);
   closeLogoutModal();
@@ -1671,7 +1506,17 @@ function logoutAdmin() {
 }
 
 function syncAuth() {
-  const isAdmin = state.session.role === "admin";
+  const isAdmin = isAdminSession();
+  if (!isAdmin && state.session.role === "admin") {
+    state.session = {
+      role: "guest",
+      email: "",
+      name: "Guest",
+      token: "",
+      expires_at: "",
+    };
+    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+  }
   elements.body.dataset.role = isAdmin ? "admin" : "guest";
   elements.accountAvatar.textContent = isAdmin ? "A" : "G";
   elements.accountRoleLabel.textContent = isAdmin
@@ -1876,10 +1721,7 @@ async function saveDocumentRequest(file, replacePath = "") {
 async function saveDocumentPayload(body) {
   const response = await fetch("/api/admin/documents", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Admin-Email": state.session.email,
-    },
+    headers: adminAuthHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(body),
   });
   const payload = await readJsonResponse(response);
@@ -1903,7 +1745,7 @@ async function deleteDocument(item) {
       `/api/admin/documents/${encodeURIComponent(item.relative_path)}`,
       {
         method: "DELETE",
-        headers: { "X-Admin-Email": state.session.email },
+        headers: adminAuthHeaders(),
       },
     );
     const payload = await readJsonResponse(response);
@@ -2023,7 +1865,7 @@ async function createDocumentSnapshot(item) {
 
 async function fetchDocumentBase64(url) {
   const response = await fetch(url, {
-    headers: { "X-Admin-Email": state.session.email },
+    headers: adminAuthHeaders(),
   });
   if (!response.ok)
     throw new Error(`Snapshot dokumen gagal: HTTP ${response.status}`);
@@ -2047,7 +1889,7 @@ async function deleteDocumentRequest(relativePath) {
     `/api/admin/documents/${encodeURIComponent(relativePath)}`,
     {
       method: "DELETE",
-      headers: { "X-Admin-Email": state.session.email },
+      headers: adminAuthHeaders(),
     },
   );
   const payload = await readJsonResponse(response);
@@ -2136,7 +1978,7 @@ async function rebuildEmbeddings() {
   try {
     const response = await fetch("/api/admin/reindex", {
       method: "POST",
-      headers: { "X-Admin-Email": state.session.email },
+      headers: adminAuthHeaders(),
     });
     const payload = await readJsonResponse(response);
     if (!response.ok)
@@ -2196,7 +2038,26 @@ function clearDocumentStatus() {
 }
 
 function isAdminSession() {
-  return state.session.role === "admin" && Boolean(state.session.email);
+  return (
+    state.session.role === "admin" &&
+    Boolean(state.session.email) &&
+    Boolean(state.session.token) &&
+    !isSessionExpired(state.session)
+  );
+}
+
+function isSessionExpired(session) {
+  if (!session?.expires_at) return true;
+  const expiresAt = new Date(session.expires_at);
+  return Number.isNaN(expiresAt.getTime()) || expiresAt <= new Date();
+}
+
+function adminAuthHeaders(extraHeaders = {}) {
+  if (!isAdminSession()) return { ...extraHeaders };
+  return {
+    ...extraHeaders,
+    Authorization: `Bearer ${state.session.token}`,
+  };
 }
 
 function formatSelectedFiles(files) {
@@ -2214,7 +2075,7 @@ async function loadLibrary() {
 
   try {
     const response = await fetch("/api/library", {
-      headers: { "X-Admin-Email": state.session.email },
+      headers: adminAuthHeaders(),
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const documents = await response.json();
@@ -2344,7 +2205,7 @@ async function downloadDocument(url, filename = "document") {
   try {
     const response = await fetch(url, {
       cache: "no-store",
-      headers: isAdminSession() ? { "X-Admin-Email": state.session.email } : {},
+      headers: adminAuthHeaders(),
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const blob = await response.blob();
@@ -2499,17 +2360,26 @@ async function submitFormFill(event) {
 }
 
 function loadSession() {
-  const guest = { role: "guest", email: "", name: "Guest" };
+  const guest = {
+    role: "guest",
+    email: "",
+    name: "Guest",
+    token: "",
+    expires_at: "",
+  };
   const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
   if (!raw) return guest;
 
   try {
     const parsed = JSON.parse(raw);
-    const account = adminAccounts.find(
-      (item) => item.email === String(parsed.email || "").toLowerCase(),
-    );
-    if (!account || parsed.role !== "admin") return guest;
-    return { role: "admin", email: account.email, name: account.name };
+    const session = {
+      role: parsed.role === "admin" ? "admin" : "guest",
+      email: String(parsed.email || "").toLowerCase(),
+      name: String(parsed.name || "Admin"),
+      token: String(parsed.token || ""),
+      expires_at: String(parsed.expires_at || ""),
+    };
+    return isSessionExpired(session) || !session.token ? guest : session;
   } catch {
     return guest;
   }
