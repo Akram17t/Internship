@@ -27,6 +27,30 @@ GENERATED_SOURCES_SECTION = re.compile(
     r"(?:\*\*)?\s*:\s*.*$",
     flags=re.IGNORECASE | re.MULTILINE | re.DOTALL,
 )
+FORM_SELECTION_PATTERN = re.compile(
+    r"^\s*FORM_SELECTION\s*:\s*(?P<selection>\[[^\n\r]*\])\s*$",
+    flags=re.IGNORECASE | re.MULTILINE,
+)
+FORM_SELECTION_LINE_PATTERN = re.compile(
+    r"^\s*FORM_SELECTION\s*:.*$",
+    flags=re.IGNORECASE | re.MULTILINE,
+)
+DOWNLOADABLE_FORM_LINE_PATTERN = re.compile(
+    r"^\s*(?:[-*•]\s*)?.*\.xlsx\b.*$",
+    flags=re.IGNORECASE | re.MULTILINE,
+)
+DOWNLOADABLE_FORM_INTRO_PATTERN = re.compile(
+    r"^\s*(?:selain itu,\s*)?(?:ada\s*)?(?:form|formulir)\s+"
+    r"(?:terkait\s+)?(?:yang\s+)?(?:tersedia|dapat|bisa|downloadable).*(?::)?\s*$",
+    flags=re.IGNORECASE | re.MULTILINE,
+)
+DOWNLOADABLE_FORM_SECTION_PATTERN = re.compile(
+    r"(?:^|\n)\s*(?:\*\*)?(?:form|formulir)\s+"
+    r"(?:terkait|yang\s+(?:bisa|dapat)\s+(?:diunduh|didownload)|downloadable)"
+    r"(?:\*\*)?\s*:?\s*(?:\n\s*)+"
+    r"(?:(?:[-*•]|\d+[\.)])\s+.*(?:\n|$))+",
+    flags=re.IGNORECASE,
+)
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -223,10 +247,11 @@ def _crew_output_to_text(result: object) -> str:
     return str(raw if raw is not None else result).strip()
 
 
-def _generate_answer(question: str, evidence: str) -> str:
+def _generate_answer(question: str, evidence: str, available_forms: str) -> str:
     inputs = {
         "question": question,
         "evidence": evidence,
+        "available_forms": available_forms or "[]",
     }
     try:
         result = ResearcherCrew().crew().kickoff(inputs=inputs)
@@ -234,6 +259,33 @@ def _generate_answer(question: str, evidence: str) -> str:
         raise OllamaGenerationError(f"CrewAI gagal membuat jawaban: {error}") from error
 
     return _crew_output_to_text(result)
+
+
+def _split_form_selection(answer: str) -> tuple[str, list[str]]:
+    selected_forms: list[str] = []
+
+    def collect(match: re.Match[str]) -> str:
+        raw_selection = match.group("selection")
+        try:
+            parsed = json.loads(raw_selection)
+        except json.JSONDecodeError:
+            return ""
+        if isinstance(parsed, list):
+            selected_forms.extend(
+                str(item).strip()
+                for item in parsed
+                if isinstance(item, str) and item.strip()
+            )
+        return ""
+
+    cleaned_answer = FORM_SELECTION_PATTERN.sub(collect, answer)
+    cleaned_answer = FORM_SELECTION_LINE_PATTERN.sub("", cleaned_answer).strip()
+    if selected_forms:
+        cleaned_answer = DOWNLOADABLE_FORM_SECTION_PATTERN.sub("\n", cleaned_answer)
+        cleaned_answer = DOWNLOADABLE_FORM_INTRO_PATTERN.sub("", cleaned_answer)
+        cleaned_answer = DOWNLOADABLE_FORM_LINE_PATTERN.sub("", cleaned_answer).strip()
+    cleaned_answer = re.sub(r"\n{3,}", "\n\n", cleaned_answer).strip()
+    return cleaned_answer, selected_forms
 
 
 FAQ_MAX_WORDS = 45
@@ -265,7 +317,8 @@ def _generate_faq_answer(question: str, evidence: str) -> str:
 def run_knowledge_crew(
     question: str,
     conversation_context: str = "",
-) -> tuple[str, list[dict[str, object]]]:
+    available_forms: str = "",
+) -> tuple[str, list[dict[str, object]], list[str]]:
     """Retrieve relevant document evidence and answer through the chat crew."""
     # Rewrite follow-ups ("form untuk itu?") into a standalone query. That query
     # is used for BOTH retrieval and generation, and the conversation context is
@@ -274,13 +327,14 @@ def run_knowledge_crew(
     standalone_question = _rewrite_query(question, conversation_context)
     evidence, citations = retrieve_knowledge(standalone_question)
     if not citations:
-        return UNSUPPORTED_ANSWER, []
+        return UNSUPPORTED_ANSWER, [], []
 
     answer = GENERATED_SOURCES_SECTION.sub(
-        "", _generate_answer(standalone_question, evidence)
+        "", _generate_answer(standalone_question, evidence, available_forms)
     ).strip()
+    answer, selected_forms = _split_form_selection(answer)
     if _is_unsupported_answer(answer):
-        return UNSUPPORTED_ANSWER, []
+        return UNSUPPORTED_ANSWER, [], []
     if citations:
         answer = re.sub(r"\[[nN]\]", f"[{citations[0]['id']}]", answer)
     used_citation_ids = {int(value) for value in re.findall(r"\[(\d+)\]", answer)}
@@ -289,7 +343,7 @@ def run_knowledge_crew(
     elif citations:
         answer = f"{answer} [{citations[0]['id']}]"
         citations = citations[:1]
-    return answer, citations
+    return answer, citations, selected_forms
 
 
 def run_faq_crew(question: str) -> tuple[str, list[dict[str, object]]]:

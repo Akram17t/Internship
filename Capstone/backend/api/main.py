@@ -45,6 +45,13 @@ CONVERSATION_TTL = timedelta(days=1)
 CONVERSATION_LOCK = threading.Lock()
 FAQ_LOCK = threading.Lock()
 REINDEX_LOCK = threading.Lock()
+ADMIN_CONFIG_LOCK = threading.Lock()
+DEFAULT_ADMIN_CONFIG = {
+    "email": "admin@gmail.com",
+    "password": "admin123",
+    "name": "admin",
+    "session_secret": "change-this-admin-session-secret",
+}
 
 class QueryRequest(BaseModel):
     question: str = Field(..., min_length=3, description="Natural language question from the user.")
@@ -285,16 +292,84 @@ def _form_download_response(path: Path, data_dir: Path) -> FormDownloadResponse:
     )
 
 
-def _matching_form_downloads(*texts: str) -> list[FormDownloadResponse]:
-    haystack = " ".join(texts).lower()
+def _iter_form_downloads() -> list[FormDownloadResponse]:
     data_dir = _get_data_dir()
     if not data_dir.exists():
         return []
 
-    matches: list[FormDownloadResponse] = []
+    forms: list[FormDownloadResponse] = []
+    for path in _iter_form_paths(data_dir):
+        forms.append(_form_download_response(path, data_dir))
+    return forms
+
+
+def _iter_form_paths(data_dir: Path | None = None) -> list[Path]:
+    data_dir = data_dir or _get_data_dir()
+    if not data_dir.exists():
+        return []
+
+    paths: list[Path] = []
     for path in sorted(data_dir.rglob("*.xlsx")):
         if not path.is_file() or path.name.startswith("~$"):
             continue
+        paths.append(path)
+    return paths
+
+
+def _available_form_catalog(forms: list[FormDownloadResponse]) -> str:
+    if not forms:
+        return "[]"
+
+    return json.dumps(
+        [
+            {
+                "name": form.name,
+                "display_name": form.display_name,
+            }
+            for form in forms
+        ],
+        ensure_ascii=False,
+    )
+
+
+def _form_lookup_keys(form: FormDownloadResponse) -> set[str]:
+    return {
+        form.name.strip().lower(),
+        form.display_name.strip().lower(),
+        Path(form.name).stem.strip().lower(),
+        Path(form.display_name).stem.strip().lower(),
+    }
+
+
+def _selected_form_downloads(
+    selected_names: list[str],
+    forms: list[FormDownloadResponse],
+) -> list[FormDownloadResponse]:
+    if not selected_names or not forms:
+        return []
+
+    lookup: dict[str, FormDownloadResponse] = {}
+    for form in forms:
+        for key in _form_lookup_keys(form):
+            if key:
+                lookup[key] = form
+
+    selected: list[FormDownloadResponse] = []
+    seen_names: set[str] = set()
+    for raw_name in selected_names:
+        form = lookup.get(raw_name.strip().lower())
+        if form is None or form.name in seen_names:
+            continue
+        selected.append(form)
+        seen_names.add(form.name)
+    return selected
+
+
+def _matching_form_downloads(*texts: str) -> list[FormDownloadResponse]:
+    haystack = " ".join(texts).lower()
+    matches: list[FormDownloadResponse] = []
+    data_dir = _get_data_dir()
+    for path in _iter_form_paths(data_dir):
         keywords = _form_keywords_for_path(path)
         is_form_request = "form" in haystack or any(keyword in haystack for keyword in keywords)
         if not is_form_request or not any(keyword in haystack for keyword in keywords):
@@ -328,19 +403,19 @@ def _answer_has_supported_form_context(answer: str) -> bool:
 
 
 def _admin_email() -> str:
-    return get_env("ADMIN_EMAIL", "admin@gmail.com").strip().lower()
+    return _load_admin_config()["email"].strip().lower()
 
 
 def _admin_name() -> str:
-    return get_env("ADMIN_NAME", "Admin").strip() or "Admin"
+    return _load_admin_config()["name"].strip() or "Admin"
 
 
 def _admin_password() -> str:
-    return get_env("ADMIN_PASSWORD", "admin123")
+    return _load_admin_config()["password"]
 
 
 def _admin_session_secret() -> str:
-    return get_env("ADMIN_SESSION_SECRET", "dev-admin-session-secret-change-me")
+    return _load_admin_config()["session_secret"]
 
 
 def _base64url_encode(value: bytes) -> str:
@@ -437,6 +512,48 @@ def _get_conversation_file() -> Path:
 
 def _get_faq_file() -> Path:
     return _get_cache_dir() / "faqs.json"
+
+
+def _get_admin_file() -> Path:
+    return _get_cache_dir() / "admin.json"
+
+
+def _save_admin_config(config: dict[str, str]) -> None:
+    cache_dir = _get_cache_dir()
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    _get_admin_file().write_text(
+        json.dumps(config, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def _load_admin_config() -> dict[str, str]:
+    with ADMIN_CONFIG_LOCK:
+        path = _get_admin_file()
+        if not path.exists():
+            _save_admin_config(DEFAULT_ADMIN_CONFIG)
+            return dict(DEFAULT_ADMIN_CONFIG)
+
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            data = {}
+
+        if not isinstance(data, dict):
+            data = {}
+
+        config = {
+            "email": str(data.get("email") or DEFAULT_ADMIN_CONFIG["email"]).strip().lower(),
+            "password": str(data.get("password") or DEFAULT_ADMIN_CONFIG["password"]),
+            "name": str(data.get("name") or DEFAULT_ADMIN_CONFIG["name"]).strip(),
+            "session_secret": str(
+                data.get("session_secret")
+                or DEFAULT_ADMIN_CONFIG["session_secret"]
+            ),
+        }
+        if data != config:
+            _save_admin_config(config)
+        return config
 
 
 def _clean_conversation_id(value: str | None) -> str:
@@ -751,8 +868,13 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
 
     conversation_id = _clean_conversation_id(payload.conversation_id)
     conversation_context = _get_conversation_context(conversation_id)
+    available_forms = _iter_form_downloads()
     try:
-        answer, raw_citations = run_knowledge_crew(payload.question, conversation_context)
+        answer, raw_citations, selected_form_names = run_knowledge_crew(
+            payload.question,
+            conversation_context,
+            available_forms=_available_form_catalog(available_forms),
+        )
     except OllamaGenerationError as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
     _append_conversation_turn(conversation_id, payload.question, answer)
@@ -763,14 +885,13 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
         )
         for citation in raw_citations
     ]
+    form_downloads: list[FormDownloadResponse] = []
+    if _answer_has_supported_form_context(answer):
+        form_downloads = _selected_form_downloads(selected_form_names, available_forms)
     return QueryResponse(
         answer=answer,
         citations=citations,
-        form_downloads=(
-            _matching_form_downloads(payload.question, answer)
-            if _answer_has_supported_form_context(answer)
-            else []
-        ),
+        form_downloads=form_downloads,
         conversation_id=conversation_id,
     )
 
