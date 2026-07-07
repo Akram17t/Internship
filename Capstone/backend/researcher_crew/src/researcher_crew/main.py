@@ -124,25 +124,58 @@ def _ollama_generate(
         return _post_ollama_generate(payload)
 
 
-def _rewrite_query(question: str, conversation_context: str = "") -> str:
-    """Rewrite a follow-up into a standalone search query using recent context.
+def _rewrite_is_safe(original: str, rewritten: str) -> bool:
+    """Reject rewrites that smuggle in content instead of resolving references.
 
-    Falls back to the original question when there is no context or the rewrite
-    fails, so retrieval always has a usable query.
+    A rewrite may only substitute reference words with their topic, so it must
+    not introduce numbers the user never typed (e.g. "12 hari" from an old
+    answer) and must stay roughly the same size.
+    """
+    new_digits = set(re.findall(r"\d+", rewritten)) - set(re.findall(r"\d+", original))
+    if new_digits:
+        return False
+    if len(rewritten.split()) > 2 * len(original.split()) + 6:
+        return False
+    return True
+
+
+def _rewrite_query(question: str, conversation_context: str = "") -> str:
+    """Resolve follow-up references into a standalone search query via the LLM.
+
+    The prompt is a strict decision procedure: rewrite ONLY when the question
+    contains a reference word, otherwise copy it verbatim. A small code-side
+    guard (`_rewrite_is_safe`) discards rewrites that inject numbers or extra
+    content, falling back to the original question.
     """
     if not conversation_context.strip():
         return question
 
     prompt = (
-        "Tugas Anda hanya menulis ulang pertanyaan, bukan menjawabnya. "
-        "Berdasarkan percakapan sebelumnya, ubah pertanyaan terakhir menjadi satu "
-        "pertanyaan mandiri yang bisa dicari tanpa konteks: ganti rujukan seperti "
-        "'itu', 'nya', 'tersebut', atau 'tadi' dengan topik yang sebenarnya. "
-        "Jika pertanyaan sudah mandiri, kembalikan persis apa adanya. "
-        "Balas HANYA dengan satu kalimat pertanyaan, tanpa penjelasan.\n\n"
+        "Anda menormalkan pertanyaan untuk pencarian dokumen. Ikuti prosedur ini:\n"
+        "1. Periksa apakah pertanyaan terakhir memakai kata rujukan yang menunjuk "
+        "ke percakapan sebelumnya: 'itu', 'tersebut', 'tadi', 'sebelumnya', "
+        "'barusan', atau akhiran '-nya' (misal 'formnya', 'alurnya').\n"
+        "2. Jika TIDAK ADA kata rujukan: salin pertanyaan terakhir PERSIS sama, "
+        "kata demi kata, tanpa mengubah atau menambahkan apa pun.\n"
+        "3. Jika ADA kata rujukan: ganti HANYA kata rujukannya dengan topik yang "
+        "dirujuk. Bagian lain biarkan sama persis. DILARANG menambahkan angka, "
+        "syarat, detail, atau topik lain dari percakapan.\n"
+        "Jangan menjawab pertanyaan. Balas HANYA satu kalimat pertanyaan.\n\n"
+        "Contoh 1 (ada rujukan 'itu'):\n"
+        "Percakapan: membahas prosedur resign.\n"
+        "Pertanyaan: Form apa aja yang harus diisi buat itu?\n"
+        "Jawaban: Form apa aja yang harus diisi buat resign?\n\n"
+        "Contoh 2 (ada rujukan akhiran '-nya'):\n"
+        "Percakapan: membahas prosedur resign.\n"
+        "Pertanyaan: Alurnya gimana?\n"
+        "Jawaban: Alur resign gimana?\n\n"
+        "Contoh 3 (tanpa rujukan, salin persis):\n"
+        "Percakapan: membahas prosedur resign.\n"
+        "Pertanyaan: Apakah ada ketentuan lain ketika perjalanan dinas berlangsung lama?\n"
+        "Jawaban: Apakah ada ketentuan lain ketika perjalanan dinas berlangsung lama?\n\n"
         f"Percakapan sebelumnya:\n{conversation_context}\n\n"
         f"Pertanyaan terakhir:\n{question}\n\n"
-        "Pertanyaan mandiri:"
+        "Jawaban:"
     )
     try:
         rewritten = _ollama_generate(prompt, num_predict=120, temperature=0.0)
@@ -150,7 +183,9 @@ def _rewrite_query(question: str, conversation_context: str = "") -> str:
         return question
 
     rewritten = rewritten.strip().strip('"').strip()
-    return rewritten or question
+    if not rewritten or not _rewrite_is_safe(question, rewritten):
+        return question
+    return rewritten
 
 
 def _crew_output_to_text(result: object) -> str:
