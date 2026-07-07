@@ -25,7 +25,10 @@ chat_answer_task:
     Reliability rules:
     - Do not invent policy details, files, page numbers, form numbers, approvals,
       actors, calculations, requirements, exceptions, or recommendations.
-    - If something is not confirmed by the evidence, say that briefly.
+    - If the evidence does not directly answer the question, answer briefly in
+      this exact sentence only: "Sistem tidak dapat menemukan informasi terkait
+      hal tersebut di dalam dokumen SOP. Silakan lakukan eskalasi ke HR atau
+      manajer terkait untuk instruksi manual."
     - Avoid long narrative filler.
   expected_output: >
     A clear grounded Indonesian answer with tidy numeric citation markers and no

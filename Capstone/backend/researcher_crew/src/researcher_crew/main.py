@@ -38,6 +38,36 @@ class OllamaGenerationError(RuntimeError):
     """Raised when the local LLM stack cannot complete a generation request."""
 
 
+UNSUPPORTED_ANSWER = (
+    "Sistem tidak dapat menemukan informasi terkait hal tersebut di dalam dokumen SOP. "
+    "Silakan lakukan eskalasi ke HR atau manajer terkait untuk instruksi manual."
+)
+
+UNSUPPORTED_ANSWER_MARKERS = (
+    "tidak tersedia dalam dokumen",
+    "tidak tersedia di dokumen",
+    "tidak disebutkan",
+    "tidak dinyatakan",
+    "tidak ada ketentuan",
+    "tidak ada informasi",
+    "tidak memuat",
+    "tidak mencakup",
+    "tidak menjelaskan",
+    "tanpa menyebutkan",
+    "tidak ditemukan",
+    "belum tersedia",
+    "belum dapat dikonfirmasi",
+    "tidak dapat dikonfirmasi",
+    "dokumen yang terindeks tidak",
+    "dokumen terindeks tidak",
+)
+
+
+def _is_unsupported_answer(answer: str) -> bool:
+    normalized = " ".join(answer.lower().split())
+    return any(marker in normalized for marker in UNSUPPORTED_ANSWER_MARKERS)
+
+
 def _ollama_model_name() -> str:
     return get_required_env("MODEL").removeprefix("ollama/")
 
@@ -244,15 +274,13 @@ def run_knowledge_crew(
     standalone_question = _rewrite_query(question, conversation_context)
     evidence, citations = retrieve_knowledge(standalone_question)
     if not citations:
-        return (
-            "Informasi tersebut tidak tersedia dalam dokumen yang saat ini terindeks. "
-            "Silakan gunakan sumber lain atau tambahkan dokumen yang relevan.",
-            [],
-        )
+        return UNSUPPORTED_ANSWER, []
 
     answer = GENERATED_SOURCES_SECTION.sub(
         "", _generate_answer(standalone_question, evidence)
     ).strip()
+    if _is_unsupported_answer(answer):
+        return UNSUPPORTED_ANSWER, []
     if citations:
         answer = re.sub(r"\[[nN]\]", f"[{citations[0]['id']}]", answer)
     used_citation_ids = {int(value) for value in re.findall(r"\[(\d+)\]", answer)}

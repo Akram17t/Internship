@@ -331,6 +331,30 @@ def _matching_form_downloads(*texts: str) -> list[FormDownloadResponse]:
     return matches
 
 
+def _answer_has_supported_form_context(answer: str) -> bool:
+    normalized = " ".join(answer.lower().split())
+    unsupported_markers = (
+        "tidak tersedia dalam dokumen",
+        "tidak tersedia di dokumen",
+        "tidak disebutkan",
+        "tidak dinyatakan",
+        "tidak ada ketentuan",
+        "tidak dapat menemukan informasi terkait hal tersebut",
+        "tidak ada informasi",
+        "tidak memuat",
+        "tidak mencakup",
+        "tidak menjelaskan",
+        "tanpa menyebutkan",
+        "tidak ditemukan",
+        "belum tersedia",
+        "belum dapat dikonfirmasi",
+        "tidak dapat dikonfirmasi",
+        "dokumen yang terindeks tidak",
+        "dokumen terindeks tidak",
+    )
+    return not any(marker in normalized for marker in unsupported_markers)
+
+
 def _require_admin(x_admin_email: str) -> None:
     if x_admin_email.strip().lower() not in ADMIN_EMAILS:
         raise HTTPException(status_code=403, detail="Admin access required.")
@@ -689,7 +713,11 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
     return QueryResponse(
         answer=answer,
         citations=citations,
-        form_downloads=_matching_form_downloads(payload.question, answer),
+        form_downloads=(
+            _matching_form_downloads(payload.question, answer)
+            if _answer_has_supported_form_context(answer)
+            else []
+        ),
         conversation_id=conversation_id,
     )
 
