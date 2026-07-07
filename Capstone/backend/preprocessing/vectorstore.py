@@ -26,7 +26,7 @@ VERSIONED_INDEX_DIR = "indexes"
 
 
 def _get_chroma_base_dir() -> Path:
-    """Resolve the configured base directory for Chroma storage."""
+    # Tentukan folder dasar Chroma dari konfigurasi.
     raw_dir = get_env("CHROMA_DIR", "backend/chroma_db")
     path = Path(raw_dir)
     if not path.is_absolute():
@@ -35,7 +35,7 @@ def _get_chroma_base_dir() -> Path:
 
 
 def get_chroma_dir() -> Path:
-    """Return the active Chroma index directory, if one is marked."""
+    # Kembalikan folder index Chroma yang sedang aktif.
     base_dir = _get_chroma_base_dir()
     active_file = base_dir / ACTIVE_INDEX_FILE
     if active_file.exists():
@@ -51,7 +51,7 @@ def get_chroma_dir() -> Path:
 
 
 def get_vectorstore() -> Chroma:
-    """Open the current Chroma vector store with the configured embedder."""
+    # Buka vector store Chroma aktif dengan embedder terkonfigurasi.
     return Chroma(
         persist_directory=str(get_chroma_dir()),
         embedding_function=get_embedding_model(),
@@ -59,7 +59,7 @@ def get_vectorstore() -> Chroma:
 
 
 def rebuild_vectorstore(chunks: list[Document]) -> Chroma:
-    """Create a fresh versioned Chroma index from document chunks."""
+    # Buat index Chroma versi baru dari kumpulan chunk.
     base_dir = _get_chroma_base_dir()
     index_name = f"{VERSIONED_INDEX_DIR}/{uuid.uuid4().hex}"
     chroma_dir = base_dir / index_name
@@ -76,7 +76,7 @@ def rebuild_vectorstore(chunks: list[Document]) -> Chroma:
 
 @lru_cache(maxsize=1)
 def get_reranker():
-    """Lazily load the optional cross-encoder reranker."""
+    # Muat reranker cross-encoder opsional saat dibutuhkan.
     model_name = get_required_env("RERANK_MODEL")
     if not model_name:
         return None
@@ -107,8 +107,8 @@ def _rerank_documents(
         key=lambda item: float(item[1]),
         reverse=True,
     )
-    # CrossEncoder outputs relevance logits; sigmoid normalizes them to 0-1
-    # so RETRIEVAL_MIN_SCORE is an intuitive, model-agnostic threshold.
+    # Output CrossEncoder berupa logit; sigmoid mengubahnya ke skala 0-1
+    # agar RETRIEVAL_MIN_SCORE lebih mudah dipakai lintas model.
     return [(document, 1.0 / (1.0 + math.exp(-float(score)))) for document, score in ranked]
 
 
@@ -119,9 +119,8 @@ def hybrid_search(query: str, k: int = 4) -> list[Document]:
     vector_results = vectorstore.similarity_search(query, k=fetch_k)
     ranked = _rerank_documents(query, vector_results)
 
-    # When the best rerank score is below the threshold, treat the query as
-    # having no relevant source so callers can short-circuit before hitting the
-    # LLM (e.g. an off-topic FAQ question -> instant "no source" response).
+    # Jika skor rerank terbaik di bawah ambang, anggap query tidak punya sumber
+    # relevan agar caller bisa berhenti sebelum memanggil LLM.
     min_score = get_float_env("RETRIEVAL_MIN_SCORE", 0.0)
     if min_score > 0:
         ranked = [item for item in ranked if item[1] is None or item[1] >= min_score]

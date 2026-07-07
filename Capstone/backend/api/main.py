@@ -49,7 +49,7 @@ REINDEX_LOCK = threading.Lock()
 ADMIN_CONFIG_LOCK = threading.Lock()
 
 def _new_admin_config_template() -> dict[str, str]:
-    """Build a blank-on-purpose admin config template."""
+    # Buat template config admin yang sengaja kosong.
     return {
         "email": "",
         "password": "",
@@ -146,7 +146,7 @@ class AdminReindexResponse(BaseModel):
 
 
 def _get_data_dir() -> Path:
-    """Resolve the backend data directory from env configuration."""
+    # Tentukan folder data backend dari konfigurasi env.
     raw_dir = get_env("DATA_DIR", "backend/data")
     path = Path(raw_dir)
     if not path.is_absolute():
@@ -155,7 +155,7 @@ def _get_data_dir() -> Path:
 
 
 def _document_kind_for_path(path: Path) -> str:
-    """Classify a stored file as a form, SOP, or generic document."""
+    # Klasifikasikan file tersimpan sebagai form, SOP, atau dokumen umum.
     name = path.stem.lower()
     if path.suffix.lower() == ".xlsx" or name.startswith("form"):
         return "form"
@@ -165,12 +165,12 @@ def _document_kind_for_path(path: Path) -> str:
 
 
 def _is_embeddable_path(path: Path) -> bool:
-    """Return True when a file should be indexed into the vector DB."""
+    # Kembalikan True jika file perlu masuk ke vector DB.
     return path.suffix.lower() in EMBEDDABLE_EXTENSIONS
 
 
 def _to_library_item(path: Path, data_dir: Path) -> LibraryItem:
-    """Convert a stored file into the admin library response shape."""
+    # Ubah file tersimpan menjadi bentuk respons library admin.
     relative_path = path.relative_to(data_dir).as_posix()
     stat = path.stat()
     display_name = path.stem.replace("_", " ").replace("-", " ").strip() or path.name
@@ -188,7 +188,7 @@ def _to_library_item(path: Path, data_dir: Path) -> LibraryItem:
 
 
 def _iter_library_items() -> list[LibraryItem]:
-    """List every supported file currently stored in the data directory."""
+    # Daftar semua file yang didukung di folder data saat ini.
     data_dir = _get_data_dir()
     if not data_dir.exists():
         return []
@@ -206,7 +206,7 @@ def _iter_library_items() -> list[LibraryItem]:
 
 
 def _format_form_display_name(path: Path) -> str:
-    """Turn a raw form filename into a cleaner display label."""
+    # Ubah nama file form mentah menjadi label yang lebih rapi.
     return (
         path.stem.replace("Form - ", "")
         .replace("(Template)", "")
@@ -216,7 +216,7 @@ def _format_form_display_name(path: Path) -> str:
 
 
 def _form_download_response(path: Path, data_dir: Path) -> FormDownloadResponse:
-    """Build the public download payload for a form file."""
+    # Bentuk payload download publik untuk file form.
     relative_path = path.relative_to(data_dir).as_posix()
     return FormDownloadResponse(
         name=path.name,
@@ -226,7 +226,7 @@ def _form_download_response(path: Path, data_dir: Path) -> FormDownloadResponse:
 
 
 def _iter_form_downloads() -> list[FormDownloadResponse]:
-    """List all downloadable form templates in the data directory."""
+    # Daftar semua template form yang bisa diunduh.
     data_dir = _get_data_dir()
     if not data_dir.exists():
         return []
@@ -238,7 +238,7 @@ def _iter_form_downloads() -> list[FormDownloadResponse]:
 
 
 def _iter_form_paths(data_dir: Path | None = None) -> list[Path]:
-    """Collect all xlsx form paths while skipping temporary Excel locks."""
+    # Kumpulkan semua path form xlsx sambil lewati lock Excel sementara.
     data_dir = data_dir or _get_data_dir()
     if not data_dir.exists():
         return []
@@ -252,7 +252,7 @@ def _iter_form_paths(data_dir: Path | None = None) -> list[Path]:
 
 
 def _available_form_catalog(forms: list[FormDownloadResponse]) -> str:
-    """Serialize the available form list so the AI can choose from it."""
+    # Ubah daftar form menjadi katalog yang bisa dipilih AI.
     if not forms:
         return "[]"
 
@@ -269,7 +269,7 @@ def _available_form_catalog(forms: list[FormDownloadResponse]) -> str:
 
 
 def _form_lookup_keys(form: FormDownloadResponse) -> set[str]:
-    """Generate loose matching keys for one form choice."""
+    # Buat key pencocokan longgar untuk satu pilihan form.
     return {
         form.name.strip().lower(),
         form.display_name.strip().lower(),
@@ -282,7 +282,7 @@ def _selected_form_downloads(
     selected_names: list[str],
     forms: list[FormDownloadResponse],
 ) -> list[FormDownloadResponse]:
-    """Map AI-selected form names back to concrete download payloads."""
+    # Cocokkan nama form pilihan AI ke payload download yang nyata.
     if not selected_names or not forms:
         return []
 
@@ -304,7 +304,7 @@ def _selected_form_downloads(
 
 
 def _answer_has_supported_form_context(answer: str) -> bool:
-    """Hide form downloads when the answer is really a no-source fallback."""
+    # Sembunyikan form download jika jawabannya sebenarnya fallback tanpa sumber.
     normalized = " ".join(answer.lower().split())
     unsupported_markers = (
         "tidak tersedia dalam dokumen",
@@ -329,38 +329,38 @@ def _answer_has_supported_form_context(answer: str) -> bool:
 
 
 def _admin_email() -> str:
-    """Read the configured admin email."""
+    # Ambil email admin yang terkonfigurasi.
     return _load_admin_config()["email"].strip().lower()
 
 
 def _admin_name() -> str:
-    """Read the configured admin display name."""
+    # Ambil nama tampilan admin yang terkonfigurasi.
     return _load_admin_config()["name"].strip() or "Admin"
 
 
 def _admin_password() -> str:
-    """Read the configured admin password."""
+    # Ambil password admin yang terkonfigurasi.
     return _load_admin_config()["password"]
 
 
 def _admin_session_secret() -> str:
-    """Read the signing secret for admin session tokens."""
+    # Ambil secret penanda tangan token sesi admin.
     return _load_admin_config()["session_secret"]
 
 
 def _base64url_encode(value: bytes) -> str:
-    """Encode bytes into URL-safe base64 without padding."""
+    # Encode bytes ke base64 URL-safe tanpa padding.
     return base64.urlsafe_b64encode(value).rstrip(b"=").decode("ascii")
 
 
 def _base64url_decode(value: str) -> bytes:
-    """Decode URL-safe base64 that may be missing padding."""
+    # Decode base64 URL-safe yang mungkin tanpa padding.
     padding = "=" * (-len(value) % 4)
     return base64.urlsafe_b64decode((value + padding).encode("ascii"))
 
 
 def _sign_admin_payload(payload: str) -> str:
-    """Create an HMAC signature for an admin session payload."""
+    # Buat signature HMAC untuk payload sesi admin.
     return hmac.new(
         _admin_session_secret().encode("utf-8"),
         payload.encode("ascii"),
@@ -369,7 +369,7 @@ def _sign_admin_payload(payload: str) -> str:
 
 
 def _create_admin_token(email: str) -> tuple[str, datetime]:
-    """Issue a signed admin session token with an expiry timestamp."""
+    # Buat token sesi admin bertanda tangan dengan waktu kedaluwarsa.
     expires_at = datetime.now(timezone.utc) + ADMIN_SESSION_TTL
     payload = _base64url_encode(
         json.dumps(
@@ -381,7 +381,7 @@ def _create_admin_token(email: str) -> tuple[str, datetime]:
 
 
 def _verify_admin_token(authorization: str) -> str:
-    """Validate a bearer token and return the admin email if valid."""
+    # Validasi bearer token dan kembalikan email admin jika valid.
     scheme, _, token = authorization.strip().partition(" ")
     if scheme.lower() != "bearer" or not token:
         raise HTTPException(status_code=401, detail="Admin login required.")
@@ -405,12 +405,12 @@ def _verify_admin_token(authorization: str) -> str:
 
 
 def _require_admin(authorization: str) -> str:
-    """Guard an endpoint with admin token verification."""
+    # Lindungi endpoint dengan verifikasi token admin.
     return _verify_admin_token(authorization)
 
 
 def _resolve_document_path(document_path: str) -> Path:
-    """Resolve a relative document path while blocking path traversal."""
+    # Tentukan path dokumen relatif sambil mencegah path traversal.
     data_dir = _get_data_dir().resolve()
     resolved_path = (data_dir / unquote(document_path)).resolve()
 
@@ -423,7 +423,7 @@ def _resolve_document_path(document_path: str) -> Path:
 
 
 def _decode_document(content_base64: str) -> bytes:
-    """Decode an uploaded base64 file and enforce size limits."""
+    # Decode file upload base64 dan terapkan batas ukuran.
     try:
         payload = base64.b64decode(content_base64, validate=True)
     except (binascii.Error, ValueError) as error:
@@ -437,7 +437,7 @@ def _decode_document(content_base64: str) -> bytes:
 
 
 def _get_cache_dir() -> Path:
-    """Resolve the local cache directory for JSON state files."""
+    # Tentukan folder cache lokal untuk file state JSON.
     raw_dir = get_env("CONVERSATION_CACHE_DIR", "backend/cache")
     path = Path(raw_dir)
     if not path.is_absolute():
@@ -446,22 +446,22 @@ def _get_cache_dir() -> Path:
 
 
 def _get_conversation_file() -> Path:
-    """Return the conversations cache file path."""
+    # Kembalikan path file cache percakapan.
     return _get_cache_dir() / "conversations.json"
 
 
 def _get_faq_file() -> Path:
-    """Return the FAQ cache file path."""
+    # Kembalikan path file cache FAQ.
     return _get_cache_dir() / "faqs.json"
 
 
 def _get_admin_file() -> Path:
-    """Return the admin config file path."""
+    # Kembalikan path file config admin.
     return _get_cache_dir() / "admin.json"
 
 
 def _save_admin_config(config: dict[str, str]) -> None:
-    """Persist the admin config JSON to disk."""
+    # Simpan JSON config admin ke disk.
     cache_dir = _get_cache_dir()
     cache_dir.mkdir(parents=True, exist_ok=True)
     _get_admin_file().write_text(
@@ -471,7 +471,7 @@ def _save_admin_config(config: dict[str, str]) -> None:
 
 
 def _load_admin_config() -> dict[str, str]:
-    """Load admin config from disk and fill any missing safe defaults."""
+    # Muat config admin dari disk dan isi default aman yang masih kurang.
     with ADMIN_CONFIG_LOCK:
         path = _get_admin_file()
         if not path.exists():
@@ -503,7 +503,7 @@ def _load_admin_config() -> dict[str, str]:
 
 
 def _clean_conversation_id(value: str | None) -> str:
-    """Sanitize a client conversation ID or generate a fresh one."""
+    # Sanitasi conversation ID dari client atau buat yang baru.
     if not value:
         return uuid.uuid4().hex
 
@@ -514,7 +514,7 @@ def _clean_conversation_id(value: str | None) -> str:
 
 
 def _parse_conversation_timestamp(value: object) -> datetime | None:
-    """Parse a stored conversation timestamp if it is valid ISO text."""
+    # Parse timestamp percakapan tersimpan jika valid.
     if not isinstance(value, str) or not value.strip():
         return None
 
@@ -527,7 +527,7 @@ def _parse_conversation_timestamp(value: object) -> datetime | None:
 def _prune_expired_conversations(
     conversations: dict[str, list[dict[str, object]]],
 ) -> dict[str, list[dict[str, object]]]:
-    """Drop conversation threads whose latest message is past the TTL."""
+    # Buang thread percakapan yang pesan terbarunya sudah lewat TTL.
     cutoff = datetime.now() - CONVERSATION_TTL
     pruned: dict[str, list[dict[str, object]]] = {}
 
@@ -552,7 +552,7 @@ def _prune_expired_conversations(
 
 
 def _load_conversations() -> dict[str, list[dict[str, object]]]:
-    """Load and prune cached conversation history from disk."""
+    # Muat dan pangkas riwayat percakapan dari disk.
     path = _get_conversation_file()
     if not path.exists():
         return {}
@@ -574,7 +574,7 @@ def _load_conversations() -> dict[str, list[dict[str, object]]]:
 
 
 def _save_conversations(conversations: dict[str, list[dict[str, object]]]) -> None:
-    """Persist bounded, pruned conversation history to disk."""
+    # Simpan riwayat percakapan yang sudah dibatasi dan dipangkas.
     cache_dir = _get_cache_dir()
     cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -588,7 +588,7 @@ def _save_conversations(conversations: dict[str, list[dict[str, object]]]) -> No
 
 
 def _get_conversation_context(conversation_id: str) -> str:
-    """Render recent turns into plain text context for query rewriting."""
+    # Ubah turn terbaru menjadi context teks untuk rewrite query.
     with CONVERSATION_LOCK:
         messages = _load_conversations().get(conversation_id, [])
 
@@ -603,7 +603,7 @@ def _get_conversation_context(conversation_id: str) -> str:
 
 
 def _append_conversation_turn(conversation_id: str, question: str, answer: str) -> None:
-    """Append one user/assistant turn pair to the conversation cache."""
+    # Tambahkan satu pasangan turn user/assistant ke cache percakapan.
     now = datetime.now().isoformat(timespec="seconds")
     with CONVERSATION_LOCK:
         conversations = _load_conversations()
@@ -619,12 +619,12 @@ def _append_conversation_turn(conversation_id: str, question: str, answer: str) 
 
 
 def _citation_download_url(source: str) -> str:
-    """Build a document download URL from a citation source filename."""
+    # Buat URL download dokumen dari nama file sumber citation.
     return f"/api/documents/{quote(source, safe='')}" if source else ""
 
 
 def _normalize_citation(raw_item: object, index: int) -> CitationResponse | None:
-    """Normalize one raw citation dict into the API response model."""
+    # Normalisasi satu dict citation mentah ke model respons API.
     if not isinstance(raw_item, dict):
         return None
 
@@ -643,7 +643,7 @@ def _normalize_citation(raw_item: object, index: int) -> CitationResponse | None
 
 
 def _normalize_citations(item: dict[str, object]) -> list[CitationResponse]:
-    """Normalize citations, with legacy source/source_url fallback support."""
+    # Normalisasi citation dengan fallback legacy source/source_url.
     raw_citations = item.get("citations")
     if isinstance(raw_citations, list):
         citations = [
@@ -672,7 +672,7 @@ def _normalize_citations(item: dict[str, object]) -> list[CitationResponse]:
 
 
 def _normalize_faq_item(item: dict[str, object]) -> FAQItem | None:
-    """Normalize one stored FAQ record into the API model."""
+    # Normalisasi satu record FAQ tersimpan ke model API.
     question = str(item.get("question", "")).strip()
     answer = str(item.get("answer", "")).strip()
     if not question or not answer:
@@ -700,7 +700,7 @@ def _normalize_faq_item(item: dict[str, object]) -> FAQItem | None:
 
 
 def _load_faqs() -> list[FAQItem]:
-    """Load FAQ items from the local JSON cache."""
+    # Muat item FAQ dari cache JSON lokal.
     path = _get_faq_file()
     if not path.exists():
         return []
@@ -721,7 +721,7 @@ def _load_faqs() -> list[FAQItem]:
 
 
 def _save_faqs(items: list[FAQItem]) -> None:
-    """Persist FAQ items to the local JSON cache."""
+    # Simpan item FAQ ke cache JSON lokal.
     cache_dir = _get_cache_dir()
     cache_dir.mkdir(parents=True, exist_ok=True)
     payload = [
@@ -735,7 +735,7 @@ def _save_faqs(items: list[FAQItem]) -> None:
 
 
 def _find_faq_index(items: list[FAQItem], faq_id: str) -> int:
-    """Find a FAQ item index by ID or raise 404."""
+    # Cari index item FAQ berdasarkan ID atau lempar 404.
     for index, item in enumerate(items):
         if item.id == faq_id:
             return index
@@ -743,7 +743,7 @@ def _find_faq_index(items: list[FAQItem], faq_id: str) -> int:
 
 
 def _is_unusable_faq_answer(answer: str, citations: list[CitationResponse]) -> bool:
-    """Reject FAQ answers that have no evidence or look too generic."""
+    # Tolak jawaban FAQ yang tidak punya evidence atau terlalu generik.
     normalized = " ".join(answer.lower().split())
     blocked_phrases = (
         "informasi ini belum tersedia",
@@ -759,7 +759,7 @@ def _is_unusable_faq_answer(answer: str, citations: list[CitationResponse]) -> b
 
 
 def _build_faq_item(payload: AdminFAQPayload, faq_id: str | None = None) -> FAQItem:
-    """Generate and validate one FAQ entry from a question prompt."""
+    # Buat dan validasi satu entri FAQ dari pertanyaan.
     from researcher_crew.main import OllamaGenerationError, run_faq_crew
 
     question = payload.question.strip()
@@ -802,13 +802,13 @@ if ASSETS_DIR.exists():
 
 @app.get("/health")
 def health_check() -> dict[str, str]:
-    """Simple liveness probe for the backend service."""
+    # Probe sederhana untuk mengecek backend hidup.
     return {"status": "ok"}
 
 
 @app.post("/api/admin/login", response_model=AdminLoginResponse)
 def login_admin(payload: AdminLoginPayload) -> AdminLoginResponse:
-    """Authenticate the admin user and issue a session token."""
+    # Autentikasi admin lalu buat token sesi.
     if not _admin_email() or not _admin_password():
         raise HTTPException(
             status_code=503,
@@ -834,7 +834,7 @@ def login_admin(payload: AdminLoginPayload) -> AdminLoginResponse:
 
 @app.post("/query", response_model=QueryResponse)
 def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
-    """Answer a chat query with citations and AI-selected form downloads."""
+    # Jawab query chat dengan citation dan form pilihan AI.
     from researcher_crew.main import OllamaGenerationError, run_knowledge_crew
 
     conversation_id = _clean_conversation_id(payload.conversation_id)
@@ -867,15 +867,15 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
     )
 
 
-# Static, pinned FAQ shown at the top for everyone. Not stored in faqs.json and
-# not editable/deletable via the admin FAQ endpoints (id is empty). Only its
-# image can be replaced, via POST /api/admin/faq-image.
+# FAQ pinned statis yang selalu tampil paling atas.
+# Item ini tidak disimpan di faqs.json dan tidak bisa diedit/dihapus biasa.
+# Hanya gambarnya yang bisa diganti lewat POST /api/admin/faq-image.
 PINNED_IMAGE_STEM = "organogram"
 PINNED_IMAGE_EXTENSIONS = {".webp", ".png", ".jpg", ".jpeg"}
 
 
 def _pinned_image_name() -> str:
-    """Return the active pinned FAQ image filename."""
+    # Kembalikan nama file gambar FAQ pinned yang aktif.
     for extension in (".webp", ".png", ".jpg", ".jpeg"):
         if (ASSETS_DIR / f"{PINNED_IMAGE_STEM}{extension}").exists():
             return f"{PINNED_IMAGE_STEM}{extension}"
@@ -883,16 +883,16 @@ def _pinned_image_name() -> str:
 
 
 def _pinned_image_url() -> str:
-    """Return a cache-busted URL for the pinned FAQ image."""
+    # Kembalikan URL cache-busted untuk gambar FAQ pinned.
     name = _pinned_image_name()
     path = ASSETS_DIR / name
-    # Cache-bust with mtime so the browser reloads after the image is replaced.
+    # Tambahkan cache-bust dari mtime agar browser reload setelah gambar diganti.
     version = int(path.stat().st_mtime) if path.exists() else 0
     return f"/assets/{name}?v={version}"
 
 
 def _pinned_faq_items() -> list[FAQItem]:
-    """Build the static FAQ card shown for the organogram entry."""
+    # Buat kartu FAQ statis untuk entri organogram.
     return [
         FAQItem(
             id="",
@@ -906,7 +906,7 @@ def _pinned_faq_items() -> list[FAQItem]:
 
 @app.get("/api/faq", response_model=list[FAQItem])
 def get_faq() -> list[FAQItem]:
-    """Return pinned FAQ items followed by stored FAQ entries."""
+    # Kembalikan FAQ pinned lalu FAQ tersimpan.
     with FAQ_LOCK:
         stored = _load_faqs()
     return [*_pinned_faq_items(), *stored]
@@ -917,7 +917,7 @@ def upload_pinned_faq_image(
     payload: AdminDocumentPayload,
     authorization: str = Header(default=""),
 ) -> AdminDocumentResponse:
-    """Replace the pinned organogram image asset."""
+    # Ganti aset gambar organogram pinned.
     _require_admin(authorization)
     extension = Path(unquote(payload.filename)).suffix.lower()
     if extension not in PINNED_IMAGE_EXTENSIONS:
@@ -929,7 +929,7 @@ def upload_pinned_faq_image(
     content = _decode_document(payload.content_base64)
     ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Keep a single organogram image: drop any other extension variants first.
+    # Simpan hanya satu gambar organogram: hapus varian ekstensi lain dulu.
     for other_extension in PINNED_IMAGE_EXTENSIONS:
         if other_extension == extension:
             continue
@@ -946,7 +946,7 @@ def create_faq(
     payload: AdminFAQPayload,
     authorization: str = Header(default=""),
 ) -> AdminFAQResponse:
-    """Generate and store a new FAQ entry."""
+    # Buat lalu simpan FAQ baru.
     _require_admin(authorization)
     item = _build_faq_item(payload)
     with FAQ_LOCK:
@@ -962,7 +962,7 @@ def update_faq(
     payload: AdminFAQPayload,
     authorization: str = Header(default=""),
 ) -> AdminFAQResponse:
-    """Regenerate and replace an existing FAQ entry."""
+    # Buat ulang lalu ganti FAQ yang sudah ada.
     _require_admin(authorization)
     with FAQ_LOCK:
         items = _load_faqs()
@@ -978,7 +978,7 @@ def delete_faq(
     faq_id: str,
     authorization: str = Header(default=""),
 ) -> AdminFAQResponse:
-    """Delete one stored FAQ entry by ID."""
+    # Hapus satu FAQ tersimpan berdasarkan ID.
     _require_admin(authorization)
     with FAQ_LOCK:
         items = _load_faqs()
@@ -990,7 +990,7 @@ def delete_faq(
 
 @app.get("/api/library", response_model=list[LibraryItem])
 def get_library(authorization: str = Header(default="")) -> list[LibraryItem]:
-    """Return the admin document library listing."""
+    # Kembalikan daftar library dokumen admin.
     _require_admin(authorization)
     return _iter_library_items()
 
@@ -1000,7 +1000,7 @@ def save_document(
     payload: AdminDocumentPayload,
     authorization: str = Header(default=""),
 ) -> AdminDocumentResponse:
-    """Insert or replace a managed backend document."""
+    # Tambahkan atau ganti dokumen backend yang dikelola.
     _require_admin(authorization)
     data_dir = _get_data_dir().resolve()
     data_dir.mkdir(parents=True, exist_ok=True)
@@ -1046,7 +1046,7 @@ def delete_document(
     document_path: str,
     authorization: str = Header(default=""),
 ) -> AdminDocumentResponse:
-    """Delete one managed document and report reindex requirements."""
+    # Hapus satu dokumen terkelola dan laporkan kebutuhan reindex.
     _require_admin(authorization)
     target_path = _resolve_document_path(document_path)
 
@@ -1062,7 +1062,7 @@ def delete_document(
 
 @app.post("/api/admin/reindex", response_model=AdminReindexResponse)
 def reindex_documents(authorization: str = Header(default="")) -> AdminReindexResponse:
-    """Rebuild the vector database from the current source documents."""
+    # Bangun ulang vector database dari dokumen sumber saat ini.
     _require_admin(authorization)
     if not REINDEX_LOCK.acquire(blocking=False):
         raise HTTPException(status_code=409, detail="Reindex is already running.")
@@ -1083,11 +1083,10 @@ def reindex_documents(authorization: str = Header(default="")) -> AdminReindexRe
 
 
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-# Matches placeholder brackets the form templates use, e.g. "[  ]", "[Tanggal]".
+# Cocokkan placeholder bracket yang dipakai template form, misalnya "[  ]".
 FORM_PLACEHOLDER_PATTERN = re.compile(r"\[[^\[\]]*\]")
-# A "field" cell is one whose whole content is a single bracket (the labelled
-# info rows). Inline placeholders like "Nama: [ ]" (signature blocks) or
-# "No. Form: [Nomor Form]" (headers) are skipped to keep the form short.
+# Cell "field" adalah cell yang seluruh isinya hanya satu bracket.
+# Placeholder inline seperti "Nama: [ ]" atau header dilewati agar form tetap singkat.
 FORM_FIELD_CELL_PATTERN = re.compile(r"^\[[^\[\]]*\]$")
 
 
@@ -1194,7 +1193,7 @@ def _fill_form_placeholders(path: Path, values: dict[str, str]) -> bytes:
 
 
 def _resolve_form_path(path: str) -> Path:
-    """Resolve and validate that a path points to a fillable form template."""
+    # Tentukan dan validasi bahwa path menunjuk ke template form yang bisa diisi.
     resolved_path = _resolve_document_path(path)
     if not resolved_path.exists() or not resolved_path.is_file():
         raise HTTPException(status_code=404, detail="Form not found.")
@@ -1211,7 +1210,7 @@ def download_document(
     document_path: str,
     authorization: str = Header(default=""),
 ) -> FileResponse:
-    """Download a stored document, limiting non-form files to admins."""
+    # Unduh dokumen tersimpan, dengan file non-form dibatasi untuk admin.
     resolved_path = _resolve_document_path(document_path)
 
     if not resolved_path.exists() or not resolved_path.is_file():
@@ -1228,14 +1227,14 @@ def download_document(
 
 @app.get("/api/forms/fields")
 def form_fields(path: str) -> dict[str, object]:
-    """Expose the simplified input fields detected in a form template."""
+    # Tampilkan field input sederhana yang terdeteksi di template form.
     resolved_path = _resolve_form_path(path)
     return {"fields": _unique_form_fields(resolved_path)}
 
 
 @app.post("/api/forms/fill")
 def fill_form(payload: FormFillPayload) -> Response:
-    """Fill a form template in memory and return the completed xlsx file."""
+    # Isi template form di memory lalu kembalikan file xlsx hasilnya.
     resolved_path = _resolve_form_path(payload.path)
     content = _fill_form_placeholders(resolved_path, payload.values)
     nama = next(
@@ -1255,7 +1254,7 @@ def fill_form(payload: FormFillPayload) -> Response:
 
 @app.get("/", response_class=FileResponse, include_in_schema=False)
 def frontend_app() -> FileResponse:
-    """Serve the frontend index file for the root route."""
+    # Sajikan file index frontend untuk route root.
     index_file = FRONTEND_DIR / "index.html"
     if not index_file.exists():
         raise HTTPException(status_code=404, detail="Frontend bundle not found.")

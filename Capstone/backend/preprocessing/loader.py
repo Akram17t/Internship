@@ -10,7 +10,7 @@ SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".txt"}
 
 
 def classify_document_kind(path: Path) -> str:
-    """Classify a source file as a form, SOP, or general document."""
+    # Klasifikasikan file sumber sebagai form, SOP, atau dokumen umum.
     name = path.stem.lower()
     if path.suffix.lower() == ".xlsx" or name.startswith("form"):
         return "form"
@@ -20,7 +20,7 @@ def classify_document_kind(path: Path) -> str:
 
 
 def _normalize_documents(documents: list[Document], source_path: Path) -> list[Document]:
-    """Attach consistent metadata to loaded documents."""
+    # Tambahkan metadata yang konsisten ke dokumen hasil load.
     for document in documents:
         metadata = document.metadata
         metadata["source"] = source_path.name
@@ -32,7 +32,7 @@ def _normalize_documents(documents: list[Document], source_path: Path) -> list[D
 
 
 def _load_single_document(path: Path) -> list[Document]:
-    """Load one supported file into LangChain Document objects."""
+    # Muat satu file yang didukung menjadi Document LangChain.
     suffix = path.suffix.lower()
     if suffix == ".pdf":
         documents = PyPDFLoader(str(path)).load()
@@ -47,7 +47,7 @@ def _load_single_document(path: Path) -> list[Document]:
 
 
 def load_documents(data_dir: str | Path) -> list[Document]:
-    """Load every supported source document from the data directory."""
+    # Muat semua dokumen sumber yang didukung dari folder data.
     base_dir = Path(data_dir)
     if not base_dir.exists():
         raise FileNotFoundError(f"Data directory not found: {base_dir}")

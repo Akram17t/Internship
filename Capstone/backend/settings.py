@@ -12,7 +12,7 @@ _ENV_LOADED = False
 
 
 def load_capstone_env() -> None:
-    """Load the root .env file once for the current process."""
+    # Muat file .env root sekali saja per proses.
     global _ENV_LOADED
     if _ENV_LOADED:
         return
@@ -21,7 +21,7 @@ def load_capstone_env() -> None:
 
 
 def get_required_env(name: str) -> str:
-    """Read a required environment variable or raise a clear error."""
+    # Ambil env wajib atau tampilkan error yang jelas.
     load_capstone_env()
     value = os.getenv(name, "").strip()
     if not value:
@@ -30,13 +30,13 @@ def get_required_env(name: str) -> str:
 
 
 def get_env(name: str, default: str) -> str:
-    """Read an environment variable with a trimmed string fallback."""
+    # Ambil env dengan fallback string yang sudah dirapikan.
     load_capstone_env()
     return os.getenv(name, default).strip() or default
 
 
 def get_int_env(name: str, default: int) -> int:
-    """Read an integer environment variable with validation."""
+    # Ambil env integer dengan validasi.
     raw_value = get_env(name, str(default))
     try:
         return int(raw_value)
@@ -45,7 +45,7 @@ def get_int_env(name: str, default: int) -> int:
 
 
 def get_float_env(name: str, default: float) -> float:
-    """Read a float environment variable with validation."""
+    # Ambil env float dengan validasi.
     raw_value = get_env(name, str(default))
     try:
         return float(raw_value)

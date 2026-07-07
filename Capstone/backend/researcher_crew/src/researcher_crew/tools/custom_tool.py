@@ -14,7 +14,7 @@ load_capstone_env()
 
 
 def _citation_from_document(document, citation_id: int) -> dict[str, object]:
-    """Convert one retrieved chunk into a citation payload."""
+    # Ubah satu chunk hasil retrieval menjadi payload citation.
     page = document.metadata.get("page")
     return {
         "id": citation_id,
@@ -26,7 +26,7 @@ def _citation_from_document(document, citation_id: int) -> dict[str, object]:
 
 
 def retrieve_knowledge(query: str, k: int | None = None) -> tuple[str, list[dict[str, object]]]:
-    """Run retrieval, then format evidence text plus deduplicated citations."""
+    # Jalankan retrieval lalu bentuk evidence dan citation yang sudah deduplikasi.
     documents = hybrid_search(query, k=k or get_int_env("TOP_K", 4))
     if not documents:
         return "No matching knowledge chunks were found in the local vector database.", []

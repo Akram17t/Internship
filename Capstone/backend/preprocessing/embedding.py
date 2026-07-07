@@ -8,7 +8,7 @@ load_capstone_env()
 
 
 def get_embedding_model() -> OllamaEmbeddings:
-    """Build the embedding client from environment configuration."""
+    # Buat client embedding dari konfigurasi env.
     return OllamaEmbeddings(
         model=get_required_env("EMBED_MODEL"),
         base_url=get_required_env("OLLAMA_BASE_URL"),

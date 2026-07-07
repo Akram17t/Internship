@@ -88,23 +88,23 @@ UNSUPPORTED_ANSWER_MARKERS = (
 
 
 def _is_unsupported_answer(answer: str) -> bool:
-    """Detect fallback-style answers that mean the docs did not support the query."""
+    # Deteksi jawaban fallback yang berarti dokumen tidak mendukung query.
     normalized = " ".join(answer.lower().split())
     return any(marker in normalized for marker in UNSUPPORTED_ANSWER_MARKERS)
 
 
 def _ollama_model_name() -> str:
-    """Return the configured Ollama model name without provider prefix."""
+    # Ambil nama model Ollama tanpa prefix provider.
     return get_required_env("MODEL").removeprefix("ollama/")
 
 
 def _ollama_base_url() -> str:
-    """Return the normalized base URL for Ollama HTTP calls."""
+    # Ambil base URL Ollama yang sudah dirapikan.
     return get_required_env("OLLAMA_BASE_URL").rstrip("/")
 
 
 def _read_ollama_error(error: urllib.error.HTTPError) -> str:
-    """Extract the clearest error message from an Ollama HTTP response."""
+    # Ambil pesan error paling jelas dari respons HTTP Ollama.
     try:
         raw_body = error.read().decode("utf-8", errors="replace")
     except Exception:
@@ -122,7 +122,7 @@ def _read_ollama_error(error: urllib.error.HTTPError) -> str:
 
 
 def _post_ollama_generate(payload: dict[str, object]) -> str:
-    """Send a raw generate request to Ollama and return the response text."""
+    # Kirim request generate mentah ke Ollama dan ambil teks hasilnya.
     request = urllib.request.Request(
         f"{_ollama_base_url()}/api/generate",
         data=json.dumps(payload).encode("utf-8"),
@@ -169,14 +169,14 @@ def _ollama_generate(
         "model": _ollama_model_name(),
         "prompt": prompt,
         "stream": False,
-        # Keep the whole token budget for the output, not hidden <think> tokens.
+        # Simpan seluruh jatah token untuk output, bukan token <think> tersembunyi.
         "think": False,
         "options": options,
     }
     try:
         return _post_ollama_generate(payload)
     except OllamaGenerationError as error:
-        # Non-thinking models (e.g. gemma3) reject the `think` flag; retry once.
+        # Model non-thinking seperti gemma3 bisa menolak flag `think`; coba ulang sekali.
         if "think" not in str(error).lower():
             raise
         payload.pop("think", None)
@@ -248,13 +248,13 @@ def _rewrite_query(question: str, conversation_context: str = "") -> str:
 
 
 def _crew_output_to_text(result: object) -> str:
-    """Normalize CrewAI output objects into plain response text."""
+    # Ubah output CrewAI menjadi teks respons biasa.
     raw = getattr(result, "raw", None)
     return str(raw if raw is not None else result).strip()
 
 
 def _generate_answer(question: str, evidence: str, available_forms: str) -> str:
-    """Run the chat crew to produce the final user-facing answer."""
+    # Jalankan chat crew untuk menghasilkan jawaban akhir ke user.
     inputs = {
         "question": question,
         "evidence": evidence,
@@ -269,7 +269,7 @@ def _generate_answer(question: str, evidence: str, available_forms: str) -> str:
 
 
 def _split_form_selection(answer: str) -> tuple[str, list[str]]:
-    """Extract hidden form selections and remove form list text from the answer."""
+    # Ambil pilihan form tersembunyi dan buang daftar form dari jawaban.
     selected_forms: list[str] = []
 
     def collect(match: re.Match[str]) -> str:
@@ -300,7 +300,7 @@ FAQ_MAX_WORDS = 45
 
 
 def _generate_faq_answer(question: str, evidence: str) -> str:
-    """Generate a short FAQ-style answer from retrieved evidence."""
+    # Buat jawaban FAQ singkat dari evidence yang ditemukan.
     prompt = (
         "Kamu adalah HR Assistant ICS Compute. Buat jawaban FAQ singkat dalam bahasa Indonesia. "
         "Gunakan hanya evidence yang diberikan. Jawaban harus 1 paragraf, "
@@ -329,10 +329,9 @@ def run_knowledge_crew(
     available_forms: str = "",
 ) -> tuple[str, list[dict[str, object]], list[str]]:
     """Retrieve relevant document evidence and answer through the chat crew."""
-    # Rewrite follow-ups ("form untuk itu?") into a standalone query. That query
-    # is used for BOTH retrieval and generation, and the conversation context is
-    # deliberately NOT passed to generation: once the question is standalone, the
-    # previous turn only bleeds the old topic into the new answer.
+    # Ubah follow-up seperti "form untuk itu?" menjadi query mandiri.
+    # Query mandiri ini dipakai untuk retrieval dan generation.
+    # Context lama sengaja tidak dikirim ke generation agar topik lama tidak bocor.
     standalone_question = _rewrite_query(question, conversation_context)
     evidence, citations = retrieve_knowledge(standalone_question)
     if not citations:
