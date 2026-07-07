@@ -26,9 +26,6 @@ from backend.settings import get_env, load_capstone_env
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 load_capstone_env()
-CREW_SRC_DIR = ROOT_DIR / "backend" / "researcher_crew" / "src"
-if str(CREW_SRC_DIR) not in sys.path:
-    sys.path.insert(0, str(CREW_SRC_DIR))
 
 app = FastAPI(title="ICS Knowledge Assistant API", version="1.0.0")
 FRONTEND_DIR = ROOT_DIR / "frontend" / "web"
@@ -798,7 +795,7 @@ def _is_unusable_faq_answer(answer: str, citations: list[CitationResponse]) -> b
 
 
 def _build_faq_item(payload: AdminFAQPayload, faq_id: str | None = None) -> FAQItem:
-    from researcher_crew.main import OllamaGenerationError, run_faq_crew
+    from backend.rag.main import OllamaGenerationError, run_faq_crew
 
     question = payload.question.strip()
     try:
@@ -864,7 +861,7 @@ def login_admin(payload: AdminLoginPayload) -> AdminLoginResponse:
 
 @app.post("/query", response_model=QueryResponse)
 def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
-    from researcher_crew.main import OllamaGenerationError, run_knowledge_crew
+    from backend.rag.main import OllamaGenerationError, run_knowledge_crew
 
     conversation_id = _clean_conversation_id(payload.conversation_id)
     conversation_context = _get_conversation_context(conversation_id)

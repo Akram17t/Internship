@@ -3,13 +3,13 @@ setlocal EnableExtensions EnableDelayedExpansion
 
 cd /d "%~dp0"
 set "ROOT=%CD%"
-set "PYTHON=%ROOT%\backend\researcher_crew\.venv\Scripts\python.exe"
+set "PYTHON=%ROOT%\backend\rag\.venv\Scripts\python.exe"
 
 if not exist "%PYTHON%" (
   echo Missing Python environment:
   echo   %PYTHON%
   echo.
-  echo Please create or sync the venv in backend\researcher_crew first.
+  echo Please create or sync the venv in backend\rag first.
   goto :fail
 )
 
@@ -27,11 +27,11 @@ if not defined API_PORT (
   goto :fail
 )
 
-"%PYTHON%" -X utf8 -c "import crewai, dotenv, fastapi, yaml, langchain_chroma, langchain_community, langchain_text_splitters, langchain_ollama, pypdf, docx2txt" >nul 2>&1
+"%PYTHON%" -X utf8 -c "import dotenv, fastapi, yaml, langchain_chroma, langchain_community, langchain_text_splitters, langchain_ollama, pypdf, docx2txt, openpyxl" >nul 2>&1
 if errorlevel 1 (
-  echo Missing Python dependencies in backend\researcher_crew\.venv.
+  echo Missing Python dependencies in backend\rag\.venv.
   echo Run:
-  echo   backend\researcher_crew\.venv\Scripts\python -m pip install -r requirements.txt
+  echo   backend\rag\.venv\Scripts\python -m pip install -r requirements.txt
   goto :fail
 )
 

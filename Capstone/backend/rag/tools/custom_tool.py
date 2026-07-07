@@ -1,12 +1,5 @@
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-PROJECT_ROOT = Path(__file__).resolve().parents[5]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
 from backend.settings import get_int_env, load_capstone_env
 from backend.preprocessing.vectorstore import hybrid_search
 

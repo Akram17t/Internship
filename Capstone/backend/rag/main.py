@@ -6,18 +6,12 @@ import json
 import urllib.error
 import urllib.request
 import warnings
-from pathlib import Path
-
-PROJECT_ROOT = Path(__file__).resolve().parents[5]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
 
 from backend.settings import get_int_env, get_required_env, load_capstone_env
 
 warnings.filterwarnings("ignore", category=SyntaxWarning, module="pysbd")
 
-from researcher_crew.crew import ResearcherCrew
-from researcher_crew.tools import retrieve_knowledge
+from backend.rag.tools import retrieve_knowledge
 
 load_capstone_env()
 
@@ -242,23 +236,66 @@ def _rewrite_query(question: str, conversation_context: str = "") -> str:
     return rewritten
 
 
-def _crew_output_to_text(result: object) -> str:
-    raw = getattr(result, "raw", None)
-    return str(raw if raw is not None else result).strip()
+CHAT_ANSWER_INSTRUCTIONS = (
+    "Kamu adalah ICS Knowledge Assistant. Jawab pertanyaan kebijakan internal dalam "
+    "bahasa Indonesia dengan gaya natural, membantu, dan grounded. Jelaskan dokumen "
+    "operasional seperti rekan kerja yang andal: cukup jelas untuk ditindaklanjuti, "
+    "fleksibel formatnya, dan jujur ketika evidence tidak lengkap. Gunakan HANYA "
+    "evidence yang diberikan.\n\n"
+    "Pilih format yang paling cocok: paragraf, bullet, langkah bernomor, tabel kecil, "
+    "atau campuran. Jangan paksakan template tetap. Jika soal proses atau SOP, buat "
+    "alurnya jelas dan sertakan aktor, form, approval, output, tenggat, syarat, dan "
+    "pengecualian yang didukung evidence.\n\n"
+    "Aturan sitasi:\n"
+    "- Pertahankan marker sitasi seperti [1] dan [2] di jawaban.\n"
+    "- Taruh sitasi di akhir paragraf, bullet, atau baris tabel yang penting.\n"
+    "- Jangan sitasi tiap frasa kecil bila satu sitasi cukup untuk seluruh kalimat.\n"
+    "- Jangan pernah keluarkan marker generik seperti [n].\n"
+    "- Jangan tulis section sumber/referensi terpisah; aplikasi merender detail sumber "
+    "dari marker.\n\n"
+    "Aturan pemilihan form:\n"
+    "- Jika jawaban butuh satu atau lebih form yang dapat diunduh, pilih HANYA dari "
+    "daftar 'Form tersedia' di bawah.\n"
+    "- Jika tidak ada form yang dibutuhkan, pilih list kosong.\n"
+    "- Jangan mengarang nama form.\n"
+    "- Jangan tulis nama file form, nama .xlsx, atau section 'formulir terkait/tersedia', "
+    "'form yang bisa diunduh', atau sejenisnya di dalam jawaban yang terlihat. Aplikasi "
+    "merender form terpilih secara terpisah.\n"
+    "- Jika sebuah form relevan, sebut nama form (human-readable) hanya di tempat yang "
+    "wajar dalam penjelasan, lalu pilih nama file-nya di FORM_SELECTION.\n"
+    "- Jika jawaban secara eksplisit menyatakan tidak ada form tambahan, FORM_SELECTION "
+    "harus [].\n"
+    "- Jika evidence menjawab pertanyaan secara langsung, di paling akhir tambahkan TEPAT "
+    "satu baris machine-readable:\n"
+    '  FORM_SELECTION: ["nama file form persis.xlsx"]\n'
+    "- Jika tidak ada form yang dibutuhkan, tulis persis:\n"
+    "  FORM_SELECTION: []\n\n"
+    "Aturan keandalan:\n"
+    "- Jangan mengarang detail kebijakan, file, nomor halaman, nomor form, approval, "
+    "aktor, perhitungan, syarat, pengecualian, atau rekomendasi.\n"
+    "- Jika evidence tidak menjawab pertanyaan secara langsung, jawab singkat HANYA "
+    'dengan kalimat ini: "' + UNSUPPORTED_ANSWER + '". Jangan tambahkan FORM_SELECTION '
+    "pada kasus unsupported ini."
+)
 
 
 def _generate_answer(question: str, evidence: str, available_forms: str) -> str:
-    inputs = {
-        "question": question,
-        "evidence": evidence,
-        "available_forms": available_forms or "[]",
-    }
-    try:
-        result = ResearcherCrew().crew().kickoff(inputs=inputs)
-    except Exception as error:
-        raise OllamaGenerationError(f"CrewAI gagal membuat jawaban: {error}") from error
-
-    return _crew_output_to_text(result)
+    prompt = (
+        f"{CHAT_ANSWER_INSTRUCTIONS}\n\n"
+        f"Pertanyaan:\n{question}\n\n"
+        f"Evidence:\n{evidence}\n\n"
+        f"Form tersedia (JSON):\n{available_forms or '[]'}\n\n"
+        "Jawaban:"
+    )
+    answer = _ollama_generate(
+        prompt,
+        num_predict=get_int_env("OLLAMA_NUM_PREDICT", 2000),
+        temperature=0.3,
+        seed=7,
+    )
+    if not answer:
+        raise OllamaGenerationError("Ollama mengembalikan jawaban kosong.")
+    return answer
 
 
 def _split_form_selection(answer: str) -> tuple[str, list[str]]:
