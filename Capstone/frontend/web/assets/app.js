@@ -2343,6 +2343,7 @@ function createLibraryRow(item) {
 async function downloadDocument(url, filename = "document") {
   try {
     const response = await fetch(url, {
+      cache: "no-store",
       headers: isAdminSession() ? { "X-Admin-Email": state.session.email } : {},
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);

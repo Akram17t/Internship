@@ -264,6 +264,8 @@ def _iter_library_items() -> list[LibraryItem]:
     for path in sorted(data_dir.rglob("*")):
         if not path.is_file() or path.suffix.lower() not in LIBRARY_EXTENSIONS:
             continue
+        if path.name.startswith("~$"):  # skip Excel lock files
+            continue
 
         items.append(_to_library_item(path, data_dir))
 
@@ -319,7 +321,7 @@ def _matching_form_downloads(*texts: str) -> list[FormDownloadResponse]:
 
     matches: list[FormDownloadResponse] = []
     for path in sorted(data_dir.rglob("*.xlsx")):
-        if not path.is_file():
+        if not path.is_file() or path.name.startswith("~$"):
             continue
         keywords = _form_keywords_for_path(path)
         is_form_request = "form" in haystack or any(keyword in haystack for keyword in keywords)
@@ -898,6 +900,10 @@ def reindex_documents(x_admin_email: str = Header(default="")) -> AdminReindexRe
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 # Matches placeholder brackets the form templates use, e.g. "[  ]", "[Tanggal]".
 FORM_PLACEHOLDER_PATTERN = re.compile(r"\[[^\[\]]*\]")
+# A "field" cell is one whose whole content is a single bracket (the labelled
+# info rows). Inline placeholders like "Nama: [ ]" (signature blocks) or
+# "No. Form: [Nomor Form]" (headers) are skipped to keep the form short.
+FORM_FIELD_CELL_PATTERN = re.compile(r"^\[[^\[\]]*\]$")
 
 
 class FormFillPayload(BaseModel):
@@ -905,68 +911,97 @@ class FormFillPayload(BaseModel):
     values: dict[str, str] = Field(default_factory=dict)
 
 
-def _field_label(worksheet, cell) -> str:
-    """Derive a human label for a placeholder cell from the form itself."""
-    text = str(cell.value)
-    match = FORM_PLACEHOLDER_PATTERN.search(text)
-    prefix = text[: match.start()].strip().rstrip(":").strip()
-    if prefix:
-        return prefix
-    inside = match.group(0)[1:-1].strip()
+def _field_label(worksheet, cell) -> str | None:
+    """Find a clean text label for a placeholder cell, or None if there isn't one.
+
+    Looks inside the bracket, then at the nearest text to the left, then above.
+    Returns None when no proper label exists (e.g. a stray grid cell), so it can
+    be skipped instead of showing a "[  ]" field.
+    """
+    inside = str(cell.value).strip()[1:-1].strip()
     if inside:
         return inside
-    # Empty "[  ]": use the nearest label to the left, then the cell above.
     for column in range(cell.column - 1, 0, -1):
         left = worksheet.cell(row=cell.row, column=column).value
-        if (
-            isinstance(left, str)
-            and left.strip()
-            and not FORM_PLACEHOLDER_PATTERN.search(left)
-        ):
-            return left.strip().rstrip(":").strip()
+        if isinstance(left, str):
+            candidate = left.strip().rstrip(":").strip()
+            if candidate and not FORM_PLACEHOLDER_PATTERN.search(candidate):
+                return candidate
     if cell.row > 1:
         above = worksheet.cell(row=cell.row - 1, column=cell.column).value
-        if isinstance(above, str) and above.strip():
-            return above.strip().rstrip(":").strip()
-    return "Isian"
+        if isinstance(above, str):
+            candidate = above.strip().rstrip(":").strip()
+            if candidate and not FORM_PLACEHOLDER_PATTERN.search(candidate):
+                return candidate
+    return None
 
 
 def _scan_form_fields(path: Path) -> list[dict[str, str]]:
-    """List the fillable placeholders in a form as {key, label} entries."""
+    """List the main info fields of a form: the first contiguous block of
+    labelled "[  ]" rows in each sheet. Later sections (free text, cost tables,
+    signature blocks) are skipped so the fill form stays short."""
     from openpyxl import load_workbook
 
     workbook = load_workbook(path)
     fields: list[dict[str, str]] = []
     for index, worksheet in enumerate(workbook.worksheets):
+        started = False
         for row in worksheet.iter_rows():
+            row_fields: list[dict[str, str]] = []
             for cell in row:
-                if isinstance(cell.value, str) and FORM_PLACEHOLDER_PATTERN.search(cell.value):
-                    fields.append(
-                        {
-                            "key": f"{index}:{cell.coordinate}",
-                            "label": _field_label(worksheet, cell),
-                        }
+                if not (isinstance(cell.value, str) and FORM_FIELD_CELL_PATTERN.match(cell.value.strip())):
+                    continue
+                label = _field_label(worksheet, cell)
+                if label:
+                    row_fields.append(
+                        {"key": f"{index}:{cell.coordinate}", "label": label}
                     )
+            if row_fields:
+                started = True
+                fields.extend(row_fields)
+            elif started:
+                break  # end of the top info block for this sheet
     return fields
 
 
+def _unique_form_fields(path: Path) -> list[dict[str, str]]:
+    """Deduplicate the scanned fields by label so a repeated block (e.g. the
+    same info section on 3 sheets) shows as one input."""
+    seen: set[str] = set()
+    unique: list[dict[str, str]] = []
+    for field in _scan_form_fields(path):
+        if field["label"] in seen:
+            continue
+        seen.add(field["label"])
+        unique.append({"key": field["label"], "label": field["label"]})
+    return unique
+
+
 def _fill_form_placeholders(path: Path, values: dict[str, str]) -> bytes:
-    """Replace each filled placeholder with its value; leave blanks as-is."""
+    """Fill every placeholder cell whose label the user provided a value for.
+
+    Values are keyed by label, so one entry fills all cells sharing that label
+    (e.g. the same field repeated across sheets). Blanks are left untouched.
+    """
     from openpyxl import load_workbook
 
+    coords_by_label: dict[str, list[str]] = {}
+    for field in _scan_form_fields(path):
+        coords_by_label.setdefault(field["label"], []).append(field["key"])
+
     workbook = load_workbook(path)
-    for key, raw_value in values.items():
+    for label, raw_value in values.items():
         value = str(raw_value).strip()
         if not value:
             continue
-        try:
-            index_str, coordinate = key.split(":", 1)
-            worksheet = workbook.worksheets[int(index_str)]
-            cell = worksheet[coordinate]
-        except (ValueError, IndexError, KeyError):
-            continue
-        if isinstance(cell.value, str) and FORM_PLACEHOLDER_PATTERN.search(cell.value):
-            cell.value = FORM_PLACEHOLDER_PATTERN.sub(lambda _match: value, cell.value, count=1)
+        for coord_key in coords_by_label.get(label, []):
+            try:
+                index_str, coordinate = coord_key.split(":", 1)
+                cell = workbook.worksheets[int(index_str)][coordinate]
+            except (ValueError, IndexError, KeyError):
+                continue
+            if isinstance(cell.value, str) and FORM_PLACEHOLDER_PATTERN.search(cell.value):
+                cell.value = FORM_PLACEHOLDER_PATTERN.sub(lambda _match: value, cell.value, count=1)
 
     buffer = BytesIO()
     workbook.save(buffer)
@@ -997,13 +1032,17 @@ def download_document(
     if _document_kind_for_path(resolved_path) != "form":
         _require_admin(x_admin_email)
 
-    return FileResponse(path=resolved_path, filename=resolved_path.name)
+    return FileResponse(
+        path=resolved_path,
+        filename=resolved_path.name,
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @app.get("/api/forms/fields")
 def form_fields(path: str) -> dict[str, object]:
     resolved_path = _resolve_form_path(path)
-    return {"fields": _scan_form_fields(resolved_path)}
+    return {"fields": _unique_form_fields(resolved_path)}
 
 
 @app.post("/api/forms/fill")
