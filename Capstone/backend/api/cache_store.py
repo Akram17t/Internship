@@ -1,0 +1,338 @@
+from __future__ import annotations
+
+import json
+import secrets
+import uuid
+from datetime import datetime
+from pathlib import Path
+from urllib.parse import quote
+
+from fastapi import HTTPException
+
+from backend.api.core import (
+    ADMIN_CONFIG_LOCK,
+    CONVERSATION_LOCK,
+    CONVERSATION_TTL,
+    MAX_CONVERSATION_CONTEXT_CHARS,
+    MAX_CONVERSATION_MESSAGES,
+    MAX_CONVERSATIONS,
+    ROOT_DIR,
+)
+from backend.api.models import CitationResponse, FAQItem
+from backend.settings import get_env
+
+
+def _new_admin_config_template() -> dict[str, str]:
+    # Buat template config admin yang sengaja kosong.
+    return {
+        "email": "",
+        "password": "",
+        "name": "Admin",
+        "session_secret": secrets.token_hex(32),
+    }
+
+
+def _get_cache_dir() -> Path:
+    # Tentukan folder cache lokal untuk file state JSON.
+    raw_dir = get_env("CONVERSATION_CACHE_DIR", "backend/cache")
+    path = Path(raw_dir)
+    if not path.is_absolute():
+        path = ROOT_DIR / path
+    return path
+
+
+def _get_conversation_file() -> Path:
+    # Kembalikan path file cache percakapan.
+    return _get_cache_dir() / "conversations.json"
+
+
+def _get_faq_file() -> Path:
+    # Kembalikan path file cache FAQ.
+    return _get_cache_dir() / "faqs.json"
+
+
+def _get_admin_file() -> Path:
+    # Kembalikan path file config admin.
+    return _get_cache_dir() / "admin.json"
+
+
+def _save_admin_config(config: dict[str, str]) -> None:
+    # Simpan JSON config admin ke disk.
+    cache_dir = _get_cache_dir()
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    _get_admin_file().write_text(
+        json.dumps(config, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def _load_admin_config() -> dict[str, str]:
+    # Muat config admin dari disk dan isi default aman yang masih kurang.
+    with ADMIN_CONFIG_LOCK:
+        path = _get_admin_file()
+        if not path.exists():
+            config = _new_admin_config_template()
+            _save_admin_config(config)
+            return config
+
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            data = {}
+
+        if not isinstance(data, dict):
+            data = {}
+
+        session_secret = str(data.get("session_secret") or "").strip()
+        if not session_secret:
+            session_secret = secrets.token_hex(32)
+
+        config = {
+            "email": str(data.get("email") or "").strip().lower(),
+            "password": str(data.get("password") or ""),
+            "name": str(data.get("name") or "Admin").strip() or "Admin",
+            "session_secret": session_secret,
+        }
+        if data != config:
+            _save_admin_config(config)
+        return config
+
+
+def _clean_conversation_id(value: str | None) -> str:
+    # Sanitasi conversation ID dari client atau buat yang baru.
+    if not value:
+        return uuid.uuid4().hex
+
+    cleaned = "".join(char for char in value if char.isalnum() or char in {"-", "_"})
+    if 8 <= len(cleaned) <= 80:
+        return cleaned
+    return uuid.uuid4().hex
+
+
+def _parse_conversation_timestamp(value: object) -> datetime | None:
+    # Parse timestamp percakapan tersimpan jika valid.
+    if not isinstance(value, str) or not value.strip():
+        return None
+
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def _prune_expired_conversations(
+    conversations: dict[str, list[dict[str, object]]],
+) -> dict[str, list[dict[str, object]]]:
+    # Buang thread percakapan yang pesan terbarunya sudah lewat TTL.
+    cutoff = datetime.now() - CONVERSATION_TTL
+    pruned: dict[str, list[dict[str, object]]] = {}
+
+    for conversation_id, messages in conversations.items():
+        if not isinstance(messages, list) or not messages:
+            continue
+
+        latest_timestamp: datetime | None = None
+        for message in reversed(messages):
+            if not isinstance(message, dict):
+                continue
+            latest_timestamp = _parse_conversation_timestamp(message.get("created_at"))
+            if latest_timestamp is not None:
+                break
+
+        if latest_timestamp is None or latest_timestamp < cutoff:
+            continue
+
+        pruned[conversation_id] = messages
+
+    return pruned
+
+
+def _load_conversations() -> dict[str, list[dict[str, object]]]:
+    # Muat dan pangkas riwayat percakapan dari disk.
+    path = _get_conversation_file()
+    if not path.exists():
+        return {}
+
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+    if not isinstance(data, dict):
+        return {}
+
+    conversations = {
+        str(key): value
+        for key, value in data.items()
+        if isinstance(value, list)
+    }
+    return _prune_expired_conversations(conversations)
+
+
+def _save_conversations(conversations: dict[str, list[dict[str, object]]]) -> None:
+    # Simpan riwayat percakapan yang sudah dibatasi dan dipangkas.
+    cache_dir = _get_cache_dir()
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    active_conversations = _prune_expired_conversations(conversations)
+    trimmed_items = list(active_conversations.items())[-MAX_CONVERSATIONS:]
+    payload = {key: value[-MAX_CONVERSATION_MESSAGES:] for key, value in trimmed_items}
+    _get_conversation_file().write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def _get_conversation_context(conversation_id: str) -> str:
+    # Ubah turn terbaru menjadi context teks untuk rewrite query.
+    with CONVERSATION_LOCK:
+        messages = _load_conversations().get(conversation_id, [])
+
+    context_lines: list[str] = []
+    for message in messages[-MAX_CONVERSATION_MESSAGES:]:
+        role = "User" if message.get("role") == "user" else "Assistant"
+        content = str(message.get("content", "")).strip()
+        if content:
+            context_lines.append(f"{role}: {content}")
+
+    return "\n".join(context_lines)[-MAX_CONVERSATION_CONTEXT_CHARS:]
+
+
+def _append_conversation_turn(conversation_id: str, question: str, answer: str) -> None:
+    # Tambahkan satu pasangan turn user/assistant ke cache percakapan.
+    now = datetime.now().isoformat(timespec="seconds")
+    with CONVERSATION_LOCK:
+        conversations = _load_conversations()
+        messages = conversations.setdefault(conversation_id, [])
+        messages.extend(
+            [
+                {"role": "user", "content": question, "created_at": now},
+                {"role": "assistant", "content": answer, "created_at": now},
+            ]
+        )
+        conversations[conversation_id] = messages[-MAX_CONVERSATION_MESSAGES:]
+        _save_conversations(conversations)
+
+
+def _citation_download_url(source: str) -> str:
+    # Buat URL download dokumen dari nama file sumber citation.
+    return f"/api/documents/{quote(source, safe='')}" if source else ""
+
+
+def _normalize_citation(raw_item: object, index: int) -> CitationResponse | None:
+    # Normalisasi satu dict citation mentah ke model respons API.
+    if not isinstance(raw_item, dict):
+        return None
+
+    source = str(raw_item.get("source", "")).strip()
+    if not source:
+        return None
+
+    return CitationResponse(
+        id=int(raw_item.get("id") or index + 1),
+        source=source,
+        page=raw_item.get("page") if isinstance(raw_item.get("page"), int) else None,
+        section=str(raw_item.get("section", "")).strip() or None,
+        chunk_id=raw_item.get("chunk_id") if isinstance(raw_item.get("chunk_id"), int) else None,
+        download_url=str(raw_item.get("download_url", "")).strip() or _citation_download_url(source),
+    )
+
+
+def _normalize_citations(item: dict[str, object]) -> list[CitationResponse]:
+    # Normalisasi citation dengan fallback legacy source/source_url.
+    raw_citations = item.get("citations")
+    if isinstance(raw_citations, list):
+        citations = [
+            citation
+            for citation in (
+                _normalize_citation(raw_item, index)
+                for index, raw_item in enumerate(raw_citations)
+            )
+            if citation is not None
+        ]
+        if citations:
+            return citations
+
+    source = str(item.get("source", "")).strip()
+    source_url = str(item.get("source_url", "")).strip()
+    if not source:
+        return []
+
+    return [
+        CitationResponse(
+            id=1,
+            source=source,
+            download_url=source_url or _citation_download_url(source),
+        )
+    ]
+
+
+def _normalize_faq_item(item: dict[str, object]) -> FAQItem | None:
+    # Normalisasi satu record FAQ tersimpan ke model API.
+    question = str(item.get("question", "")).strip()
+    answer = str(item.get("answer", "")).strip()
+    if not question or not answer:
+        return None
+
+    citations = _normalize_citations(item)
+    source = str(item.get("source", "")).strip()
+    source_url = str(item.get("source_url", "")).strip()
+    if citations and not source:
+        source = citations[0].source
+    if citations and not source_url:
+        source_url = citations[0].download_url or ""
+
+    return FAQItem(
+        id=str(item.get("id") or uuid.uuid4().hex),
+        question=question,
+        answer=answer,
+        source=source,
+        source_url=source_url,
+        suggested_query=str(item.get("suggested_query", "")).strip() or question,
+        citations=citations,
+        image_url=str(item.get("image_url", "")).strip(),
+        updated_at=str(item.get("updated_at", "")).strip() or None,
+    )
+
+
+def _load_faqs() -> list[FAQItem]:
+    # Muat item FAQ dari cache JSON lokal.
+    path = _get_faq_file()
+    if not path.exists():
+        return []
+
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+
+    if not isinstance(data, list):
+        return []
+
+    return [
+        item
+        for item in (_normalize_faq_item(raw_item) for raw_item in data if isinstance(raw_item, dict))
+        if item is not None
+    ]
+
+
+def _save_faqs(items: list[FAQItem]) -> None:
+    # Simpan item FAQ ke cache JSON lokal.
+    cache_dir = _get_cache_dir()
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    payload = [
+        item.model_dump() if hasattr(item, "model_dump") else item.dict()
+        for item in items
+    ]
+    _get_faq_file().write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def _find_faq_index(items: list[FAQItem], faq_id: str) -> int:
+    # Cari index item FAQ berdasarkan ID atau lempar 404.
+    for index, item in enumerate(items):
+        if item.id == faq_id:
+            return index
+    raise HTTPException(status_code=404, detail="FAQ not found.")

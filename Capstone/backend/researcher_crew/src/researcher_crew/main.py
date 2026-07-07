@@ -59,7 +59,7 @@ if hasattr(sys.stderr, "reconfigure"):
 
 
 class OllamaGenerationError(RuntimeError):
-    """Raised when the local LLM stack cannot complete a generation request."""
+    """Muncul saat stack LLM lokal gagal menyelesaikan proses generasi."""
 
 
 UNSUPPORTED_ANSWER = (
@@ -67,6 +67,8 @@ UNSUPPORTED_ANSWER = (
     "Silakan lakukan eskalasi ke HR atau manajer terkait untuk instruksi manual."
 )
 
+# Marker ini masih dipakai untuk mengenali jawaban fallback versi bebas dari LLM
+# lalu menormalkannya kembali ke satu unsupported answer yang konsisten.
 UNSUPPORTED_ANSWER_MARKERS = (
     "tidak tersedia dalam dokumen",
     "tidak tersedia di dokumen",
@@ -156,7 +158,7 @@ def _ollama_generate(
     temperature: float = 0.1,
     seed: int | None = None,
 ) -> str:
-    """Send a prompt to Ollama, disabling hidden reasoning (with a safe retry)."""
+    """Kirim prompt ke Ollama sambil mematikan hidden reasoning bila didukung."""
     options: dict[str, object] = {
         "temperature": temperature,
         "num_ctx": get_int_env("OLLAMA_NUM_CTX", 4096),
@@ -184,11 +186,10 @@ def _ollama_generate(
 
 
 def _rewrite_is_safe(original: str, rewritten: str) -> bool:
-    """Reject rewrites that smuggle in content instead of resolving references.
+    """Tolak hasil rewrite yang menyisipkan isi baru, bukan sekadar merujuk ulang.
 
-    A rewrite may only substitute reference words with their topic, so it must
-    not introduce numbers the user never typed (e.g. "12 hari" from an old
-    answer) and must stay roughly the same size.
+    Rewrite hanya boleh mengganti kata rujukan dengan topik aslinya, jadi
+    tidak boleh menambah angka baru dan panjangnya harus tetap masuk akal.
     """
     new_digits = set(re.findall(r"\d+", rewritten)) - set(re.findall(r"\d+", original))
     if new_digits:
@@ -199,12 +200,11 @@ def _rewrite_is_safe(original: str, rewritten: str) -> bool:
 
 
 def _rewrite_query(question: str, conversation_context: str = "") -> str:
-    """Resolve follow-up references into a standalone search query via the LLM.
+    """Ubah pertanyaan follow-up menjadi query mandiri dengan bantuan LLM.
 
-    The prompt is a strict decision procedure: rewrite ONLY when the question
-    contains a reference word, otherwise copy it verbatim. A small code-side
-    guard (`_rewrite_is_safe`) discards rewrites that inject numbers or extra
-    content, falling back to the original question.
+    Prompt-nya memaksa rewrite hanya saat ada kata rujukan. Jika hasil rewrite
+    menambah angka atau isi lain, guard kode akan membuangnya dan kembali ke
+    pertanyaan asli.
     """
     if not conversation_context.strip():
         return question
@@ -328,7 +328,7 @@ def run_knowledge_crew(
     conversation_context: str = "",
     available_forms: str = "",
 ) -> tuple[str, list[dict[str, object]], list[str]]:
-    """Retrieve relevant document evidence and answer through the chat crew."""
+    """Ambil evidence dokumen lalu hasilkan jawaban lewat chat crew."""
     # Ubah follow-up seperti "form untuk itu?" menjadi query mandiri.
     # Query mandiri ini dipakai untuk retrieval dan generation.
     # Context lama sengaja tidak dikirim ke generation agar topik lama tidak bocor.
@@ -355,7 +355,7 @@ def run_knowledge_crew(
 
 
 def run_faq_crew(question: str) -> tuple[str, list[dict[str, object]]]:
-    """Generate a short FAQ answer and citations from local RAG evidence."""
+    """Buat jawaban FAQ singkat beserta citation dari evidence RAG lokal."""
     evidence, citations = retrieve_knowledge(question)
     if not citations:
         return (

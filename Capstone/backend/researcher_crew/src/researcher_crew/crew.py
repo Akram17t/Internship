@@ -18,7 +18,7 @@ load_capstone_env()
 
 @CrewBase
 class ResearcherCrew():
-    """ResearcherCrew crew"""
+    """Definisi crew utama untuk menghasilkan jawaban chat."""
 
     agents_config = "config/agents.yaml"
     tasks_config = "config/tasks.yaml"
@@ -55,7 +55,7 @@ class ResearcherCrew():
 
     @crew
     def crew(self) -> Crew:
-        """Creates the chat answer crew."""
+        """Buat crew chat yang berisi agent dan task utama."""
         return Crew(
             agents=[self.answer_writer()],
             tasks=[self.chat_answer_task()],

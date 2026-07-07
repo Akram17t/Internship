@@ -156,7 +156,7 @@ def _append_segment(
 
 
 def split_documents_by_section(documents: list[Document]) -> list[Document]:
-    """Split documents on best-effort headings while preserving page metadata."""
+    """Pecah dokumen berdasarkan heading terbaik yang terdeteksi sambil menjaga metadata halaman."""
     sectioned_documents: list[Document] = []
     active_sections: dict[str, str] = {}
 
