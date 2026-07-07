@@ -12,6 +12,7 @@ SOURCE_EXTENSIONS = {".pdf", ".docx", ".txt"}
 
 
 def _resolve_env_path(name: str, default: str) -> Path:
+    """Resolve a configured path relative to the project root when needed."""
     load_capstone_env()
     path = Path(get_env(name, default))
     if not path.is_absolute():
@@ -20,6 +21,7 @@ def _resolve_env_path(name: str, default: str) -> Path:
 
 
 def has_source_documents() -> bool:
+    """Check whether any embeddable source documents currently exist."""
     data_dir = _resolve_env_path("DATA_DIR", "backend/data")
     if not data_dir.exists():
         return False
@@ -30,6 +32,7 @@ def has_source_documents() -> bool:
 
 
 def _is_inside(child: Path, parent: Path) -> bool:
+    """Return True when a path stays inside the expected parent directory."""
     try:
         child.relative_to(parent)
         return True
@@ -38,6 +41,7 @@ def _is_inside(child: Path, parent: Path) -> bool:
 
 
 def has_valid_vector_db() -> bool:
+    """Check whether the active vector DB exists and has the citation marker."""
     chroma_base = _resolve_env_path("CHROMA_DIR", "backend/chroma_db")
     if not chroma_base.exists():
         return False
@@ -56,6 +60,7 @@ def has_valid_vector_db() -> bool:
 
 
 def main() -> int:
+    """Expose simple CLI checks for source docs and vector DB readiness."""
     command = sys.argv[1] if len(sys.argv) > 1 else "vector-db"
     if command == "vector-db":
         return 0 if has_valid_vector_db() else 1

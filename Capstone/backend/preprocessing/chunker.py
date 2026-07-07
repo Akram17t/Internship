@@ -46,6 +46,7 @@ UPPERCASE_HEADING_PATTERN = re.compile(r"^[A-Z][A-Z0-9/&(),'\- ]+$")
 
 
 def build_text_splitter(chunk_size: int = 1200, chunk_overlap: int = 150) -> RecursiveCharacterTextSplitter:
+    """Create the shared text splitter used before embedding."""
     return RecursiveCharacterTextSplitter(
         chunk_size=chunk_size,
         chunk_overlap=chunk_overlap,
@@ -54,10 +55,12 @@ def build_text_splitter(chunk_size: int = 1200, chunk_overlap: int = 150) -> Rec
 
 
 def _normalize_whitespace(value: str) -> str:
+    """Collapse repeated whitespace into single spaces."""
     return " ".join(value.split())
 
 
 def _is_noise_line(line: str) -> bool:
+    """Detect repeated boilerplate lines that should not be embedded."""
     normalized = line.strip()
     if not normalized:
         return True
@@ -65,6 +68,7 @@ def _is_noise_line(line: str) -> bool:
 
 
 def _clean_page_text(document: Document) -> str:
+    """Remove noisy SOP headers, footers, and empty pages before chunking."""
     raw_lines = [line.strip() for line in document.page_content.splitlines()]
     if not raw_lines:
         return ""
@@ -106,6 +110,7 @@ def _clean_page_text(document: Document) -> str:
 
 
 def _looks_like_heading(line: str) -> bool:
+    """Guess whether a line is a section heading worth splitting on."""
     normalized = _normalize_whitespace(line)
     if not normalized:
         return False
@@ -137,6 +142,7 @@ def _append_segment(
     content_lines: list[str],
     section: str | None,
 ) -> None:
+    """Append one cleaned section chunk while preserving metadata."""
     content = "\n".join(content_lines).strip()
     if not content:
         return
@@ -182,6 +188,7 @@ def split_documents_by_section(documents: list[Document]) -> list[Document]:
 
 
 def chunk_documents(documents: list[Document]) -> list[Document]:
+    """Split cleaned documents into chunked records with chunk IDs."""
     splitter = build_text_splitter()
     chunks = splitter.split_documents(split_documents_by_section(documents))
 

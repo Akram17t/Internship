@@ -88,19 +88,23 @@ UNSUPPORTED_ANSWER_MARKERS = (
 
 
 def _is_unsupported_answer(answer: str) -> bool:
+    """Detect fallback-style answers that mean the docs did not support the query."""
     normalized = " ".join(answer.lower().split())
     return any(marker in normalized for marker in UNSUPPORTED_ANSWER_MARKERS)
 
 
 def _ollama_model_name() -> str:
+    """Return the configured Ollama model name without provider prefix."""
     return get_required_env("MODEL").removeprefix("ollama/")
 
 
 def _ollama_base_url() -> str:
+    """Return the normalized base URL for Ollama HTTP calls."""
     return get_required_env("OLLAMA_BASE_URL").rstrip("/")
 
 
 def _read_ollama_error(error: urllib.error.HTTPError) -> str:
+    """Extract the clearest error message from an Ollama HTTP response."""
     try:
         raw_body = error.read().decode("utf-8", errors="replace")
     except Exception:
@@ -118,6 +122,7 @@ def _read_ollama_error(error: urllib.error.HTTPError) -> str:
 
 
 def _post_ollama_generate(payload: dict[str, object]) -> str:
+    """Send a raw generate request to Ollama and return the response text."""
     request = urllib.request.Request(
         f"{_ollama_base_url()}/api/generate",
         data=json.dumps(payload).encode("utf-8"),
@@ -243,11 +248,13 @@ def _rewrite_query(question: str, conversation_context: str = "") -> str:
 
 
 def _crew_output_to_text(result: object) -> str:
+    """Normalize CrewAI output objects into plain response text."""
     raw = getattr(result, "raw", None)
     return str(raw if raw is not None else result).strip()
 
 
 def _generate_answer(question: str, evidence: str, available_forms: str) -> str:
+    """Run the chat crew to produce the final user-facing answer."""
     inputs = {
         "question": question,
         "evidence": evidence,
@@ -262,6 +269,7 @@ def _generate_answer(question: str, evidence: str, available_forms: str) -> str:
 
 
 def _split_form_selection(answer: str) -> tuple[str, list[str]]:
+    """Extract hidden form selections and remove form list text from the answer."""
     selected_forms: list[str] = []
 
     def collect(match: re.Match[str]) -> str:
@@ -292,6 +300,7 @@ FAQ_MAX_WORDS = 45
 
 
 def _generate_faq_answer(question: str, evidence: str) -> str:
+    """Generate a short FAQ-style answer from retrieved evidence."""
     prompt = (
         "Kamu adalah HR Assistant ICS Compute. Buat jawaban FAQ singkat dalam bahasa Indonesia. "
         "Gunakan hanya evidence yang diberikan. Jawaban harus 1 paragraf, "

@@ -27,6 +27,7 @@ class ResearcherCrew():
     tasks: list[Task]
 
     def _llm(self, temperature: float = 0.2, max_tokens: int | None = None) -> LLM:
+        """Build the shared CrewAI LLM client from env settings."""
         return LLM(
             model=get_required_env("MODEL"),
             base_url=get_required_env("OLLAMA_BASE_URL"),
@@ -38,6 +39,7 @@ class ResearcherCrew():
 
     @agent
     def answer_writer(self) -> Agent:
+        """Create the single answer-writing agent used for chat responses."""
         return Agent(
             config=self.agents_config["answer_writer"],  # type: ignore[index]
             llm=self._llm(temperature=0.3),
@@ -46,6 +48,7 @@ class ResearcherCrew():
 
     @task
     def chat_answer_task(self) -> Task:
+        """Load the task prompt that guides the chat answer output."""
         return Task(
             config=self.tasks_config["chat_answer_task"],  # type: ignore[index]
         )

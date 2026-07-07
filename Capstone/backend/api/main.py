@@ -6,6 +6,7 @@ import hashlib
 import hmac
 import json
 import re
+import secrets
 import sys
 import threading
 import time
@@ -46,12 +47,15 @@ CONVERSATION_LOCK = threading.Lock()
 FAQ_LOCK = threading.Lock()
 REINDEX_LOCK = threading.Lock()
 ADMIN_CONFIG_LOCK = threading.Lock()
-DEFAULT_ADMIN_CONFIG = {
-    "email": "admin@gmail.com",
-    "password": "admin123",
-    "name": "admin",
-    "session_secret": "change-this-admin-session-secret",
-}
+
+def _new_admin_config_template() -> dict[str, str]:
+    """Build a blank-on-purpose admin config template."""
+    return {
+        "email": "",
+        "password": "",
+        "name": "Admin",
+        "session_secret": secrets.token_hex(32),
+    }
 
 class QueryRequest(BaseModel):
     question: str = Field(..., min_length=3, description="Natural language question from the user.")
@@ -142,6 +146,7 @@ class AdminReindexResponse(BaseModel):
 
 
 def _get_data_dir() -> Path:
+    """Resolve the backend data directory from env configuration."""
     raw_dir = get_env("DATA_DIR", "backend/data")
     path = Path(raw_dir)
     if not path.is_absolute():
@@ -150,6 +155,7 @@ def _get_data_dir() -> Path:
 
 
 def _document_kind_for_path(path: Path) -> str:
+    """Classify a stored file as a form, SOP, or generic document."""
     name = path.stem.lower()
     if path.suffix.lower() == ".xlsx" or name.startswith("form"):
         return "form"
@@ -159,10 +165,12 @@ def _document_kind_for_path(path: Path) -> str:
 
 
 def _is_embeddable_path(path: Path) -> bool:
+    """Return True when a file should be indexed into the vector DB."""
     return path.suffix.lower() in EMBEDDABLE_EXTENSIONS
 
 
 def _to_library_item(path: Path, data_dir: Path) -> LibraryItem:
+    """Convert a stored file into the admin library response shape."""
     relative_path = path.relative_to(data_dir).as_posix()
     stat = path.stat()
     display_name = path.stem.replace("_", " ").replace("-", " ").strip() or path.name
@@ -180,6 +188,7 @@ def _to_library_item(path: Path, data_dir: Path) -> LibraryItem:
 
 
 def _iter_library_items() -> list[LibraryItem]:
+    """List every supported file currently stored in the data directory."""
     data_dir = _get_data_dir()
     if not data_dir.exists():
         return []
@@ -196,85 +205,8 @@ def _iter_library_items() -> list[LibraryItem]:
     return items
 
 
-def _form_keywords_for_path(path: Path) -> list[str]:
-    name = path.name.lower()
-    display_name = _format_form_display_name(path).lower()
-    keywords = {display_name, path.stem.lower()}
-
-    if "perjalanan dinas" in name:
-        keywords.update(
-            [
-                "perjalanan dinas",
-                "dinas",
-                "uang muka",
-                "penyelesaian perjalanan",
-                "permohonan perjalanan",
-                "travel request",
-            ]
-        )
-    if "onboarding" in name:
-        keywords.update(
-            [
-                "onboarding",
-                "on boarding",
-                "karyawan baru",
-                "preparation",
-                "persiapan onboarding",
-                "persiapan karyawan baru",
-            ]
-        )
-    if "exit" in name:
-        keywords.update(
-            [
-                "exit clearance",
-                "exit interview",
-                "terminasi",
-                "resign",
-                "pengunduran diri",
-                "offboarding",
-                "clearance",
-                "paklaring",
-            ]
-        )
-    if "backup log" in name:
-        keywords.update(
-            [
-                "backup log",
-                "backup",
-                "log backup",
-                "backup informasi",
-                "pencatatan backup",
-            ]
-        )
-    if "incident report" in name:
-        keywords.update(
-            [
-                "incident report",
-                "insiden",
-                "incident",
-                "laporan insiden",
-                "manajemen insiden",
-                "pelaporan insiden",
-            ]
-        )
-    if "system access control list" in name:
-        keywords.update(
-            [
-                "system access control list",
-                "access control list",
-                "kontrol akses",
-                "akses sistem",
-                "hak akses",
-                "system access",
-                "user access",
-                "acl",
-            ]
-        )
-
-    return sorted(keyword for keyword in keywords if keyword)
-
-
 def _format_form_display_name(path: Path) -> str:
+    """Turn a raw form filename into a cleaner display label."""
     return (
         path.stem.replace("Form - ", "")
         .replace("(Template)", "")
@@ -284,6 +216,7 @@ def _format_form_display_name(path: Path) -> str:
 
 
 def _form_download_response(path: Path, data_dir: Path) -> FormDownloadResponse:
+    """Build the public download payload for a form file."""
     relative_path = path.relative_to(data_dir).as_posix()
     return FormDownloadResponse(
         name=path.name,
@@ -293,6 +226,7 @@ def _form_download_response(path: Path, data_dir: Path) -> FormDownloadResponse:
 
 
 def _iter_form_downloads() -> list[FormDownloadResponse]:
+    """List all downloadable form templates in the data directory."""
     data_dir = _get_data_dir()
     if not data_dir.exists():
         return []
@@ -304,6 +238,7 @@ def _iter_form_downloads() -> list[FormDownloadResponse]:
 
 
 def _iter_form_paths(data_dir: Path | None = None) -> list[Path]:
+    """Collect all xlsx form paths while skipping temporary Excel locks."""
     data_dir = data_dir or _get_data_dir()
     if not data_dir.exists():
         return []
@@ -317,6 +252,7 @@ def _iter_form_paths(data_dir: Path | None = None) -> list[Path]:
 
 
 def _available_form_catalog(forms: list[FormDownloadResponse]) -> str:
+    """Serialize the available form list so the AI can choose from it."""
     if not forms:
         return "[]"
 
@@ -333,6 +269,7 @@ def _available_form_catalog(forms: list[FormDownloadResponse]) -> str:
 
 
 def _form_lookup_keys(form: FormDownloadResponse) -> set[str]:
+    """Generate loose matching keys for one form choice."""
     return {
         form.name.strip().lower(),
         form.display_name.strip().lower(),
@@ -345,6 +282,7 @@ def _selected_form_downloads(
     selected_names: list[str],
     forms: list[FormDownloadResponse],
 ) -> list[FormDownloadResponse]:
+    """Map AI-selected form names back to concrete download payloads."""
     if not selected_names or not forms:
         return []
 
@@ -365,20 +303,8 @@ def _selected_form_downloads(
     return selected
 
 
-def _matching_form_downloads(*texts: str) -> list[FormDownloadResponse]:
-    haystack = " ".join(texts).lower()
-    matches: list[FormDownloadResponse] = []
-    data_dir = _get_data_dir()
-    for path in _iter_form_paths(data_dir):
-        keywords = _form_keywords_for_path(path)
-        is_form_request = "form" in haystack or any(keyword in haystack for keyword in keywords)
-        if not is_form_request or not any(keyword in haystack for keyword in keywords):
-            continue
-        matches.append(_form_download_response(path, data_dir))
-    return matches
-
-
 def _answer_has_supported_form_context(answer: str) -> bool:
+    """Hide form downloads when the answer is really a no-source fallback."""
     normalized = " ".join(answer.lower().split())
     unsupported_markers = (
         "tidak tersedia dalam dokumen",
@@ -403,31 +329,38 @@ def _answer_has_supported_form_context(answer: str) -> bool:
 
 
 def _admin_email() -> str:
+    """Read the configured admin email."""
     return _load_admin_config()["email"].strip().lower()
 
 
 def _admin_name() -> str:
+    """Read the configured admin display name."""
     return _load_admin_config()["name"].strip() or "Admin"
 
 
 def _admin_password() -> str:
+    """Read the configured admin password."""
     return _load_admin_config()["password"]
 
 
 def _admin_session_secret() -> str:
+    """Read the signing secret for admin session tokens."""
     return _load_admin_config()["session_secret"]
 
 
 def _base64url_encode(value: bytes) -> str:
+    """Encode bytes into URL-safe base64 without padding."""
     return base64.urlsafe_b64encode(value).rstrip(b"=").decode("ascii")
 
 
 def _base64url_decode(value: str) -> bytes:
+    """Decode URL-safe base64 that may be missing padding."""
     padding = "=" * (-len(value) % 4)
     return base64.urlsafe_b64decode((value + padding).encode("ascii"))
 
 
 def _sign_admin_payload(payload: str) -> str:
+    """Create an HMAC signature for an admin session payload."""
     return hmac.new(
         _admin_session_secret().encode("utf-8"),
         payload.encode("ascii"),
@@ -436,6 +369,7 @@ def _sign_admin_payload(payload: str) -> str:
 
 
 def _create_admin_token(email: str) -> tuple[str, datetime]:
+    """Issue a signed admin session token with an expiry timestamp."""
     expires_at = datetime.now(timezone.utc) + ADMIN_SESSION_TTL
     payload = _base64url_encode(
         json.dumps(
@@ -447,6 +381,7 @@ def _create_admin_token(email: str) -> tuple[str, datetime]:
 
 
 def _verify_admin_token(authorization: str) -> str:
+    """Validate a bearer token and return the admin email if valid."""
     scheme, _, token = authorization.strip().partition(" ")
     if scheme.lower() != "bearer" or not token:
         raise HTTPException(status_code=401, detail="Admin login required.")
@@ -470,10 +405,12 @@ def _verify_admin_token(authorization: str) -> str:
 
 
 def _require_admin(authorization: str) -> str:
+    """Guard an endpoint with admin token verification."""
     return _verify_admin_token(authorization)
 
 
 def _resolve_document_path(document_path: str) -> Path:
+    """Resolve a relative document path while blocking path traversal."""
     data_dir = _get_data_dir().resolve()
     resolved_path = (data_dir / unquote(document_path)).resolve()
 
@@ -486,6 +423,7 @@ def _resolve_document_path(document_path: str) -> Path:
 
 
 def _decode_document(content_base64: str) -> bytes:
+    """Decode an uploaded base64 file and enforce size limits."""
     try:
         payload = base64.b64decode(content_base64, validate=True)
     except (binascii.Error, ValueError) as error:
@@ -499,6 +437,7 @@ def _decode_document(content_base64: str) -> bytes:
 
 
 def _get_cache_dir() -> Path:
+    """Resolve the local cache directory for JSON state files."""
     raw_dir = get_env("CONVERSATION_CACHE_DIR", "backend/cache")
     path = Path(raw_dir)
     if not path.is_absolute():
@@ -507,18 +446,22 @@ def _get_cache_dir() -> Path:
 
 
 def _get_conversation_file() -> Path:
+    """Return the conversations cache file path."""
     return _get_cache_dir() / "conversations.json"
 
 
 def _get_faq_file() -> Path:
+    """Return the FAQ cache file path."""
     return _get_cache_dir() / "faqs.json"
 
 
 def _get_admin_file() -> Path:
+    """Return the admin config file path."""
     return _get_cache_dir() / "admin.json"
 
 
 def _save_admin_config(config: dict[str, str]) -> None:
+    """Persist the admin config JSON to disk."""
     cache_dir = _get_cache_dir()
     cache_dir.mkdir(parents=True, exist_ok=True)
     _get_admin_file().write_text(
@@ -528,11 +471,13 @@ def _save_admin_config(config: dict[str, str]) -> None:
 
 
 def _load_admin_config() -> dict[str, str]:
+    """Load admin config from disk and fill any missing safe defaults."""
     with ADMIN_CONFIG_LOCK:
         path = _get_admin_file()
         if not path.exists():
-            _save_admin_config(DEFAULT_ADMIN_CONFIG)
-            return dict(DEFAULT_ADMIN_CONFIG)
+            config = _new_admin_config_template()
+            _save_admin_config(config)
+            return config
 
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
@@ -542,14 +487,15 @@ def _load_admin_config() -> dict[str, str]:
         if not isinstance(data, dict):
             data = {}
 
+        session_secret = str(data.get("session_secret") or "").strip()
+        if not session_secret:
+            session_secret = secrets.token_hex(32)
+
         config = {
-            "email": str(data.get("email") or DEFAULT_ADMIN_CONFIG["email"]).strip().lower(),
-            "password": str(data.get("password") or DEFAULT_ADMIN_CONFIG["password"]),
-            "name": str(data.get("name") or DEFAULT_ADMIN_CONFIG["name"]).strip(),
-            "session_secret": str(
-                data.get("session_secret")
-                or DEFAULT_ADMIN_CONFIG["session_secret"]
-            ),
+            "email": str(data.get("email") or "").strip().lower(),
+            "password": str(data.get("password") or ""),
+            "name": str(data.get("name") or "Admin").strip() or "Admin",
+            "session_secret": session_secret,
         }
         if data != config:
             _save_admin_config(config)
@@ -557,6 +503,7 @@ def _load_admin_config() -> dict[str, str]:
 
 
 def _clean_conversation_id(value: str | None) -> str:
+    """Sanitize a client conversation ID or generate a fresh one."""
     if not value:
         return uuid.uuid4().hex
 
@@ -567,6 +514,7 @@ def _clean_conversation_id(value: str | None) -> str:
 
 
 def _parse_conversation_timestamp(value: object) -> datetime | None:
+    """Parse a stored conversation timestamp if it is valid ISO text."""
     if not isinstance(value, str) or not value.strip():
         return None
 
@@ -579,6 +527,7 @@ def _parse_conversation_timestamp(value: object) -> datetime | None:
 def _prune_expired_conversations(
     conversations: dict[str, list[dict[str, object]]],
 ) -> dict[str, list[dict[str, object]]]:
+    """Drop conversation threads whose latest message is past the TTL."""
     cutoff = datetime.now() - CONVERSATION_TTL
     pruned: dict[str, list[dict[str, object]]] = {}
 
@@ -603,6 +552,7 @@ def _prune_expired_conversations(
 
 
 def _load_conversations() -> dict[str, list[dict[str, object]]]:
+    """Load and prune cached conversation history from disk."""
     path = _get_conversation_file()
     if not path.exists():
         return {}
@@ -624,6 +574,7 @@ def _load_conversations() -> dict[str, list[dict[str, object]]]:
 
 
 def _save_conversations(conversations: dict[str, list[dict[str, object]]]) -> None:
+    """Persist bounded, pruned conversation history to disk."""
     cache_dir = _get_cache_dir()
     cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -637,6 +588,7 @@ def _save_conversations(conversations: dict[str, list[dict[str, object]]]) -> No
 
 
 def _get_conversation_context(conversation_id: str) -> str:
+    """Render recent turns into plain text context for query rewriting."""
     with CONVERSATION_LOCK:
         messages = _load_conversations().get(conversation_id, [])
 
@@ -651,6 +603,7 @@ def _get_conversation_context(conversation_id: str) -> str:
 
 
 def _append_conversation_turn(conversation_id: str, question: str, answer: str) -> None:
+    """Append one user/assistant turn pair to the conversation cache."""
     now = datetime.now().isoformat(timespec="seconds")
     with CONVERSATION_LOCK:
         conversations = _load_conversations()
@@ -666,10 +619,12 @@ def _append_conversation_turn(conversation_id: str, question: str, answer: str) 
 
 
 def _citation_download_url(source: str) -> str:
+    """Build a document download URL from a citation source filename."""
     return f"/api/documents/{quote(source, safe='')}" if source else ""
 
 
 def _normalize_citation(raw_item: object, index: int) -> CitationResponse | None:
+    """Normalize one raw citation dict into the API response model."""
     if not isinstance(raw_item, dict):
         return None
 
@@ -688,6 +643,7 @@ def _normalize_citation(raw_item: object, index: int) -> CitationResponse | None
 
 
 def _normalize_citations(item: dict[str, object]) -> list[CitationResponse]:
+    """Normalize citations, with legacy source/source_url fallback support."""
     raw_citations = item.get("citations")
     if isinstance(raw_citations, list):
         citations = [
@@ -716,6 +672,7 @@ def _normalize_citations(item: dict[str, object]) -> list[CitationResponse]:
 
 
 def _normalize_faq_item(item: dict[str, object]) -> FAQItem | None:
+    """Normalize one stored FAQ record into the API model."""
     question = str(item.get("question", "")).strip()
     answer = str(item.get("answer", "")).strip()
     if not question or not answer:
@@ -743,6 +700,7 @@ def _normalize_faq_item(item: dict[str, object]) -> FAQItem | None:
 
 
 def _load_faqs() -> list[FAQItem]:
+    """Load FAQ items from the local JSON cache."""
     path = _get_faq_file()
     if not path.exists():
         return []
@@ -763,6 +721,7 @@ def _load_faqs() -> list[FAQItem]:
 
 
 def _save_faqs(items: list[FAQItem]) -> None:
+    """Persist FAQ items to the local JSON cache."""
     cache_dir = _get_cache_dir()
     cache_dir.mkdir(parents=True, exist_ok=True)
     payload = [
@@ -776,6 +735,7 @@ def _save_faqs(items: list[FAQItem]) -> None:
 
 
 def _find_faq_index(items: list[FAQItem], faq_id: str) -> int:
+    """Find a FAQ item index by ID or raise 404."""
     for index, item in enumerate(items):
         if item.id == faq_id:
             return index
@@ -783,6 +743,7 @@ def _find_faq_index(items: list[FAQItem], faq_id: str) -> int:
 
 
 def _is_unusable_faq_answer(answer: str, citations: list[CitationResponse]) -> bool:
+    """Reject FAQ answers that have no evidence or look too generic."""
     normalized = " ".join(answer.lower().split())
     blocked_phrases = (
         "informasi ini belum tersedia",
@@ -798,6 +759,7 @@ def _is_unusable_faq_answer(answer: str, citations: list[CitationResponse]) -> b
 
 
 def _build_faq_item(payload: AdminFAQPayload, faq_id: str | None = None) -> FAQItem:
+    """Generate and validate one FAQ entry from a question prompt."""
     from researcher_crew.main import OllamaGenerationError, run_faq_crew
 
     question = payload.question.strip()
@@ -840,11 +802,19 @@ if ASSETS_DIR.exists():
 
 @app.get("/health")
 def health_check() -> dict[str, str]:
+    """Simple liveness probe for the backend service."""
     return {"status": "ok"}
 
 
 @app.post("/api/admin/login", response_model=AdminLoginResponse)
 def login_admin(payload: AdminLoginPayload) -> AdminLoginResponse:
+    """Authenticate the admin user and issue a session token."""
+    if not _admin_email() or not _admin_password():
+        raise HTTPException(
+            status_code=503,
+            detail="Admin belum dikonfigurasi. Isi email dan password di backend/cache/admin.json.",
+        )
+
     email = payload.email.strip().lower()
     password = payload.password
     if (
@@ -864,6 +834,7 @@ def login_admin(payload: AdminLoginPayload) -> AdminLoginResponse:
 
 @app.post("/query", response_model=QueryResponse)
 def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
+    """Answer a chat query with citations and AI-selected form downloads."""
     from researcher_crew.main import OllamaGenerationError, run_knowledge_crew
 
     conversation_id = _clean_conversation_id(payload.conversation_id)
@@ -904,6 +875,7 @@ PINNED_IMAGE_EXTENSIONS = {".webp", ".png", ".jpg", ".jpeg"}
 
 
 def _pinned_image_name() -> str:
+    """Return the active pinned FAQ image filename."""
     for extension in (".webp", ".png", ".jpg", ".jpeg"):
         if (ASSETS_DIR / f"{PINNED_IMAGE_STEM}{extension}").exists():
             return f"{PINNED_IMAGE_STEM}{extension}"
@@ -911,6 +883,7 @@ def _pinned_image_name() -> str:
 
 
 def _pinned_image_url() -> str:
+    """Return a cache-busted URL for the pinned FAQ image."""
     name = _pinned_image_name()
     path = ASSETS_DIR / name
     # Cache-bust with mtime so the browser reloads after the image is replaced.
@@ -919,6 +892,7 @@ def _pinned_image_url() -> str:
 
 
 def _pinned_faq_items() -> list[FAQItem]:
+    """Build the static FAQ card shown for the organogram entry."""
     return [
         FAQItem(
             id="",
@@ -932,6 +906,7 @@ def _pinned_faq_items() -> list[FAQItem]:
 
 @app.get("/api/faq", response_model=list[FAQItem])
 def get_faq() -> list[FAQItem]:
+    """Return pinned FAQ items followed by stored FAQ entries."""
     with FAQ_LOCK:
         stored = _load_faqs()
     return [*_pinned_faq_items(), *stored]
@@ -942,6 +917,7 @@ def upload_pinned_faq_image(
     payload: AdminDocumentPayload,
     authorization: str = Header(default=""),
 ) -> AdminDocumentResponse:
+    """Replace the pinned organogram image asset."""
     _require_admin(authorization)
     extension = Path(unquote(payload.filename)).suffix.lower()
     if extension not in PINNED_IMAGE_EXTENSIONS:
@@ -970,6 +946,7 @@ def create_faq(
     payload: AdminFAQPayload,
     authorization: str = Header(default=""),
 ) -> AdminFAQResponse:
+    """Generate and store a new FAQ entry."""
     _require_admin(authorization)
     item = _build_faq_item(payload)
     with FAQ_LOCK:
@@ -985,6 +962,7 @@ def update_faq(
     payload: AdminFAQPayload,
     authorization: str = Header(default=""),
 ) -> AdminFAQResponse:
+    """Regenerate and replace an existing FAQ entry."""
     _require_admin(authorization)
     with FAQ_LOCK:
         items = _load_faqs()
@@ -1000,6 +978,7 @@ def delete_faq(
     faq_id: str,
     authorization: str = Header(default=""),
 ) -> AdminFAQResponse:
+    """Delete one stored FAQ entry by ID."""
     _require_admin(authorization)
     with FAQ_LOCK:
         items = _load_faqs()
@@ -1011,6 +990,7 @@ def delete_faq(
 
 @app.get("/api/library", response_model=list[LibraryItem])
 def get_library(authorization: str = Header(default="")) -> list[LibraryItem]:
+    """Return the admin document library listing."""
     _require_admin(authorization)
     return _iter_library_items()
 
@@ -1020,6 +1000,7 @@ def save_document(
     payload: AdminDocumentPayload,
     authorization: str = Header(default=""),
 ) -> AdminDocumentResponse:
+    """Insert or replace a managed backend document."""
     _require_admin(authorization)
     data_dir = _get_data_dir().resolve()
     data_dir.mkdir(parents=True, exist_ok=True)
@@ -1065,6 +1046,7 @@ def delete_document(
     document_path: str,
     authorization: str = Header(default=""),
 ) -> AdminDocumentResponse:
+    """Delete one managed document and report reindex requirements."""
     _require_admin(authorization)
     target_path = _resolve_document_path(document_path)
 
@@ -1080,6 +1062,7 @@ def delete_document(
 
 @app.post("/api/admin/reindex", response_model=AdminReindexResponse)
 def reindex_documents(authorization: str = Header(default="")) -> AdminReindexResponse:
+    """Rebuild the vector database from the current source documents."""
     _require_admin(authorization)
     if not REINDEX_LOCK.acquire(blocking=False):
         raise HTTPException(status_code=409, detail="Reindex is already running.")
@@ -1211,6 +1194,7 @@ def _fill_form_placeholders(path: Path, values: dict[str, str]) -> bytes:
 
 
 def _resolve_form_path(path: str) -> Path:
+    """Resolve and validate that a path points to a fillable form template."""
     resolved_path = _resolve_document_path(path)
     if not resolved_path.exists() or not resolved_path.is_file():
         raise HTTPException(status_code=404, detail="Form not found.")
@@ -1227,6 +1211,7 @@ def download_document(
     document_path: str,
     authorization: str = Header(default=""),
 ) -> FileResponse:
+    """Download a stored document, limiting non-form files to admins."""
     resolved_path = _resolve_document_path(document_path)
 
     if not resolved_path.exists() or not resolved_path.is_file():
@@ -1243,12 +1228,14 @@ def download_document(
 
 @app.get("/api/forms/fields")
 def form_fields(path: str) -> dict[str, object]:
+    """Expose the simplified input fields detected in a form template."""
     resolved_path = _resolve_form_path(path)
     return {"fields": _unique_form_fields(resolved_path)}
 
 
 @app.post("/api/forms/fill")
 def fill_form(payload: FormFillPayload) -> Response:
+    """Fill a form template in memory and return the completed xlsx file."""
     resolved_path = _resolve_form_path(payload.path)
     content = _fill_form_placeholders(resolved_path, payload.values)
     nama = next(
@@ -1268,6 +1255,7 @@ def fill_form(payload: FormFillPayload) -> Response:
 
 @app.get("/", response_class=FileResponse, include_in_schema=False)
 def frontend_app() -> FileResponse:
+    """Serve the frontend index file for the root route."""
     index_file = FRONTEND_DIR / "index.html"
     if not index_file.exists():
         raise HTTPException(status_code=404, detail="Frontend bundle not found.")

@@ -26,6 +26,7 @@ VERSIONED_INDEX_DIR = "indexes"
 
 
 def _get_chroma_base_dir() -> Path:
+    """Resolve the configured base directory for Chroma storage."""
     raw_dir = get_env("CHROMA_DIR", "backend/chroma_db")
     path = Path(raw_dir)
     if not path.is_absolute():
@@ -34,6 +35,7 @@ def _get_chroma_base_dir() -> Path:
 
 
 def get_chroma_dir() -> Path:
+    """Return the active Chroma index directory, if one is marked."""
     base_dir = _get_chroma_base_dir()
     active_file = base_dir / ACTIVE_INDEX_FILE
     if active_file.exists():
@@ -49,6 +51,7 @@ def get_chroma_dir() -> Path:
 
 
 def get_vectorstore() -> Chroma:
+    """Open the current Chroma vector store with the configured embedder."""
     return Chroma(
         persist_directory=str(get_chroma_dir()),
         embedding_function=get_embedding_model(),
@@ -56,6 +59,7 @@ def get_vectorstore() -> Chroma:
 
 
 def rebuild_vectorstore(chunks: list[Document]) -> Chroma:
+    """Create a fresh versioned Chroma index from document chunks."""
     base_dir = _get_chroma_base_dir()
     index_name = f"{VERSIONED_INDEX_DIR}/{uuid.uuid4().hex}"
     chroma_dir = base_dir / index_name
@@ -72,6 +76,7 @@ def rebuild_vectorstore(chunks: list[Document]) -> Chroma:
 
 @lru_cache(maxsize=1)
 def get_reranker():
+    """Lazily load the optional cross-encoder reranker."""
     model_name = get_required_env("RERANK_MODEL")
     if not model_name:
         return None

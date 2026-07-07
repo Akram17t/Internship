@@ -366,43 +366,6 @@ function scrollChatToBottom(behavior = "auto") {
   });
 }
 
-function renderMessageCitationsLegacy(container, citations) {
-  if (!Array.isArray(citations) || !citations.length) return;
-
-  const heading = document.createElement("strong");
-  heading.textContent = "Sumber";
-  const list = document.createElement("ol");
-
-  citations.forEach((citation) => {
-    const item = document.createElement("li");
-    const source = citation.download_url
-      ? document.createElement("a")
-      : document.createElement("span");
-    source.textContent = citation.source || "Unknown source";
-    if (citation.download_url) {
-      source.href = citation.download_url;
-      source.target = "_blank";
-      source.rel = "noopener";
-    }
-
-    const location = document.createElement("span");
-    location.className = "citation-location";
-    location.textContent =
-      [
-        citation.section || null,
-        citation.page ? `PDF halaman ${citation.page}` : null,
-      ]
-        .filter(Boolean)
-        .join(" · ") || "Lokasi tidak tersedia";
-
-    item.append(source, location);
-    list.appendChild(item);
-  });
-
-  container.append(heading, list);
-  container.hidden = false;
-}
-
 function renderMessageCitations(container, citations) {
   if (!Array.isArray(citations) || !citations.length) return;
 
@@ -2268,7 +2231,7 @@ function formPathFromUrl(url) {
 async function openFormFillModal(item) {
   const path = formPathFromUrl(item.download_url);
   state.pendingFormFill = { path, label: item.label || item.name || "Form" };
-  elements.formFillSubtitle.textContent = `Isi kolom yang perlu, lalu unduh: ${state.pendingFormFill.label}`;
+  elements.formFillSubtitle.textContent = "";
   elements.formFillFields.innerHTML =
     '<p class="form-fill-note">Memuat kolom dari form…</p>';
   elements.formFillModal.classList.add("is-open");
@@ -2383,18 +2346,6 @@ function loadSession() {
   } catch {
     return guest;
   }
-}
-
-function getInitials(value) {
-  return (
-    String(value)
-      .split(/[\s@._-]+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part.charAt(0))
-      .join("")
-      .toUpperCase() || "A"
-  );
 }
 
 function fileToBase64(file) {

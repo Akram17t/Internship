@@ -15,6 +15,7 @@ CITATION_SCHEMA_MARKER = ".citation-metadata-v1"
 
 
 def get_data_dir() -> Path:
+    """Resolve the source document directory for ingestion."""
     raw_dir = get_env("DATA_DIR", "backend/data")
     path = Path(raw_dir)
     if not path.is_absolute():
@@ -23,6 +24,7 @@ def get_data_dir() -> Path:
 
 
 def main() -> None:
+    """Load documents, chunk them, and rebuild the vector database."""
     documents = load_documents(get_data_dir())
     chunks = chunk_documents(documents)
     rebuild_vectorstore(chunks)

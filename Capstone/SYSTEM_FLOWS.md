@@ -47,8 +47,9 @@ flowchart TD
 | Generate jawaban | `_generate_answer()` | `backend/researcher_crew/src/researcher_crew/main.py:196` |
 | CrewAI object | `ResearcherCrew.crew()` | `backend/researcher_crew/src/researcher_crew/crew.py:54` |
 | CrewAI task prompt | `chat_answer_task` | `backend/researcher_crew/src/researcher_crew/config/tasks.yaml:1` |
-| Filter form untuk unsupported answer | `_answer_has_supported_form_context()` | `backend/api/main.py:334` |
-| Cari form download | `_matching_form_downloads()` | `backend/api/main.py:316` |
+| Filter form untuk unsupported answer | `_answer_has_supported_form_context()` | `backend/api/main.py` |
+| Katalog form untuk AI | `_available_form_catalog()` | `backend/api/main.py` |
+| Map form pilihan AI | `_selected_form_downloads()` | `backend/api/main.py` |
 
 ### Cara context switching bekerja
 
@@ -185,8 +186,7 @@ flowchart TD
 
 | Data | Lokasi |
 |---|---|
-| Default FAQ seed | `DEFAULT_FAQ_ITEMS` di `backend/api/main.py` |
-| Stored FAQ | `backend/cache/faqs.json` |
+| Stored FAQ | `backend/cache/faqs.json` (kosong bila belum ada) |
 | Pinned organogram FAQ | `_pinned_faq_items()` di `backend/api/main.py` |
 | Pinned image upload | `upload_pinned_faq_image()` di `backend/api/main.py` |
 
@@ -196,27 +196,31 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A[Jawaban chat selesai] --> B[_matching_form_downloads]
-  B --> C[Return form_downloads]
-  C --> D[Frontend render Form yang bisa diunduh]
-  D --> E{User pilih}
-  E -->|Template| F[GET /api/documents/path]
-  E -->|Isi & download| G[openFormFillModal]
-  G --> H[GET /api/forms/fields]
-  H --> I[Scan placeholder Excel]
-  I --> J[Render input field]
-  J --> K[User isi data]
-  K --> L[POST /api/forms/fill]
-  L --> M[Fill workbook in memory]
-  M --> N[Download xlsx terisi]
+  A[Query masuk] --> B[_iter_form_downloads]
+  B --> C[_available_form_catalog]
+  C --> D[AI pilih form lewat FORM_SELECTION]
+  D --> E[_selected_form_downloads]
+  E --> F[Return form_downloads]
+  F --> G[Frontend render Form yang bisa diunduh]
+  G --> H{User pilih}
+  H -->|Template| I[GET /api/documents/path]
+  H -->|Isi & download| J[openFormFillModal]
+  J --> K[GET /api/forms/fields]
+  K --> L[Scan placeholder Excel]
+  L --> M[Render input field]
+  M --> N[User isi data]
+  N --> O[POST /api/forms/fill]
+  O --> P[Fill workbook in memory]
+  P --> Q[Download xlsx terisi]
 ```
 
 ### Fungsi dan lokasi
 
 | Step | Fungsi | Lokasi |
 |---|---|---|
-| Cari form relevan | `_matching_form_downloads()` | `backend/api/main.py:316` |
-| Keyword form | `_form_keywords_for_path()` | `backend/api/main.py:275` |
+| Kumpulkan form tersedia | `_iter_form_downloads()` | `backend/api/main.py` |
+| Kirim katalog form ke AI | `_available_form_catalog()` | `backend/api/main.py` |
+| Map form pilihan AI | `_selected_form_downloads()` | `backend/api/main.py` |
 | Render block form | `renderFormDownloads()` | `frontend/web/assets/app.js:653` |
 | Row tombol form | `createFormDownloadRow()` | `frontend/web/assets/app.js:675` |
 | Download dokumen | `downloadDocument()` | `frontend/web/assets/app.js:2343` |
@@ -256,4 +260,3 @@ flowchart TD
 | Kenapa FAQ gagal dibuat | `backend/api/main.py:643` dan `frontend/web/assets/app.js:1370` |
 | Kenapa field form tidak muncul | `backend/api/main.py:961` |
 | Kenapa form filled download gagal | `backend/api/main.py:1071` dan `frontend/web/assets/app.js:2462` |
-

@@ -116,10 +116,10 @@ ke `sys.path`, buat `app`, siapkan konstanta & lock. `researcher_crew.main` di-i
 
 ### Konstanta penting
 `EMBEDDABLE_EXTENSIONS` (`.pdf/.docx/.txt`), `LIBRARY_EXTENSIONS` (+`.xlsx`),
-`ADMIN_EMAILS`, `MAX_DOCUMENT_BYTES` (25 MB), batas percakapan
+`MAX_DOCUMENT_BYTES` (25 MB), batas percakapan
 (`MAX_CONVERSATIONS`, `MAX_CONVERSATION_TURNS`, `MAX_CONVERSATION_CONTEXT_CHARS`,
 `CONVERSATION_TTL`), lock (`CONVERSATION_LOCK`, `FAQ_LOCK`, `REINDEX_LOCK`), dan
-`DEFAULT_FAQ_ITEMS` (FAQ bawaan bila `faqs.json` belum ada).
+admin config (`backend/cache/admin.json`), dan pinned FAQ organogram.
 
 ### Model Pydantic (kontrak request/response)
 `QueryRequest`, `CitationResponse`, `FormDownloadResponse`, `QueryResponse`,
@@ -135,10 +135,11 @@ ke `sys.path`, buat `app`, siapkan konstanta & lock. `researcher_crew.main` di-i
 - `_decode_document(content_base64)` — decode base64 upload, validasi ukuran/kosong.
 
 ### Helper — form download
-- `_form_keywords_for_path(path)` — keyword per jenis form (perjalanan dinas / onboarding / exit; else nama file).
 - `_format_form_display_name(path)` — rapikan nama form untuk ditampilkan.
 - `_form_download_response(path, data_dir)` — bentuk `FormDownloadResponse`.
-- `_matching_form_downloads(*texts)` — cari file `.xlsx` yang keyword-nya cocok dengan gabungan pertanyaan+jawaban.
+- `_iter_form_downloads()` / `_iter_form_paths()` — kumpulkan file `.xlsx` yang tersedia.
+- `_available_form_catalog(forms)` — kirim katalog form ke AI.
+- `_selected_form_downloads(selected_names, forms)` — map pilihan form dari AI ke `FormDownloadResponse`.
 
 ### Helper — percakapan (cache)
 - `_get_cache_dir()`, `_get_conversation_file()`, `_get_faq_file()` — path cache.
@@ -153,7 +154,7 @@ ke `sys.path`, buat `app`, siapkan konstanta & lock. `researcher_crew.main` di-i
 - `_citation_download_url(source)` — URL unduh dari nama sumber.
 - `_normalize_citation(raw, index)` / `_normalize_citations(item)` — rapikan citation (dari list, atau fallback dari `source`).
 - `_normalize_faq_item(item)` — validasi & lengkapi FAQ item (isi source/URL dari citation bila kosong).
-- `_load_faqs()` / `_save_faqs(items)` — baca/tulis `faqs.json` (fallback ke `DEFAULT_FAQ_ITEMS`).
+- `_load_faqs()` / `_save_faqs(items)` — baca/tulis `faqs.json` (kosong bila file belum ada).
 - `_find_faq_index(items, id)` — cari index FAQ (404 kalau tak ada).
 - `_is_unusable_faq_answer(answer, citations)` — jawaban dianggap tak layak bila tanpa citation atau mengandung frasa penolakan.
 - `_build_faq_item(payload, faq_id=None)` — panggil `run_faq_crew`, bentuk `FAQItem`, tolak (422) bila tak layak.
@@ -217,11 +218,12 @@ Definisi CrewAI (pola `CrewBase`):
 ```
 1. conversation_id      = _clean_conversation_id(payload.conversation_id)
 2. conversation_context = _get_conversation_context(conversation_id)
-3. answer, raw_citations = run_knowledge_crew(payload.question, conversation_context)
-4. _append_conversation_turn(conversation_id, question, answer)
-5. citations      = [CitationResponse(... + download_url)]
-6. form_downloads = _matching_form_downloads(question, answer)
-7. return QueryResponse(answer, citations, form_downloads, conversation_id)
+3. available_forms = _iter_form_downloads()
+4. answer, raw_citations, selected_form_names = run_knowledge_crew(payload.question, conversation_context, available_forms=_available_form_catalog(available_forms))
+5. _append_conversation_turn(conversation_id, question, answer)
+6. citations      = [CitationResponse(... + download_url)]
+7. form_downloads = _selected_form_downloads(selected_form_names, available_forms) bila answer supported
+8. return QueryResponse(answer, citations, form_downloads, conversation_id)
 ```
 
 `run_knowledge_crew`:
@@ -279,7 +281,7 @@ d. bersihkan marker & filter citation
 | `backend/data/` | Dokumen sumber (PDF/DOCX/TXT untuk di-embed, XLSX form untuk diunduh) |
 | `backend/chroma_db/` | Index vektor ChromaDB (folder ber-UUID + penanda index aktif) |
 | `backend/cache/conversations.json` | Riwayat percakapan (untuk konteks rewrite); auto-prune per TTL |
-| `backend/cache/faqs.json` | FAQ tersimpan (fallback ke `DEFAULT_FAQ_ITEMS`) |
+| `backend/cache/faqs.json` | FAQ tersimpan |
 
 ---
 
@@ -294,7 +296,7 @@ d. bersihkan marker & filter citation
 | `preprocessing/chunker.py` | `chunk_documents`, `split_documents_by_section`, `_clean_page_text`, `_looks_like_heading`, `build_text_splitter` |
 | `preprocessing/embedding.py` | `get_embedding_model` |
 | `preprocessing/vectorstore.py` | `rebuild_vectorstore`, `hybrid_search`, `_rerank_documents`, `get_vectorstore`, `get_chroma_dir`, `get_reranker` |
-| `api/main.py` | `query_knowledge_base`, `create/update/delete_faq`, `_build_faq_item`, `_matching_form_downloads`, konversi conversation/citation/faq/document, endpoint dokumen & reindex |
+| `api/main.py` | `query_knowledge_base`, `create/update/delete_faq`, `_build_faq_item`, `_selected_form_downloads`, konversi conversation/citation/faq/document, endpoint dokumen & reindex |
 | `researcher_crew/main.py` | `run_knowledge_crew`, `run_faq_crew`, `_rewrite_query`, `_generate_answer`, `_generate_faq_answer`, `_ollama_generate`, `_post_ollama_generate` |
 | `researcher_crew/tools/custom_tool.py` | `retrieve_knowledge` |
 | `researcher_crew/crew.py` | `_llm`, `answer_writer`, `chat_answer_task`, `crew` |
