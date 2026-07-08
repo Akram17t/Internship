@@ -15,6 +15,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from backend.settings import get_int_env, get_required_env, load_capstone_env
+from backend.semantic_cache import lookup_semantic_cache, store_semantic_cache
 
 warnings.filterwarnings("ignore", category=SyntaxWarning, module="pysbd")
 
@@ -350,6 +351,15 @@ def run_knowledge_crew(
         " (pertanyaan diubah)" if standalone_question != question else "",
     )
 
+    cache_hit = lookup_semantic_cache(standalone_question, trace_id=trace_label)
+    if cache_hit is not None:
+        logger.info(
+            "[%s] Tahap 4/4 selesai dari semantic cache dalam %.2fs",
+            trace_label,
+            time.perf_counter() - started_at,
+        )
+        return cache_hit.answer, cache_hit.citations, cache_hit.selected_forms
+
     logger.info("[%s] Tahap 2/4 - pencarian dokumen dimulai", trace_label)
     retrieval_started = time.perf_counter()
     evidence, citations = retrieve_knowledge(standalone_question)
@@ -400,6 +410,13 @@ def run_knowledge_crew(
         trace_label,
         time.perf_counter() - started_at,
         len(selected_forms),
+    )
+    store_semantic_cache(
+        standalone_question,
+        answer,
+        citations,
+        selected_forms,
+        trace_id=trace_label,
     )
     return answer, citations, selected_forms
 

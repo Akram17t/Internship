@@ -50,6 +50,17 @@ def get_chroma_dir() -> Path:
     return base_dir
 
 
+def get_active_index_name() -> str:
+    # Nama index aktif dipakai untuk invalidasi cache jawaban saat dokumen direindex.
+    base_dir = _get_chroma_base_dir()
+    active_file = base_dir / ACTIVE_INDEX_FILE
+    if active_file.exists():
+        active_name = active_file.read_text(encoding="utf-8").strip()
+        if active_name:
+            return active_name
+    return get_chroma_dir().name
+
+
 def get_vectorstore() -> Chroma:
     # Buka vector store Chroma aktif dengan embedder terkonfigurasi.
     return Chroma(

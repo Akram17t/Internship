@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 from backend.settings import ROOT_DIR, get_env, load_capstone_env
+from backend.cache_db import state_counts
 from backend.preprocessing.ingest import CITATION_SCHEMA_MARKER
 from backend.preprocessing.vectorstore import ACTIVE_INDEX_FILE
 
@@ -66,8 +67,15 @@ def main() -> int:
         return 0 if has_valid_vector_db() else 1
     if command == "source-docs":
         return 0 if has_source_documents() else 1
+    if command == "app-state":
+        counts = state_counts()
+        print(
+            "conversation_messages={conversation_messages} "
+            "semantic_cache_entries={semantic_cache_entries}".format(**counts)
+        )
+        return 0
 
-    print("Usage: python -m backend.scripts.storage_status [vector-db|source-docs]")
+    print("Usage: python -m backend.scripts.storage_status [vector-db|source-docs|app-state]")
     return 2
 
 

@@ -1,0 +1,113 @@
+from __future__ import annotations
+
+import json
+import os
+import tempfile
+import unittest
+from datetime import datetime, timedelta
+from pathlib import Path
+from unittest.mock import patch
+
+from backend.api.core import MAX_CONVERSATION_MESSAGES
+from backend.cache_db import (
+    append_conversation_turn,
+    get_conversation_context,
+    init_state_db,
+    load_conversations,
+    replace_conversations,
+)
+
+
+class CacheDbTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp_dir.name)
+        self.old_env = {
+            "APP_STATE_DB": os.environ.get("APP_STATE_DB"),
+            "CONVERSATION_CACHE_DIR": os.environ.get("CONVERSATION_CACHE_DIR"),
+        }
+        os.environ["APP_STATE_DB"] = str(self.root / "app_state.db")
+        os.environ["CONVERSATION_CACHE_DIR"] = str(self.root / "cache")
+        (self.root / "cache").mkdir(parents=True, exist_ok=True)
+
+    def tearDown(self) -> None:
+        for key, value in self.old_env.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+        self.temp_dir.cleanup()
+
+    def test_migrates_legacy_conversations_json(self) -> None:
+        now = datetime.now().isoformat(timespec="seconds")
+        legacy = {
+            "conv-1": [
+                {"role": "user", "content": "Pertanyaan lama", "created_at": now},
+                {"role": "assistant", "content": "Jawaban lama", "created_at": now},
+            ]
+        }
+        (self.root / "cache" / "conversations.json").write_text(
+            json.dumps(legacy),
+            encoding="utf-8",
+        )
+
+        init_state_db()
+
+        conversations = load_conversations()
+        self.assertIn("conv-1", conversations)
+        self.assertEqual(len(conversations["conv-1"]), 2)
+
+    def test_append_turn_and_context_uses_latest_messages(self) -> None:
+        conversation_id = "conv-context"
+        for index in range(8):
+            append_conversation_turn(
+                conversation_id,
+                f"Pertanyaan {index}",
+                f"Jawaban {index}",
+            )
+
+        context = get_conversation_context(conversation_id)
+
+        self.assertNotIn("Pertanyaan 0", context)
+        self.assertIn("Pertanyaan 3", context)
+        self.assertIn("Jawaban 7", context)
+        self.assertLessEqual(
+            len([line for line in context.splitlines() if line.strip()]),
+            MAX_CONVERSATION_MESSAGES,
+        )
+
+    def test_expired_conversations_are_cleaned_up(self) -> None:
+        old_timestamp = (datetime.now() - timedelta(days=3)).isoformat(timespec="seconds")
+        replace_conversations(
+            {
+                "expired": [
+                    {"role": "user", "content": "lama", "created_at": old_timestamp},
+                    {"role": "assistant", "content": "lama juga", "created_at": old_timestamp},
+                ]
+            }
+        )
+
+        self.assertEqual(load_conversations(), {})
+
+    def test_prunes_to_max_conversations(self) -> None:
+        base_time = datetime.now() - timedelta(minutes=4)
+        conversations = {
+            f"conv-{index}": [
+                {
+                    "role": "user",
+                    "content": f"question {index}",
+                    "created_at": (base_time + timedelta(minutes=index)).isoformat(timespec="seconds"),
+                }
+            ]
+            for index in range(4)
+        }
+
+        with patch("backend.cache_db.MAX_CONVERSATIONS", 2):
+            replace_conversations(conversations)
+            stored = load_conversations()
+
+        self.assertEqual(set(stored), {"conv-2", "conv-3"})
+
+
+if __name__ == "__main__":
+    unittest.main()

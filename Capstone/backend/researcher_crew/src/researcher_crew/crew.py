@@ -42,7 +42,7 @@ class ResearcherCrew():
         # Buat agent penulis jawaban yang dipakai untuk chat.
         return Agent(
             config=self.agents_config["answer_writer"],  # type: ignore[index]
-            llm=self._llm(temperature=0.3),
+            llm=self._llm(temperature=0.05),
             verbose=False,
         )
 

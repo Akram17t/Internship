@@ -3,19 +3,20 @@ from __future__ import annotations
 import json
 import secrets
 import uuid
-from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 
 from fastapi import HTTPException
 
+from backend.cache_db import (
+    append_conversation_turn,
+    get_conversation_context,
+    load_conversations,
+    replace_conversations,
+)
 from backend.api.core import (
     ADMIN_CONFIG_LOCK,
     CONVERSATION_LOCK,
-    CONVERSATION_TTL,
-    MAX_CONVERSATION_CONTEXT_CHARS,
-    MAX_CONVERSATION_MESSAGES,
-    MAX_CONVERSATIONS,
     ROOT_DIR,
 )
 from backend.api.models import CitationResponse, FAQItem
@@ -33,17 +34,12 @@ def _new_admin_config_template() -> dict[str, str]:
 
 
 def _get_cache_dir() -> Path:
-    # Tentukan folder cache lokal untuk file state JSON.
+    # Tentukan folder cache lokal untuk FAQ/admin JSON dan legacy conversation import.
     raw_dir = get_env("CONVERSATION_CACHE_DIR", "backend/cache")
     path = Path(raw_dir)
     if not path.is_absolute():
         path = ROOT_DIR / path
     return path
-
-
-def _get_conversation_file() -> Path:
-    # Kembalikan path file cache percakapan.
-    return _get_cache_dir() / "conversations.json"
 
 
 def _get_faq_file() -> Path:
@@ -109,109 +105,26 @@ def _clean_conversation_id(value: str | None) -> str:
     return uuid.uuid4().hex
 
 
-def _parse_conversation_timestamp(value: object) -> datetime | None:
-    # Parse timestamp percakapan tersimpan jika valid.
-    if not isinstance(value, str) or not value.strip():
-        return None
-
-    try:
-        return datetime.fromisoformat(value)
-    except ValueError:
-        return None
-
-
-def _prune_expired_conversations(
-    conversations: dict[str, list[dict[str, object]]],
-) -> dict[str, list[dict[str, object]]]:
-    # Buang thread percakapan yang pesan terbarunya sudah lewat TTL.
-    cutoff = datetime.now() - CONVERSATION_TTL
-    pruned: dict[str, list[dict[str, object]]] = {}
-
-    for conversation_id, messages in conversations.items():
-        if not isinstance(messages, list) or not messages:
-            continue
-
-        latest_timestamp: datetime | None = None
-        for message in reversed(messages):
-            if not isinstance(message, dict):
-                continue
-            latest_timestamp = _parse_conversation_timestamp(message.get("created_at"))
-            if latest_timestamp is not None:
-                break
-
-        if latest_timestamp is None or latest_timestamp < cutoff:
-            continue
-
-        pruned[conversation_id] = messages
-
-    return pruned
-
-
 def _load_conversations() -> dict[str, list[dict[str, object]]]:
-    # Muat dan pangkas riwayat percakapan dari disk.
-    path = _get_conversation_file()
-    if not path.exists():
-        return {}
-
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return {}
-
-    if not isinstance(data, dict):
-        return {}
-
-    conversations = {
-        str(key): value
-        for key, value in data.items()
-        if isinstance(value, list)
-    }
-    return _prune_expired_conversations(conversations)
+    # Compatibility helper: conversation state now lives in SQLite.
+    return load_conversations()
 
 
 def _save_conversations(conversations: dict[str, list[dict[str, object]]]) -> None:
-    # Simpan riwayat percakapan yang sudah dibatasi dan dipangkas.
-    cache_dir = _get_cache_dir()
-    cache_dir.mkdir(parents=True, exist_ok=True)
-
-    active_conversations = _prune_expired_conversations(conversations)
-    trimmed_items = list(active_conversations.items())[-MAX_CONVERSATIONS:]
-    payload = {key: value[-MAX_CONVERSATION_MESSAGES:] for key, value in trimmed_items}
-    _get_conversation_file().write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    # Compatibility helper: keep callers from writing conversations.json again.
+    replace_conversations(conversations)
 
 
 def _get_conversation_context(conversation_id: str) -> str:
     # Ubah turn terbaru menjadi context teks untuk rewrite query.
     with CONVERSATION_LOCK:
-        messages = _load_conversations().get(conversation_id, [])
-
-    context_lines: list[str] = []
-    for message in messages[-MAX_CONVERSATION_MESSAGES:]:
-        role = "User" if message.get("role") == "user" else "Assistant"
-        content = str(message.get("content", "")).strip()
-        if content:
-            context_lines.append(f"{role}: {content}")
-
-    return "\n".join(context_lines)[-MAX_CONVERSATION_CONTEXT_CHARS:]
+        return get_conversation_context(conversation_id)
 
 
 def _append_conversation_turn(conversation_id: str, question: str, answer: str) -> None:
     # Tambahkan satu pasangan turn user/assistant ke cache percakapan.
-    now = datetime.now().isoformat(timespec="seconds")
     with CONVERSATION_LOCK:
-        conversations = _load_conversations()
-        messages = conversations.setdefault(conversation_id, [])
-        messages.extend(
-            [
-                {"role": "user", "content": question, "created_at": now},
-                {"role": "assistant", "content": answer, "created_at": now},
-            ]
-        )
-        conversations[conversation_id] = messages[-MAX_CONVERSATION_MESSAGES:]
-        _save_conversations(conversations)
+        append_conversation_turn(conversation_id, question, answer)
 
 
 def _citation_download_url(source: str) -> str:
