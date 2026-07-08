@@ -1,113 +1,125 @@
-# ICS SOP & Knowledge Assistant — Architecture
+# ICS SOP & Knowledge Assistant - Architecture
 
-A local, privacy-first RAG assistant for internal SOPs and HR documents. Everything
-runs on-premise: FastAPI serves both the API and the web UI, ChromaDB stores the
-vector index, and Ollama provides the LLM and embeddings. No cloud LLM is used.
+Arsitektur backend saat ini sudah memakai API layer yang dipecah menjadi beberapa
+modul kecil. `backend/api/main.py` sekarang hanya entrypoint tipis yang mengekspor
+`app` dan mengimpor route agar endpoint terdaftar.
 
 ## Topology
 
 ```mermaid
 flowchart TB
-    subgraph Client["Browser (SPA)"]
-        UI["Vanilla JS UI<br/>Chat · FAQ · Library/Docs"]
+    subgraph Client["Browser SPA"]
+        UI["Vanilla JS UI<br/>Chat - FAQ - Library - Form Fill"]
     end
 
-    subgraph Server["FastAPI — backend/api/main.py"]
-        API["REST API + static host<br/>/query · /api/faq · /api/admin/* · /api/library"]
+    subgraph Server["FastAPI API layer"]
+        MAIN["backend/api/main.py<br/>entrypoint tipis"]
+        PUBLIC["routes_public.py<br/>chat, faq publik, download, form fill, root"]
+        ADMIN["routes_admin.py<br/>login, faq admin, library, docs, reindex"]
+        CORE["core.py<br/>app, konstanta, lock, assets"]
     end
 
-    subgraph Gen["Answer generation"]
-        CHAT["Chat: researcher_crew (CrewAI)<br/>answer_writer agent"]
-        FAQ["FAQ: direct Ollama call<br/>/api/generate"]
+    subgraph Services["API services"]
+        STORAGE["storage.py<br/>dokumen, library, form catalog"]
+        CACHE["cache_store.py<br/>conversation, faq, admin.json"]
+        AUTH["auth.py<br/>token admin"]
+        FAQSVC["faq_service.py<br/>build FAQ, pinned FAQ"]
+        FORMSVC["forms_service.py<br/>scan/fill xlsx"]
+        MODELS["models.py<br/>schema request/response"]
     end
 
-    subgraph Retrieval["Retrieval — preprocessing/vectorstore.py"]
-        HS["hybrid_search()<br/>similarity + rerank + RETRIEVAL_MIN_SCORE"]
-        CHROMA[("ChromaDB<br/>versioned index")]
-        RERANK["CrossEncoder reranker<br/>(optional)"]
+    subgraph RAG["RAG orchestration"]
+        RCMAIN["researcher_crew/main.py"]
+        CREW["researcher_crew/crew.py"]
+        TOOL["tools/custom_tool.py"]
     end
 
-    subgraph Ingest["Ingestion — preprocessing/ingest.py"]
-        LOAD["loader.py<br/>PDF/DOCX/TXT"]
-        CHUNK["chunker.py<br/>section/heading-aware"]
-        EMB["embedding.py<br/>Ollama embeddings"]
+    subgraph Retrieval["Retrieval"]
+        VS["preprocessing/vectorstore.py"]
+        CHROMA[("ChromaDB")]
+        RERANK["CrossEncoder reranker"]
     end
 
-    OLLAMA["Ollama (local)<br/>LLM + embedding models"]
-    DATA[/"backend/data/<br/>source documents"/]
+    subgraph Ingest["Ingestion"]
+        INGEST["preprocessing/ingest.py"]
+        LOAD["loader.py"]
+        CHUNK["chunker.py"]
+        EMB["embedding.py"]
+    end
 
-    UI -->|HTTP| API
-    API --> CHAT
-    API --> FAQ
-    CHAT --> HS
-    FAQ --> HS
-    CHAT --> OLLAMA
-    FAQ --> OLLAMA
-    HS --> CHROMA
-    HS --> RERANK
+    OLLAMA["Ollama local"]
+    DATA[/"backend/data"/]
+    CACHEFILES[/"backend/cache"/]
+
+    UI --> MAIN
+    MAIN --> PUBLIC
+    MAIN --> ADMIN
+    PUBLIC --> STORAGE
+    PUBLIC --> CACHE
+    PUBLIC --> FORMSVC
+    PUBLIC --> RCMAIN
+    ADMIN --> STORAGE
+    ADMIN --> CACHE
+    ADMIN --> AUTH
+    ADMIN --> FAQSVC
+    ADMIN --> INGEST
+
+    RCMAIN --> TOOL
+    RCMAIN --> CREW
+    TOOL --> VS
+    CREW --> OLLAMA
+    RCMAIN --> OLLAMA
+    VS --> CHROMA
+    VS --> RERANK
 
     DATA --> LOAD --> CHUNK --> EMB --> CHROMA
     EMB --> OLLAMA
-    API -->|reindex| Ingest
+    CACHE --> CACHEFILES
 ```
 
-> If Mermaid does not render, view this file on GitHub or a Mermaid-enabled
-> Markdown viewer (e.g. VS Code with the Markdown Preview Mermaid extension).
+## Komponen
 
-## Components
-
-| Layer | File | Responsibility |
+| Layer | File | Tanggung jawab |
 |---|---|---|
-| Config | `backend/settings.py` | Load `.env` once; `get_env` / `get_int_env` / `get_float_env` helpers |
-| API / host | `backend/api/main.py` | All REST endpoints + serves the web UI |
-| Chat crew | `backend/researcher_crew/` | CrewAI `answer_writer` agent for conversational answers |
-| FAQ generation | `researcher_crew/main.py` (`_generate_faq_answer`) | Direct Ollama `/api/generate` call for short FAQ answers |
-| Retrieval | `preprocessing/vectorstore.py` | `hybrid_search`: similarity → rerank → relevance threshold |
-| Ingestion | `preprocessing/{loader,chunker,embedding,ingest}.py` | Docs → chunks → embeddings → versioned Chroma index |
-| Startup check | `scripts/storage_status.py` | Validates the vector DB before serving (used by `run.bat`) |
-| Frontend | `frontend/web/` | Single-page UI (HTML/CSS/vanilla JS) |
+| Config | `backend/settings.py` | Load `.env` dan helper env |
+| API core | `backend/api/core.py` | Objek `app`, konstanta, lock, mount assets |
+| API models | `backend/api/models.py` | Semua schema Pydantic |
+| Public routes | `backend/api/routes_public.py` | Chat, FAQ publik, download dokumen, form fill, root UI |
+| Admin routes | `backend/api/routes_admin.py` | Login admin, FAQ admin, library, upload/delete docs, reindex |
+| Storage helpers | `backend/api/storage.py` | Dokumen, library, form catalog, path validation |
+| Cache helpers | `backend/api/cache_store.py` | `conversations.json`, `faqs.json`, `admin.json` |
+| Auth helpers | `backend/api/auth.py` | Token admin, signing, verification |
+| FAQ helpers | `backend/api/faq_service.py` | Build FAQ dari RAG dan pinned organogram FAQ |
+| Form helpers | `backend/api/forms_service.py` | Scan field xlsx dan isi placeholder |
+| Chat orchestration | `backend/researcher_crew/main.py` | Rewrite query, panggil retrieval, panggil CrewAI/Ollama |
+| Crew definition | `backend/researcher_crew/crew.py` | Agent, task, dan CrewAI object |
+| Retrieval tool | `backend/researcher_crew/tools/custom_tool.py` | Evidence text dan citation dari hasil search |
+| Ingestion | `backend/preprocessing/` | Loader, cleaner, chunker, embedding, vector store |
+| Startup check | `backend/scripts/storage_status.py` | Cek source docs dan vector DB |
 
-## Key flows
+## Jalur utama
 
-**Chat (`POST /query`)**
-`app.js` → `run_knowledge_crew` → `retrieve_knowledge` (`hybrid_search`) → CrewAI
-`answer_writer` → citations post-processed → answer + citation chips.
+**Chat**
 
-**FAQ (`POST /api/admin/faq`)**
-`app.js` → `run_faq_crew` → `retrieve_knowledge`. If no relevant source clears
-`RETRIEVAL_MIN_SCORE`, it returns immediately (no LLM call) → "no source". Otherwise
-a direct Ollama call generates a short, citation-tagged answer (thinking disabled so
-the token budget goes to the answer, not hidden reasoning).
+`frontend/web/assets/app.js` -> `POST /query` -> `routes_public.py` ->
+`cache_store.py` (context) -> `researcher_crew/main.py` -> `custom_tool.py` ->
+`vectorstore.py` -> CrewAI/Ollama -> kembali ke `routes_public.py` untuk bentuk
+`answer + citations + form_downloads`.
 
-**Ingestion (`python -m backend.preprocessing.ingest`, or admin "Rebuild embeddings")**
-`data/*` → `loader` → `chunker` (cleans SOP noise, splits by `Pasal`/`BAB`/heading)
-→ `embedding` → `rebuild_vectorstore` writes a new UUID-versioned Chroma index and
-flips the `.active-chroma-index` marker (non-destructive swap).
+**FAQ admin**
 
-## Relevance short-circuit
+Frontend admin -> `POST /api/admin/faq` -> `routes_admin.py` -> `faq_service.py`
+-> `run_faq_crew()` -> retrieval -> Ollama -> validasi evidence -> simpan ke
+`backend/cache/faqs.json`.
 
-`hybrid_search` reranks candidates and normalizes each score to 0–1 (sigmoid). If the
-best score is below `RETRIEVAL_MIN_SCORE`, it returns nothing, so off-topic questions
-get an instant "no source" response without invoking the LLM. Set the threshold to `0`
-to disable.
+**Upload dokumen dan reindex**
 
-## Configuration (`.env`)
+Frontend admin -> `POST /api/admin/documents` / `DELETE /api/admin/documents/...`
+-> `routes_admin.py` -> `storage.py`. Jika file embeddable berubah, frontend akan
+meminta reindex -> `POST /api/admin/reindex` -> `preprocessing/ingest.py`.
 
-| Variable | Purpose |
-|---|---|
-| `MODEL` | Ollama chat/generation model (e.g. `ollama/qwen3:8b`) |
-| `EMBED_MODEL` | Ollama embedding model |
-| `RERANK_MODEL` | CrossEncoder reranker (optional) |
-| `OLLAMA_BASE_URL` | Ollama endpoint (default `http://localhost:11434`) |
-| `OLLAMA_NUM_CTX` / `OLLAMA_NUM_PREDICT` | Context window / max answer tokens (chat) |
-| `FAQ_NUM_PREDICT` | Max answer tokens for FAQ answers |
-| `OLLAMA_TIMEOUT_SECONDS` | Per-request timeout |
-| `RETRIEVAL_MIN_SCORE` | Min rerank relevance (0–1) to count as a real source |
-| `TOP_K` | Chunks retrieved per query |
-| `CHROMA_DIR` / `DATA_DIR` | Vector index / source document directories |
+**Form fill**
 
-## Stack
-
-FastAPI · Uvicorn · CrewAI (chat) · LangChain (loaders/splitter/chroma/ollama) ·
-ChromaDB · Ollama (LLM + embeddings) · sentence-transformers (rerank) ·
-pypdf / docx2txt · vanilla HTML/CSS/JS.
+Frontend -> `GET /api/forms/fields` -> `forms_service.py` scan template ->
+Frontend isi modal -> `POST /api/forms/fill` -> `forms_service.py` isi workbook
+di memory -> file xlsx hasil dikirim langsung ke browser.

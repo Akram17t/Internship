@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 import sys
 import json
+import logging
+import time
 import urllib.error
 import urllib.request
 import warnings
@@ -56,6 +58,8 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
+logger = logging.getLogger("uvicorn.error")
 
 
 class OllamaGenerationError(RuntimeError):
@@ -327,21 +331,61 @@ def run_knowledge_crew(
     question: str,
     conversation_context: str = "",
     available_forms: str = "",
+    trace_id: str = "",
 ) -> tuple[str, list[dict[str, object]], list[str]]:
     """Ambil evidence dokumen lalu hasilkan jawaban lewat chat crew."""
+    trace_label = trace_id or "chat"
+    started_at = time.perf_counter()
+
     # Ubah follow-up seperti "form untuk itu?" menjadi query mandiri.
     # Query mandiri ini dipakai untuk retrieval dan generation.
     # Context lama sengaja tidak dikirim ke generation agar topik lama tidak bocor.
+    logger.info("[%s] Tahap 1/4 - normalisasi pertanyaan dimulai", trace_label)
+    rewrite_started = time.perf_counter()
     standalone_question = _rewrite_query(question, conversation_context)
+    logger.info(
+        "[%s] Tahap 1/4 selesai dalam %.2fs%s",
+        trace_label,
+        time.perf_counter() - rewrite_started,
+        " (pertanyaan diubah)" if standalone_question != question else "",
+    )
+
+    logger.info("[%s] Tahap 2/4 - pencarian dokumen dimulai", trace_label)
+    retrieval_started = time.perf_counter()
     evidence, citations = retrieve_knowledge(standalone_question)
+    logger.info(
+        "[%s] Tahap 2/4 selesai dalam %.2fs dengan %s citation",
+        trace_label,
+        time.perf_counter() - retrieval_started,
+        len(citations),
+    )
     if not citations:
+        logger.info(
+            "[%s] Tahap 4/4 - selesai tanpa sumber dalam %.2fs",
+            trace_label,
+            time.perf_counter() - started_at,
+        )
         return UNSUPPORTED_ANSWER, [], []
 
+    logger.info("[%s] Tahap 3/4 - penyusunan jawaban dimulai", trace_label)
+    generation_started = time.perf_counter()
     answer = GENERATED_SOURCES_SECTION.sub(
         "", _generate_answer(standalone_question, evidence, available_forms)
     ).strip()
+    logger.info(
+        "[%s] Tahap 3/4 selesai dalam %.2fs",
+        trace_label,
+        time.perf_counter() - generation_started,
+    )
+
+    logger.info("[%s] Tahap 4/4 - finalisasi respons dimulai", trace_label)
     answer, selected_forms = _split_form_selection(answer)
     if _is_unsupported_answer(answer):
+        logger.info(
+            "[%s] Tahap 4/4 selesai dalam %.2fs tanpa jawaban bersumber",
+            trace_label,
+            time.perf_counter() - started_at,
+        )
         return UNSUPPORTED_ANSWER, [], []
     if citations:
         answer = re.sub(r"\[[nN]\]", f"[{citations[0]['id']}]", answer)
@@ -351,6 +395,12 @@ def run_knowledge_crew(
     elif citations:
         answer = f"{answer} [{citations[0]['id']}]"
         citations = citations[:1]
+    logger.info(
+        "[%s] Tahap 4/4 selesai dalam %.2fs, form terpilih=%s",
+        trace_label,
+        time.perf_counter() - started_at,
+        len(selected_forms),
+    )
     return answer, citations, selected_forms
 
 

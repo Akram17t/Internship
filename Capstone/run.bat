@@ -15,8 +15,11 @@ if not exist "%PYTHON%" (
 
 set "PYTHONIOENCODING=utf-8"
 set "PYTHONUTF8="
+set "OLLAMA_KEEP_ALIVE=1h"
 
 call :stop_servers
+call :ensure_ollama
+if errorlevel 1 goto :fail
 
 set "API_PORT="
 for /f "usebackq delims=" %%P in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$port = 8000; while ($port -lt 9000) { $busy = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue; if (-not $busy) { $port; exit 0 }; $port++ }; exit 1"`) do (
@@ -72,6 +75,42 @@ echo.
 "%PYTHON%" -X utf8 -m uvicorn backend.api.main:app --host 127.0.0.1 --port %API_PORT% --timeout-keep-alive 1 --timeout-graceful-shutdown 3
 set "APP_EXIT=%ERRORLEVEL%"
 endlocal & exit /b %APP_EXIT%
+
+:ensure_ollama
+for /f "usebackq delims=" %%R in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$running = Get-NetTCPConnection -LocalPort 11434 -State Listen -ErrorAction SilentlyContinue; if ($running) { '1' }"`) do (
+  set "OLLAMA_RUNNING=%%R"
+)
+if defined OLLAMA_RUNNING (
+  echo Ollama sudah berjalan di 127.0.0.1:11434.
+  echo Keep-alive akan mengikuti proses Ollama yang sedang aktif.
+  exit /b 0
+)
+
+where ollama >nul 2>&1
+if errorlevel 1 (
+  echo Ollama tidak ditemukan di PATH.
+  echo Jalankan Ollama secara manual atau tambahkan ke PATH terlebih dahulu.
+  exit /b 1
+)
+
+echo Menjalankan Ollama dengan OLLAMA_KEEP_ALIVE=%OLLAMA_KEEP_ALIVE%...
+start "Capstone Ollama" /min cmd /c "set OLLAMA_KEEP_ALIVE=%OLLAMA_KEEP_ALIVE%&& ollama serve"
+
+set "OLLAMA_READY="
+for /l %%I in (1,1,30) do (
+  for /f "usebackq delims=" %%R in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$running = Get-NetTCPConnection -LocalPort 11434 -State Listen -ErrorAction SilentlyContinue; if ($running) { '1' }"`) do (
+    set "OLLAMA_READY=%%R"
+  )
+  if defined OLLAMA_READY goto :ollama_ready
+  timeout /t 1 >nul
+)
+
+echo Ollama belum merespons di port 11434 setelah 30 detik.
+exit /b 1
+
+:ollama_ready
+echo Ollama siap di 127.0.0.1:11434.
+exit /b 0
 
 :stop_servers
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^

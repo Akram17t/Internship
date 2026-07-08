@@ -12,11 +12,19 @@ const screens = {
   policy: "Document Library",
 };
 
+const loadingStageLabels = [
+  "Memahami pertanyaan...",
+  "Mencari dokumen...",
+  "Menyusun jawaban...",
+];
+
 const state = {
   activeScreen: "chat",
   isSubmitting: false,
   activeRequestController: null,
   activeRequestStartedAt: null,
+  activeLoadingStageTimeouts: [],
+  activeAutoAskRun: null,
   conversationId: loadConversationId(),
   messages: loadMessages(),
   documents: [],
@@ -193,6 +201,107 @@ function bindChat() {
   });
 }
 
+function normalizeAutoAskQuestions(input) {
+  if (Array.isArray(input)) {
+    return input
+      .map((item) => String(item || "").trim())
+      .filter(Boolean);
+  }
+
+  if (typeof input === "string") {
+    return input
+      .split(/\r?\n/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
+function wait(delayMs) {
+  return new Promise((resolve) => window.setTimeout(resolve, delayMs));
+}
+
+async function runAutoAskSequence(input, options = {}) {
+  const questions = normalizeAutoAskQuestions(input);
+  if (!questions.length) {
+    throw new Error("Daftar pertanyaan kosong.");
+  }
+  if (state.activeAutoAskRun?.running) {
+    throw new Error("Auto-ask sedang berjalan.");
+  }
+
+  const config = {
+    delayMs: Number.isFinite(options.delayMs) ? Number(options.delayMs) : 1200,
+    reset: options.reset !== false,
+  };
+  const run = {
+    running: true,
+    stopped: false,
+    questions,
+    index: 0,
+    startedAt: Date.now(),
+    config,
+    stop() {
+      this.stopped = true;
+    },
+  };
+  state.activeAutoAskRun = run;
+
+  navigateTo("chat");
+  if (config.reset) {
+    resetChat();
+  }
+
+  try {
+    for (let index = 0; index < questions.length; index += 1) {
+      if (run.stopped) break;
+      run.index = index;
+      console.info(
+        `[icsAutoAsk] Menjalankan ${index + 1}/${questions.length}: ${questions[index]}`,
+      );
+      await submitQuestion(questions[index]);
+      if (run.stopped || index === questions.length - 1) continue;
+      await wait(config.delayMs);
+    }
+  } finally {
+    run.running = false;
+    state.activeAutoAskRun = null;
+  }
+
+  return {
+    stopped: run.stopped,
+    total: questions.length,
+    selesai: run.stopped ? run.index : questions.length,
+  };
+}
+
+function stopAutoAskSequence() {
+  state.activeAutoAskRun?.stop();
+}
+
+function getAutoAskStatus() {
+  const run = state.activeAutoAskRun;
+  if (!run?.running) {
+    return { running: false };
+  }
+
+  return {
+    running: true,
+    index: run.index,
+    total: run.questions.length,
+    currentQuestion: run.questions[run.index] || "",
+    startedAt: run.startedAt,
+    delayMs: run.config.delayMs,
+  };
+}
+
+window.icsAutoAsk = {
+  run: runAutoAskSequence,
+  stop: stopAutoAskSequence,
+  status: getAutoAskStatus,
+};
+
 function resetChat() {
   if (state.isSubmitting) return;
   state.messages = [];
@@ -217,10 +326,16 @@ async function submitQuestion(rawQuestion) {
   updateComposer();
   state.messages.push(
     { role: "user", content: question, timestamp: "Just now" },
-    { role: "assistant", loading: true, timestamp: "thinking" },
+    {
+      role: "assistant",
+      loading: true,
+      loading_text: loadingStageLabels[0],
+      timestamp: "thinking",
+    },
   );
   elements.chatInput.value = "";
   renderMessages("smooth");
+  beginLoadingStages();
 
   try {
     const response = await fetch("/query", {
@@ -271,6 +386,7 @@ async function submitQuestion(rawQuestion) {
     });
     console.error(error);
   } finally {
+    clearLoadingStages();
     state.isSubmitting = false;
     state.activeRequestController = null;
     state.activeRequestStartedAt = null;
@@ -288,6 +404,7 @@ function stopGeneration() {
     : undefined;
 
   state.activeRequestController?.abort();
+  clearLoadingStages();
   replaceLoading({
     role: "assistant",
     content: "Respons dihentikan.",
@@ -310,6 +427,37 @@ function replaceLoading(message) {
   else state.messages.splice(index, 1, message);
 }
 
+function clearLoadingStages() {
+  state.activeLoadingStageTimeouts.forEach((timeoutId) =>
+    window.clearTimeout(timeoutId),
+  );
+  state.activeLoadingStageTimeouts = [];
+}
+
+function setLoadingStage(index) {
+  const loadingMessage = state.messages.find((item) => item.loading);
+  if (!loadingMessage) return;
+  loadingMessage.loading_text =
+    loadingStageLabels[index] || loadingStageLabels.at(-1);
+  renderMessages("smooth");
+}
+
+function beginLoadingStages() {
+  clearLoadingStages();
+  setLoadingStage(0);
+
+  const stageSchedule = [
+    { index: 1, delay: 2200 },
+    { index: 2, delay: 7000 },
+  ];
+  state.activeLoadingStageTimeouts = stageSchedule.map(({ index, delay }) =>
+    window.setTimeout(() => {
+      if (!state.isSubmitting) return;
+      setLoadingStage(index);
+    }, delay),
+  );
+}
+
 function renderMessages(scrollBehavior = "auto") {
   elements.chatThread.innerHTML = "";
   elements.chatScreen.classList.toggle("is-empty", state.messages.length === 0);
@@ -324,7 +472,7 @@ function renderMessages(scrollBehavior = "auto") {
     if (message.loading) {
       article.classList.add("message--loading");
       bubble.innerHTML =
-        '<span class="loading-dots"><span></span><span></span><span></span></span>Mencari dokumen...';
+        `<span class="loading-dots"><span></span><span></span><span></span></span>${message.loading_text || loadingStageLabels[0]}`;
     } else {
       const formDownloads = normalizeFormDownloads(message.form_downloads);
       bubble.appendChild(

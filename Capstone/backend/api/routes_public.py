@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+import time
 from urllib.parse import quote
 
 from fastapi import Header, HTTPException
@@ -20,6 +22,8 @@ from backend.api.storage import (
     _selected_form_downloads,
 )
 
+logger = logging.getLogger("uvicorn.error")
+
 
 @app.get("/health")
 def health_check() -> dict[str, str]:
@@ -32,18 +36,33 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
     # Jawab query chat dengan citation dan form pilihan AI.
     from researcher_crew.main import OllamaGenerationError, run_knowledge_crew
 
+    request_started = time.perf_counter()
     conversation_id = _clean_conversation_id(payload.conversation_id)
+    logger.info("[chat:%s] Request baru diterima", conversation_id)
     conversation_context = _get_conversation_context(conversation_id)
+    logger.info(
+        "[chat:%s] Context percakapan dimuat (%s karakter)",
+        conversation_id,
+        len(conversation_context),
+    )
     available_forms = _iter_form_downloads()
+    logger.info(
+        "[chat:%s] Katalog form dimuat (%s item)",
+        conversation_id,
+        len(available_forms),
+    )
     try:
         answer, raw_citations, selected_form_names = run_knowledge_crew(
             payload.question,
             conversation_context,
             available_forms=_available_form_catalog(available_forms),
+            trace_id=f"chat:{conversation_id}",
         )
     except OllamaGenerationError as error:
+        logger.exception("[chat:%s] Request gagal", conversation_id)
         raise HTTPException(status_code=502, detail=str(error)) from error
     _append_conversation_turn(conversation_id, payload.question, answer)
+    logger.info("[chat:%s] Riwayat percakapan tersimpan", conversation_id)
     citations = [
         CitationResponse(
             **citation,
@@ -54,6 +73,13 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
     form_downloads: list[FormDownloadResponse] = []
     if _answer_has_supported_form_context(answer):
         form_downloads = _selected_form_downloads(selected_form_names, available_forms)
+    logger.info(
+        "[chat:%s] Request selesai dalam %.2fs, citation=%s, form=%s",
+        conversation_id,
+        time.perf_counter() - request_started,
+        len(citations),
+        len(form_downloads),
+    )
     return QueryResponse(
         answer=answer,
         citations=citations,
