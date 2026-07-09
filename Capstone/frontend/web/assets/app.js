@@ -372,6 +372,7 @@ async function submitQuestion(rawQuestion) {
       form_downloads: Array.isArray(payload.form_downloads)
         ? payload.form_downloads
         : [],
+      diagrams: Array.isArray(payload.diagrams) ? payload.diagrams : [],
       duration_ms: Math.round(performance.now() - startedAt),
       timestamp: "Just now",
     });
@@ -381,6 +382,7 @@ async function submitQuestion(rawQuestion) {
       role: "assistant",
       content: `Aku belum bisa menyelesaikan jawaban ini. ${error.message || "Pastikan FastAPI, Ollama, dan database embedding sedang berjalan."}`,
       citations: [],
+      diagrams: [],
       duration_ms: Math.round(performance.now() - startedAt),
       timestamp: "Just now",
     });
@@ -409,6 +411,7 @@ function stopGeneration() {
     role: "assistant",
     content: "Respons dihentikan.",
     citations: [],
+    diagrams: [],
     duration_ms: durationMs,
     timestamp: "Just now",
   });
@@ -479,6 +482,7 @@ function renderMessages(scrollBehavior = "auto") {
         formatMessage(message.content, message.citations, formDownloads),
       );
       renderFormDownloads(bubble, formDownloads.filter((item) => !item.used));
+      renderFlowchartDiagrams(bubble, message.diagrams);
     }
 
     meta.textContent = `${isAssistant ? "AI Assistant" : "You"} • ${message.timestamp || "Just now"}`;
@@ -491,6 +495,14 @@ function renderMessages(scrollBehavior = "auto") {
     elements.chatThread.appendChild(fragment);
   });
   scrollChatToBottom(scrollBehavior);
+}
+
+function renderFlowchartDiagrams(container, diagrams) {
+  if (!Array.isArray(diagrams) || !window.FlowchartRenderer) return;
+  diagrams.forEach((diagram) => {
+    const rendered = window.FlowchartRenderer.render(diagram);
+    if (rendered) container.appendChild(rendered);
+  });
 }
 
 function scrollChatToBottom(behavior = "auto") {

@@ -22,6 +22,7 @@ def _citation_from_document(document, citation_id: int) -> dict[str, object]:
         "page": page + 1 if isinstance(page, int) else None,
         "section": document.metadata.get("section"),
         "chunk_id": document.metadata.get("chunk_id"),
+        "content_type": document.metadata.get("content_type"),
     }
 
 

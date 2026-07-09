@@ -12,7 +12,16 @@ from backend.api.cache_store import _append_conversation_turn, _clean_conversati
 from backend.api.core import FAQ_LOCK, FRONTEND_DIR, app
 from backend.api.faq_service import _pinned_faq_items
 from backend.api.forms_service import XLSX_MIME, _fill_form_placeholders, _resolve_form_path, _unique_form_fields
-from backend.api.models import CitationResponse, FAQItem, FormDownloadResponse, FormFillPayload, QueryRequest, QueryResponse
+from backend.api.flowchart_service import find_flowcharts_for_citations
+from backend.api.models import (
+    CitationResponse,
+    FAQItem,
+    FlowchartDiagramResponse,
+    FormDownloadResponse,
+    FormFillPayload,
+    QueryRequest,
+    QueryResponse,
+)
 from backend.api.storage import (
     _answer_has_supported_form_context,
     _available_form_catalog,
@@ -73,17 +82,23 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
     form_downloads: list[FormDownloadResponse] = []
     if _answer_has_supported_form_context(answer):
         form_downloads = _selected_form_downloads(selected_form_names, available_forms)
+    diagrams = [
+        FlowchartDiagramResponse(**diagram)
+        for diagram in find_flowcharts_for_citations(raw_citations)
+    ]
     logger.info(
-        "[chat:%s] Request selesai dalam %.2fs, citation=%s, form=%s",
+        "[chat:%s] Request selesai dalam %.2fs, citation=%s, form=%s, diagram=%s",
         conversation_id,
         time.perf_counter() - request_started,
         len(citations),
         len(form_downloads),
+        len(diagrams),
     )
     return QueryResponse(
         answer=answer,
         citations=citations,
         form_downloads=form_downloads,
+        diagrams=diagrams,
         conversation_id=conversation_id,
     )
 
