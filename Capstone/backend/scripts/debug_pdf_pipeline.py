@@ -22,6 +22,14 @@ from backend.settings import get_env, load_capstone_env
 
 DEFAULT_SOURCE_NAME = "SOP - Perjalanan Dinas.pdf"
 DEBUG_DIR_NAME = "debug"
+SHORT_OUTPUT_NAMES = {
+    "administrasi karyawan": "administrasi",
+    "backup informasi": "backup",
+    "kontrol akses": "akses",
+    "manajemen insiden": "insiden",
+    "perjalanan dinas": "dinas",
+    "terminasi hubungan kerja": "terminasi",
+}
 
 
 def _get_data_dir() -> Path:
@@ -36,6 +44,19 @@ def _get_data_dir() -> Path:
 def _slugify(value: str) -> str:
     cleaned = re.sub(r"[^A-Za-z0-9]+", "-", value).strip("-").lower()
     return cleaned or "document"
+
+
+def _short_output_name(path: Path) -> str:
+    normalized = re.sub(
+        r"(?i)\b(?:sop|template)\b|[()_-]+",
+        " ",
+        path.stem,
+    )
+    normalized = " ".join(normalized.lower().split())
+    for document_name, short_name in SHORT_OUTPUT_NAMES.items():
+        if document_name in normalized:
+            return short_name
+    return _slugify(normalized)
 
 
 def _resolve_source_path(requested_name: str) -> Path:
@@ -121,6 +142,15 @@ def _write_section_debug(path: Path, sections: list[object], output_path: Path, 
                 f"- page_end: {metadata.get('page_end')}",
                 f"- section: {metadata.get('section')}",
                 f"- anomaly: {metadata.get('anomaly')}",
+                f"- content_type: {metadata.get('content_type')}",
+                f"- extraction_method: {metadata.get('extraction_method')}",
+                f"- flowchart_model: {metadata.get('flowchart_model')}",
+                f"- flowchart_cache: {metadata.get('flowchart_cache')}",
+                f"- flowchart_confidence: {metadata.get('flowchart_confidence')}",
+                f"- flowchart_nodes: {metadata.get('flowchart_node_count')}",
+                f"- flowchart_edges: {metadata.get('flowchart_edge_count')}",
+                f"- flowchart_graph_issues: {metadata.get('flowchart_graph_issues')}",
+                f"- flowchart_error: {metadata.get('flowchart_error')}",
                 "```text",
                 getattr(section, "page_content", ""),
                 "```",
@@ -132,7 +162,7 @@ def _write_section_debug(path: Path, sections: list[object], output_path: Path, 
 
 def _write_chunk_debug(path: Path, chunks: list[object], output_path: Path) -> None:
     lines = [
-        f"Source: {path}",
+        f"Source PDF: {path}",
         f"Chunks created: {len(chunks)}",
         "",
     ]
@@ -146,6 +176,9 @@ def _write_chunk_debug(path: Path, chunks: list[object], output_path: Path) -> N
                 f"- page_end: {metadata.get('page_end')}",
                 f"- section: {metadata.get('section')}",
                 f"- anomaly: {metadata.get('anomaly')}",
+                f"- content_type: {metadata.get('content_type')}",
+                f"- extraction_method: {metadata.get('extraction_method')}",
+                f"- flowchart_confidence: {metadata.get('flowchart_confidence')}",
                 f"- source: {metadata.get('source')}",
                 "```text",
                 getattr(chunk, "page_content", ""),
@@ -154,6 +187,20 @@ def _write_chunk_debug(path: Path, chunks: list[object], output_path: Path) -> N
             ]
         )
     output_path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def _write_flowchart_debug(path: Path, documents: list[object], output_path: Path) -> None:
+    flowchart_documents = [
+        document
+        for document in documents
+        if getattr(document, "metadata", {}).get("content_type") == "flowchart"
+    ]
+    _write_section_debug(
+        path,
+        flowchart_documents,
+        output_path,
+        "Flowchart visual extractions",
+    )
 
 
 def _compact_text(value: str, limit: int = 220) -> str:
@@ -252,12 +299,25 @@ def _write_anomaly_report(
                 f"text={_compact_text(text)}"
             )
 
+    lines.extend(["", "# Flowchart extraction anomalies"])
+    for index, section in enumerate(merged_sections, start=1):
+        metadata = getattr(section, "metadata", {})
+        if metadata.get("content_type") != "flowchart":
+            continue
+        if metadata.get("anomaly"):
+            lines.append(
+                f"- merged_segment={index} page={metadata.get('page')} "
+                f"section={metadata.get('section')!r} anomaly={metadata.get('anomaly')!r} "
+                f"confidence={metadata.get('flowchart_confidence')!r} "
+                f"error={metadata.get('flowchart_error')!r}"
+            )
+
     output_path.write_text("\n".join(lines), encoding="utf-8")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Dump raw PDF extraction output and final chunks for debugging."
+        description="Dump final chunks exactly as prepared for embedding."
     )
     parser.add_argument(
         "source",
@@ -277,42 +337,14 @@ def main() -> None:
 
     for source_path in _iter_source_paths(args.source, args.all):
         documents = _load_single_document(source_path)
-        section_segments = split_documents_by_section(documents)
-        merged_sections = _merge_section_segments(section_segments)
         chunks = chunk_documents(documents)
 
-        slug = _slugify(source_path.stem)
-        raw_output_path = debug_dir / f"{slug}.raw-extract.md"
-        cleaned_output_path = debug_dir / f"{slug}.cleaned.md"
-        sections_output_path = debug_dir / f"{slug}.sections.md"
-        merged_output_path = debug_dir / f"{slug}.merged-sections.md"
-        chunk_output_path = debug_dir / f"{slug}.chunks.md"
-        anomaly_output_path = debug_dir / f"{slug}.anomalies.md"
-
-        _write_raw_extract(source_path, documents, raw_output_path)
-        _write_cleaned_pages(source_path, documents, cleaned_output_path)
-        _write_section_debug(source_path, section_segments, sections_output_path, "Section segments")
-        _write_section_debug(source_path, merged_sections, merged_output_path, "Merged sections")
+        chunk_output_path = debug_dir / f"{_short_output_name(source_path)}.md"
         _write_chunk_debug(source_path, chunks, chunk_output_path)
-        _write_anomaly_report(
-            source_path,
-            section_segments,
-            merged_sections,
-            chunks,
-            anomaly_output_path,
-        )
 
         print(f"Source PDF: {source_path}")
-        print(f"Pages loaded: {len(documents)}")
-        print(f"Section segments: {len(section_segments)}")
-        print(f"Merged sections: {len(merged_sections)}")
         print(f"Chunks created: {len(chunks)}")
-        print(f"Raw extract file: {raw_output_path}")
-        print(f"Cleaned text file: {cleaned_output_path}")
-        print(f"Section debug file: {sections_output_path}")
-        print(f"Merged section file: {merged_output_path}")
-        print(f"Chunk debug file: {chunk_output_path}")
-        print(f"Anomaly report file: {anomaly_output_path}")
+        print(f"Final chunk file: {chunk_output_path}")
 
 
 if __name__ == "__main__":

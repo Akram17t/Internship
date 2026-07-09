@@ -5,6 +5,8 @@ from pathlib import Path
 from langchain_community.document_loaders import Docx2txtLoader, PyPDFLoader, TextLoader
 from langchain_core.documents import Document
 
+from backend.preprocessing.flowchart_extractor import extract_flowchart_documents
+
 
 SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".txt"}
 
@@ -36,6 +38,7 @@ def _load_single_document(path: Path) -> list[Document]:
     suffix = path.suffix.lower()
     if suffix == ".pdf":
         documents = PyPDFLoader(str(path)).load()
+        documents.extend(extract_flowchart_documents(path))
     elif suffix == ".docx":
         documents = Docx2txtLoader(str(path)).load()
     elif suffix == ".txt":

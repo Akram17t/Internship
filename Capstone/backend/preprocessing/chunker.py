@@ -268,16 +268,17 @@ def _split_orphan_policy_lines(documents: list[Document]) -> list[Document]:
 def _merge_section_segments(sectioned_documents: list[Document]) -> list[Document]:
     # Gabungkan potongan section yang sama agar lanjutan halaman/tabel tetap punya konteks.
     merged: list[Document] = []
-    lookup: dict[tuple[str, str], int] = {}
+    lookup: dict[tuple[str, str, str], int] = {}
 
     for document in sectioned_documents:
         section = str(document.metadata.get("section") or "")
         source = str(document.metadata.get("source", "unknown source"))
+        content_type = str(document.metadata.get("content_type") or "text")
         if not section:
             merged.append(document)
             continue
 
-        key = (source, section)
+        key = (source, section, content_type)
         existing_index = lookup.get(key)
         if existing_index is None:
             metadata = dict(document.metadata)
@@ -353,6 +354,10 @@ def split_documents_by_section(documents: list[Document]) -> list[Document]:
     active_sections: dict[str, str] = {}
 
     for document in documents:
+        if document.metadata.get("content_type") == "flowchart":
+            sectioned_documents.append(document)
+            continue
+
         source = str(document.metadata.get("source", "unknown source"))
         current_section = active_sections.get(source)
         cleaned_text = _clean_page_text(document)
@@ -387,7 +392,37 @@ def prepare_documents_for_chunking(documents: list[Document]) -> list[Document]:
 def chunk_documents(documents: list[Document]) -> list[Document]:
     # Pecah dokumen bersih menjadi chunk dan beri chunk ID.
     splitter = build_text_splitter()
-    chunks = _prefix_table_context(splitter.split_documents(prepare_documents_for_chunking(documents)))
+    prepared_documents = prepare_documents_for_chunking(documents)
+    flowchart_documents = [
+        document
+        for document in prepared_documents
+        if document.metadata.get("content_type") == "flowchart"
+        and document.page_content.strip()
+        and document.metadata.get("anomaly")
+        not in {"flowchart_low_confidence", "flowchart_incomplete_graph"}
+    ]
+    flowchart_keys = {
+        (
+            document.metadata.get("source"),
+            document.metadata.get("section"),
+        )
+        for document in flowchart_documents
+    }
+    text_documents = [
+        document
+        for document in prepared_documents
+        if document.metadata.get("content_type") != "flowchart"
+        and (
+            document.metadata.get("source"),
+            document.metadata.get("section"),
+        )
+        not in flowchart_keys
+    ]
+    chunks = _prefix_table_context(splitter.split_documents(text_documents))
+    chunks.extend(
+        Document(page_content=document.page_content, metadata=dict(document.metadata))
+        for document in flowchart_documents
+    )
 
     for index, chunk in enumerate(chunks, start=1):
         chunk.metadata["chunk_id"] = index

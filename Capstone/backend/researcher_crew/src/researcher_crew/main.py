@@ -71,10 +71,19 @@ UNSUPPORTED_ANSWER = (
     "Sistem tidak dapat menemukan informasi terkait hal tersebut di dalam dokumen SOP. "
     "Silakan lakukan eskalasi ke HR atau manajer terkait untuk instruksi manual."
 )
+TRAILING_UNSUPPORTED_ANSWER_PATTERN = re.compile(
+    r"(?:\s*\n+\s*|\s+)"
+    r"Sistem\s+tidak\s+dapat\s+menemukan\s+informasi\s+terkait\s+hal\s+tersebut\s+"
+    r"di\s+dalam\s+dokumen\s+SOP\.\s+Silakan\s+lakukan\s+eskalasi\s+ke\s+HR\s+atau\s+"
+    r"manajer\s+terkait\s+untuk\s+instruksi\s+manual\.?"
+    r"(?:\s*\[\d+\])?\s*$",
+    flags=re.IGNORECASE,
+)
 
 # Marker ini masih dipakai untuk mengenali jawaban fallback versi bebas dari LLM
 # lalu menormalkannya kembali ke satu unsupported answer yang konsisten.
 UNSUPPORTED_ANSWER_MARKERS = (
+    "tidak dapat menemukan informasi terkait hal tersebut",
     "tidak tersedia dalam dokumen",
     "tidak tersedia di dokumen",
     "tidak disebutkan",
@@ -98,6 +107,22 @@ def _is_unsupported_answer(answer: str) -> bool:
     # Deteksi jawaban fallback yang berarti dokumen tidak mendukung query.
     normalized = " ".join(answer.lower().split())
     return any(marker in normalized for marker in UNSUPPORTED_ANSWER_MARKERS)
+
+
+def _strip_trailing_unsupported_answer(answer: str) -> str:
+    """Buang fallback sentence yang nyasar setelah jawaban valid.
+
+    Kalau output hanya fallback murni, biarkan tetap utuh supaya guard
+    unsupported bisa mengembalikan jawaban tanpa citation/form.
+    """
+    match = TRAILING_UNSUPPORTED_ANSWER_PATTERN.search(answer)
+    if match is None:
+        return answer.strip()
+
+    supported_part = answer[: match.start()].strip()
+    if not supported_part:
+        return answer.strip()
+    return re.sub(r"\n{3,}", "\n\n", supported_part).strip()
 
 
 def _ollama_model_name() -> str:
@@ -390,6 +415,7 @@ def run_knowledge_crew(
 
     logger.info("[%s] Tahap 4/4 - finalisasi respons dimulai", trace_label)
     answer, selected_forms = _split_form_selection(answer)
+    answer = _strip_trailing_unsupported_answer(answer)
     if _is_unsupported_answer(answer):
         logger.info(
             "[%s] Tahap 4/4 selesai dalam %.2fs tanpa jawaban bersumber",
