@@ -61,7 +61,6 @@ const elements = {
   faqIdInput: document.getElementById("faqIdInput"),
   faqQuestionInput: document.getElementById("faqQuestionInput"),
   faqSubmitButton: document.getElementById("faqSubmitButton"),
-  faqCancelButton: document.getElementById("faqCancelButton"),
   faqStopButton: document.getElementById("faqStopButton"),
   faqStatus: document.getElementById("faqStatus"),
   libraryList: document.getElementById("libraryList"),
@@ -993,11 +992,9 @@ function renderFaqs() {
     const citationContainer = fragment.querySelector(".faq-citations");
     const citations = getFaqCitations(item);
     fragment.querySelector(".faq-question").textContent = item.question;
-    appendFormattedText(
-      fragment.querySelector(".faq-answer"),
-      stripCitationMarkers(item.answer),
-      new Map(),
-    );
+    fragment
+      .querySelector(".faq-answer")
+      .appendChild(formatMessage(stripCitationMarkers(item.answer)));
     if (item.image_url) {
       const image = document.createElement("img");
       image.className = "faq-answer-image";
@@ -1198,7 +1195,6 @@ function formatCitationText(citation) {
 
 function bindAdminFaqs() {
   elements.faqForm.addEventListener("submit", saveFaq);
-  elements.faqCancelButton.addEventListener("click", cancelFaqEdit);
   if (elements.faqStopButton) {
     elements.faqStopButton.addEventListener("click", cancelFaqGeneration);
   }
@@ -1236,11 +1232,6 @@ function cancelFaqGeneration() {
   resetFaqForm(false);
   showFaqStatus("Generate dibatalkan.");
   updateFaqControls();
-}
-
-function cancelFaqEdit() {
-  if (state.isMutatingFaq || state.needsReindex || state.isReindexing) return;
-  resetFaqForm();
 }
 
 async function saveFaq(event) {
@@ -1380,7 +1371,6 @@ function startFaqEdit(item) {
   elements.faqIdInput.value = item.id;
   elements.faqQuestionInput.value = item.question;
   elements.faqSubmitButton.textContent = "Regenerate FAQ";
-  elements.faqCancelButton.hidden = false;
   showFaqStatus("Editing FAQ item.");
   elements.faqQuestionInput.focus();
   elements.faqForm.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -1428,7 +1418,6 @@ function resetFaqForm(clearStatus = true) {
   elements.faqForm.reset();
   elements.faqIdInput.value = "";
   elements.faqSubmitButton.textContent = "Generate FAQ";
-  elements.faqCancelButton.hidden = true;
   if (clearStatus) clearFaqStatus();
 }
 
@@ -1437,7 +1426,6 @@ function updateFaqControls() {
     state.isMutatingFaq || state.needsReindex || state.isReindexing;
   elements.body.dataset.faqState = state.isMutatingFaq ? "running" : "idle";
   elements.faqSubmitButton.disabled = isLocked;
-  elements.faqCancelButton.disabled = isLocked;
   // The stop button must stay clickable while a generation is running so the
   // admin can actually cancel it.
   if (elements.faqStopButton)

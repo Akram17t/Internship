@@ -150,7 +150,7 @@ def lookup_semantic_cache(question: str, *, trace_id: str = "") -> SemanticCache
             entry_id = str(exact_entry["id"])
             mark_semantic_cache_hit(entry_id)
             logger.info(
-                "[%s] semantic_cache=hit match=exact entry=%s active_index=%s",
+                "[%s] semantic_cache=hit match=exact similarity=1.0000 entry=%s active_index=%s",
                 trace_id or "chat",
                 entry_id,
                 active_index,
@@ -165,10 +165,18 @@ def lookup_semantic_cache(question: str, *, trace_id: str = "") -> SemanticCache
 
     try:
         normalized_question = _normalize_cache_question(question)
+        metadata_filter = {
+            "$and": [
+                {"active_index": active_index},
+                {"model_name": model_name},
+                {"embed_model_name": embed_model_name},
+            ]
+        }
         with _CACHE_LOCK:
             results = _get_cache_store().similarity_search_with_relevance_scores(
                 normalized_question,
                 k=_top_k(),
+                filter=metadata_filter,
             )
     except Exception as error:
         logger.warning(
@@ -308,7 +316,7 @@ def store_semantic_cache(
         )
         return None
 
-    logger.info(
+    logger.debug(
         "[%s] semantic_cache=stored entry=%s active_index=%s",
         trace_id or "chat",
         entry_id,

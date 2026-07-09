@@ -1574,6 +1574,21 @@ body[data-faq-state="running"] #faqStatus {
   color: var(--muted);
   line-height: 1.7;
 }
+.faq-answer p {
+  margin: 0;
+}
+.faq-answer p + p,
+.faq-answer ul + p,
+.faq-answer p + ul {
+  margin-top: 12px;
+}
+.faq-answer ul {
+  margin: 12px 0 0;
+  padding-left: 22px;
+}
+.faq-answer li + li {
+  margin-top: 7px;
+}
 .faq-answer-image {
   grid-column: 1;
   display: block;

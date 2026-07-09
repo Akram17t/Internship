@@ -17,9 +17,16 @@ class FakeCacheStore:
         self.results = results or []
         self.added_texts: list[str] = []
         self.searched_questions: list[str] = []
+        self.search_filters: list[dict[str, object] | None] = []
 
-    def similarity_search_with_relevance_scores(self, question: str, k: int) -> list[tuple[Document, float]]:
+    def similarity_search_with_relevance_scores(
+        self,
+        question: str,
+        k: int,
+        filter: dict[str, object] | None = None,
+    ) -> list[tuple[Document, float]]:
         self.searched_questions.append(question)
+        self.search_filters.append(filter)
         return self.results[:k]
 
     def add_texts(self, texts: list[str], metadatas: list[dict[str, str]], ids: list[str]) -> None:
@@ -138,6 +145,18 @@ class SemanticCacheTests(unittest.TestCase):
         self.assertEqual(
             store.searched_questions,
             ["nominal uang makan dan uang saku berapa"],
+        )
+        self.assertEqual(
+            store.search_filters,
+            [
+                {
+                    "$and": [
+                        {"active_index": "indexes/current"},
+                        {"model_name": "ollama/qwen3:8b"},
+                        {"embed_model_name": "qwen3-embedding:4b"},
+                    ]
+                }
+            ],
         )
 
     def test_exact_normalized_hit_skips_vector_lookup(self) -> None:

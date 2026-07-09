@@ -346,25 +346,38 @@ def _split_form_selection(answer: str) -> tuple[str, list[str]]:
     return cleaned_answer, selected_forms
 
 
-FAQ_MAX_WORDS = 45
+FAQ_MIN_WORDS = 80
+FAQ_MAX_WORDS = 150
 
 
 def _generate_faq_answer(question: str, evidence: str) -> str:
-    # Buat jawaban FAQ singkat dari evidence yang ditemukan.
+    # Buat jawaban FAQ yang ringkas, tetapi tetap memuat detail paling berguna.
     prompt = (
-        "Kamu adalah HR Assistant ICS Compute. Buat jawaban FAQ singkat dalam bahasa Indonesia. "
-        "Gunakan hanya evidence yang diberikan. Jawaban harus 1 paragraf, "
-        f"MAKSIMAL {FAQ_MAX_WORDS} kata, dan HARUS berupa kalimat yang utuh dan selesai "
-        "(jangan berhenti di tengah kalimat). Langsung ke inti, dan tetap memakai "
-        "marker sitasi seperti [1] di akhir klaim. Jangan tulis sumber terpisah, heading, "
-        "bullet, atau markdown table. Jangan gunakan [n].\n\n"
+        "Kamu adalah HR Assistant ICS Compute. Tulis jawaban FAQ dalam bahasa Indonesia "
+        "yang singkat, padat, dan informatif dengan hanya memakai evidence yang diberikan.\n\n"
+        "Aturan jawaban:\n"
+        "1. Jawab inti pertanyaan langsung dalam 1-2 kalimat pembuka, tanpa pembuka generik.\n"
+        "2. Jika ada tiga atau lebih detail penting, lanjutkan dengan 3-6 bullet menggunakan "
+        "format '- '. Jika detailnya sedikit, gunakan paragraf biasa.\n"
+        f"3. Targetkan {FAQ_MIN_WORDS}-{FAQ_MAX_WORDS} kata. Jangan berhenti di tengah kalimat.\n"
+        "4. Masukkan semua detail material yang benar-benar membantu menjawab pertanyaan, "
+        "terutama syarat, pihak yang bertanggung jawab, urutan proses, batas waktu, nominal, "
+        "persetujuan, pengecualian, dan form terkait yang tersedia di evidence.\n"
+        "5. Prioritaskan detail konkret. Jangan mengulang pertanyaan, mengulang gagasan yang "
+        "sama, atau memakai filler seperti 'secara umum', 'pada dasarnya', dan 'penting untuk diketahui'.\n"
+        "6. Pertahankan marker sitasi angka seperti [1] atau [2] setelah kalimat yang didukung. "
+        "Jangan gunakan [n] dan jangan membuat sumber baru.\n"
+        "7. Bullet boleh memakai label singkat dalam bold, misalnya '- **Persetujuan:** ...'. "
+        "Jangan menulis markdown table, bagian sumber terpisah, atau informasi yang tidak ada di evidence.\n"
+        "8. Jika evidence tidak menjawab pertanyaan secara langsung, balas persis: "
+        "\"Informasi ini belum tersedia dalam dokumen yang saat ini terindeks.\"\n\n"
         f"Pertanyaan:\n{question}\n\n"
         f"Evidence:\n{evidence}\n\n"
         "Jawaban FAQ:"
     )
     answer = _ollama_generate(
         prompt,
-        num_predict=max(get_int_env("FAQ_NUM_PREDICT", 180), 256),
+        num_predict=max(get_int_env("FAQ_NUM_PREDICT", 180), 384),
         temperature=0.1,
         seed=11,
     )
@@ -386,10 +399,10 @@ def run_knowledge_crew(
     # Ubah follow-up seperti "form untuk itu?" menjadi query mandiri.
     # Query mandiri ini dipakai untuk retrieval dan generation.
     # Context lama sengaja tidak dikirim ke generation agar topik lama tidak bocor.
-    logger.info("[%s] Tahap 1/4 - normalisasi pertanyaan dimulai", trace_label)
+    logger.debug("[%s] Tahap 1/4 - normalisasi pertanyaan dimulai", trace_label)
     rewrite_started = time.perf_counter()
     standalone_question = _rewrite_query(question, conversation_context)
-    logger.info(
+    logger.debug(
         "[%s] Tahap 1/4 selesai dalam %.2fs%s",
         trace_label,
         time.perf_counter() - rewrite_started,
@@ -398,46 +411,46 @@ def run_knowledge_crew(
 
     cache_hit = lookup_semantic_cache(standalone_question, trace_id=trace_label)
     if cache_hit is not None:
-        logger.info(
+        logger.debug(
             "[%s] Tahap 4/4 selesai dari semantic cache dalam %.2fs",
             trace_label,
             time.perf_counter() - started_at,
         )
         return cache_hit.answer, cache_hit.citations, cache_hit.selected_forms
 
-    logger.info("[%s] Tahap 2/4 - pencarian dokumen dimulai", trace_label)
+    logger.debug("[%s] Tahap 2/4 - pencarian dokumen dimulai", trace_label)
     retrieval_started = time.perf_counter()
     evidence, citations = retrieve_knowledge(standalone_question)
-    logger.info(
+    logger.debug(
         "[%s] Tahap 2/4 selesai dalam %.2fs dengan %s citation",
         trace_label,
         time.perf_counter() - retrieval_started,
         len(citations),
     )
     if not citations:
-        logger.info(
+        logger.debug(
             "[%s] Tahap 4/4 - selesai tanpa sumber dalam %.2fs",
             trace_label,
             time.perf_counter() - started_at,
         )
         return UNSUPPORTED_ANSWER, [], []
 
-    logger.info("[%s] Tahap 3/4 - penyusunan jawaban dimulai", trace_label)
+    logger.debug("[%s] Tahap 3/4 - penyusunan jawaban dimulai", trace_label)
     generation_started = time.perf_counter()
     answer = GENERATED_SOURCES_SECTION.sub(
         "", _generate_answer(standalone_question, evidence, available_forms)
     ).strip()
-    logger.info(
+    logger.debug(
         "[%s] Tahap 3/4 selesai dalam %.2fs",
         trace_label,
         time.perf_counter() - generation_started,
     )
 
-    logger.info("[%s] Tahap 4/4 - finalisasi respons dimulai", trace_label)
+    logger.debug("[%s] Tahap 4/4 - finalisasi respons dimulai", trace_label)
     answer, selected_forms = _split_form_selection(answer)
     answer = _strip_trailing_unsupported_answer(answer)
     if _is_unsupported_answer(answer):
-        logger.info(
+        logger.debug(
             "[%s] Tahap 4/4 selesai dalam %.2fs tanpa jawaban bersumber",
             trace_label,
             time.perf_counter() - started_at,
@@ -451,7 +464,7 @@ def run_knowledge_crew(
     elif citations:
         answer = f"{answer} [{citations[0]['id']}]"
         citations = citations[:1]
-    logger.info(
+    logger.debug(
         "[%s] Tahap 4/4 selesai dalam %.2fs, form terpilih=%s",
         trace_label,
         time.perf_counter() - started_at,

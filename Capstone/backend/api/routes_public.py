@@ -50,15 +50,15 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
 
     request_started = time.perf_counter()
     conversation_id = _clean_conversation_id(payload.conversation_id)
-    logger.info("[chat:%s] Request baru diterima", conversation_id)
+    logger.debug("[chat:%s] Request baru diterima", conversation_id)
     conversation_context = _get_conversation_context(conversation_id)
-    logger.info(
+    logger.debug(
         "[chat:%s] Context percakapan dimuat (%s karakter)",
         conversation_id,
         len(conversation_context),
     )
     available_forms = _iter_form_downloads()
-    logger.info(
+    logger.debug(
         "[chat:%s] Katalog form dimuat (%s item)",
         conversation_id,
         len(available_forms),
@@ -74,7 +74,7 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
         logger.exception("[chat:%s] Request gagal", conversation_id)
         raise HTTPException(status_code=502, detail=str(error)) from error
     _append_conversation_turn(conversation_id, payload.question, answer)
-    logger.info("[chat:%s] Riwayat percakapan tersimpan", conversation_id)
+    logger.debug("[chat:%s] Riwayat percakapan tersimpan", conversation_id)
     citations = [
         CitationResponse(
             **citation,
@@ -89,7 +89,7 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
         FlowchartScreenshotResponse(**flowchart)
         for flowchart in find_flowcharts_for_citations(raw_citations)
     ]
-    logger.info(
+    logger.debug(
         "[chat:%s] Request selesai dalam %.2fs, citation=%s, form=%s, flowchart=%s",
         conversation_id,
         time.perf_counter() - request_started,

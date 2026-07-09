@@ -13,6 +13,22 @@ from researcher_crew import main as crew_main
 
 
 class AnswerFinalizationTests(unittest.TestCase):
+    def test_faq_prompt_requests_compact_but_informative_answer(self) -> None:
+        with patch(
+            "researcher_crew.main._ollama_generate",
+            return_value="Jawaban FAQ yang padat dan bersumber [1].",
+        ) as generate:
+            answer = crew_main._generate_faq_answer(
+                "Bagaimana proses perjalanan dinas?",
+                "[1] Requestor mengisi form dan meminta persetujuan.",
+            )
+
+        prompt = generate.call_args.args[0]
+        self.assertIn("3-6 bullet", prompt)
+        self.assertIn("80-150 kata", prompt)
+        self.assertIn("semua detail material", prompt)
+        self.assertEqual(answer, "Jawaban FAQ yang padat dan bersumber [1].")
+
     def test_form_selection_with_markdown_label_is_removed(self) -> None:
         answer = "Jawaban bersumber [1].\n\n**FORM_SELECTION:** []"
 

@@ -1,241 +1,410 @@
 # Alur Semantic Cache
 
-Dokumen ini menjelaskan cara kerja semantic cache di endpoint `/query`: kapan cache dipakai, kapan dilewati, dan bagaimana cache tetap aman saat dokumen SOP berubah.
+Dokumen ini menjelaskan semantic cache dari dasar: masalah yang diselesaikan, alur keputusan, data yang disimpan, dan alasan sebuah request bisa `hit` atau `miss`.
 
-## Gambaran Singkat
+## Inti Sederhana
 
-Semantic cache dipakai untuk mempercepat jawaban RAG ketika user menanyakan pertanyaan yang maknanya sama dengan pertanyaan sebelumnya.
+Anggap semantic cache sebagai jalan pintas untuk pertanyaan yang pernah dijawab.
+
+```text
+Tanpa cache:
+Pertanyaan -> cari SOP -> LLM membuat jawaban -> respons
+
+Dengan cache:
+Pertanyaan setara -> ambil jawaban lama yang masih valid -> respons
+```
+
+Contoh pertanyaan setara:
+
+```text
+HRIS tuh apa sih?
+HRIS tuh apa sih???
+
+Seberapa besar uang saku perjalanan dinas?
+Nominal uang saku perjalanan dinas berapa?
+```
+
+Semantic cache tidak menggantikan RAG. Ia hanya melewati retrieval dan generation ketika jawaban lama aman dipakai kembali.
+
+## Gambaran Besar
+
+```mermaid
+flowchart TD
+    A[User mengirim pertanyaan] --> B[Ambil conversation context]
+    B --> C{Ada context?}
+    C -- Tidak --> D[Pakai pertanyaan asli]
+    C -- Ya --> E[AI menilai KEEP atau REWRITE]
+    E -- KEEP --> D
+    E -- REWRITE --> F[Pakai standalone question]
+    D --> G[Normalisasi cache key]
+    F --> G
+    G --> H{Exact cache hit?}
+    H -- Ya --> I[Return cached answer]
+    H -- Tidak --> J{Semantic similarity hit?}
+    J -- Ya --> I
+    J -- Tidak --> K[Retrieve chunk SOP]
+    K --> L[LLM membuat jawaban]
+    L --> M[Finalisasi citation dan form]
+    M --> N{Jawaban layak di-cache?}
+    N -- Ya --> O[Simpan ke SQLite dan Chroma cache]
+    N -- Tidak --> P[Return tanpa menyimpan cache]
+    O --> Q[Return jawaban baru]
+```
+
+Ada dua jenis lookup:
+
+1. **Exact normalized lookup** untuk pertanyaan yang sama setelah kapitalisasi dan tanda baca diabaikan.
+2. **Semantic lookup** untuk kalimat berbeda yang memiliki arti serupa.
+
+Exact lookup selalu dicoba lebih dulu karena lebih cepat dan lebih aman.
+
+## Tahap 1: Query Rewrite
+
+Conversation context dibutuhkan untuk memahami pertanyaan lanjutan.
+
+Contoh rujukan eksplisit:
+
+```text
+Sebelumnya: membahas perjalanan dinas
+Pertanyaan: Form apa yang dipakai untuk itu?
+```
+
+Contoh rujukan implisit:
+
+```text
+Sebelumnya: membahas perjalanan dinas dalam negeri
+Pertanyaan: Kalau luar negeri gimana?
+```
+
+Jika conversation context tersedia, AI wajib memilih salah satu output:
+
+```text
+KEEP
+```
+
+atau:
+
+```text
+REWRITE: <pertanyaan mandiri>
+```
+
+Alurnya:
+
+```mermaid
+flowchart TD
+    A[Pertanyaan + conversation context] --> B[AI memeriksa ketergantungan konteks]
+    B --> C{Keputusan AI}
+    C -- KEEP --> D[Pakai input user persis]
+    C -- REWRITE --> E[Ambil pertanyaan setelah REWRITE]
+    C -- Format tidak valid --> D
+    E --> F{Lolos safety guard?}
+    F -- Ya --> G[Pakai standalone question]
+    F -- Tidak --> D
+```
+
+Kenapa formatnya dibuat tegas?
+
+- `KEEP` mencegah AI memoles bahasa user.
+- `HRIS tuh apa sih?` tidak boleh berubah menjadi `HRIS itu apa sih?`.
+- Output bebas tanpa prefix `REWRITE:` ditolak.
+- Rewrite yang menambah angka baru atau terlalu panjang juga ditolak.
+
+Jika tidak ada conversation context, AI rewrite tidak dipanggil dan pertanyaan asli langsung dipakai.
+
+## Tahap 2: Normalisasi Cache Key
+
+Sebelum lookup, pertanyaan dinormalisasi:
+
+- Diubah menjadi lowercase.
+- Tanda baca dibuang.
+- Spasi berulang dirapikan.
 
 Contoh:
 
 ```text
-Q1: Seberapa besar uang saku dan uang makan?
-Q2: Nominal uang makan dan uang saku perjalanan dinas berapa?
+Input A: HRIS tuh apa sih?
+Input B: hris TUH apa sih!!!
+
+Normalized key:
+hris tuh apa sih
 ```
 
-Kalau Q1 sudah pernah dijawab dengan citation yang valid, Q2 bisa langsung memakai jawaban cache tanpa generate ulang lewat LLM.
+Normalisasi ini hanya dipakai untuk pencarian cache. Pertanyaan asli tetap disimpan untuk audit.
 
-Semantic cache tidak menggantikan RAG. Cache hanya shortcut jika jawaban lama masih terbukti aman dipakai.
+## Tahap 3: Exact Lookup
 
-## Storage yang Dipakai
+Exact lookup dilakukan di SQLite menggunakan:
+
+```text
+normalized_question
++ active_index
++ MODEL
++ EMBED_MODEL
+```
+
+```mermaid
+flowchart TD
+    A[Normalized question] --> B[Cari di SQLite]
+    B --> C{Semua metadata sama?}
+    C -- Tidak --> D[Lanjut semantic lookup]
+    C -- Ya --> E{Jawaban punya citation dan bukan fallback?}
+    E -- Tidak --> D
+    E -- Ya --> F[Exact cache hit]
+    F --> G[Update hit_count dan last_hit_at]
+    G --> H[Return jawaban]
+```
+
+Exact hit tidak memanggil embedding model maupun Chroma.
+
+Contoh log:
+
+```text
+semantic_cache=hit match=exact entry=... active_index=...
+```
+
+## Tahap 4: Semantic Lookup
+
+Jika exact lookup gagal, sistem mencari pertanyaan paling mirip di Chroma semantic cache.
+
+```mermaid
+flowchart TD
+    A[Normalized question] --> B[Filter active index dan model aktif]
+    B --> C[Embedding pertanyaan]
+    C --> D[Cari vector terdekat dari entry yang lolos filter]
+    D --> E{Ada kandidat?}
+    E -- Tidak --> F[Miss: empty]
+    E -- Ya --> G{Similarity >= threshold?}
+    G -- Tidak --> H[Miss: below_threshold]
+    G -- Ya --> I[Ambil payload dari SQLite]
+    I --> J{Guard valid?}
+    J -- Tidak --> K[Miss sesuai alasan guard]
+    J -- Ya --> L[Semantic cache hit]
+    L --> M[Update hit_count dan last_hit_at]
+    M --> N[Return jawaban]
+```
+
+Filter metadata dijalankan sebelum ranking. Entry dari index atau model lama
+tidak dapat lagi mengambil posisi kandidat teratas dan menutupi entry aktif.
+Guard setelah retrieval tetap dipertahankan sebagai pemeriksaan cadangan.
+
+Default threshold:
+
+```env
+SEMANTIC_CACHE_THRESHOLD=0.92
+```
+
+Threshold tinggi dipakai agar pertanyaan yang hanya terlihat mirip tidak mendapat jawaban yang salah.
+
+Contoh yang tidak boleh salah hit:
+
+```text
+Berapa uang makan perjalanan dinas?
+Berapa reimbursement transport perjalanan dinas?
+```
+
+Keduanya membahas biaya perjalanan, tetapi meminta komponen yang berbeda.
+
+## Guard Cache
+
+Vector yang mirip belum cukup untuk menghasilkan cache hit. Entry harus lolos seluruh guard berikut:
+
+| Guard | Alasan |
+| --- | --- |
+| `active_index` sama | Jawaban harus berasal dari versi SOP yang sedang aktif |
+| `MODEL` sama | Jawaban dari model berbeda tidak dipakai diam-diam |
+| `EMBED_MODEL` sama | Skor embedding harus berasal dari ruang vector yang sama |
+| Citation tidak kosong | Cache tidak boleh mengembalikan jawaban tanpa sumber |
+| Jawaban bukan fallback | Jawaban "tidak ditemukan" tidak disimpan permanen |
+| Similarity melewati threshold | Pertanyaan berbeda maksud tidak boleh dianggap sama |
+
+Exact lookup juga memakai guard yang sama, kecuali similarity karena key-nya sudah sama persis setelah normalisasi.
+
+## Cache Miss dan Penyimpanan
+
+Jika exact dan semantic lookup sama-sama gagal, sistem menjalankan RAG normal.
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant API
+    participant SC as Semantic Cache
+    participant SOP as Chroma SOP
+    participant LLM
+
+    U->>API: Pertanyaan
+    API->>SC: Exact + semantic lookup
+    SC-->>API: Miss
+    API->>SOP: Retrieve chunk relevan
+    SOP-->>API: Evidence + citation
+    API->>LLM: Pertanyaan + evidence
+    LLM-->>API: Jawaban
+    API->>API: Finalisasi citation/form
+    API->>SC: Simpan jika valid
+    API-->>U: Jawaban baru
+```
+
+Jawaban disimpan hanya jika:
+
+- Jawaban tidak kosong.
+- Citation tersedia.
+- Jawaban bukan unsupported/fallback.
+
+Yang disimpan:
+
+```text
+SQLite:
+- pertanyaan asli
+- normalized question
+- jawaban
+- citations
+- selected forms
+- active index
+- model name
+- embedding model name
+- waktu dan hit counter
+
+Chroma semantic cache:
+- embedding normalized question
+- entry_id untuk menunjuk payload SQLite
+```
+
+## Storage
 
 ```text
 backend/cache/app_state.db
-  -> SQLite app state
-  -> conversation_messages
-  -> semantic_cache_entries
+├── conversation_messages
+└── semantic_cache_entries
 
 backend/cache/semantic_chroma
-  -> Chroma khusus semantic cache
-  -> menyimpan embedding pertanyaan cache
+└── vector pertanyaan semantic cache
 
 backend/chroma_db
-  -> Chroma utama knowledge base SOP
-  -> menyimpan chunk dokumen SOP
+└── vector chunk SOP untuk retrieval utama
 ```
 
-Pembagian ini sengaja dipisah:
+Pembagian tanggung jawab:
 
-- SQLite menyimpan payload yang harus presisi: jawaban, citation, form, model, active index.
-- Chroma semantic cache hanya dipakai untuk mencari pertanyaan lama yang maknanya mirip.
-- Chroma SOP tetap menjadi sumber retrieval utama.
+- **SQLite** menyimpan data presisi dan metadata validasi.
+- **Semantic Chroma** mencari pertanyaan yang artinya mirip.
+- **Chroma SOP** mencari evidence dari dokumen perusahaan.
 
-## Alur Utama `/query`
+## Saat SOP Berubah
 
-```text
-User bertanya
-  |
-  v
-Ambil conversation context dari SQLite
-  |
-  v
-Rewrite pertanyaan menjadi standalone question
-  |
-  v
-Lookup semantic cache
-  |
-  +-- HIT valid --> return cached answer + citations + forms
-  |
-  +-- MISS ------> retrieve SOP chunks dari Chroma utama
-                    |
-                    v
-                  generate jawaban dengan LLM
-                    |
-                    v
-                  finalisasi citation dan form
-                    |
-                    v
-                  simpan semantic cache jika jawaban valid
-                    |
-                    v
-                  return jawaban baru
+Reindex membuat nama active index baru.
+
+```mermaid
+flowchart LR
+    A[SOP diperbarui] --> B[Rebuild vector DB]
+    B --> C[Active index berubah]
+    C --> D[Cache lama punya active index berbeda]
+    D --> E[Cache lama otomatis miss]
+    E --> F[Retrieve SOP terbaru]
+    F --> G[Simpan jawaban cache baru]
 ```
 
-Response API tidak berubah:
+Cache lama tidak harus langsung dihapus. Entry tersebut tidak dipakai karena metadata `active_index` berbeda.
 
-```json
-{
-  "answer": "...",
-  "citations": [],
-  "form_downloads": [],
-  "conversation_id": "..."
-}
-```
+## Conversation Store vs Semantic Cache
 
-## Kenapa Lookup Setelah Rewrite?
+Keduanya berada di SQLite, tetapi tujuannya berbeda:
 
-Semantic cache memakai `standalone_question`, bukan raw question.
-
-Alasannya: follow-up question sering ambigu.
-
-Contoh:
-
-```text
-Conversation sebelumnya: user membahas uang saku perjalanan dinas
-Raw question: "Kalau itu nominalnya berapa?"
-Standalone question: "Nominal uang saku perjalanan dinas berapa?"
-```
-
-Kalau cache lookup memakai raw question, pertanyaan "itu" bisa salah match ke topik lain. Dengan rewrite dulu, cache key menjadi lebih jelas dan aman.
-
-## Alur Cache Hit
-
-Cache hit terjadi kalau pertanyaan baru mirip secara makna dengan pertanyaan lama dan semua guard valid.
-
-```text
-standalone_question
-  |
-  v
-Cari pertanyaan paling mirip di backend/cache/semantic_chroma
-  |
-  v
-Ambil entry_id kandidat
-  |
-  v
-Ambil payload jawaban dari SQLite semantic_cache_entries
-  |
-  v
-Validasi guard:
-  similarity cukup?
-  active_index sama?
-  MODEL sama?
-  EMBED_MODEL sama?
-  citation ada?
-  jawaban bukan fallback?
-  |
-  v
-Update hit_count + last_hit_at
-  |
-  v
-Return cached answer
-```
-
-Jadi walaupun vector search menemukan pertanyaan mirip, jawaban belum tentu langsung dipakai. Payload tetap harus lolos validasi.
-
-## Alur Cache Miss
-
-Cache miss berarti sistem lanjut ke RAG normal.
-
-Penyebab miss yang normal:
-
-- `SEMANTIC_CACHE_ENABLED=false`.
-- Belum ada entry semantic cache.
-- Similarity di bawah `SEMANTIC_CACHE_THRESHOLD`.
-- Entry vector ada, tapi payload SQLite tidak ada.
-- `active_index` beda karena SOP sudah direindex.
-- `MODEL` atau `EMBED_MODEL` beda.
-- Citation kosong.
-- Jawaban lama adalah fallback/unsupported answer.
-
-Setelah miss:
-
-```text
-retrieve SOP chunks
--> generate answer
--> finalisasi citation
--> kalau valid, simpan cache baru
-```
-
-## Guard Keamanan Cache
-
-Sebuah cache entry hanya boleh dipakai kalau semua syarat ini terpenuhi:
-
-| Guard | Tujuan |
+| Fitur | Fungsi |
 | --- | --- |
-| `similarity >= SEMANTIC_CACHE_THRESHOLD` | Mencegah pertanyaan beda maksud dianggap sama |
-| `active_index` sama | Mencegah jawaban lama dipakai setelah SOP berubah |
-| `MODEL` sama | Mencegah reuse jawaban dari model berbeda |
-| `EMBED_MODEL` sama | Mencegah similarity beda embedding model dianggap valid |
-| Citation tidak kosong | Mencegah return jawaban tanpa sumber |
-| Jawaban bukan fallback | Mencegah cache menyimpan "tidak ditemukan" sebagai jawaban permanen |
+| Conversation store | Memberi konteks untuk memahami follow-up |
+| Semantic cache | Menghindari retrieval dan generation berulang |
 
-Guard paling penting: semantic cache tidak boleh return jawaban tanpa citation.
-
-## Saat SOP Di-update
-
-Kalau file SOP berubah, vector DB SOP harus direbuild.
-
-```text
-SOP/PDF berubah
-  |
-  v
-Rebuild vector DB SOP
-  |
-  v
-Active Chroma index berubah
-  |
-  v
-Cache entry lama otomatis stale
-  |
-  v
-Pertanyaan yang sama persis akan miss karena active_index mismatch
-  |
-  v
-Sistem retrieve dari SOP terbaru dan generate jawaban baru
-```
-
-Cache lama tidak dihapus otomatis. Entry lama tetap ada untuk audit, tapi tidak dipakai lagi selama `active_index` berbeda.
-
-## SQLite Conversation Store
-
-Conversation history juga dipindahkan ke SQLite supaya request tidak perlu load dan rewrite seluruh `conversations.json`.
-
-Tabel:
-
-```text
-conversation_messages(
-  id,
-  conversation_id,
-  role,
-  content,
-  created_at
-)
-```
-
-Alur saat request masuk:
+Alur conversation:
 
 ```text
 conversation_id
--> ambil message terbaru dari SQLite
--> format menjadi context User/Assistant
--> kirim context ke query rewrite
+-> ambil message terbaru
+-> bentuk conversation context
+-> AI memilih KEEP atau REWRITE
 ```
 
-Alur saat request selesai:
+Setelah respons selesai, pertanyaan dan jawaban baru ditambahkan ke tabel `conversation_messages`.
+
+## Membaca Log
+
+### Exact hit
 
 ```text
-question + answer
--> insert message user
--> insert message assistant
--> cleanup conversation expired
--> pruning sesuai MAX_CONVERSATIONS dan MAX_CONVERSATION_MESSAGES
+semantic_cache=hit match=exact entry=... active_index=...
 ```
 
-File lama `backend/cache/conversations.json` hanya dibaca sekali saat migrasi awal. Setelah itu tidak ada write baru ke file tersebut.
+Makna: normalized question dan seluruh metadata sama. Embedding tidak dipanggil.
+
+### Semantic hit
+
+```text
+semantic_cache=hit similarity=0.96 entry=... active_index=...
+```
+
+Makna: wording berbeda, tetapi similarity melewati threshold dan seluruh guard valid.
+
+### Di bawah threshold
+
+```text
+semantic_cache=miss reason=below_threshold similarity=0.71 entry=...
+```
+
+Makna: Chroma menemukan kandidat, tetapi kemiripannya belum cukup aman.
+
+### Index berbeda
+
+```text
+semantic_cache=miss reason=index_mismatch cached_index=... active_index=...
+```
+
+Makna: SOP telah direindex sehingga jawaban lama tidak boleh digunakan.
+Log ini sekarang seharusnya jarang muncul karena entry index lama sudah disaring
+sebelum vector search.
+
+### Model berbeda
+
+```text
+semantic_cache=miss reason=model_mismatch
+```
+
+Makna: model generasi atau embedding berubah.
+
+### Payload tidak aman
+
+```text
+semantic_cache=miss reason=uncacheable_payload
+```
+
+Makna: payload kosong, citation hilang, atau jawaban merupakan fallback.
+
+### Entry baru disimpan
+
+```text
+semantic_cache=stored entry=... active_index=...
+```
+
+## Contoh Kasus HRIS
+
+Sebelum perbaikan:
+
+```text
+Cache lama: HRIS tuh apa sih
+Pertanyaan baru: HRIS tuh apa sih?
+AI rewrite: HRIS itu apa sih?
+Similarity: 0.7192
+Hasil: miss
+```
+
+Setelah perbaikan:
+
+```text
+AI decision: KEEP
+Pertanyaan yang dipakai: HRIS tuh apa sih?
+Normalized key: hris tuh apa sih
+Exact SQLite lookup: hit
+Similarity search: tidak dijalankan
+```
 
 ## Konfigurasi
-
-Default:
 
 ```env
 APP_STATE_DB=backend/cache/app_state.db
@@ -245,82 +414,37 @@ SEMANTIC_CACHE_THRESHOLD=0.92
 SEMANTIC_CACHE_TOP_K=1
 ```
 
-Untuk mematikan semantic cache sementara:
+Mematikan semantic cache:
 
 ```env
 SEMANTIC_CACHE_ENABLED=false
 ```
 
-## Cara Debug
-
-Cek jumlah row SQLite:
-
-```powershell
-python -m backend.scripts.storage_status app-state
-```
-
-Contoh output:
-
-```text
-conversation_messages=138 semantic_cache_entries=0
-```
-
-Log yang penting dicari:
-
-```text
-semantic_cache=hit similarity=... entry=... active_index=...
-semantic_cache=miss reason=empty
-semantic_cache=miss reason=below_threshold similarity=...
-semantic_cache=miss reason=index_mismatch cached_index=... active_index=...
-semantic_cache=miss reason=model_mismatch
-semantic_cache=miss reason=uncacheable_payload
-semantic_cache=stored entry=... active_index=...
-```
-
-Makna cepat:
-
-- `hit`: jawaban diambil dari cache.
-- `empty`: belum ada kandidat cache.
-- `below_threshold`: pertanyaan mirip, tapi belum cukup dekat.
-- `index_mismatch`: SOP sudah berubah/reindex, cache lama tidak dipakai.
-- `model_mismatch`: model berubah, cache lama tidak dipakai.
-- `uncacheable_payload`: entry ada, tapi payload tidak aman dipakai.
-- `stored`: jawaban valid berhasil disimpan ke semantic cache.
+Conversation context dan RAG tetap bekerja ketika semantic cache dimatikan.
 
 ## Testing
 
-Unit test:
+Test terkait:
 
 ```powershell
-python -m unittest tests.test_cache_db tests.test_semantic_cache -v
+python -m unittest tests.test_cache_db tests.test_semantic_cache tests.test_answer_finalization -v
 ```
 
-Full test:
-
-```powershell
-python -m unittest discover -s tests -v
-```
-
-Regression manual:
+Skenario manual:
 
 ```text
-1. Tanya: Seberapa besar uang saku dan uang makan?
-2. Pastikan jawaban punya citation.
-3. Tanya paraphrase: Nominal uang makan dan uang saku perjalanan dinas berapa?
-4. Pastikan log pertanyaan kedua: semantic_cache=hit.
-5. Tanya pertanyaan mirip tapi beda maksud: Berapa reimbursement transport?
-6. Pastikan tidak salah hit ke jawaban uang makan/uang saku.
-7. Rebuild vector DB SOP.
-8. Tanya paraphrase lagi.
-9. Pastikan cache lama miss dengan reason=index_mismatch.
+1. Tanya: HRIS tuh apa sih
+2. Pastikan jawaban memiliki citation dan log menunjukkan stored.
+3. Tanya: HRIS tuh apa sih?
+4. Pastikan log menunjukkan hit match=exact.
+5. Tanya paraphrase dengan arti sama.
+6. Pastikan semantic hit jika similarity melewati threshold.
+7. Tanya topik mirip tetapi berbeda maksud.
+8. Pastikan tidak terjadi cache hit yang salah.
+9. Reindex SOP.
+10. Pastikan entry cache dari index lama tidak digunakan.
 ```
 
-## Checklist Acceptance
+## Ringkasan Satu Kalimat
 
-- Public response `/query` tetap sama.
-- Conversation context tetap bekerja untuk follow-up question.
-- Tidak ada write baru ke `conversations.json`.
-- Semantic cache hanya return jawaban dengan citation.
-- Cache lama tidak dipakai setelah reindex.
-- Pertanyaan paraphrase yang setara bisa hit.
-- Pertanyaan mirip tapi beda maksud tetap miss.
+Semantic cache mencoba **exact normalized match terlebih dahulu**, lalu **semantic similarity**, dan hanya mengembalikan jawaban lama jika **index, model, citation, serta isi jawaban masih valid**.
