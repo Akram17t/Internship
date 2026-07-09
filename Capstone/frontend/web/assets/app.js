@@ -372,7 +372,7 @@ async function submitQuestion(rawQuestion) {
       form_downloads: Array.isArray(payload.form_downloads)
         ? payload.form_downloads
         : [],
-      diagrams: Array.isArray(payload.diagrams) ? payload.diagrams : [],
+      flowcharts: Array.isArray(payload.flowcharts) ? payload.flowcharts : [],
       duration_ms: Math.round(performance.now() - startedAt),
       timestamp: "Just now",
     });
@@ -382,7 +382,7 @@ async function submitQuestion(rawQuestion) {
       role: "assistant",
       content: `Aku belum bisa menyelesaikan jawaban ini. ${error.message || "Pastikan FastAPI, Ollama, dan database embedding sedang berjalan."}`,
       citations: [],
-      diagrams: [],
+      flowcharts: [],
       duration_ms: Math.round(performance.now() - startedAt),
       timestamp: "Just now",
     });
@@ -411,7 +411,7 @@ function stopGeneration() {
     role: "assistant",
     content: "Respons dihentikan.",
     citations: [],
-    diagrams: [],
+    flowcharts: [],
     duration_ms: durationMs,
     timestamp: "Just now",
   });
@@ -482,7 +482,7 @@ function renderMessages(scrollBehavior = "auto") {
         formatMessage(message.content, message.citations, formDownloads),
       );
       renderFormDownloads(bubble, formDownloads.filter((item) => !item.used));
-      renderFlowchartDiagrams(bubble, message.diagrams);
+      renderFlowchartScreenshots(bubble, message.flowcharts);
     }
 
     meta.textContent = `${isAssistant ? "AI Assistant" : "You"} • ${message.timestamp || "Just now"}`;
@@ -497,11 +497,37 @@ function renderMessages(scrollBehavior = "auto") {
   scrollChatToBottom(scrollBehavior);
 }
 
-function renderFlowchartDiagrams(container, diagrams) {
-  if (!Array.isArray(diagrams) || !window.FlowchartRenderer) return;
-  diagrams.forEach((diagram) => {
-    const rendered = window.FlowchartRenderer.render(diagram);
-    if (rendered) container.appendChild(rendered);
+function renderFlowchartScreenshots(container, flowcharts) {
+  if (!Array.isArray(flowcharts)) return;
+  flowcharts.forEach((flowchart) => {
+    if (!flowchart?.image_url) return;
+    const card = document.createElement("figure");
+    card.className = "flowchart-screenshot";
+
+    const caption = document.createElement("figcaption");
+    const title = document.createElement("strong");
+    title.textContent = flowchart.title || "Alur Proses";
+    const meta = document.createElement("span");
+    meta.textContent = [
+      flowchart.source,
+      flowchart.page ? `Halaman ${flowchart.page}` : "",
+    ]
+      .filter(Boolean)
+      .join(" / ");
+    caption.append(title, meta);
+
+    const link = document.createElement("a");
+    link.href = flowchart.image_url;
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.setAttribute("aria-label", `Buka ${flowchart.title || "flowchart"}`);
+    const image = document.createElement("img");
+    image.src = flowchart.image_url;
+    image.alt = flowchart.title || "Flowchart dari dokumen SOP";
+    image.loading = "lazy";
+    link.appendChild(image);
+    card.append(caption, link);
+    container.appendChild(card);
   });
 }
 

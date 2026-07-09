@@ -12,7 +12,9 @@ from backend.api.core import MAX_CONVERSATION_MESSAGES
 from backend.cache_db import (
     append_conversation_turn,
     get_conversation_context,
+    get_semantic_cache_entry_by_question,
     init_state_db,
+    insert_semantic_cache_entry,
     load_conversations,
     replace_conversations,
 )
@@ -56,6 +58,28 @@ class CacheDbTests(unittest.TestCase):
         conversations = load_conversations()
         self.assertIn("conv-1", conversations)
         self.assertEqual(len(conversations["conv-1"]), 2)
+
+    def test_semantic_cache_exact_lookup_ignores_case_and_punctuation(self) -> None:
+        insert_semantic_cache_entry(
+            entry_id="entry-hris",
+            question="HRIS tuh apa sih",
+            answer="HRIS adalah sistem informasi SDM. [1]",
+            citations=[{"id": 1, "source": "SOP Test.pdf", "page": 1}],
+            selected_forms=[],
+            active_index="indexes/current",
+            model_name="ollama/qwen3:8b",
+            embed_model_name="qwen3-embedding:4b",
+        )
+
+        entry = get_semantic_cache_entry_by_question(
+            "hris TUH apa sih???",
+            active_index="indexes/current",
+            model_name="ollama/qwen3:8b",
+            embed_model_name="qwen3-embedding:4b",
+        )
+
+        self.assertIsNotNone(entry)
+        self.assertEqual(entry["id"], "entry-hris")
 
     def test_append_turn_and_context_uses_latest_messages(self) -> None:
         conversation_id = "conv-context"

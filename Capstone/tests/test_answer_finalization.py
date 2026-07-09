@@ -13,6 +13,84 @@ from researcher_crew import main as crew_main
 
 
 class AnswerFinalizationTests(unittest.TestCase):
+    def test_form_selection_with_markdown_label_is_removed(self) -> None:
+        answer = "Jawaban bersumber [1].\n\n**FORM_SELECTION:** []"
+
+        cleaned, selected_forms = crew_main._split_form_selection(answer)
+
+        self.assertEqual(cleaned, "Jawaban bersumber [1].")
+        self.assertEqual(selected_forms, [])
+
+    def test_form_selection_wrapped_in_markdown_is_parsed(self) -> None:
+        answer = (
+            'Gunakan form berikut [1].\n'
+            '**FORM_SELECTION: ["Form - Perjalanan Dinas (Template).xlsx"]**'
+        )
+
+        cleaned, selected_forms = crew_main._split_form_selection(answer)
+
+        self.assertEqual(cleaned, "Gunakan form berikut [1].")
+        self.assertEqual(
+            selected_forms,
+            ["Form - Perjalanan Dinas (Template).xlsx"],
+        )
+
+    def test_rewrite_keeps_original_when_ai_marks_question_standalone(self) -> None:
+        with patch(
+            "researcher_crew.main._ollama_generate",
+            return_value="KEEP",
+        ) as generate:
+            rewritten = crew_main._rewrite_query(
+                "HRIS tuh apa sih?",
+                "Percakapan sebelumnya yang panjang.",
+            )
+
+        self.assertEqual(rewritten, "HRIS tuh apa sih?")
+        generate.assert_called_once()
+
+    def test_rewrite_uses_llm_for_explicit_context_reference(self) -> None:
+        with patch(
+            "researcher_crew.main._ollama_generate",
+            return_value="REWRITE: Form apa yang dipakai untuk perjalanan dinas?",
+        ) as generate:
+            rewritten = crew_main._rewrite_query(
+                "Form apa yang dipakai untuk itu?",
+                "Percakapan membahas perjalanan dinas.",
+            )
+
+        self.assertEqual(
+            rewritten,
+            "Form apa yang dipakai untuk perjalanan dinas?",
+        )
+        generate.assert_called_once()
+
+    def test_rewrite_supports_implicit_context_reference(self) -> None:
+        with patch(
+            "researcher_crew.main._ollama_generate",
+            return_value="REWRITE: Kalau perjalanan dinas luar negeri gimana?",
+        ):
+            rewritten = crew_main._rewrite_query(
+                "Kalau luar negeri gimana?",
+                "Percakapan membahas perjalanan dinas dalam negeri.",
+            )
+
+        self.assertEqual(
+            rewritten,
+            "Kalau perjalanan dinas luar negeri gimana?",
+        )
+
+    def test_rewrite_rejects_unstructured_ai_rephrasing(self) -> None:
+        with patch(
+            "researcher_crew.main._ollama_generate",
+            return_value="HRIS itu apa sih?",
+        ):
+            rewritten = crew_main._rewrite_query(
+                "HRIS tuh apa sih?",
+                "Percakapan membahas resign.",
+            )
+
+        self.assertEqual(rewritten, "HRIS tuh apa sih?")
+
     def test_strips_trailing_unsupported_sentence_from_supported_answer(self) -> None:
         answer = (
             "Alur kontrol akses diawali dengan permohonan akses dan persetujuan pemilik aset [1].\n"

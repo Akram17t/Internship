@@ -5,15 +5,21 @@ from unittest.mock import Mock, patch
 
 from langchain_core.documents import Document
 
-from backend.semantic_cache import lookup_semantic_cache, store_semantic_cache
+from backend.semantic_cache import (
+    _normalize_cache_question,
+    lookup_semantic_cache,
+    store_semantic_cache,
+)
 
 
 class FakeCacheStore:
     def __init__(self, results: list[tuple[Document, float]] | None = None) -> None:
         self.results = results or []
         self.added_texts: list[str] = []
+        self.searched_questions: list[str] = []
 
     def similarity_search_with_relevance_scores(self, question: str, k: int) -> list[tuple[Document, float]]:
+        self.searched_questions.append(question)
         return self.results[:k]
 
     def add_texts(self, texts: list[str], metadatas: list[dict[str, str]], ids: list[str]) -> None:
@@ -21,6 +27,12 @@ class FakeCacheStore:
 
 
 class SemanticCacheTests(unittest.TestCase):
+    def test_question_normalization_ignores_case_and_punctuation(self) -> None:
+        self.assertEqual(
+            _normalize_cache_question("HRIS tuh apa sih?"),
+            _normalize_cache_question("hris TUH apa sih!!!"),
+        )
+
     def _valid_entry(self) -> dict[str, object]:
         return {
             "id": "entry-1",
@@ -55,6 +67,7 @@ class SemanticCacheTests(unittest.TestCase):
         stale_entry["active_index"] = "indexes/old"
 
         with (
+            patch("backend.semantic_cache.get_semantic_cache_entry_by_question", return_value=None),
             patch("backend.semantic_cache._get_cache_store", return_value=store),
             patch("backend.semantic_cache.get_semantic_cache_entry", return_value=stale_entry),
             patch("backend.semantic_cache.get_active_index_name", return_value="indexes/current"),
@@ -72,6 +85,7 @@ class SemanticCacheTests(unittest.TestCase):
         stale_entry["model_name"] = "ollama/old-model"
 
         with (
+            patch("backend.semantic_cache.get_semantic_cache_entry_by_question", return_value=None),
             patch("backend.semantic_cache._get_cache_store", return_value=store),
             patch("backend.semantic_cache.get_semantic_cache_entry", return_value=stale_entry),
             patch("backend.semantic_cache.get_active_index_name", return_value="indexes/current"),
@@ -89,6 +103,7 @@ class SemanticCacheTests(unittest.TestCase):
         entry["citations"] = []
 
         with (
+            patch("backend.semantic_cache.get_semantic_cache_entry_by_question", return_value=None),
             patch("backend.semantic_cache._get_cache_store", return_value=store),
             patch("backend.semantic_cache.get_semantic_cache_entry", return_value=entry),
             patch("backend.semantic_cache.get_active_index_name", return_value="indexes/current"),
@@ -105,6 +120,7 @@ class SemanticCacheTests(unittest.TestCase):
         mark_hit = Mock()
 
         with (
+            patch("backend.semantic_cache.get_semantic_cache_entry_by_question", return_value=None),
             patch("backend.semantic_cache._get_cache_store", return_value=store),
             patch("backend.semantic_cache.get_semantic_cache_entry", return_value=self._valid_entry()),
             patch("backend.semantic_cache.get_active_index_name", return_value="indexes/current"),
@@ -118,6 +134,33 @@ class SemanticCacheTests(unittest.TestCase):
         self.assertIsNotNone(hit)
         self.assertEqual(hit.entry_id, "entry-1")
         self.assertEqual(hit.citations[0]["source"], "SOP - Perjalanan Dinas.pdf")
+        mark_hit.assert_called_once_with("entry-1")
+        self.assertEqual(
+            store.searched_questions,
+            ["nominal uang makan dan uang saku berapa"],
+        )
+
+    def test_exact_normalized_hit_skips_vector_lookup(self) -> None:
+        exact_entry = self._valid_entry()
+        cache_store = Mock()
+        mark_hit = Mock()
+
+        with (
+            patch(
+                "backend.semantic_cache.get_semantic_cache_entry_by_question",
+                return_value=exact_entry,
+            ),
+            patch("backend.semantic_cache._get_cache_store", cache_store),
+            patch("backend.semantic_cache.get_active_index_name", return_value="indexes/current"),
+            patch("backend.semantic_cache._model_name", return_value="ollama/qwen3:8b"),
+            patch("backend.semantic_cache._embed_model_name", return_value="qwen3-embedding:4b"),
+            patch("backend.semantic_cache.mark_semantic_cache_hit", mark_hit),
+        ):
+            hit = lookup_semantic_cache("HRIS tuh apa sih?")
+
+        self.assertIsNotNone(hit)
+        self.assertEqual(hit.similarity, 1.0)
+        cache_store.assert_not_called()
         mark_hit.assert_called_once_with("entry-1")
 
     def test_store_skips_uncacheable_answers(self) -> None:
@@ -151,7 +194,10 @@ class SemanticCacheTests(unittest.TestCase):
             )
 
         self.assertIsNotNone(entry_id)
-        self.assertEqual(store.added_texts, ["Seberapa besar uang saku dan uang makan?"])
+        self.assertEqual(
+            store.added_texts,
+            ["seberapa besar uang saku dan uang makan"],
+        )
         insert_entry.assert_called_once()
 
 

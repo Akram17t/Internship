@@ -23,36 +23,21 @@ class FormDownloadResponse(BaseModel):
     download_url: str
 
 
-class FlowchartNodeResponse(BaseModel):
-    id: str
-    type: str
-    text: str
-    confidence: float = 0
-
-
-class FlowchartEdgeResponse(BaseModel):
-    source: str
-    target: str
-    label: str = ""
-    confidence: float = 0
-
-
-class FlowchartDiagramResponse(BaseModel):
+class FlowchartScreenshotResponse(BaseModel):
     id: str
     title: str
     source: str
     page: int | None = None
     section: str = ""
     confidence: float = 0
-    nodes: list[FlowchartNodeResponse] = Field(default_factory=list)
-    edges: list[FlowchartEdgeResponse] = Field(default_factory=list)
+    image_url: str
 
 
 class QueryResponse(BaseModel):
     answer: str
     citations: list[CitationResponse] = Field(default_factory=list)
     form_downloads: list[FormDownloadResponse] = Field(default_factory=list)
-    diagrams: list[FlowchartDiagramResponse] = Field(default_factory=list)
+    flowcharts: list[FlowchartScreenshotResponse] = Field(default_factory=list)
     conversation_id: str
 
 

@@ -1,18 +1,31 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
+
+import fitz
 
 from backend.settings import get_env, get_float_env
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
+FLOWCHART_ID_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 
 
 def _flowchart_cache_dir() -> Path:
     configured = Path(get_env("FLOWCHART_CACHE_DIR", "backend/cache/flowcharts"))
     return configured if configured.is_absolute() else ROOT_DIR / configured
+
+
+def _is_display_enabled() -> bool:
+    return get_env("FLOWCHART_DISPLAY_ENABLED", "false").lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
 
 
 def _load_cache_payloads(cache_dir: Path) -> list[tuple[Path, dict[str, Any]]]:
@@ -35,7 +48,7 @@ def _load_cache_payloads(cache_dir: Path) -> list[tuple[Path, dict[str, Any]]]:
     )
 
 
-def _diagram_from_payload(
+def _flowchart_from_payload(
     path: Path,
     payload: dict[str, Any],
     *,
@@ -44,37 +57,7 @@ def _diagram_from_payload(
     result = payload.get("result")
     if not isinstance(result, dict):
         return None
-    nodes = result.get("nodes")
-    edges = result.get("edges")
-    if not isinstance(nodes, list) or not nodes or not isinstance(edges, list):
-        return None
     if payload.get("graph_issues"):
-        return None
-
-    normalized_nodes = [
-        {
-            "id": str(node.get("id") or ""),
-            "type": str(node.get("type") or "unknown"),
-            "text": str(node.get("text") or ""),
-            "confidence": float(node.get("confidence") or 0),
-        }
-        for node in nodes
-        if isinstance(node, dict) and node.get("id") and node.get("text")
-    ]
-    node_ids = {node["id"] for node in normalized_nodes}
-    normalized_edges = [
-        {
-            "source": str(edge.get("from") or ""),
-            "target": str(edge.get("to") or ""),
-            "label": str(edge.get("label") or ""),
-            "confidence": float(edge.get("confidence") or 0),
-        }
-        for edge in edges
-        if isinstance(edge, dict)
-        and str(edge.get("from") or "") in node_ids
-        and str(edge.get("to") or "") in node_ids
-    ]
-    if not normalized_nodes:
         return None
 
     page_index = payload.get("image_page")
@@ -85,8 +68,7 @@ def _diagram_from_payload(
         "page": page_index + 1 if isinstance(page_index, int) else None,
         "section": section,
         "confidence": float(result.get("confidence") or 0),
-        "nodes": normalized_nodes,
-        "edges": normalized_edges,
+        "image_url": f"/api/flowcharts/{path.stem}",
     }
 
 
@@ -95,8 +77,13 @@ def find_flowcharts_for_citations(
     *,
     cache_dir: Path | None = None,
     model_name: str | None = None,
+    display_enabled: bool | None = None,
 ) -> list[dict[str, Any]]:
     """Cari payload diagram untuk citation flowchart tanpa menyentuh vector DB."""
+    if display_enabled is not True and (
+        display_enabled is False or not _is_display_enabled()
+    ):
+        return []
     if get_env("FLOWCHART_EXTRACTION_ENABLED", "true").lower() not in {
         "1",
         "true",
@@ -108,7 +95,7 @@ def find_flowcharts_for_citations(
     expected_model = model_name or get_env("FLOWCHART_VISION_MODEL", "qwen3.5:9b")
     minimum_confidence = get_float_env("FLOWCHART_MIN_CONFIDENCE", 0.6)
     payloads = _load_cache_payloads(cache_dir or _flowchart_cache_dir())
-    diagrams: list[dict[str, Any]] = []
+    flowcharts: list[dict[str, Any]] = []
     used_ids: set[str] = set()
 
     for citation in citations:
@@ -128,12 +115,81 @@ def find_flowcharts_for_citations(
             if payload.get("model") != expected_model:
                 continue
 
-            diagram = _diagram_from_payload(path, payload, section=section)
-            if diagram is None or diagram["confidence"] < minimum_confidence:
+            flowchart = _flowchart_from_payload(path, payload, section=section)
+            if flowchart is None or flowchart["confidence"] < minimum_confidence:
                 continue
-            if diagram["id"] not in used_ids:
-                diagrams.append(diagram)
-                used_ids.add(diagram["id"])
+            if flowchart["id"] not in used_ids:
+                flowcharts.append(flowchart)
+                used_ids.add(flowchart["id"])
             break
 
-    return diagrams
+    return flowcharts
+
+
+def _largest_image_xref(page: fitz.Page) -> int | None:
+    page_area = max(float(page.rect.width * page.rect.height), 1.0)
+    largest_xref: int | None = None
+    largest_ratio = 0.0
+    for image in page.get_images(full=True):
+        xref = int(image[0])
+        for rect in page.get_image_rects(xref):
+            ratio = float(rect.width * rect.height) / page_area
+            if ratio > largest_ratio:
+                largest_xref = xref
+                largest_ratio = ratio
+    return largest_xref
+
+
+def get_flowchart_image(
+    flowchart_id: str,
+    *,
+    allow_disabled: bool = False,
+) -> tuple[bytes, str] | None:
+    """Ambil image object flowchart asli dari PDF berdasarkan cache id aman."""
+    if not allow_disabled and not _is_display_enabled():
+        return None
+    if not FLOWCHART_ID_PATTERN.fullmatch(flowchart_id):
+        return None
+    cache_path = _flowchart_cache_dir() / f"{flowchart_id}.json"
+    try:
+        payload = json.loads(cache_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict) or payload.get("status") != "success":
+        return None
+
+    source = Path(str(payload.get("source") or "")).name
+    page_index = payload.get("image_page")
+    if not source or not isinstance(page_index, int):
+        return None
+
+    configured_data_dir = Path(get_env("DATA_DIR", "backend/data"))
+    data_dir = (
+        configured_data_dir
+        if configured_data_dir.is_absolute()
+        else ROOT_DIR / configured_data_dir
+    )
+    source_path = next(
+        (path for path in data_dir.rglob(source) if path.is_file() and path.name == source),
+        None,
+    )
+    if source_path is None:
+        return None
+
+    try:
+        with fitz.open(source_path) as pdf:
+            if page_index < 0 or page_index >= len(pdf):
+                return None
+            xref = _largest_image_xref(pdf[page_index])
+            if xref is None:
+                return None
+            image = pdf.extract_image(xref)
+    except (OSError, RuntimeError, ValueError):
+        return None
+
+    content = image.get("image")
+    extension = str(image.get("ext") or "png").lower()
+    if not isinstance(content, bytes):
+        return None
+    media_type = "image/jpeg" if extension in {"jpg", "jpeg"} else f"image/{extension}"
+    return content, media_type

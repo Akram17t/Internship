@@ -11,8 +11,10 @@ from langchain_chroma import Chroma
 
 from backend.cache_db import (
     get_semantic_cache_entry,
+    get_semantic_cache_entry_by_question,
     insert_semantic_cache_entry,
     mark_semantic_cache_hit,
+    normalize_semantic_question,
 )
 from backend.preprocessing.embedding import get_embedding_model
 from backend.preprocessing.vectorstore import get_active_index_name
@@ -92,6 +94,10 @@ def _is_cacheable(answer: str, citations: list[dict[str, object]]) -> bool:
     return bool(answer.strip()) and bool(citations) and not _is_unsupported_answer(answer)
 
 
+def _normalize_cache_question(question: str) -> str:
+    return normalize_semantic_question(question)
+
+
 def _get_cache_store() -> Chroma:
     directory = _cache_dir()
     directory.mkdir(parents=True, exist_ok=True)
@@ -130,11 +136,38 @@ def lookup_semantic_cache(question: str, *, trace_id: str = "") -> SemanticCache
     active_index = get_active_index_name()
     model_name = _model_name()
     embed_model_name = _embed_model_name()
+    exact_entry = get_semantic_cache_entry_by_question(
+        question,
+        active_index=active_index,
+        model_name=model_name,
+        embed_model_name=embed_model_name,
+    )
+    if exact_entry is not None:
+        exact_citations = _normalize_citations(exact_entry.get("citations"))
+        exact_forms = _normalize_selected_forms(exact_entry.get("selected_forms"))
+        exact_answer = str(exact_entry.get("answer") or "").strip()
+        if _is_cacheable(exact_answer, exact_citations):
+            entry_id = str(exact_entry["id"])
+            mark_semantic_cache_hit(entry_id)
+            logger.info(
+                "[%s] semantic_cache=hit match=exact entry=%s active_index=%s",
+                trace_id or "chat",
+                entry_id,
+                active_index,
+            )
+            return SemanticCacheHit(
+                entry_id=entry_id,
+                answer=exact_answer,
+                citations=exact_citations,
+                selected_forms=exact_forms,
+                similarity=1.0,
+            )
 
     try:
+        normalized_question = _normalize_cache_question(question)
         with _CACHE_LOCK:
             results = _get_cache_store().similarity_search_with_relevance_scores(
-                question,
+                normalized_question,
                 k=_top_k(),
             )
     except Exception as error:
@@ -255,7 +288,7 @@ def store_semantic_cache(
         )
         with _CACHE_LOCK:
             _get_cache_store().add_texts(
-                texts=[question],
+                texts=[_normalize_cache_question(question)],
                 metadatas=[
                     {
                         "entry_id": entry_id,

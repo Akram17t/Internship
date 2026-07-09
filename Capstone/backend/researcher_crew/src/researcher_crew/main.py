@@ -31,11 +31,12 @@ GENERATED_SOURCES_SECTION = re.compile(
     flags=re.IGNORECASE | re.MULTILINE | re.DOTALL,
 )
 FORM_SELECTION_PATTERN = re.compile(
-    r"^\s*FORM_SELECTION\s*:\s*(?P<selection>\[[^\n\r]*\])\s*$",
+    r"^\s*(?:[-*]\s*)?(?:\*\*)?FORM_SELECTION(?:\*\*)?\s*:\s*"
+    r"(?:\*\*)?\s*(?P<selection>\[[^\n\r]*\])\s*(?:\*\*)?\s*$",
     flags=re.IGNORECASE | re.MULTILINE,
 )
 FORM_SELECTION_LINE_PATTERN = re.compile(
-    r"^\s*FORM_SELECTION\s*:.*$",
+    r"^\s*(?:[-*]\s*)?(?:\*\*)?FORM_SELECTION\b.*$",
     flags=re.IGNORECASE | re.MULTILINE,
 )
 DOWNLOADABLE_FORM_LINE_PATTERN = re.compile(
@@ -70,6 +71,10 @@ class OllamaGenerationError(RuntimeError):
 UNSUPPORTED_ANSWER = (
     "Sistem tidak dapat menemukan informasi terkait hal tersebut di dalam dokumen SOP. "
     "Silakan lakukan eskalasi ke HR atau manajer terkait untuk instruksi manual."
+)
+REWRITE_DECISION_PATTERN = re.compile(
+    r"^\s*REWRITE\s*:\s*(?P<question>.+?)\s*$",
+    flags=re.IGNORECASE | re.DOTALL,
 )
 TRAILING_UNSUPPORTED_ANSWER_PATTERN = re.compile(
     r"(?:\s*\n+\s*|\s+)"
@@ -232,49 +237,64 @@ def _rewrite_is_safe(original: str, rewritten: str) -> bool:
 def _rewrite_query(question: str, conversation_context: str = "") -> str:
     """Ubah pertanyaan follow-up menjadi query mandiri dengan bantuan LLM.
 
-    Prompt-nya memaksa rewrite hanya saat ada kata rujukan. Jika hasil rewrite
-    menambah angka atau isi lain, guard kode akan membuangnya dan kembali ke
-    pertanyaan asli.
+    AI tetap memeriksa rujukan eksplisit maupun implisit. Output KEEP tidak
+    pernah dipakai sebagai pertanyaan baru; kode langsung mempertahankan input
+    asli agar model tidak sekadar memoles gaya bahasa atau tanda baca.
     """
     if not conversation_context.strip():
         return question
 
     prompt = (
-        "Anda menormalkan pertanyaan untuk pencarian dokumen. Ikuti prosedur ini:\n"
-        "1. Periksa apakah pertanyaan terakhir memakai kata rujukan yang menunjuk "
-        "ke percakapan sebelumnya: 'itu', 'tersebut', 'tadi', 'sebelumnya', "
-        "'barusan', atau akhiran '-nya' (misal 'formnya', 'alurnya').\n"
-        "2. Jika TIDAK ADA kata rujukan: salin pertanyaan terakhir PERSIS sama, "
-        "kata demi kata, tanpa mengubah atau menambahkan apa pun.\n"
-        "3. Jika ADA kata rujukan: ganti HANYA kata rujukannya dengan topik yang "
-        "dirujuk. Bagian lain biarkan sama persis. DILARANG menambahkan angka, "
-        "syarat, detail, atau topik lain dari percakapan.\n"
-        "Jangan menjawab pertanyaan. Balas HANYA satu kalimat pertanyaan.\n\n"
-        "Contoh 1 (ada rujukan 'itu'):\n"
+        "Anda menentukan apakah pertanyaan terakhir bergantung pada percakapan "
+        "sebelumnya. Periksa rujukan eksplisit dan implisit.\n\n"
+        "Rujukan eksplisit contohnya: 'itu', 'tersebut', 'tadi', 'sebelumnya', "
+        "'barusan', 'formnya', atau 'alurnya'.\n"
+        "Rujukan implisit contohnya: 'Kalau luar negeri gimana?', 'Kalau gagal?', "
+        "atau 'Terus setelah disetujui?' ketika subjeknya hanya dapat diketahui "
+        "dari percakapan sebelumnya.\n\n"
+        "Aturan keputusan:\n"
+        "1. Jika pertanyaan SUDAH mandiri dan topiknya jelas, balas persis: KEEP\n"
+        "2. Jika pertanyaan bergantung pada percakapan, balas: REWRITE: <pertanyaan mandiri>\n"
+        "3. Saat REWRITE, ganti atau tambahkan HANYA subjek yang dirujuk. Pertahankan "
+        "semua kata, gaya bahasa, maksud, angka, dan tanda baca lainnya.\n"
+        "4. Jangan mengubah sinonim, bahasa informal, ejaan, atau susunan kalimat "
+        "jika pertanyaan sudah mandiri.\n"
+        "5. Jangan menjawab pertanyaan dan jangan beri penjelasan.\n\n"
+        "Contoh 1 (rujukan eksplisit):\n"
         "Percakapan: membahas prosedur resign.\n"
         "Pertanyaan: Form apa aja yang harus diisi buat itu?\n"
-        "Jawaban: Form apa aja yang harus diisi buat resign?\n\n"
-        "Contoh 2 (ada rujukan akhiran '-nya'):\n"
+        "Jawaban: REWRITE: Form apa aja yang harus diisi buat resign?\n\n"
+        "Contoh 2 (rujukan implisit):\n"
+        "Percakapan: membahas perjalanan dinas dalam negeri.\n"
+        "Pertanyaan: Kalau luar negeri gimana?\n"
+        "Jawaban: REWRITE: Kalau perjalanan dinas luar negeri gimana?\n\n"
+        "Contoh 3 (mandiri, jangan diubah):\n"
         "Percakapan: membahas prosedur resign.\n"
-        "Pertanyaan: Alurnya gimana?\n"
-        "Jawaban: Alur resign gimana?\n\n"
-        "Contoh 3 (tanpa rujukan, salin persis):\n"
+        "Pertanyaan: HRIS tuh apa sih?\n"
+        "Jawaban: KEEP\n\n"
+        "Contoh 4 (mandiri walaupun topiknya berbeda dari percakapan):\n"
         "Percakapan: membahas prosedur resign.\n"
         "Pertanyaan: Apakah ada ketentuan lain ketika perjalanan dinas berlangsung lama?\n"
-        "Jawaban: Apakah ada ketentuan lain ketika perjalanan dinas berlangsung lama?\n\n"
+        "Jawaban: KEEP\n\n"
         f"Percakapan sebelumnya:\n{conversation_context}\n\n"
         f"Pertanyaan terakhir:\n{question}\n\n"
-        "Jawaban:"
+        "Keputusan:"
     )
     try:
         rewritten = _ollama_generate(prompt, num_predict=120, temperature=0.0)
     except OllamaGenerationError:
         return question
 
-    rewritten = rewritten.strip().strip('"').strip()
-    if not rewritten or not _rewrite_is_safe(question, rewritten):
+    decision = rewritten.strip().strip('"').strip()
+    if decision.upper() == "KEEP":
         return question
-    return rewritten
+    rewrite_match = REWRITE_DECISION_PATTERN.match(decision)
+    if not rewrite_match:
+        return question
+    rewritten_question = rewrite_match.group("question").strip().strip('"').strip()
+    if not rewritten_question or not _rewrite_is_safe(question, rewritten_question):
+        return question
+    return rewritten_question
 
 
 def _crew_output_to_text(result: object) -> str:

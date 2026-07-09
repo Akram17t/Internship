@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from contextlib import closing
 from datetime import datetime
@@ -18,7 +19,7 @@ from backend.settings import get_env, load_capstone_env
 
 load_capstone_env()
 
-SCHEMA_VERSION = "1"
+SCHEMA_VERSION = "2"
 MIGRATION_KEY = "conversations_json_migrated"
 
 
@@ -48,6 +49,11 @@ def _connect(db_path: Path | None = None) -> sqlite3.Connection:
     return connection
 
 
+def normalize_semantic_question(question: str) -> str:
+    normalized = re.sub(r"[^\w\s]", " ", question.casefold())
+    return " ".join(normalized.split())
+
+
 def _init_schema(connection: sqlite3.Connection) -> None:
     connection.executescript(
         """
@@ -71,6 +77,7 @@ def _init_schema(connection: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS semantic_cache_entries (
             id TEXT PRIMARY KEY,
             question TEXT NOT NULL,
+            normalized_question TEXT NOT NULL DEFAULT '',
             answer TEXT NOT NULL,
             citations_json TEXT NOT NULL,
             selected_forms_json TEXT NOT NULL,
@@ -83,6 +90,41 @@ def _init_schema(connection: sqlite3.Connection) -> None:
         );
         CREATE INDEX IF NOT EXISTS idx_semantic_cache_metadata
             ON semantic_cache_entries (active_index, model_name, embed_model_name);
+        """
+    )
+    semantic_columns = {
+        str(row["name"])
+        for row in connection.execute("PRAGMA table_info(semantic_cache_entries)")
+    }
+    if "normalized_question" not in semantic_columns:
+        connection.execute(
+            "ALTER TABLE semantic_cache_entries "
+            "ADD COLUMN normalized_question TEXT NOT NULL DEFAULT ''"
+        )
+    rows_to_normalize = connection.execute(
+        """
+        SELECT id, question
+        FROM semantic_cache_entries
+        WHERE normalized_question = ''
+        """
+    ).fetchall()
+    connection.executemany(
+        """
+        UPDATE semantic_cache_entries
+        SET normalized_question = ?
+        WHERE id = ?
+        """,
+        [
+            (normalize_semantic_question(str(row["question"])), str(row["id"]))
+            for row in rows_to_normalize
+        ],
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_semantic_cache_exact
+        ON semantic_cache_entries (
+            normalized_question, active_index, model_name, embed_model_name
+        )
         """
     )
     connection.execute(
@@ -365,15 +407,17 @@ def insert_semantic_cache_entry(
         connection.execute(
             """
             INSERT OR REPLACE INTO semantic_cache_entries(
-                id, question, answer, citations_json, selected_forms_json,
+                id, question, normalized_question, answer,
+                citations_json, selected_forms_json,
                 active_index, model_name, embed_model_name, created_at,
                 hit_count, last_hit_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL)
             """,
             (
                 entry_id,
                 question,
+                normalize_semantic_question(question),
                 answer,
                 json.dumps(citations, ensure_ascii=False),
                 json.dumps(selected_forms, ensure_ascii=False),
@@ -386,15 +430,7 @@ def insert_semantic_cache_entry(
         connection.commit()
 
 
-def get_semantic_cache_entry(entry_id: str) -> dict[str, Any] | None:
-    init_state_db()
-    with closing(_connect()) as connection:
-        row = connection.execute(
-            "SELECT * FROM semantic_cache_entries WHERE id = ?",
-            (entry_id,),
-        ).fetchone()
-    if row is None:
-        return None
+def _semantic_entry_from_row(row: sqlite3.Row) -> dict[str, Any]:
     try:
         citations = json.loads(str(row["citations_json"]))
     except json.JSONDecodeError:
@@ -416,6 +452,49 @@ def get_semantic_cache_entry(entry_id: str) -> dict[str, Any] | None:
         "hit_count": int(row["hit_count"]),
         "last_hit_at": str(row["last_hit_at"]) if row["last_hit_at"] else None,
     }
+
+
+def get_semantic_cache_entry(entry_id: str) -> dict[str, Any] | None:
+    init_state_db()
+    with closing(_connect()) as connection:
+        row = connection.execute(
+            "SELECT * FROM semantic_cache_entries WHERE id = ?",
+            (entry_id,),
+        ).fetchone()
+    if row is None:
+        return None
+    return _semantic_entry_from_row(row)
+
+
+def get_semantic_cache_entry_by_question(
+    question: str,
+    *,
+    active_index: str,
+    model_name: str,
+    embed_model_name: str,
+) -> dict[str, Any] | None:
+    init_state_db()
+    normalized_question = normalize_semantic_question(question)
+    with closing(_connect()) as connection:
+        row = connection.execute(
+            """
+            SELECT *
+            FROM semantic_cache_entries
+            WHERE normalized_question = ?
+              AND active_index = ?
+              AND model_name = ?
+              AND embed_model_name = ?
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            (
+                normalized_question,
+                active_index,
+                model_name,
+                embed_model_name,
+            ),
+        ).fetchone()
+    return _semantic_entry_from_row(row) if row is not None else None
 
 
 def mark_semantic_cache_hit(entry_id: str) -> None:

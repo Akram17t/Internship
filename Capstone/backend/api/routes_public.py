@@ -12,11 +12,14 @@ from backend.api.cache_store import _append_conversation_turn, _clean_conversati
 from backend.api.core import FAQ_LOCK, FRONTEND_DIR, app
 from backend.api.faq_service import _pinned_faq_items
 from backend.api.forms_service import XLSX_MIME, _fill_form_placeholders, _resolve_form_path, _unique_form_fields
-from backend.api.flowchart_service import find_flowcharts_for_citations
+from backend.api.flowchart_service import (
+    find_flowcharts_for_citations,
+    get_flowchart_image,
+)
 from backend.api.models import (
     CitationResponse,
     FAQItem,
-    FlowchartDiagramResponse,
+    FlowchartScreenshotResponse,
     FormDownloadResponse,
     FormFillPayload,
     QueryRequest,
@@ -82,24 +85,37 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
     form_downloads: list[FormDownloadResponse] = []
     if _answer_has_supported_form_context(answer):
         form_downloads = _selected_form_downloads(selected_form_names, available_forms)
-    diagrams = [
-        FlowchartDiagramResponse(**diagram)
-        for diagram in find_flowcharts_for_citations(raw_citations)
+    flowcharts = [
+        FlowchartScreenshotResponse(**flowchart)
+        for flowchart in find_flowcharts_for_citations(raw_citations)
     ]
     logger.info(
-        "[chat:%s] Request selesai dalam %.2fs, citation=%s, form=%s, diagram=%s",
+        "[chat:%s] Request selesai dalam %.2fs, citation=%s, form=%s, flowchart=%s",
         conversation_id,
         time.perf_counter() - request_started,
         len(citations),
         len(form_downloads),
-        len(diagrams),
+        len(flowcharts),
     )
     return QueryResponse(
         answer=answer,
         citations=citations,
         form_downloads=form_downloads,
-        diagrams=diagrams,
+        flowcharts=flowcharts,
         conversation_id=conversation_id,
+    )
+
+
+@app.get("/api/flowcharts/{flowchart_id}")
+def flowchart_screenshot(flowchart_id: str) -> Response:
+    image = get_flowchart_image(flowchart_id)
+    if image is None:
+        raise HTTPException(status_code=404, detail="Flowchart image not found.")
+    content, media_type = image
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Cache-Control": "private, max-age=3600"},
     )
 
 
