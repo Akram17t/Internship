@@ -568,7 +568,7 @@ function renderMessageCitations(container, citations) {
 function createCitationChip(citation, index, isInline = false) {
   const fileType = getCitationFileType(citation);
   const canOpenDocument = Boolean(citation.download_url) && isAdminSession();
-  const isPublicForm = Boolean(citation.download_url) && fileType === "sheet";
+  const isPublicForm = Boolean(citation.download_url) && isFormSource(citation.source);
   const chip = isPublicForm
     ? document.createElement("a")
     : document.createElement("button");
@@ -641,12 +641,12 @@ function createFormDownloadRow(item) {
   const icon = document.createElement("span");
   icon.className = "material-symbols-outlined form-download-icon";
   icon.setAttribute("aria-hidden", "true");
-  icon.textContent = "table_chart";
+  icon.textContent = "picture_as_pdf";
   const text = document.createElement("span");
   text.textContent = item.label || item.name || "Form";
   name.append(icon, text);
 
-  const fileName = `${item.label || item.name || "form"}.xlsx`;
+  const fileName = `${item.label || item.name || "form"}.pdf`;
 
   const templateButton = document.createElement("button");
   templateButton.type = "button";
@@ -701,14 +701,19 @@ function createFormDownloadChip(item, isInline = false) {
   const icon = document.createElement("span");
   icon.className = "material-symbols-outlined form-download-icon";
   icon.setAttribute("aria-hidden", "true");
-  icon.textContent = "table_chart";
+  icon.textContent = "picture_as_pdf";
 
   const text = document.createElement("span");
   text.className = "form-download-label";
-  text.textContent = isInline ? "XLSX" : item.label || item.name || "Form";
+  text.textContent = isInline ? "PDF" : item.label || item.name || "Form";
 
   link.append(icon, text);
   return link;
+}
+
+function isFormSource(source) {
+  // Template form dikenali dari awalan nama file "Form" (semua dokumen kini PDF).
+  return String(source || "").trim().toLowerCase().startsWith("form");
 }
 
 function getCitationFileType(citation) {
@@ -2481,7 +2486,7 @@ async function submitFormFill(event) {
     const objectUrl = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = objectUrl;
-    link.download = `${pending.label}.xlsx`;
+    link.download = `${pending.label}.pdf`;
     document.body.appendChild(link);
     link.click();
     link.remove();

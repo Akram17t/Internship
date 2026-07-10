@@ -11,8 +11,6 @@ from fastapi import HTTPException
 from backend.cache_db import (
     append_conversation_turn,
     get_conversation_context,
-    load_conversations,
-    replace_conversations,
 )
 from backend.api.core import (
     ADMIN_CONFIG_LOCK,
@@ -103,16 +101,6 @@ def _clean_conversation_id(value: str | None) -> str:
     if 8 <= len(cleaned) <= 80:
         return cleaned
     return uuid.uuid4().hex
-
-
-def _load_conversations() -> dict[str, list[dict[str, object]]]:
-    # Compatibility helper: conversation state now lives in SQLite.
-    return load_conversations()
-
-
-def _save_conversations(conversations: dict[str, list[dict[str, object]]]) -> None:
-    # Compatibility helper: keep callers from writing conversations.json again.
-    replace_conversations(conversations)
 
 
 def _get_conversation_context(conversation_id: str) -> str:

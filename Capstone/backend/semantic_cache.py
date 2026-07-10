@@ -10,6 +10,7 @@ from typing import Any
 from langchain_chroma import Chroma
 
 from backend.cache_db import (
+    clear_semantic_cache,
     get_semantic_cache_entry,
     get_semantic_cache_entry_by_question,
     insert_semantic_cache_entry,
@@ -128,9 +129,38 @@ def _normalize_selected_forms(raw_forms: Any) -> list[str]:
     return [str(item).strip() for item in raw_forms if str(item).strip()]
 
 
+def _log_cache_result(
+    trace_id: str,
+    *,
+    hit: bool,
+    reason: str = "",
+    similarity: float | None = None,
+) -> None:
+    # Satu baris ringkas per lookup: status, alasan, similarity, dan threshold.
+    label = trace_id or "chat"
+    threshold = _threshold()
+    if hit:
+        logger.info(
+            "[%s] cache   | HIT | sim=%.4f thr=%.2f",
+            label,
+            1.0 if similarity is None else similarity,
+            threshold,
+        )
+    elif similarity is None:
+        logger.info("[%s] cache   | MISS (%s) | thr=%.2f", label, reason, threshold)
+    else:
+        logger.info(
+            "[%s] cache   | MISS (%s) | sim=%.4f thr=%.2f",
+            label,
+            reason,
+            similarity,
+            threshold,
+        )
+
+
 def lookup_semantic_cache(question: str, *, trace_id: str = "") -> SemanticCacheHit | None:
     if not _is_enabled():
-        logger.info("[%s] semantic_cache=miss reason=disabled", trace_id or "chat")
+        _log_cache_result(trace_id, hit=False, reason="disabled")
         return None
 
     active_index = get_active_index_name()
@@ -149,12 +179,7 @@ def lookup_semantic_cache(question: str, *, trace_id: str = "") -> SemanticCache
         if _is_cacheable(exact_answer, exact_citations):
             entry_id = str(exact_entry["id"])
             mark_semantic_cache_hit(entry_id)
-            logger.info(
-                "[%s] semantic_cache=hit match=exact similarity=1.0000 entry=%s active_index=%s",
-                trace_id or "chat",
-                entry_id,
-                active_index,
-            )
+            _log_cache_result(trace_id, hit=True, similarity=1.0)
             return SemanticCacheHit(
                 entry_id=entry_id,
                 answer=exact_answer,
@@ -179,91 +204,51 @@ def lookup_semantic_cache(question: str, *, trace_id: str = "") -> SemanticCache
                 filter=metadata_filter,
             )
     except Exception as error:
-        logger.warning(
-            "[%s] semantic_cache=miss reason=lookup_error detail=%s",
-            trace_id or "chat",
-            error,
-        )
+        logger.warning("[%s] cache   | MISS (lookup_error) | %s", trace_id or "chat", error)
         return None
 
     if not results:
-        logger.info("[%s] semantic_cache=miss reason=empty", trace_id or "chat")
+        _log_cache_result(trace_id, hit=False, reason="empty")
         return None
 
     document, similarity = results[0]
+    similarity = float(similarity)
     entry_id = str(document.metadata.get("entry_id") or "").strip()
     if not entry_id:
-        logger.info(
-            "[%s] semantic_cache=miss reason=missing_entry_id similarity=%.4f",
-            trace_id or "chat",
-            similarity,
-        )
+        _log_cache_result(trace_id, hit=False, reason="missing_entry", similarity=similarity)
         return None
 
-    if float(similarity) < _threshold():
-        logger.info(
-            "[%s] semantic_cache=miss reason=below_threshold similarity=%.4f entry=%s",
-            trace_id or "chat",
-            similarity,
-            entry_id,
-        )
+    if similarity < _threshold():
+        _log_cache_result(trace_id, hit=False, reason="below_threshold", similarity=similarity)
         return None
 
     entry = get_semantic_cache_entry(entry_id)
     if entry is None:
-        logger.info(
-            "[%s] semantic_cache=miss reason=metadata_missing similarity=%.4f entry=%s",
-            trace_id or "chat",
-            similarity,
-            entry_id,
-        )
+        _log_cache_result(trace_id, hit=False, reason="metadata_missing", similarity=similarity)
         return None
 
     if entry["active_index"] != active_index:
-        logger.info(
-            "[%s] semantic_cache=miss reason=index_mismatch similarity=%.4f entry=%s cached_index=%s active_index=%s",
-            trace_id or "chat",
-            similarity,
-            entry_id,
-            entry["active_index"],
-            active_index,
-        )
+        _log_cache_result(trace_id, hit=False, reason="index_mismatch", similarity=similarity)
         return None
     if entry["model_name"] != model_name or entry["embed_model_name"] != embed_model_name:
-        logger.info(
-            "[%s] semantic_cache=miss reason=model_mismatch similarity=%.4f entry=%s",
-            trace_id or "chat",
-            similarity,
-            entry_id,
-        )
+        _log_cache_result(trace_id, hit=False, reason="model_mismatch", similarity=similarity)
         return None
 
     citations = _normalize_citations(entry.get("citations"))
     selected_forms = _normalize_selected_forms(entry.get("selected_forms"))
     answer = str(entry.get("answer") or "").strip()
     if not _is_cacheable(answer, citations):
-        logger.info(
-            "[%s] semantic_cache=miss reason=uncacheable_payload similarity=%.4f entry=%s",
-            trace_id or "chat",
-            similarity,
-            entry_id,
-        )
+        _log_cache_result(trace_id, hit=False, reason="uncacheable", similarity=similarity)
         return None
 
     mark_semantic_cache_hit(entry_id)
-    logger.info(
-        "[%s] semantic_cache=hit similarity=%.4f entry=%s active_index=%s",
-        trace_id or "chat",
-        similarity,
-        entry_id,
-        active_index,
-    )
+    _log_cache_result(trace_id, hit=True, similarity=similarity)
     return SemanticCacheHit(
         entry_id=entry_id,
         answer=answer,
         citations=citations,
         selected_forms=selected_forms,
-        similarity=float(similarity),
+        similarity=similarity,
     )
 
 
@@ -323,3 +308,18 @@ def store_semantic_cache(
         active_index,
     )
     return entry_id
+
+
+def reset_semantic_cache(*, trace_id: str = "ingest") -> None:
+    """Kosongkan semantic cache sepenuhnya (SQLite + vector store).
+
+    Dipanggil setelah vector index dibangun ulang. Index baru selalu mulai
+    tanpa cache, jadi entri lama dihapus agar tidak menumpuk lintas index.
+    """
+    removed = clear_semantic_cache()
+    try:
+        with _CACHE_LOCK:
+            _get_cache_store().delete_collection()
+    except Exception as error:
+        logger.warning("[%s] cache   | RESET vector store gagal | %s", trace_id, error)
+    logger.info("[%s] cache   | RESET | %s entri lama dihapus", trace_id, removed)

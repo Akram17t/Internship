@@ -512,6 +512,15 @@ def mark_semantic_cache_hit(entry_id: str) -> None:
         connection.commit()
 
 
+def clear_semantic_cache() -> int:
+    # Hapus semua entri semantic cache; dipakai saat vector index dibangun ulang.
+    init_state_db()
+    with closing(_connect()) as connection:
+        cursor = connection.execute("DELETE FROM semantic_cache_entries")
+        connection.commit()
+        return cursor.rowcount
+
+
 def state_counts() -> dict[str, int]:
     init_state_db()
     with closing(_connect()) as connection:

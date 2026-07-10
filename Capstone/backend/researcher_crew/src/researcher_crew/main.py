@@ -39,8 +39,10 @@ FORM_SELECTION_LINE_PATTERN = re.compile(
     r"^\s*(?:[-*]\s*)?(?:\*\*)?FORM_SELECTION\b.*$",
     flags=re.IGNORECASE | re.MULTILINE,
 )
+# Hanya baris yang menyebut nama file form (diawali "Form" dan berakhiran .pdf)
+# yang dibuang; sitasi SOP berformat .pdf tidak ikut terhapus.
 DOWNLOADABLE_FORM_LINE_PATTERN = re.compile(
-    r"^\s*(?:[-*•]\s*)?.*\.xlsx\b.*$",
+    r"^\s*(?:[-*•]\s*)?.*\bForm\b[^\n\r]*\.pdf\b.*$",
     flags=re.IGNORECASE | re.MULTILINE,
 )
 DOWNLOADABLE_FORM_INTRO_PATTERN = re.compile(
@@ -220,17 +222,38 @@ def _ollama_generate(
         return _post_ollama_generate(payload)
 
 
+# Kata rujukan/pengisi yang boleh hilang saat rewrite mengisi subjeknya.
+_REFERENTIAL_WORDS = frozenset(
+    {"itu", "ini", "tersebut", "tadi", "sebelumnya", "barusan", "tadinya", "begitu"}
+)
+
+
+def _is_referential_token(token: str) -> bool:
+    # 'itu'/'tersebut' dan klitik '-nya' (formnya, alurnya) bersifat merujuk.
+    return token in _REFERENTIAL_WORDS or token.endswith("nya")
+
+
 def _rewrite_is_safe(original: str, rewritten: str) -> bool:
     """Tolak hasil rewrite yang menyisipkan isi baru, bukan sekadar merujuk ulang.
 
     Rewrite hanya boleh mengganti kata rujukan dengan topik aslinya, jadi
     tidak boleh menambah angka baru dan panjangnya harus tetap masuk akal.
+    Selain itu, rewrite yang benar hanya MENAMBAH subjek yang dirujuk; ia tidak
+    boleh MEMBUANG kata konten asli. Jika kata konten asli hilang (mis. 'resign'
+    diganti 'perjalanan dinas'), itu penggantian topik dan harus ditolak.
     """
     new_digits = set(re.findall(r"\d+", rewritten)) - set(re.findall(r"\d+", original))
     if new_digits:
         return False
     if len(rewritten.split()) > 2 * len(original.split()) + 6:
         return False
+
+    rewritten_tokens = set(re.findall(r"\w+", rewritten.casefold()))
+    for token in re.findall(r"\w+", original.casefold()):
+        if _is_referential_token(token):
+            continue
+        if token not in rewritten_tokens:
+            return False
     return True
 
 
@@ -251,15 +274,23 @@ def _rewrite_query(question: str, conversation_context: str = "") -> str:
         "'barusan', 'formnya', atau 'alurnya'.\n"
         "Rujukan implisit contohnya: 'Kalau luar negeri gimana?', 'Kalau gagal?', "
         "atau 'Terus setelah disetujui?' ketika subjeknya hanya dapat diketahui "
-        "dari percakapan sebelumnya.\n\n"
+        "dari percakapan sebelumnya.\n"
+        "PENTING: kata seperti 'itu' atau akhiran '-nya' HANYA dihitung rujukan "
+        "bila kalimat itu tidak menyebut subjek konkretnya sendiri. 'itu' sering "
+        "dipakai sebagai partikel pengisi (mis. 'alur yang harus dijalani itu "
+        "gimana') dan bukan rujukan bila subjeknya sudah ada di kalimat.\n\n"
         "Aturan keputusan:\n"
         "1. Jika pertanyaan SUDAH mandiri dan topiknya jelas, balas persis: KEEP\n"
-        "2. Jika pertanyaan bergantung pada percakapan, balas: REWRITE: <pertanyaan mandiri>\n"
-        "3. Saat REWRITE, ganti atau tambahkan HANYA subjek yang dirujuk. Pertahankan "
+        "2. Jika pertanyaan sudah menyebut subjek/topiknya sendiri (mis. 'resign', "
+        "'perjalanan dinas', 'onboarding'), pertanyaan itu SUDAH mandiri: balas KEEP. "
+        "JANGAN PERNAH mengganti subjek yang sudah disebut dengan topik dari "
+        "percakapan sebelumnya, meskipun topiknya berbeda.\n"
+        "3. Jika pertanyaan bergantung pada percakapan, balas: REWRITE: <pertanyaan mandiri>\n"
+        "4. Saat REWRITE, ganti atau tambahkan HANYA subjek yang dirujuk. Pertahankan "
         "semua kata, gaya bahasa, maksud, angka, dan tanda baca lainnya.\n"
-        "4. Jangan mengubah sinonim, bahasa informal, ejaan, atau susunan kalimat "
+        "5. Jangan mengubah sinonim, bahasa informal, ejaan, atau susunan kalimat "
         "jika pertanyaan sudah mandiri.\n"
-        "5. Jangan menjawab pertanyaan dan jangan beri penjelasan.\n\n"
+        "6. Jangan menjawab pertanyaan dan jangan beri penjelasan.\n\n"
         "Contoh 1 (rujukan eksplisit):\n"
         "Percakapan: membahas prosedur resign.\n"
         "Pertanyaan: Form apa aja yang harus diisi buat itu?\n"
@@ -275,6 +306,10 @@ def _rewrite_query(question: str, conversation_context: str = "") -> str:
         "Contoh 4 (mandiri walaupun topiknya berbeda dari percakapan):\n"
         "Percakapan: membahas prosedur resign.\n"
         "Pertanyaan: Apakah ada ketentuan lain ketika perjalanan dinas berlangsung lama?\n"
+        "Jawaban: KEEP\n\n"
+        "Contoh 5 (sudah menyebut subjek sendiri walau ada 'itu', topik beda dari percakapan):\n"
+        "Percakapan: membahas perjalanan dinas.\n"
+        "Pertanyaan: Kalau gue mau resign, alur yang harus dijalani itu gimana?\n"
         "Jawaban: KEEP\n\n"
         f"Percakapan sebelumnya:\n{conversation_context}\n\n"
         f"Pertanyaan terakhir:\n{question}\n\n"
@@ -399,61 +434,45 @@ def run_knowledge_crew(
     # Ubah follow-up seperti "form untuk itu?" menjadi query mandiri.
     # Query mandiri ini dipakai untuk retrieval dan generation.
     # Context lama sengaja tidak dikirim ke generation agar topik lama tidak bocor.
-    logger.debug("[%s] Tahap 1/4 - normalisasi pertanyaan dimulai", trace_label)
     rewrite_started = time.perf_counter()
     standalone_question = _rewrite_query(question, conversation_context)
-    logger.debug(
-        "[%s] Tahap 1/4 selesai dalam %.2fs%s",
-        trace_label,
-        time.perf_counter() - rewrite_started,
-        " (pertanyaan diubah)" if standalone_question != question else "",
-    )
+    rewrite_seconds = time.perf_counter() - rewrite_started
+    if standalone_question != question:
+        logger.info(
+            '[%s] rewrite | changed (%.2fs) | "%s" -> "%s"',
+            trace_label,
+            rewrite_seconds,
+            question,
+            standalone_question,
+        )
+    else:
+        logger.info("[%s] rewrite | kept (%.2fs)", trace_label, rewrite_seconds)
 
     cache_hit = lookup_semantic_cache(standalone_question, trace_id=trace_label)
     if cache_hit is not None:
-        logger.debug(
-            "[%s] Tahap 4/4 selesai dari semantic cache dalam %.2fs",
-            trace_label,
-            time.perf_counter() - started_at,
+        logger.info(
+            "[%s] total   | %.2fs (dari cache)", trace_label, time.perf_counter() - started_at
         )
         return cache_hit.answer, cache_hit.citations, cache_hit.selected_forms
 
-    logger.debug("[%s] Tahap 2/4 - pencarian dokumen dimulai", trace_label)
-    retrieval_started = time.perf_counter()
     evidence, citations = retrieve_knowledge(standalone_question)
-    logger.debug(
-        "[%s] Tahap 2/4 selesai dalam %.2fs dengan %s citation",
-        trace_label,
-        time.perf_counter() - retrieval_started,
-        len(citations),
-    )
     if not citations:
-        logger.debug(
-            "[%s] Tahap 4/4 - selesai tanpa sumber dalam %.2fs",
-            trace_label,
-            time.perf_counter() - started_at,
+        logger.info(
+            "[%s] total   | %.2fs (tanpa sumber)", trace_label, time.perf_counter() - started_at
         )
         return UNSUPPORTED_ANSWER, [], []
 
-    logger.debug("[%s] Tahap 3/4 - penyusunan jawaban dimulai", trace_label)
-    generation_started = time.perf_counter()
+    crew_started = time.perf_counter()
     answer = GENERATED_SOURCES_SECTION.sub(
         "", _generate_answer(standalone_question, evidence, available_forms)
     ).strip()
-    logger.debug(
-        "[%s] Tahap 3/4 selesai dalam %.2fs",
-        trace_label,
-        time.perf_counter() - generation_started,
-    )
+    logger.info("[%s] crew    | %.2fs", trace_label, time.perf_counter() - crew_started)
 
-    logger.debug("[%s] Tahap 4/4 - finalisasi respons dimulai", trace_label)
     answer, selected_forms = _split_form_selection(answer)
     answer = _strip_trailing_unsupported_answer(answer)
     if _is_unsupported_answer(answer):
-        logger.debug(
-            "[%s] Tahap 4/4 selesai dalam %.2fs tanpa jawaban bersumber",
-            trace_label,
-            time.perf_counter() - started_at,
+        logger.info(
+            "[%s] total   | %.2fs (tanpa sumber)", trace_label, time.perf_counter() - started_at
         )
         return UNSUPPORTED_ANSWER, [], []
     if citations:
@@ -464,12 +483,6 @@ def run_knowledge_crew(
     elif citations:
         answer = f"{answer} [{citations[0]['id']}]"
         citations = citations[:1]
-    logger.debug(
-        "[%s] Tahap 4/4 selesai dalam %.2fs, form terpilih=%s",
-        trace_label,
-        time.perf_counter() - started_at,
-        len(selected_forms),
-    )
     store_semantic_cache(
         standalone_question,
         answer,
@@ -477,6 +490,7 @@ def run_knowledge_crew(
         selected_forms,
         trace_id=trace_label,
     )
+    logger.info("[%s] total   | %.2fs", trace_label, time.perf_counter() - started_at)
     return answer, citations, selected_forms
 
 

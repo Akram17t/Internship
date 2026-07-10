@@ -63,6 +63,11 @@ def main() -> None:
     rebuild_vectorstore(chunks)
     vector_seconds = perf_counter() - stage_started_at
     (get_chroma_dir() / CITATION_SCHEMA_MARKER).write_text("1\n", encoding="ascii")
+
+    # Index baru tidak punya cache; buang entri cache lama agar tidak menumpuk.
+    from backend.semantic_cache import reset_semantic_cache
+
+    reset_semantic_cache()
     total_seconds = perf_counter() - total_started_at
 
     print(f"[3/3] Vector database rebuilt in {vector_seconds:.2f}s.")

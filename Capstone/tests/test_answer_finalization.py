@@ -40,7 +40,7 @@ class AnswerFinalizationTests(unittest.TestCase):
     def test_form_selection_wrapped_in_markdown_is_parsed(self) -> None:
         answer = (
             'Gunakan form berikut [1].\n'
-            '**FORM_SELECTION: ["Form - Perjalanan Dinas (Template).xlsx"]**'
+            '**FORM_SELECTION: ["Form - Perjalanan Dinas (Template).pdf"]**'
         )
 
         cleaned, selected_forms = crew_main._split_form_selection(answer)
@@ -48,7 +48,7 @@ class AnswerFinalizationTests(unittest.TestCase):
         self.assertEqual(cleaned, "Gunakan form berikut [1].")
         self.assertEqual(
             selected_forms,
-            ["Form - Perjalanan Dinas (Template).xlsx"],
+            ["Form - Perjalanan Dinas (Template).pdf"],
         )
 
     def test_rewrite_keeps_original_when_ai_marks_question_standalone(self) -> None:
@@ -106,6 +106,43 @@ class AnswerFinalizationTests(unittest.TestCase):
             )
 
         self.assertEqual(rewritten, "HRIS tuh apa sih?")
+
+    def test_rewrite_rejects_topic_swap_when_subject_already_stated(self) -> None:
+        # 'itu' hanya partikel pengisi di sini; subjek 'resign' sudah eksplisit.
+        # Rewrite yang mengganti 'resign' jadi 'perjalanan dinas' harus ditolak.
+        with patch(
+            "researcher_crew.main._ollama_generate",
+            return_value=(
+                "REWRITE: Kalau gue mau perjalanan dinas, "
+                "alur yang harus dijalani gimana?"
+            ),
+        ):
+            rewritten = crew_main._rewrite_query(
+                "Kalau gue mau resign, alur yang harus dijalani itu gimana?",
+                "Percakapan membahas alur pengajuan perjalanan dinas.",
+            )
+
+        self.assertEqual(
+            rewritten,
+            "Kalau gue mau resign, alur yang harus dijalani itu gimana?",
+        )
+
+    def test_rewrite_is_safe_allows_pure_dereference(self) -> None:
+        # De-referensi yang benar hanya menambah subjek, tidak membuang kata konten.
+        self.assertTrue(
+            crew_main._rewrite_is_safe(
+                "Form apa yang dipakai untuk itu?",
+                "Form apa yang dipakai untuk resign?",
+            )
+        )
+
+    def test_rewrite_is_safe_rejects_dropped_content_word(self) -> None:
+        self.assertFalse(
+            crew_main._rewrite_is_safe(
+                "Kalau gue mau resign, alur yang harus dijalani itu gimana?",
+                "Kalau gue mau perjalanan dinas, alur yang harus dijalani gimana?",
+            )
+        )
 
     def test_strips_trailing_unsupported_sentence_from_supported_answer(self) -> None:
         answer = (

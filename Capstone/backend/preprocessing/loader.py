@@ -13,8 +13,9 @@ SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".txt"}
 
 def classify_document_kind(path: Path) -> str:
     # Klasifikasikan file sumber sebagai form, SOP, atau dokumen umum.
+    # Semua dokumen kini PDF, jadi jenis ditentukan dari awalan nama file.
     name = path.stem.lower()
-    if path.suffix.lower() == ".xlsx" or name.startswith("form"):
+    if name.startswith("form"):
         return "form"
     if name.startswith("sop"):
         return "sop"
@@ -57,8 +58,12 @@ def load_documents(data_dir: str | Path) -> list[Document]:
 
     documents: list[Document] = []
     for path in sorted(base_dir.rglob("*")):
-        if path.is_file() and path.suffix.lower() in SUPPORTED_EXTENSIONS:
-            documents.extend(_load_single_document(path))
+        if not (path.is_file() and path.suffix.lower() in SUPPORTED_EXTENSIONS):
+            continue
+        # Template form tidak ikut di-embed; hanya diunduh/diisi lewat forms service.
+        if classify_document_kind(path) == "form":
+            continue
+        documents.extend(_load_single_document(path))
 
     if not documents:
         raise ValueError(f"No supported documents found in: {base_dir}")

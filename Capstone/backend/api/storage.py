@@ -25,8 +25,9 @@ def _get_data_dir() -> Path:
 
 def _document_kind_for_path(path: Path) -> str:
     # Klasifikasikan file tersimpan sebagai form, SOP, atau dokumen umum.
+    # Semua dokumen kini PDF, jadi jenis ditentukan murni dari awalan nama file.
     name = path.stem.lower()
-    if path.suffix.lower() == ".xlsx" or name.startswith("form"):
+    if name.startswith("form"):
         return "form"
     if name.startswith("sop"):
         return "sop"
@@ -35,7 +36,11 @@ def _document_kind_for_path(path: Path) -> str:
 
 def _is_embeddable_path(path: Path) -> bool:
     # Kembalikan True jika file perlu masuk ke vector DB.
-    return path.suffix.lower() in EMBEDDABLE_EXTENSIONS
+    # Template form dikecualikan agar tidak ikut terindeks sebagai sumber jawaban.
+    return (
+        path.suffix.lower() in EMBEDDABLE_EXTENSIONS
+        and _document_kind_for_path(path) != "form"
+    )
 
 
 def _to_library_item(path: Path, data_dir: Path) -> LibraryItem:
@@ -107,14 +112,14 @@ def _iter_form_downloads() -> list[FormDownloadResponse]:
 
 
 def _iter_form_paths(data_dir: Path | None = None) -> list[Path]:
-    # Kumpulkan semua path form xlsx sambil lewati lock Excel sementara.
+    # Kumpulkan semua path template form PDF (nama diawali "Form").
     data_dir = data_dir or _get_data_dir()
     if not data_dir.exists():
         return []
 
     paths: list[Path] = []
-    for path in sorted(data_dir.rglob("*.xlsx")):
-        if not path.is_file() or path.name.startswith("~$"):
+    for path in sorted(data_dir.rglob("*.pdf")):
+        if not path.is_file() or _document_kind_for_path(path) != "form":
             continue
         paths.append(path)
     return paths

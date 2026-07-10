@@ -30,7 +30,7 @@ chat_answer_task:
       the available downloadable forms list.
     - If no available form is needed, choose an empty list.
     - Do not invent form names.
-    - Do not write downloadable form filenames, .xlsx names, or a separate
+    - Do not write downloadable form filenames, .pdf form names, or a separate
       "formulir terkait/tersedia", "form yang bisa diunduh", or similar form
       download section inside the visible answer. The app will render selected
       forms separately.
@@ -41,7 +41,7 @@ chat_answer_task:
       must be [].
     - If the evidence directly answers the question, at the very end add exactly
       one machine-readable line:
-      FORM_SELECTION: ["exact form filename.xlsx"]
+      FORM_SELECTION: ["exact form filename.pdf"]
     - If no form is needed, write exactly:
       FORM_SELECTION: []
 

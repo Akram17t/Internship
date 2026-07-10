@@ -11,7 +11,7 @@ from backend.api.auth import _require_admin
 from backend.api.cache_store import _append_conversation_turn, _clean_conversation_id, _get_conversation_context, _load_faqs
 from backend.api.core import FAQ_LOCK, FRONTEND_DIR, app
 from backend.api.faq_service import _pinned_faq_items
-from backend.api.forms_service import XLSX_MIME, _fill_form_placeholders, _resolve_form_path, _unique_form_fields
+from backend.api.forms_service import PDF_MIME, _fill_form_placeholders, _resolve_form_path, _unique_form_fields
 from backend.api.flowchart_service import (
     find_flowcharts_for_citations,
     get_flowchart_image,
@@ -50,7 +50,7 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
 
     request_started = time.perf_counter()
     conversation_id = _clean_conversation_id(payload.conversation_id)
-    logger.debug("[chat:%s] Request baru diterima", conversation_id)
+    logger.info('[chat:%s] POST /query | "%s"', conversation_id, payload.question)
     conversation_context = _get_conversation_context(conversation_id)
     logger.debug(
         "[chat:%s] Context percakapan dimuat (%s karakter)",
@@ -156,7 +156,7 @@ def form_fields(path: str) -> dict[str, object]:
 
 @app.post("/api/forms/fill")
 def fill_form(payload: FormFillPayload) -> Response:
-    # Isi template form di memory lalu kembalikan file xlsx hasilnya.
+    # Isi template form di memory lalu kembalikan file PDF hasilnya.
     resolved_path = _resolve_form_path(payload.path)
     content = _fill_form_placeholders(resolved_path, payload.values)
     nama = next(
@@ -164,10 +164,10 @@ def fill_form(payload: FormFillPayload) -> Response:
         "",
     )
     suffix = f" - {nama}" if nama else ""
-    filename = f"{resolved_path.stem}{suffix}.xlsx"
+    filename = f"{resolved_path.stem}{suffix}.pdf"
     return Response(
         content=content,
-        media_type=XLSX_MIME,
+        media_type=PDF_MIME,
         headers={
             "Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"
         },
