@@ -9,6 +9,7 @@ RESEARCHER_SRC = Path(__file__).resolve().parents[1] / "backend" / "researcher_c
 if str(RESEARCHER_SRC) not in sys.path:
     sys.path.insert(0, str(RESEARCHER_SRC))
 
+from backend.answer_policy import is_unsupported_answer, unsupported_answer_text
 from researcher_crew import main as crew_main
 
 
@@ -51,10 +52,10 @@ class AnswerFinalizationTests(unittest.TestCase):
             ["Form - Perjalanan Dinas (Template).pdf"],
         )
 
-    def test_rewrite_keeps_original_when_ai_marks_question_standalone(self) -> None:
+    def test_rewrite_keeps_original_when_ai_rewrites_standalone_question(self) -> None:
         with patch(
             "researcher_crew.main._ollama_generate",
-            return_value="KEEP",
+            return_value="REWRITE: HRIS itu apa sih?",
         ) as generate:
             rewritten = crew_main._rewrite_query(
                 "HRIS tuh apa sih?",
@@ -62,6 +63,27 @@ class AnswerFinalizationTests(unittest.TestCase):
             )
 
         self.assertEqual(rewritten, "HRIS tuh apa sih?")
+        generate.assert_called_once()
+
+    def test_rewrite_prompt_emphasizes_keep_for_standalone_travel_allowance_question(self) -> None:
+        with patch(
+            "researcher_crew.main._ollama_generate",
+            return_value="KEEP",
+        ) as generate:
+            rewritten = crew_main._rewrite_query(
+                "Tolong sebutin nominal uang saku dan uang makan selama perjalanan dinas",
+                "Percakapan membahas perjalanan dinas dalam negeri.",
+            )
+
+        prompt = generate.call_args.args[0]
+        self.assertIn("JANGAN PERNAH mengganti, mempersempit", prompt)
+        self.assertIn("Riwayat hanya boleh dipakai untuk mengisi subjek yang hilang", prompt)
+        self.assertIn("Tolong sebutin nominal uang saku dan uang makan selama perjalanan dinas", prompt)
+        self.assertIn("Jawaban: KEEP", prompt)
+        self.assertEqual(
+            rewritten,
+            "Tolong sebutin nominal uang saku dan uang makan selama perjalanan dinas",
+        )
         generate.assert_called_once()
 
     def test_rewrite_uses_llm_for_explicit_context_reference(self) -> None:
@@ -116,7 +138,7 @@ class AnswerFinalizationTests(unittest.TestCase):
                 "REWRITE: Kalau gue mau perjalanan dinas, "
                 "alur yang harus dijalani gimana?"
             ),
-        ):
+        ) as generate:
             rewritten = crew_main._rewrite_query(
                 "Kalau gue mau resign, alur yang harus dijalani itu gimana?",
                 "Percakapan membahas alur pengajuan perjalanan dinas.",
@@ -126,6 +148,7 @@ class AnswerFinalizationTests(unittest.TestCase):
             rewritten,
             "Kalau gue mau resign, alur yang harus dijalani itu gimana?",
         )
+        generate.assert_called_once()
 
     def test_rewrite_is_safe_allows_pure_dereference(self) -> None:
         # De-referensi yang benar hanya menambah subjek, tidak membuang kata konten.
@@ -147,7 +170,7 @@ class AnswerFinalizationTests(unittest.TestCase):
     def test_strips_trailing_unsupported_sentence_from_supported_answer(self) -> None:
         answer = (
             "Alur kontrol akses diawali dengan permohonan akses dan persetujuan pemilik aset [1].\n"
-            f"{crew_main.UNSUPPORTED_ANSWER}"
+            f"{unsupported_answer_text()}"
         )
 
         cleaned = crew_main._strip_trailing_unsupported_answer(answer)
@@ -156,15 +179,15 @@ class AnswerFinalizationTests(unittest.TestCase):
             cleaned,
             "Alur kontrol akses diawali dengan permohonan akses dan persetujuan pemilik aset [1].",
         )
-        self.assertFalse(crew_main._is_unsupported_answer(cleaned))
+        self.assertFalse(is_unsupported_answer(cleaned))
 
     def test_keeps_pure_unsupported_answer_for_no_citation_guard(self) -> None:
-        answer = f"{crew_main.UNSUPPORTED_ANSWER} [1]"
+        answer = f"{unsupported_answer_text()} [1]"
 
         cleaned = crew_main._strip_trailing_unsupported_answer(answer)
 
         self.assertEqual(cleaned, answer)
-        self.assertTrue(crew_main._is_unsupported_answer(cleaned))
+        self.assertTrue(is_unsupported_answer(cleaned))
 
     def test_unsupported_flow_returns_without_citations_or_forms(self) -> None:
         store_cache = Mock()
@@ -185,7 +208,7 @@ class AnswerFinalizationTests(unittest.TestCase):
                     ],
                 ),
             ),
-            patch("researcher_crew.main._generate_answer", return_value=f"{crew_main.UNSUPPORTED_ANSWER} [1]"),
+            patch("researcher_crew.main._generate_answer", return_value=f"{unsupported_answer_text()} [1]"),
             patch("researcher_crew.main.store_semantic_cache", store_cache),
         ):
             answer, citations, selected_forms = crew_main.run_knowledge_crew(
@@ -193,7 +216,7 @@ class AnswerFinalizationTests(unittest.TestCase):
                 trace_id="test",
             )
 
-        self.assertEqual(answer, crew_main.UNSUPPORTED_ANSWER)
+        self.assertEqual(answer, unsupported_answer_text())
         self.assertEqual(citations, [])
         self.assertEqual(selected_forms, [])
         store_cache.assert_not_called()

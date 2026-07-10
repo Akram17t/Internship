@@ -10,10 +10,16 @@ import urllib.request
 import warnings
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[5]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+project_root = Path(__file__).resolve().parents[5]
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
+from backend.answer_policy import (
+    faq_unavailable_answer_text,
+    is_unsupported_answer,
+    strip_trailing_unsupported_answer,
+    unsupported_answer_text,
+)
 from backend.settings import get_int_env, get_required_env, load_capstone_env
 from backend.semantic_cache import lookup_semantic_cache, store_semantic_cache
 
@@ -23,40 +29,6 @@ from researcher_crew.crew import ResearcherCrew
 from researcher_crew.tools import retrieve_knowledge
 
 load_capstone_env()
-
-GENERATED_SOURCES_SECTION = re.compile(
-    r"^\s*(?:#{1,6}\s*)?(?:\*\*)?"
-    r"(?:referensi|sumber|references?|sources?)"
-    r"(?:\*\*)?\s*:\s*.*$",
-    flags=re.IGNORECASE | re.MULTILINE | re.DOTALL,
-)
-FORM_SELECTION_PATTERN = re.compile(
-    r"^\s*(?:[-*]\s*)?(?:\*\*)?FORM_SELECTION(?:\*\*)?\s*:\s*"
-    r"(?:\*\*)?\s*(?P<selection>\[[^\n\r]*\])\s*(?:\*\*)?\s*$",
-    flags=re.IGNORECASE | re.MULTILINE,
-)
-FORM_SELECTION_LINE_PATTERN = re.compile(
-    r"^\s*(?:[-*]\s*)?(?:\*\*)?FORM_SELECTION\b.*$",
-    flags=re.IGNORECASE | re.MULTILINE,
-)
-# Hanya baris yang menyebut nama file form (diawali "Form" dan berakhiran .pdf)
-# yang dibuang; sitasi SOP berformat .pdf tidak ikut terhapus.
-DOWNLOADABLE_FORM_LINE_PATTERN = re.compile(
-    r"^\s*(?:[-*•]\s*)?.*\bForm\b[^\n\r]*\.pdf\b.*$",
-    flags=re.IGNORECASE | re.MULTILINE,
-)
-DOWNLOADABLE_FORM_INTRO_PATTERN = re.compile(
-    r"^\s*(?:selain itu,\s*)?(?:ada\s*)?(?:form|formulir)\s+"
-    r"(?:terkait\s+)?(?:yang\s+)?(?:tersedia|dapat|bisa|downloadable).*(?::)?\s*$",
-    flags=re.IGNORECASE | re.MULTILINE,
-)
-DOWNLOADABLE_FORM_SECTION_PATTERN = re.compile(
-    r"(?:^|\n)\s*(?:\*\*)?(?:form|formulir)\s+"
-    r"(?:terkait|yang\s+(?:bisa|dapat)\s+(?:diunduh|didownload)|downloadable)"
-    r"(?:\*\*)?\s*:?\s*(?:\n\s*)+"
-    r"(?:(?:[-*•]|\d+[\.)])\s+.*(?:\n|$))+",
-    flags=re.IGNORECASE,
-)
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -70,66 +42,23 @@ class OllamaGenerationError(RuntimeError):
     """Muncul saat stack LLM lokal gagal menyelesaikan proses generasi."""
 
 
-UNSUPPORTED_ANSWER = (
-    "Sistem tidak dapat menemukan informasi terkait hal tersebut di dalam dokumen SOP. "
-    "Silakan lakukan eskalasi ke HR atau manajer terkait untuk instruksi manual."
-)
-REWRITE_DECISION_PATTERN = re.compile(
-    r"^\s*REWRITE\s*:\s*(?P<question>.+?)\s*$",
-    flags=re.IGNORECASE | re.DOTALL,
-)
-TRAILING_UNSUPPORTED_ANSWER_PATTERN = re.compile(
-    r"(?:\s*\n+\s*|\s+)"
-    r"Sistem\s+tidak\s+dapat\s+menemukan\s+informasi\s+terkait\s+hal\s+tersebut\s+"
-    r"di\s+dalam\s+dokumen\s+SOP\.\s+Silakan\s+lakukan\s+eskalasi\s+ke\s+HR\s+atau\s+"
-    r"manajer\s+terkait\s+untuk\s+instruksi\s+manual\.?"
-    r"(?:\s*\[\d+\])?\s*$",
-    flags=re.IGNORECASE,
-)
-
-# Marker ini masih dipakai untuk mengenali jawaban fallback versi bebas dari LLM
-# lalu menormalkannya kembali ke satu unsupported answer yang konsisten.
-UNSUPPORTED_ANSWER_MARKERS = (
-    "tidak dapat menemukan informasi terkait hal tersebut",
-    "tidak tersedia dalam dokumen",
-    "tidak tersedia di dokumen",
-    "tidak disebutkan",
-    "tidak dinyatakan",
-    "tidak ada ketentuan",
-    "tidak ada informasi",
-    "tidak memuat",
-    "tidak mencakup",
-    "tidak menjelaskan",
-    "tanpa menyebutkan",
-    "tidak ditemukan",
-    "belum tersedia",
-    "belum dapat dikonfirmasi",
-    "tidak dapat dikonfirmasi",
-    "dokumen yang terindeks tidak",
-    "dokumen terindeks tidak",
-)
-
-
-def _is_unsupported_answer(answer: str) -> bool:
-    # Deteksi jawaban fallback yang berarti dokumen tidak mendukung query.
-    normalized = " ".join(answer.lower().split())
-    return any(marker in normalized for marker in UNSUPPORTED_ANSWER_MARKERS)
-
-
 def _strip_trailing_unsupported_answer(answer: str) -> str:
     """Buang fallback sentence yang nyasar setelah jawaban valid.
 
     Kalau output hanya fallback murni, biarkan tetap utuh supaya guard
     unsupported bisa mengembalikan jawaban tanpa citation/form.
     """
-    match = TRAILING_UNSUPPORTED_ANSWER_PATTERN.search(answer)
-    if match is None:
-        return answer.strip()
+    return strip_trailing_unsupported_answer(answer)
 
-    supported_part = answer[: match.start()].strip()
-    if not supported_part:
-        return answer.strip()
-    return re.sub(r"\n{3,}", "\n\n", supported_part).strip()
+
+def _strip_generated_sources_section(answer: str) -> str:
+    pattern = re.compile(
+        r"^\s*(?:#{1,6}\s*)?(?:\*\*)?"
+        r"(?:referensi|sumber|references?|sources?)"
+        r"(?:\*\*)?\s*:\s*.*$",
+        flags=re.IGNORECASE | re.MULTILINE | re.DOTALL,
+    )
+    return pattern.sub("", answer).strip()
 
 
 def _ollama_model_name() -> str:
@@ -222,15 +151,18 @@ def _ollama_generate(
         return _post_ollama_generate(payload)
 
 
-# Kata rujukan/pengisi yang boleh hilang saat rewrite mengisi subjeknya.
-_REFERENTIAL_WORDS = frozenset(
-    {"itu", "ini", "tersebut", "tadi", "sebelumnya", "barusan", "tadinya", "begitu"}
-)
-
-
 def _is_referential_token(token: str) -> bool:
     # 'itu'/'tersebut' dan klitik '-nya' (formnya, alurnya) bersifat merujuk.
-    return token in _REFERENTIAL_WORDS or token.endswith("nya")
+    return token.endswith("nya") or token in {
+        "itu",
+        "ini",
+        "tersebut",
+        "tadi",
+        "sebelumnya",
+        "barusan",
+        "tadinya",
+        "begitu",
+    }
 
 
 def _rewrite_is_safe(original: str, rewritten: str) -> bool:
@@ -279,18 +211,27 @@ def _rewrite_query(question: str, conversation_context: str = "") -> str:
         "bila kalimat itu tidak menyebut subjek konkretnya sendiri. 'itu' sering "
         "dipakai sebagai partikel pengisi (mis. 'alur yang harus dijalani itu "
         "gimana') dan bukan rujukan bila subjeknya sudah ada di kalimat.\n\n"
+        "Tugas utama Anda BUKAN memperbaiki bahasa. Tugas Anda hanya menentukan "
+        "apakah pertanyaan terakhir perlu dibuat mandiri karena benar-benar "
+        "bergantung pada percakapan sebelumnya.\n\n"
         "Aturan keputusan:\n"
         "1. Jika pertanyaan SUDAH mandiri dan topiknya jelas, balas persis: KEEP\n"
-        "2. Jika pertanyaan sudah menyebut subjek/topiknya sendiri (mis. 'resign', "
-        "'perjalanan dinas', 'onboarding'), pertanyaan itu SUDAH mandiri: balas KEEP. "
-        "JANGAN PERNAH mengganti subjek yang sudah disebut dengan topik dari "
-        "percakapan sebelumnya, meskipun topiknya berbeda.\n"
-        "3. Jika pertanyaan bergantung pada percakapan, balas: REWRITE: <pertanyaan mandiri>\n"
-        "4. Saat REWRITE, ganti atau tambahkan HANYA subjek yang dirujuk. Pertahankan "
+        "2. Jika pertanyaan sudah menyebut subjek/topiknya sendiri, pertanyaan itu "
+        "SUDAH mandiri: balas KEEP. JANGAN PERNAH mengganti, mempersempit, "
+        "memperluas, atau menambahkan detail dari percakapan sebelumnya ke "
+        "pertanyaan yang sudah mandiri.\n"
+        "3. Jika pertanyaan mandiri tapi percakapan sebelumnya membahas versi yang "
+        "lebih spesifik, tetap balas KEEP. Riwayat hanya boleh dipakai untuk "
+        "mengisi subjek yang hilang, bukan menambah batasan, kategori, lokasi, "
+        "jabatan, durasi, kondisi, atau konteks baru.\n"
+        "4. REWRITE hanya boleh dilakukan jika tanpa riwayat percakapan pertanyaan "
+        "terakhir tidak jelas subjeknya.\n"
+        "5. Jika pertanyaan bergantung pada percakapan, balas: REWRITE: <pertanyaan mandiri>\n"
+        "6. Saat REWRITE, ganti atau tambahkan HANYA subjek yang dirujuk. Pertahankan "
         "semua kata, gaya bahasa, maksud, angka, dan tanda baca lainnya.\n"
-        "5. Jangan mengubah sinonim, bahasa informal, ejaan, atau susunan kalimat "
+        "7. Jangan mengubah sinonim, bahasa informal, ejaan, atau susunan kalimat "
         "jika pertanyaan sudah mandiri.\n"
-        "6. Jangan menjawab pertanyaan dan jangan beri penjelasan.\n\n"
+        "8. Jangan menjawab pertanyaan dan jangan beri penjelasan.\n\n"
         "Contoh 1 (rujukan eksplisit):\n"
         "Percakapan: membahas prosedur resign.\n"
         "Pertanyaan: Form apa aja yang harus diisi buat itu?\n"
@@ -311,6 +252,10 @@ def _rewrite_query(question: str, conversation_context: str = "") -> str:
         "Percakapan: membahas perjalanan dinas.\n"
         "Pertanyaan: Kalau gue mau resign, alur yang harus dijalani itu gimana?\n"
         "Jawaban: KEEP\n\n"
+        "Contoh 6 (mandiri, jangan tambahkan scope dari percakapan):\n"
+        "Percakapan: membahas perjalanan dinas dalam negeri.\n"
+        "Pertanyaan: Tolong sebutin nominal uang saku dan uang makan selama perjalanan dinas\n"
+        "Jawaban: KEEP\n\n"
         f"Percakapan sebelumnya:\n{conversation_context}\n\n"
         f"Pertanyaan terakhir:\n{question}\n\n"
         "Keputusan:"
@@ -323,7 +268,11 @@ def _rewrite_query(question: str, conversation_context: str = "") -> str:
     decision = rewritten.strip().strip('"').strip()
     if decision.upper() == "KEEP":
         return question
-    rewrite_match = REWRITE_DECISION_PATTERN.match(decision)
+    rewrite_match = re.match(
+        r"^\s*REWRITE\s*:\s*(?P<question>.+?)\s*$",
+        decision,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
     if not rewrite_match:
         return question
     rewritten_question = rewrite_match.group("question").strip().strip('"').strip()
@@ -356,6 +305,33 @@ def _generate_answer(question: str, evidence: str, available_forms: str) -> str:
 def _split_form_selection(answer: str) -> tuple[str, list[str]]:
     # Ambil pilihan form tersembunyi dan buang daftar form dari jawaban.
     selected_forms: list[str] = []
+    form_selection_pattern = re.compile(
+        r"^\s*(?:[-*]\s*)?(?:\*\*)?FORM_SELECTION(?:\*\*)?\s*:\s*"
+        r"(?:\*\*)?\s*(?P<selection>\[[^\n\r]*\])\s*(?:\*\*)?\s*$",
+        flags=re.IGNORECASE | re.MULTILINE,
+    )
+    form_selection_line_pattern = re.compile(
+        r"^\s*(?:[-*]\s*)?(?:\*\*)?FORM_SELECTION\b.*$",
+        flags=re.IGNORECASE | re.MULTILINE,
+    )
+    downloadable_form_section_pattern = re.compile(
+        r"(?:^|\n)\s*(?:\*\*)?(?:form|formulir)\s+"
+        r"(?:terkait|yang\s+(?:bisa|dapat)\s+(?:diunduh|didownload)|downloadable)"
+        r"(?:\*\*)?\s*:?\s*(?:\n\s*)+"
+        r"(?:(?:[-*•]|\d+[\.)])\s+.*(?:\n|$))+",
+        flags=re.IGNORECASE,
+    )
+    downloadable_form_intro_pattern = re.compile(
+        r"^\s*(?:selain itu,\s*)?(?:ada\s*)?(?:form|formulir)\s+"
+        r"(?:terkait\s+)?(?:yang\s+)?(?:tersedia|dapat|bisa|downloadable).*(?::)?\s*$",
+        flags=re.IGNORECASE | re.MULTILINE,
+    )
+    # Hanya baris yang menyebut nama file form (diawali "Form" dan berakhiran .pdf)
+    # yang dibuang; sitasi SOP berformat .pdf tidak ikut terhapus.
+    downloadable_form_line_pattern = re.compile(
+        r"^\s*(?:[-*•]\s*)?.*\bForm\b[^\n\r]*\.pdf\b.*$",
+        flags=re.IGNORECASE | re.MULTILINE,
+    )
 
     def collect(match: re.Match[str]) -> str:
         raw_selection = match.group("selection")
@@ -371,18 +347,14 @@ def _split_form_selection(answer: str) -> tuple[str, list[str]]:
             )
         return ""
 
-    cleaned_answer = FORM_SELECTION_PATTERN.sub(collect, answer)
-    cleaned_answer = FORM_SELECTION_LINE_PATTERN.sub("", cleaned_answer).strip()
+    cleaned_answer = form_selection_pattern.sub(collect, answer)
+    cleaned_answer = form_selection_line_pattern.sub("", cleaned_answer).strip()
     if selected_forms:
-        cleaned_answer = DOWNLOADABLE_FORM_SECTION_PATTERN.sub("\n", cleaned_answer)
-        cleaned_answer = DOWNLOADABLE_FORM_INTRO_PATTERN.sub("", cleaned_answer)
-        cleaned_answer = DOWNLOADABLE_FORM_LINE_PATTERN.sub("", cleaned_answer).strip()
+        cleaned_answer = downloadable_form_section_pattern.sub("\n", cleaned_answer)
+        cleaned_answer = downloadable_form_intro_pattern.sub("", cleaned_answer)
+        cleaned_answer = downloadable_form_line_pattern.sub("", cleaned_answer).strip()
     cleaned_answer = re.sub(r"\n{3,}", "\n\n", cleaned_answer).strip()
     return cleaned_answer, selected_forms
-
-
-FAQ_MIN_WORDS = 80
-FAQ_MAX_WORDS = 150
 
 
 def _generate_faq_answer(question: str, evidence: str) -> str:
@@ -394,7 +366,7 @@ def _generate_faq_answer(question: str, evidence: str) -> str:
         "1. Jawab inti pertanyaan langsung dalam 1-2 kalimat pembuka, tanpa pembuka generik.\n"
         "2. Jika ada tiga atau lebih detail penting, lanjutkan dengan 3-6 bullet menggunakan "
         "format '- '. Jika detailnya sedikit, gunakan paragraf biasa.\n"
-        f"3. Targetkan {FAQ_MIN_WORDS}-{FAQ_MAX_WORDS} kata. Jangan berhenti di tengah kalimat.\n"
+        "3. Targetkan 80-150 kata. Jangan berhenti di tengah kalimat.\n"
         "4. Masukkan semua detail material yang benar-benar membantu menjawab pertanyaan, "
         "terutama syarat, pihak yang bertanggung jawab, urutan proses, batas waktu, nominal, "
         "persetujuan, pengecualian, dan form terkait yang tersedia di evidence.\n"
@@ -405,7 +377,7 @@ def _generate_faq_answer(question: str, evidence: str) -> str:
         "7. Bullet boleh memakai label singkat dalam bold, misalnya '- **Persetujuan:** ...'. "
         "Jangan menulis markdown table, bagian sumber terpisah, atau informasi yang tidak ada di evidence.\n"
         "8. Jika evidence tidak menjawab pertanyaan secara langsung, balas persis: "
-        "\"Informasi ini belum tersedia dalam dokumen yang saat ini terindeks.\"\n\n"
+        f"\"{faq_unavailable_answer_text()}\"\n\n"
         f"Pertanyaan:\n{question}\n\n"
         f"Evidence:\n{evidence}\n\n"
         "Jawaban FAQ:"
@@ -460,21 +432,21 @@ def run_knowledge_crew(
         logger.info(
             "[%s] total   | %.2fs (tanpa sumber)", trace_label, time.perf_counter() - started_at
         )
-        return UNSUPPORTED_ANSWER, [], []
+        return unsupported_answer_text(), [], []
 
     crew_started = time.perf_counter()
-    answer = GENERATED_SOURCES_SECTION.sub(
-        "", _generate_answer(standalone_question, evidence, available_forms)
-    ).strip()
+    answer = _strip_generated_sources_section(
+        _generate_answer(standalone_question, evidence, available_forms)
+    )
     logger.info("[%s] crew    | %.2fs", trace_label, time.perf_counter() - crew_started)
 
     answer, selected_forms = _split_form_selection(answer)
     answer = _strip_trailing_unsupported_answer(answer)
-    if _is_unsupported_answer(answer):
+    if is_unsupported_answer(answer):
         logger.info(
             "[%s] total   | %.2fs (tanpa sumber)", trace_label, time.perf_counter() - started_at
         )
-        return UNSUPPORTED_ANSWER, [], []
+        return unsupported_answer_text(), [], []
     if citations:
         answer = re.sub(r"\[[nN]\]", f"[{citations[0]['id']}]", answer)
     used_citation_ids = {int(value) for value in re.findall(r"\[(\d+)\]", answer)}
@@ -499,11 +471,11 @@ def run_faq_crew(question: str) -> tuple[str, list[dict[str, object]]]:
     evidence, citations = retrieve_knowledge(question)
     if not citations:
         return (
-            "Informasi ini belum tersedia dalam dokumen yang saat ini terindeks.",
+            faq_unavailable_answer_text(),
             [],
         )
 
-    answer = GENERATED_SOURCES_SECTION.sub("", _generate_faq_answer(question, evidence)).strip()
+    answer = _strip_generated_sources_section(_generate_faq_answer(question, evidence))
     if citations:
         answer = re.sub(r"\[[nN]\]", f"[{citations[0]['id']}]", answer)
     used_citation_ids = {int(value) for value in re.findall(r"\[(\d+)\]", answer)}

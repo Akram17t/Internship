@@ -9,6 +9,7 @@ from typing import Any
 
 from langchain_chroma import Chroma
 
+from backend.answer_policy import is_unsupported_answer
 from backend.cache_db import (
     clear_semantic_cache,
     get_semantic_cache_entry,
@@ -26,26 +27,6 @@ load_capstone_env()
 logger = logging.getLogger("uvicorn.error")
 _CACHE_LOCK = threading.Lock()
 _CACHE_COLLECTION = "semantic_answer_cache"
-
-UNSUPPORTED_MARKERS = (
-    "tidak tersedia dalam dokumen",
-    "tidak tersedia di dokumen",
-    "tidak disebutkan",
-    "tidak dinyatakan",
-    "tidak ada ketentuan",
-    "tidak dapat menemukan informasi terkait hal tersebut",
-    "tidak ada informasi",
-    "tidak memuat",
-    "tidak mencakup",
-    "tidak menjelaskan",
-    "tanpa menyebutkan",
-    "tidak ditemukan",
-    "belum tersedia",
-    "belum dapat dikonfirmasi",
-    "tidak dapat dikonfirmasi",
-    "dokumen yang terindeks tidak",
-    "dokumen terindeks tidak",
-)
 
 
 @dataclass(frozen=True)
@@ -86,13 +67,8 @@ def _embed_model_name() -> str:
     return get_required_env("EMBED_MODEL")
 
 
-def _is_unsupported_answer(answer: str) -> bool:
-    normalized = " ".join(answer.lower().split())
-    return any(marker in normalized for marker in UNSUPPORTED_MARKERS)
-
-
 def _is_cacheable(answer: str, citations: list[dict[str, object]]) -> bool:
-    return bool(answer.strip()) and bool(citations) and not _is_unsupported_answer(answer)
+    return bool(answer.strip()) and bool(citations) and not is_unsupported_answer(answer)
 
 
 def _normalize_cache_question(question: str) -> str:

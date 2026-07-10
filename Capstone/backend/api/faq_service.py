@@ -6,6 +6,7 @@ from urllib.parse import quote
 
 from fastapi import HTTPException
 
+from backend.answer_policy import is_unsupported_answer
 from backend.api.core import ASSETS_DIR
 from backend.api.models import AdminFAQPayload, CitationResponse, FAQItem
 
@@ -13,17 +14,7 @@ from backend.api.models import AdminFAQPayload, CitationResponse, FAQItem
 def _is_unusable_faq_answer(answer: str, citations: list[CitationResponse]) -> bool:
     # Tolak jawaban FAQ yang tidak punya evidence atau terlalu generik.
     normalized = " ".join(answer.lower().split())
-    blocked_phrases = (
-        "informasi ini belum tersedia",
-        "informasi tersebut tidak tersedia",
-        "tidak tersedia dalam dokumen",
-        "tidak ditemukan dalam dokumen",
-        "pertanyaan anda tidak jelas",
-        "mohon berikan detail",
-        "berikan detail lebih lanjut",
-        "[nama perusahaan]",
-    )
-    return not citations or any(phrase in normalized for phrase in blocked_phrases)
+    return not citations or is_unsupported_answer(answer) or "[nama perusahaan]" in normalized
 
 
 def _build_faq_item(payload: AdminFAQPayload, faq_id: str | None = None) -> FAQItem:

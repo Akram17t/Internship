@@ -9,6 +9,7 @@ from urllib.parse import quote, unquote
 
 from fastapi import HTTPException
 
+from backend.answer_policy import is_unsupported_answer
 from backend.api.core import EMBEDDABLE_EXTENSIONS, LIBRARY_EXTENSIONS, MAX_DOCUMENT_BYTES, ROOT_DIR
 from backend.api.models import FormDownloadResponse, LibraryItem
 from backend.settings import get_env
@@ -179,27 +180,7 @@ def _selected_form_downloads(
 
 def _answer_has_supported_form_context(answer: str) -> bool:
     # Sembunyikan form download jika jawabannya sebenarnya fallback tanpa sumber.
-    normalized = " ".join(answer.lower().split())
-    unsupported_markers = (
-        "tidak tersedia dalam dokumen",
-        "tidak tersedia di dokumen",
-        "tidak disebutkan",
-        "tidak dinyatakan",
-        "tidak ada ketentuan",
-        "tidak dapat menemukan informasi terkait hal tersebut",
-        "tidak ada informasi",
-        "tidak memuat",
-        "tidak mencakup",
-        "tidak menjelaskan",
-        "tanpa menyebutkan",
-        "tidak ditemukan",
-        "belum tersedia",
-        "belum dapat dikonfirmasi",
-        "tidak dapat dikonfirmasi",
-        "dokumen yang terindeks tidak",
-        "dokumen terindeks tidak",
-    )
-    return not any(marker in normalized for marker in unsupported_markers)
+    return not is_unsupported_answer(answer)
 
 
 def _resolve_document_path(document_path: str) -> Path:
