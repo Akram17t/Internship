@@ -25,6 +25,9 @@ const state = {
   activeRequestStartedAt: null,
   activeLoadingStageTimeouts: [],
   activeAutoAskRun: null,
+  stickToBottom: true,
+  chatScrollBound: false,
+  activeReveal: null,
   conversationId: loadConversationId(),
   messages: loadMessages(),
   documents: [],
@@ -202,9 +205,7 @@ function bindChat() {
 
 function normalizeAutoAskQuestions(input) {
   if (Array.isArray(input)) {
-    return input
-      .map((item) => String(item || "").trim())
-      .filter(Boolean);
+    return input.map((item) => String(item || "").trim()).filter(Boolean);
   }
 
   if (typeof input === "string") {
@@ -333,6 +334,8 @@ async function submitQuestion(rawQuestion) {
     },
   );
   elements.chatInput.value = "";
+  // Saat user mengirim pertanyaan, selalu bawa tampilan ke bawah dulu.
+  state.stickToBottom = true;
   renderMessages("smooth");
   beginLoadingStages();
 
@@ -364,9 +367,13 @@ async function submitQuestion(rawQuestion) {
         state.conversationId,
       );
     }
-    replaceLoading({
+
+    const fullText = payload.answer || "No answer was returned.";
+    // Ganti bubble loading dengan pesan mode "streaming", lalu ketik bertahap.
+    const streamMessage = {
       role: "assistant",
-      content: payload.answer || "No answer was returned.",
+      streaming: true,
+      content: "",
       citations: Array.isArray(payload.citations) ? payload.citations : [],
       form_downloads: Array.isArray(payload.form_downloads)
         ? payload.form_downloads
@@ -374,7 +381,13 @@ async function submitQuestion(rawQuestion) {
       flowcharts: Array.isArray(payload.flowcharts) ? payload.flowcharts : [],
       duration_ms: Math.round(performance.now() - startedAt),
       timestamp: "Just now",
-    });
+    };
+    clearLoadingStages();
+    replaceLoading(streamMessage);
+    await animateAssistantReveal(streamMessage, fullText);
+    // Selesai mengetik: matikan mode streaming agar render final (markdown kaya).
+    streamMessage.streaming = false;
+    streamMessage.content = fullText;
   } catch (error) {
     if (error.name === "AbortError") return;
     replaceLoading({
@@ -400,6 +413,12 @@ async function submitQuestion(rawQuestion) {
 function stopGeneration() {
   if (!state.isSubmitting) return;
 
+  // Jika jawaban sudah tiba dan sedang dianimasikan, cukup tuntaskan seketika.
+  if (state.activeReveal) {
+    state.activeReveal.finish();
+    return;
+  }
+
   const durationMs = state.activeRequestStartedAt
     ? Math.round(performance.now() - state.activeRequestStartedAt)
     : undefined;
@@ -424,9 +443,71 @@ function stopGeneration() {
 }
 
 function replaceLoading(message) {
-  const index = state.messages.findIndex((item) => item.loading);
+  const index = state.messages.findIndex(
+    (item) => item.loading || item.streaming,
+  );
   if (index === -1) state.messages.push(message);
   else state.messages.splice(index, 1, message);
+}
+
+function animateAssistantReveal(message, fullText) {
+  // Ungkap jawaban penuh secara bertahap (efek mengetik) lalu selesai.
+  // Jawaban sudah lengkap dari server; ini murni animasi tampilan.
+  return new Promise((resolve) => {
+    message.loading = false;
+    message.streaming = true;
+    message.content = "";
+    message.timestamp = "Just now";
+    renderMessages("auto");
+
+    const bubble = elements.chatThread.querySelector(
+      ".message:last-child .message-bubble",
+    );
+    const charsPerSecond = 50;
+    const minStep = 1;
+    let shown = 0;
+    let last = performance.now();
+    let frame = null;
+
+    const paint = () => {
+      message.content = fullText.slice(0, shown);
+      if (bubble) bubble.textContent = message.content;
+      if (state.stickToBottom) {
+        elements.chatThread.scrollTop = elements.chatThread.scrollHeight;
+      }
+    };
+
+    const finish = () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      frame = null;
+      shown = fullText.length;
+      paint();
+      state.activeReveal = null;
+      resolve();
+    };
+
+    const step = (now) => {
+      const delta = now - last;
+      last = now;
+      shown = Math.min(
+        fullText.length,
+        shown + Math.max(minStep, Math.round((charsPerSecond * delta) / 1000)),
+      );
+      paint();
+      if (shown >= fullText.length) {
+        finish();
+        return;
+      }
+      frame = window.requestAnimationFrame(step);
+    };
+
+    state.activeReveal = { finish };
+    if (!fullText) {
+      finish();
+      return;
+    }
+    frame = window.requestAnimationFrame(step);
+  });
 }
 
 function clearLoadingStages() {
@@ -473,14 +554,20 @@ function renderMessages(scrollBehavior = "auto") {
     article.classList.add(isAssistant ? "is-assistant" : "is-user");
     if (message.loading) {
       article.classList.add("message--loading");
-      bubble.innerHTML =
-        `<span class="loading-dots"><span></span><span></span><span></span></span>${message.loading_text || loadingStageLabels[0]}`;
+      bubble.innerHTML = `<span class="loading-dots"><span></span><span></span><span></span></span>${message.loading_text || loadingStageLabels[0]}`;
+    } else if (message.streaming) {
+      article.classList.add("message--streaming");
+      bubble.classList.add("is-streaming");
+      bubble.textContent = message.content || "";
     } else {
       const formDownloads = normalizeFormDownloads(message.form_downloads);
       bubble.appendChild(
         formatMessage(message.content, message.citations, formDownloads),
       );
-      renderFormDownloads(bubble, formDownloads.filter((item) => !item.used));
+      renderFormDownloads(
+        bubble,
+        formDownloads.filter((item) => !item.used),
+      );
       renderFlowchartScreenshots(bubble, message.flowcharts);
     }
 
@@ -530,12 +617,34 @@ function renderFlowchartScreenshots(container, flowcharts) {
   });
 }
 
-function scrollChatToBottom(behavior = "auto") {
+function isNearChatBottom(threshold = 120) {
+  const thread = elements.chatThread;
+  if (!thread) return true;
+  return (
+    thread.scrollHeight - thread.scrollTop - thread.clientHeight <= threshold
+  );
+}
+
+function bindChatAutoScroll() {
+  // Lacak apakah user sedang di dekat bawah; kalau scroll ke atas, jangan diseret balik.
+  if (state.chatScrollBound || !elements.chatThread) return;
+  state.chatScrollBound = true;
+  elements.chatThread.addEventListener(
+    "scroll",
+    () => {
+      state.stickToBottom = isNearChatBottom();
+    },
+    { passive: true },
+  );
+}
+
+function scrollChatToBottom(behavior = "auto", { force = false } = {}) {
+  bindChatAutoScroll();
+  if (!force && !state.stickToBottom) return;
+
   const scrollToLatest = () => {
-    const lastMessage = elements.chatThread.lastElementChild;
-    lastMessage?.scrollIntoView({ behavior, block: "end" });
+    if (!force && !state.stickToBottom) return;
     elements.chatThread.scrollTop = elements.chatThread.scrollHeight;
-    elements.chatScreen.scrollTop = elements.chatScreen.scrollHeight;
     document.scrollingElement?.scrollTo({
       top: document.scrollingElement.scrollHeight,
       behavior: "auto",
@@ -544,10 +653,11 @@ function scrollChatToBottom(behavior = "auto") {
 
   window.requestAnimationFrame(() => {
     scrollToLatest();
-    window.setTimeout(scrollToLatest, 60);
-    window.setTimeout(scrollToLatest, 180);
-    window.setTimeout(scrollToLatest, 320);
-    window.setTimeout(scrollToLatest, 520);
+    // Susulan singkat untuk konten yang muncul belakangan (chip/flowchart) di render final.
+    if (behavior === "smooth") {
+      window.setTimeout(scrollToLatest, 120);
+      window.setTimeout(scrollToLatest, 320);
+    }
   });
 }
 
@@ -568,7 +678,8 @@ function renderMessageCitations(container, citations) {
 function createCitationChip(citation, index, isInline = false) {
   const fileType = getCitationFileType(citation);
   const canOpenDocument = Boolean(citation.download_url) && isAdminSession();
-  const isPublicForm = Boolean(citation.download_url) && isFormSource(citation.source);
+  const isPublicForm =
+    Boolean(citation.download_url) && isFormSource(citation.source);
   const chip = isPublicForm
     ? document.createElement("a")
     : document.createElement("button");
@@ -695,7 +806,10 @@ function createFormDownloadChip(item, isInline = false) {
   link.href = item.download_url || "#";
   link.target = "_blank";
   link.rel = "noopener";
-  link.setAttribute("aria-label", `Download ${item.label || item.name || "form"}`);
+  link.setAttribute(
+    "aria-label",
+    `Download ${item.label || item.name || "form"}`,
+  );
   link.title = `Download ${item.label || item.name || "form"}`;
 
   const icon = document.createElement("span");
@@ -713,7 +827,10 @@ function createFormDownloadChip(item, isInline = false) {
 
 function isFormSource(source) {
   // Template form dikenali dari awalan nama file "Form" (semua dokumen kini PDF).
-  return String(source || "").trim().toLowerCase().startsWith("form");
+  return String(source || "")
+    .trim()
+    .toLowerCase()
+    .startsWith("form");
 }
 
 function getCitationFileType(citation) {
@@ -755,10 +872,26 @@ function formatMessage(content, citations = [], formDownloads = []) {
   const lines = String(content).split(/\r?\n/);
   const citationMap = buildCitationMap(citations);
   let list = null;
+  let listType = null;
+
+  const appendListItem = (tag, text, startNumber) => {
+    if (!list || listType !== tag) {
+      list = document.createElement(tag);
+      list.className = "message-list";
+      if (tag === "ol" && startNumber > 1) list.start = startNumber;
+      wrapper.appendChild(list);
+      listType = tag;
+    }
+    const item = document.createElement("li");
+    appendFormattedText(item, text, citationMap, formDownloads);
+    list.appendChild(item);
+  };
+
   for (let index = 0; index < lines.length; index += 1) {
     const tableRange = getMarkdownTableRange(lines, index);
     if (tableRange) {
       list = null;
+      listType = null;
       wrapper.appendChild(
         createMarkdownTable(
           lines.slice(tableRange.start, tableRange.end),
@@ -770,20 +903,45 @@ function formatMessage(content, citations = [], formDownloads = []) {
       continue;
     }
 
-    const line = lines[index];
-    const value = line.trim();
-    if (!value) continue;
-    if (value.startsWith("- ")) {
-      if (!list) {
-        list = document.createElement("ul");
-        wrapper.appendChild(list);
-      }
-      const item = document.createElement("li");
-      appendFormattedText(item, value.slice(2), citationMap, formDownloads);
-      list.appendChild(item);
+    const value = lines[index].trim();
+    if (!value) {
+      list = null;
+      listType = null;
       continue;
     }
+
+    const heading = value.match(/^(#{1,6})\s+(.*)$/);
+    if (heading) {
+      list = null;
+      listType = null;
+      const element = document.createElement(
+        heading[1].length <= 2 ? "h3" : "h4",
+      );
+      element.className = "message-heading";
+      appendFormattedText(
+        element,
+        heading[2].trim(),
+        citationMap,
+        formDownloads,
+      );
+      wrapper.appendChild(element);
+      continue;
+    }
+
+    const ordered = value.match(/^(\d+)[.)]\s+(.*)$/);
+    if (ordered) {
+      appendListItem("ol", ordered[2].trim(), Number(ordered[1]) || 1);
+      continue;
+    }
+
+    const bullet = value.match(/^[-*•]\s+(.*)$/);
+    if (bullet) {
+      appendListItem("ul", bullet[1].trim());
+      continue;
+    }
+
     list = null;
+    listType = null;
     const paragraph = document.createElement("p");
     appendFormattedText(paragraph, value, citationMap, formDownloads);
     wrapper.appendChild(paragraph);
@@ -805,7 +963,9 @@ function getMarkdownTableRange(lines, start) {
 
 function isMarkdownTableRow(line) {
   const value = String(line || "").trim();
-  return value.startsWith("|") && value.endsWith("|") && value.split("|").length > 3;
+  return (
+    value.startsWith("|") && value.endsWith("|") && value.split("|").length > 3
+  );
 }
 
 function isMarkdownTableSeparator(line) {
@@ -867,17 +1027,26 @@ function buildCitationMap(citations) {
   );
 }
 
+function sanitizeMarkdownEmphasis(text) {
+  return String(text)
+    .replace(/(^|[\s(])\*\*\*([^*\n]+?)\*\*\*(?=$|[\s.,;:!?)]|$)/g, "$1**$2**")
+    .replace(/(^|[\s(])\*([^*\n]+?)\*\*\*(?=$|[\s.,;:!?)]|$)/g, "$1**$2**")
+    .replace(/(^|[\s(])\*\*\*([^*\n]+?)\*(?=$|[\s.,;:!?)]|$)/g, "$1**$2**");
+}
+
 function appendFormattedText(container, text, citationMap, formDownloads = []) {
-  const formMatches = findFormDownloadMatches(text, formDownloads);
-  const tokenPattern = /(\[(\d+)\]|\*\*([^*]+)\*\*|\*([^*\s][^*]*?)\*)/g;
+  const safeText = sanitizeMarkdownEmphasis(text);
+  const formMatches = findFormDownloadMatches(safeText, formDownloads);
+  const tokenPattern =
+    /(\[(\d+)\]|\*\*([^*\n]+?)\*([^*\n]+?)\*\*\*|\*\*([^*]+)\*\*|\*([^*\s][^*]*?)\*)/g;
   let cursor = 0;
-  let match = tokenPattern.exec(text);
+  let match = tokenPattern.exec(safeText);
 
   while (match) {
     if (match.index > cursor) {
       appendTextWithFormChips(
         container,
-        text.slice(cursor, match.index),
+        safeText.slice(cursor, match.index),
         cursor,
         formMatches,
       );
@@ -892,24 +1061,41 @@ function appendFormattedText(container, text, citationMap, formDownloads = []) {
       } else {
         container.append(document.createTextNode(match[0]));
       }
-    } else if (match[3]) {
+    } else if (match[3] || match[4]) {
       const strong = document.createElement("strong");
-      appendTextWithFormChips(strong, match[3], match.index + 2, formMatches);
-      container.append(strong);
-    } else if (match[4]) {
+      appendTextWithFormChips(
+        strong,
+        match[3] || "",
+        match.index + 2,
+        formMatches,
+      );
       const emphasis = document.createElement("em");
-      appendTextWithFormChips(emphasis, match[4], match.index + 1, formMatches);
+      appendTextWithFormChips(
+        emphasis,
+        match[4] || "",
+        match.index + 2 + (match[3] || "").length + 1,
+        formMatches,
+      );
+      strong.append(emphasis);
+      container.append(strong);
+    } else if (match[5]) {
+      const strong = document.createElement("strong");
+      appendTextWithFormChips(strong, match[5], match.index + 2, formMatches);
+      container.append(strong);
+    } else if (match[6]) {
+      const emphasis = document.createElement("em");
+      appendTextWithFormChips(emphasis, match[6], match.index + 1, formMatches);
       container.append(emphasis);
     }
 
     cursor = tokenPattern.lastIndex;
-    match = tokenPattern.exec(text);
+    match = tokenPattern.exec(safeText);
   }
 
-  if (cursor < text.length) {
+  if (cursor < safeText.length) {
     appendTextWithFormChips(
       container,
-      text.slice(cursor),
+      safeText.slice(cursor),
       cursor,
       formMatches,
     );
@@ -1090,7 +1276,9 @@ async function uploadPinnedFaqImage(file) {
     });
     const payload = await readJsonResponse(response);
     if (!response.ok)
-      throw new Error(formatApiError(payload.detail, "Gagal mengunggah gambar."));
+      throw new Error(
+        formatApiError(payload.detail, "Gagal mengunggah gambar."),
+      );
     showFaqStatus("Gambar FAQ diperbarui.");
     await loadFaqs();
   } catch (error) {
@@ -1298,7 +1486,10 @@ async function saveFaq(event) {
       failure.status = response.status;
       throw failure;
     }
-    if (responsePayload.item && !hasFaqEvidence(normalizeFaq(responsePayload.item))) {
+    if (
+      responsePayload.item &&
+      !hasFaqEvidence(normalizeFaq(responsePayload.item))
+    ) {
       throw new Error(
         "FAQ tidak disimpan karena tidak ada sumber dari dokumen terindeks.",
       );
@@ -1406,7 +1597,8 @@ async function deleteFaq(item) {
       },
     );
     const payload = await readJsonResponse(response);
-    if (!response.ok) throw new Error(formatApiError(payload.detail, "FAQ delete failed."));
+    if (!response.ok)
+      throw new Error(formatApiError(payload.detail, "FAQ delete failed."));
     showFaqStatus(payload.message || "FAQ deleted.");
     if (state.editingFaqId === item.id) resetFaqForm(false);
     await loadFaqs();
@@ -1570,7 +1762,11 @@ function closeLogoutModal() {
   elements.body.classList.remove("logout-open");
 }
 
-function openDocumentErrorModal(summary, failures = [], title = "Upload belum selesai") {
+function openDocumentErrorModal(
+  summary,
+  failures = [],
+  title = "Upload belum selesai",
+) {
   elements.documentErrorTitle.textContent = title;
   elements.documentErrorSummary.textContent = summary;
   elements.documentErrorList.innerHTML = "";
@@ -1608,7 +1804,12 @@ async function handleAdminLogin(event) {
     });
     const payload = await readJsonResponse(response);
     if (!response.ok) {
-      throw new Error(formatApiError(payload.detail, "Email atau password admin belum cocok."));
+      throw new Error(
+        formatApiError(
+          payload.detail,
+          "Email atau password admin belum cocok.",
+        ),
+      );
     }
 
     state.session = {
@@ -2417,10 +2618,14 @@ async function openFormFillModal(item) {
   elements.formFillModal.setAttribute("aria-hidden", "false");
 
   try {
-    const response = await fetch(`/api/forms/fields?path=${encodeURIComponent(path)}`);
+    const response = await fetch(
+      `/api/forms/fields?path=${encodeURIComponent(path)}`,
+    );
     const payload = await readJsonResponse(response);
     if (!response.ok)
-      throw new Error(formatApiError(payload.detail, "Gagal memuat kolom form."));
+      throw new Error(
+        formatApiError(payload.detail, "Gagal memuat kolom form."),
+      );
     // Ignore a stale response if the user already closed/switched forms.
     if (state.pendingFormFill?.path !== path) return;
     renderFormFillFields(Array.isArray(payload.fields) ? payload.fields : []);
@@ -2468,9 +2673,11 @@ async function submitFormFill(event) {
   if (!pending) return;
 
   const values = {};
-  elements.formFillFields.querySelectorAll("input[data-key]").forEach((input) => {
-    values[input.dataset.key] = input.value.trim();
-  });
+  elements.formFillFields
+    .querySelectorAll("input[data-key]")
+    .forEach((input) => {
+      values[input.dataset.key] = input.value.trim();
+    });
 
   try {
     const response = await fetch("/api/forms/fill", {
