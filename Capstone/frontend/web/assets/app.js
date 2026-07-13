@@ -1049,17 +1049,30 @@ function buildCitationMap(citations) {
 }
 
 function sanitizeMarkdownEmphasis(text) {
-  return String(text)
+  const preservedNestedSegments = [];
+  const value = String(text).replace(
+    /\*\*[^*\n]*\*[^*\n]+\*[^*\n]*\*\*/g,
+    (match) => {
+      const token = `__MD_NESTED_${preservedNestedSegments.length}__`;
+      preservedNestedSegments.push(match);
+      return token;
+    },
+  );
+
+  return value
     .replace(/(^|[\s(])\*\*\*([^*\n]+?)\*\*\*(?=$|[\s.,;:!?)]|$)/g, "$1**$2**")
     .replace(/(^|[\s(])\*([^*\n]+?)\*\*\*(?=$|[\s.,;:!?)]|$)/g, "$1**$2**")
-    .replace(/(^|[\s(])\*\*\*([^*\n]+?)\*(?=$|[\s.,;:!?)]|$)/g, "$1**$2**");
+    .replace(/(^|[\s(])\*\*\*([^*\n]+?)\*(?=$|[\s.,;:!?)]|$)/g, "$1**$2**")
+    .replace(/__MD_NESTED_(\d+)__/g, (_, index) => {
+      return preservedNestedSegments[Number(index)] || "";
+    });
 }
 
 function appendFormattedText(container, text, citationMap, formDownloads = []) {
   const safeText = sanitizeMarkdownEmphasis(text);
   const formMatches = findFormDownloadMatches(safeText, formDownloads);
   const tokenPattern =
-    /(\[(\d+)\]|\*\*([^*\n]+?)\*([^*\n]+?)\*\*\*|\*\*([^*]+)\*\*|\*([^*\s][^*]*?)\*)/g;
+    /(\[(\d+)\]|\*\*([^*\n]*?)\*([^*\n]+?)\*([^*\n]*?)\*\*|\*\*([^*]+)\*\*|\*([^*\s][^*]*?)\*)/g;
   let cursor = 0;
   let match = tokenPattern.exec(safeText);
 
@@ -1082,30 +1095,37 @@ function appendFormattedText(container, text, citationMap, formDownloads = []) {
       } else {
         container.append(document.createTextNode(match[0]));
       }
-    } else if (match[3] || match[4]) {
+    } else if (match[4] !== undefined) {
       const strong = document.createElement("strong");
+      const leadingText = match[3] || "";
+      const emphasizedText = match[4] || "";
+      const trailingText = match[5] || "";
+      let strongOffset = match.index + 2;
       appendTextWithFormChips(
         strong,
-        match[3] || "",
-        match.index + 2,
+        leadingText,
+        strongOffset,
         formMatches,
       );
+      strongOffset += leadingText.length + 1;
       const emphasis = document.createElement("em");
       appendTextWithFormChips(
         emphasis,
-        match[4] || "",
-        match.index + 2 + (match[3] || "").length + 1,
+        emphasizedText,
+        strongOffset,
         formMatches,
       );
       strong.append(emphasis);
-      container.append(strong);
-    } else if (match[5]) {
-      const strong = document.createElement("strong");
-      appendTextWithFormChips(strong, match[5], match.index + 2, formMatches);
+      strongOffset += emphasizedText.length + 1;
+      appendTextWithFormChips(strong, trailingText, strongOffset, formMatches);
       container.append(strong);
     } else if (match[6]) {
+      const strong = document.createElement("strong");
+      appendTextWithFormChips(strong, match[6], match.index + 2, formMatches);
+      container.append(strong);
+    } else if (match[7]) {
       const emphasis = document.createElement("em");
-      appendTextWithFormChips(emphasis, match[6], match.index + 1, formMatches);
+      appendTextWithFormChips(emphasis, match[7], match.index + 1, formMatches);
       container.append(emphasis);
     }
 
