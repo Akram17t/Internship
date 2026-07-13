@@ -20,7 +20,8 @@ from backend.api.main import app  # noqa: E402
 
 
 TARGET_FORM_PATH = "Form - Perjalanan Dinas - Penyelesaian (Template).pdf"
-OTHER_FORM_PATH = "Form - Exit Interview (Template).pdf"
+EXIT_INTERVIEW_FORM_PATH = "Form - Exit Interview (Template).pdf"
+OTHER_FORM_PATH = "Form - Backup Log (Template).pdf"
 
 
 def _sample_png_bytes() -> bytes:
@@ -63,6 +64,19 @@ class FormSchemaRouteTests(unittest.TestCase):
         response = self.client.get("/api/forms/schema", params={"path": OTHER_FORM_PATH})
 
         self.assertEqual(response.status_code, 404)
+
+    def test_schema_endpoint_returns_exit_interview_schema(self) -> None:
+        response = self.client.get(
+            "/api/forms/schema",
+            params={"path": EXIT_INTERVIEW_FORM_PATH},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["path"], EXIT_INTERVIEW_FORM_PATH)
+        self.assertEqual(len(payload["pages"]), 2)
+        self.assertTrue(any(field["id"] == "reason_compensation" for field in payload["fields"]))
+        self.assertTrue(any(field["id"] == "company_improvement_notes" for field in payload["fields"]))
 
     def test_fill_endpoint_rejects_unknown_schema_field(self) -> None:
         response = self.client.post(
@@ -124,6 +138,61 @@ class FormSchemaRouteTests(unittest.TestCase):
             self.assertIn("Finance", text)
             self.assertIn("Akram", text)
             self.assertGreater(len(doc[0].get_images(full=True)), 0)
+
+    def test_fill_endpoint_returns_pdf_for_exit_interview_schema(self) -> None:
+        response = self.client.post(
+            "/api/forms/fill",
+            json={
+                "path": EXIT_INTERVIEW_FORM_PATH,
+                "values": {
+                    "form_number": "EI-001",
+                    "employee_name": "Akram",
+                    "employee_nik": "EMP-001",
+                    "last_position": "Software Engineer",
+                    "department": "Professional Service",
+                    "direct_manager": "Budi",
+                    "resign_submitted_date": "2026-07-10",
+                    "last_work_date": "2026-07-31",
+                    "new_company_name": "Contoso",
+                    "new_industry_type": "Teknologi",
+                    "new_position": "Senior Engineer",
+                    "new_company_start_date": "2026-08-15",
+                    "reason_compensation": True,
+                    "reason_other": True,
+                    "reason_explanation": "Mencari tantangan baru dan kompensasi yang lebih baik.",
+                    "retention_feedback": "Skema kerja hybrid mungkin bisa membantu.",
+                    "q_role_understanding_s": True,
+                    "q_workload_ts": True,
+                    "q_manager_support_s": True,
+                    "q_facilities_ss": True,
+                    "q_compensation_ts": True,
+                    "q_career_development_ts": True,
+                    "q_internal_communication_s": True,
+                    "company_improvement_notes": "Pertahankan budaya tim yang suportif.",
+                    "prepared_name": "Akram",
+                    "prepared_role": "HR",
+                    "approved_name": "Budi",
+                    "approved_role": "Manager",
+                    "acknowledged_name": "Citra",
+                    "acknowledged_role": "HRBP",
+                },
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["content-type"], "application/pdf")
+
+        with fitz.open(stream=response.content, filetype="pdf") as doc:
+            self.assertEqual(doc.page_count, 2)
+            first_page_text = doc[0].get_text()
+            second_page_text = doc[1].get_text()
+            self.assertIn("EI-001", first_page_text)
+            self.assertIn("Professional Service", first_page_text)
+            self.assertIn("Contoso", first_page_text)
+            self.assertIn("Akram", first_page_text)
+            self.assertIn("X", first_page_text)
+            self.assertIn("Pertahankan budaya tim yang suportif.", second_page_text)
+            self.assertIn("Manager", second_page_text)
 
 
 class SchemaRenderUnitTests(unittest.TestCase):
