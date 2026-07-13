@@ -1,86 +1,88 @@
-# Backend Topology — ICS SOP & Knowledge Assistant
+# Backend Topology - ICS SOP & Knowledge Assistant
 
-Topologi komponen backend dan alur data utama (chat, FAQ, ingestion). Render
-otomatis di GitHub atau VS Code (ekstensi *Markdown Preview Mermaid*).
+Topologi komponen backend dan alur data utama: chat, semantic cache, FAQ,
+ingestion, flowchart extraction, dan document reindex.
 
 ```mermaid
 flowchart TB
-    Browser["🌐 Browser — UI"]
-    Ollama["🤖 Ollama<br/>LLM + embedding"]
+    Browser["Browser UI"]
+    Ollama["Ollama<br/>LLM + embedding + vision"]
     Reranker["CrossEncoder<br/>reranker"]
 
-    subgraph API["⚙️ FastAPI · api/main.py"]
+    subgraph API["FastAPI - backend/api"]
         direction TB
-        Chat["Chat — /query"]
-        Faq["FAQ — /api/admin/faq"]
-        DocMgmt["Dokumen & reindex"]
+        Chat["routes_public.py<br/>/query"]
+        FlowchartAPI["routes_public.py<br/>/api/flowcharts/{id}"]
+        Faq["routes_admin.py<br/>/api/admin/faq"]
+        DocMgmt["routes_admin.py<br/>document upload/delete/reindex"]
     end
 
-    subgraph Crew["🧠 researcher_crew"]
+    subgraph State["State and cache"]
         direction TB
-        Main["main.py<br/>rewrite · generate"]
-        Retrieve["custom_tool<br/>retrieve_knowledge"]
-        CrewDef["crew.py + config<br/>CrewAI (chat)"]
+        CacheStore["cache_store.py<br/>conversation + FAQ/admin JSON helpers"]
+        CacheDB[("app_state.db<br/>conversation_messages<br/>semantic_cache_entries")]
+        SemanticCache["semantic_cache.py<br/>exact + vector answer cache"]
+        SemanticChroma[("semantic_chroma<br/>question vectors")]
+        FlowchartCache[("cache/flowcharts<br/>vision JSON payloads")]
+        Faqs[("faqs.json")]
     end
 
-    subgraph Prep["📥 preprocessing"]
+    subgraph Crew["researcher_crew"]
+        direction TB
+        Main["main.py<br/>rewrite, cache lookup, generate"]
+        Retrieve["custom_tool.py<br/>retrieve_knowledge"]
+        CrewDef["crew.py + config<br/>CrewAI chat answer"]
+    end
+
+    subgraph Prep["preprocessing"]
         direction LR
-        Loader["loader"] --> Chunker["chunker"] --> Embed["embedding"] --> VStore["vectorstore"]
+        Loader["loader.py"] --> FlowExt["flowchart_extractor.py"] --> Chunker["chunker.py"]
+        Loader --> Chunker
+        Chunker --> Embed["embedding.py"] --> VStore["vectorstore.py"]
     end
 
-    Chroma[("💾 ChromaDB<br/>index vektor")]
-    State[("💾 app_state.db")]
-    Faqs[("💾 faqs.json")]
-    Data[/"📄 data/ — dokumen sumber"/]
+    Data[/"backend/data<br/>SOP + forms"/]
+    Chroma[("backend/chroma_db<br/>SOP vector indexes")]
 
     Browser -->|HTTP| API
+    Chat --> CacheStore
+    CacheStore --> CacheDB
+    Chat --> Main
+    Chat --> FlowchartAPI
+    FlowchartAPI --> FlowchartCache
 
-    Chat -->|run_knowledge_crew| Main
-    Faq -->|run_faq_crew| Main
-    Chat -->|riwayat| State
-    Faq -->|simpan| Faqs
-    DocMgmt --> Prep
-    DocMgmt --> Data
-
-    Main -->|retrieve| Retrieve
-    Main -->|chat: CrewAI| CrewDef
-    Main -->|rewrite + FAQ gen| Ollama
-    CrewDef -->|kickoff| Ollama
-    Retrieve -->|hybrid_search| VStore
+    Main --> SemanticCache
+    SemanticCache --> CacheDB
+    SemanticCache --> SemanticChroma
+    Main --> Retrieve
+    Main --> CrewDef
+    Main --> Ollama
+    CrewDef --> Ollama
+    Retrieve --> VStore
     VStore --> Chroma
-    VStore -->|rerank| Reranker
+    VStore --> Reranker
 
-    Loader -->|baca| Data
-    Embed -->|embed| Ollama
-    VStore -->|tulis index| Chroma
+    Faq --> Main
+    Faq --> Faqs
 
-    classDef ext fill:#e7f0fb,stroke:#2f6fb0,color:#12365e;
-    classDef api fill:#fdeaea,stroke:#c0392b,color:#7b1f16;
-    classDef crew fill:#efe7fb,stroke:#7b4fb0,color:#3d2560;
-    classDef ing fill:#e7f6ec,stroke:#3a9d5d,color:#1d5233;
-    classDef store fill:#fbf3e0,stroke:#c79a2e,color:#6b5111;
-
-    class Browser,Ollama,Reranker ext;
-    class Chat,Faq,DocMgmt api;
-    class Main,Retrieve,CrewDef crew;
-    class Loader,Chunker,Embed,VStore ing;
-    class Chroma,State,Faqs,Data store;
+    DocMgmt --> Data
+    DocMgmt --> Prep
+    Data --> Loader
+    FlowExt --> Ollama
+    FlowExt --> FlowchartCache
+    Embed --> Ollama
+    VStore --> Chroma
+    Prep --> SemanticCache
 ```
 
-## Legenda
+## Alur Ringkas
 
-| Warna | Komponen |
-|---|---|
-| 🔵 Biru | Eksternal — Browser, Ollama, Reranker |
-| 🔴 Merah | FastAPI (`api/main.py`) — chat, FAQ, dokumen |
-| 🟣 Ungu | RAG orchestration (`researcher_crew`) |
-| 🟢 Hijau | Pipeline ingestion (`preprocessing`) |
-| 🟡 Kuning | Penyimpanan — ChromaDB, cache, dokumen |
+- **Chat**: `/query` mengambil conversation context, rewrite follow-up bila perlu, cek semantic cache, lalu hanya menjalankan retrieval + CrewAI/Ollama jika cache miss.
+- **Semantic cache**: payload jawaban ada di `app_state.db`; embedding pertanyaan ada di `backend/cache/semantic_chroma`; cache di-reset setelah reindex.
+- **FAQ**: admin membuat FAQ lewat retrieval + Ollama direct, lalu hasil valid disimpan ke `faqs.json`.
+- **Ingestion**: dokumen di `backend/data/` dimuat, flowchart PDF diekstrak bila enabled, teks di-chunk per section, lalu vector DB SOP dibangun ulang.
+- **Flowchart**: hasil vision disimpan ke `backend/cache/flowcharts`; screenshot hanya dikirim ke chat jika `FLOWCHART_DISPLAY_ENABLED=true`.
+- **Reindex**: upload/update/delete SOP menandai `requires_reindex`; rebuild embeddings membangun index baru dan menghapus semantic cache lama.
 
-## Alur ringkas
-
-- **Chat**: `/query` → `main.py` → rewrite (Ollama) → retrieve (`custom_tool` → `vectorstore` → ChromaDB + reranker) → generate lewat **CrewAI** → simpan riwayat.
-- **FAQ**: `/api/admin/faq` → `main.py` → retrieve → generate **Ollama langsung** → simpan ke `faqs.json`.
-- **Ingestion**: dokumen di `data/` → loader → chunker → embedding (Ollama) → vectorstore → tulis index ke ChromaDB.
-
-Penjelasan per-file detail ada di [BACKEND_FLOW.md](BACKEND_FLOW.md).
+Penjelasan per-file detail ada di [BACKEND_FLOW.md](BACKEND_FLOW.md) dan
+alur runtime cepat ada di [SYSTEM_FLOWS.md](SYSTEM_FLOWS.md).

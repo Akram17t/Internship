@@ -41,6 +41,10 @@ class QueryResponse(BaseModel):
     conversation_id: str
 
 
+class PublicConfigResponse(BaseModel):
+    typing_animation_enabled: bool
+
+
 class FAQItem(BaseModel):
     id: str
     question: str

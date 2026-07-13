@@ -45,7 +45,10 @@ const state = {
   documentUndoStack: [],
   documentChanges: [],
   pendingFormFill: null,
+  typingAnimationEnabled: true,
 };
+
+let publicConfigPromise = null;
 
 const elements = {
   body: document.body,
@@ -122,6 +125,7 @@ const elements = {
 init();
 
 function init() {
+  publicConfigPromise = loadPublicConfig();
   bindNavigation();
   bindChat();
   bindAdminFaqs();
@@ -136,6 +140,18 @@ function init() {
   syncScreenFromHash();
   void loadFaqs();
   window.addEventListener("resize", updateComposer);
+}
+
+async function loadPublicConfig() {
+  try {
+    const response = await fetch("/api/config", { cache: "no-store" });
+    if (!response.ok) return;
+    const payload = await response.json();
+    state.typingAnimationEnabled =
+      payload.typing_animation_enabled !== false;
+  } catch (error) {
+    console.warn("Frontend config gagal dimuat.", error);
+  }
 }
 
 function bindNavigation() {
@@ -369,6 +385,9 @@ async function submitQuestion(rawQuestion) {
     }
 
     const fullText = payload.answer || "No answer was returned.";
+    if (publicConfigPromise) {
+      await publicConfigPromise;
+    }
     // Ganti bubble loading dengan pesan mode "streaming", lalu ketik bertahap.
     const streamMessage = {
       role: "assistant",
@@ -384,8 +403,12 @@ async function submitQuestion(rawQuestion) {
     };
     clearLoadingStages();
     replaceLoading(streamMessage);
-    await animateAssistantReveal(streamMessage, fullText);
-    // Selesai mengetik: matikan mode streaming agar render final (markdown kaya).
+    if (state.typingAnimationEnabled) {
+      await animateAssistantReveal(streamMessage, fullText);
+    } else {
+      streamMessage.content = fullText;
+    }
+    // Selesai menampilkan jawaban: matikan mode streaming agar render final (markdown kaya).
     streamMessage.streaming = false;
     streamMessage.content = fullText;
   } catch (error) {
@@ -837,7 +860,6 @@ function getCitationFileType(citation) {
   const source = String(citation.source || "").toLowerCase();
   if (source.endsWith(".pdf")) return "pdf";
   if (source.endsWith(".doc") || source.endsWith(".docx")) return "doc";
-  if (source.endsWith(".xls") || source.endsWith(".xlsx")) return "sheet";
   if (source.endsWith(".txt")) return "txt";
   return "file";
 }
@@ -845,7 +867,6 @@ function getCitationFileType(citation) {
 function getCitationIcon(fileType) {
   if (fileType === "pdf") return "picture_as_pdf";
   if (fileType === "doc") return "article";
-  if (fileType === "sheet") return "table_chart";
   if (fileType === "txt") return "text_snippet";
   return "description";
 }
@@ -2457,9 +2478,8 @@ function getLibraryIcon(item) {
   const type = String(item.doc_type || "").toLowerCase();
   if (type === "pdf") return "picture_as_pdf";
   if (type === "doc" || type === "docx") return "article";
-  if (type === "xls" || type === "xlsx") return "table_chart";
   if (type === "txt") return "text_snippet";
-  return item.document_kind === "form" ? "table_chart" : "description";
+  return "description";
 }
 
 function renderLibrary() {

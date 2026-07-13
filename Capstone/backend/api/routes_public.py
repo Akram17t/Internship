@@ -22,6 +22,7 @@ from backend.api.models import (
     FlowchartScreenshotResponse,
     FormDownloadResponse,
     FormFillPayload,
+    PublicConfigResponse,
     QueryRequest,
     QueryResponse,
 )
@@ -33,6 +34,7 @@ from backend.api.storage import (
     _resolve_document_path,
     _selected_form_downloads,
 )
+from backend.settings import get_bool_env
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -41,6 +43,14 @@ logger = logging.getLogger("uvicorn.error")
 def health_check() -> dict[str, str]:
     # Probe sederhana untuk mengecek backend hidup.
     return {"status": "ok"}
+
+
+@app.get("/api/config", response_model=PublicConfigResponse)
+def public_config() -> PublicConfigResponse:
+    # Config frontend yang aman dibuka ke browser.
+    return PublicConfigResponse(
+        typing_animation_enabled=get_bool_env("TYPING_ANIMATION_ENABLED", True),
+    )
 
 
 @app.post("/query", response_model=QueryResponse)

@@ -22,7 +22,7 @@ _MIN_FONT_SIZE = 6.0
 
 
 def _page_segments(page, page_number: int) -> list[dict]:
-    """Ambil semua segmen teks (mirip cell) beserta bbox dari satu halaman."""
+    """Ambil semua segmen teks PDF beserta bbox dari satu halaman."""
     segments: list[dict] = []
     for block in page.get_text("rawdict")["blocks"]:
         for line in block.get("lines", []):
@@ -52,7 +52,7 @@ def _clean_label(text: str) -> str | None:
 def _segment_label(field: dict, segments: list[dict]) -> str | None:
     """Cari label teks bersih untuk satu segmen placeholder.
 
-    Urutan pencarian meniru versi Excel: isi bracket dulu, lalu teks terdekat
+    Urutan pencarian: isi bracket dulu, lalu teks terdekat
     di kiri pada baris yang sama, lalu teks tepat di atasnya. Jika tidak ada
     label yang layak, kembalikan None agar segmen itu dilewati.
     """
@@ -155,7 +155,7 @@ def _unique_form_fields(path: Path) -> list[dict[str, str]]:
 
 
 def _fit_font_size(page, field: dict, value: str) -> float:
-    """Perkecil font agar nilai muat sampai batas kanan cell placeholder."""
+    """Perkecil font agar nilai muat sampai batas kanan placeholder."""
     x0, _y0, x1, y1 = field["bbox"]
     field_center_y = (field["bbox"][1] + y1) / 2
     right_boundary = page.rect.width - 40

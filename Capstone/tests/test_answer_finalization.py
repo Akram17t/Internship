@@ -167,6 +167,35 @@ class AnswerFinalizationTests(unittest.TestCase):
             )
         )
 
+    def test_rewrite_is_safe_rejects_scope_injection_for_standalone_question(self) -> None:
+        self.assertFalse(
+            crew_main._rewrite_is_safe(
+                "Dalam manajemen insiden, tugas dan tanggung jawab tiap role itu seperti apa?",
+                "Dalam manajemen insiden, tugas dan tanggung jawab tiap role dalam administrasi karyawan itu seperti apa?",
+            )
+        )
+
+    def test_rewrite_keeps_standalone_question_when_ai_adds_unrelated_context(self) -> None:
+        with patch(
+            "researcher_crew.main._ollama_generate",
+            return_value=(
+                "REWRITE: Apakah ada data perusahaan yang benar-benar nggak boleh "
+                "dibagikan? Jelasin juga batasan sharing data itu sampai mana "
+                "dalam konteks administrasi karyawan baru"
+            ),
+        ):
+            rewritten = crew_main._rewrite_query(
+                "Apakah ada data perusahaan yang benar-benar nggak boleh dibagikan? "
+                "Jelasin juga batasan sharing data itu sampai mana",
+                "Percakapan sebelumnya membahas administrasi karyawan baru.",
+            )
+
+        self.assertEqual(
+            rewritten,
+            "Apakah ada data perusahaan yang benar-benar nggak boleh dibagikan? "
+            "Jelasin juga batasan sharing data itu sampai mana",
+        )
+
     def test_strips_trailing_unsupported_sentence_from_supported_answer(self) -> None:
         answer = (
             "Alur kontrol akses diawali dengan permohonan akses dan persetujuan pemilik aset [1].\n"

@@ -72,7 +72,7 @@ def _iter_library_items() -> list[LibraryItem]:
     for path in sorted(data_dir.rglob("*")):
         if not path.is_file() or path.suffix.lower() not in LIBRARY_EXTENSIONS:
             continue
-        if path.name.startswith("~$"):  # skip Excel lock files
+        if path.name.startswith("~$"):  # skip temporary office lock files
             continue
 
         items.append(_to_library_item(path, data_dir))

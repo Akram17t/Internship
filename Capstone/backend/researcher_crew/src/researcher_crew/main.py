@@ -165,6 +165,32 @@ def _is_referential_token(token: str) -> bool:
     }
 
 
+def _rewrite_may_add_context(original: str) -> bool:
+    """Tentukan apakah rewrite boleh menambah subjek dari percakapan.
+
+    Kita sengaja konservatif: penambahan konteks hanya diizinkan untuk bentuk
+    follow-up yang memang terlihat belum mandiri, misalnya "Form apa buat itu?"
+    atau "Kalau luar negeri gimana?".
+    """
+    normalized = " ".join(re.findall(r"\w+", original.casefold()))
+    original_tokens = re.findall(r"\w+", original.casefold())
+    non_referential_tokens = [
+        token for token in original_tokens if not _is_referential_token(token)
+    ]
+
+    if not non_referential_tokens:
+        return True
+
+    has_referential_token = any(_is_referential_token(token) for token in original_tokens)
+    if has_referential_token and len(non_referential_tokens) <= 5:
+        return True
+
+    if re.match(r"^(?:kalau|terus|lalu|habis|setelah|sesudah|dan)\b", normalized):
+        return len(non_referential_tokens) <= 6
+
+    return False
+
+
 def _rewrite_is_safe(original: str, rewritten: str) -> bool:
     """Tolak hasil rewrite yang menyisipkan isi baru, bukan sekadar merujuk ulang.
 
@@ -180,12 +206,21 @@ def _rewrite_is_safe(original: str, rewritten: str) -> bool:
     if len(rewritten.split()) > 2 * len(original.split()) + 6:
         return False
 
+    original_tokens = set(re.findall(r"\w+", original.casefold()))
     rewritten_tokens = set(re.findall(r"\w+", rewritten.casefold()))
     for token in re.findall(r"\w+", original.casefold()):
         if _is_referential_token(token):
             continue
         if token not in rewritten_tokens:
             return False
+
+    added_tokens = {
+        token
+        for token in rewritten_tokens - original_tokens
+        if not _is_referential_token(token)
+    }
+    if added_tokens and not _rewrite_may_add_context(original):
+        return False
     return True
 
 

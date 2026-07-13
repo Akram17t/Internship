@@ -159,7 +159,7 @@ Exact hit tidak memanggil embedding model maupun Chroma.
 Contoh log:
 
 ```text
-semantic_cache=hit match=exact entry=... active_index=...
+[chat:...] cache   | HIT | sim=1.0000 thr=0.92
 ```
 
 ## Tahap 4: Semantic Lookup
@@ -290,19 +290,36 @@ Pembagian tanggung jawab:
 
 ## Saat SOP Berubah
 
-Reindex membuat nama active index baru.
+Perubahan file SOP belum langsung menghapus cache. Insert/update/delete dokumen
+hanya mengirim `requires_reindex=True` ke frontend. Cache lama dihapus setelah
+admin menjalankan rebuild embeddings.
 
 ```mermaid
 flowchart LR
-    A[SOP diperbarui] --> B[Rebuild vector DB]
-    B --> C[Active index berubah]
-    C --> D[Cache lama punya active index berbeda]
-    D --> E[Cache lama otomatis miss]
-    E --> F[Retrieve SOP terbaru]
-    F --> G[Simpan jawaban cache baru]
+    A[SOP di-insert/update/delete] --> B[Frontend tandai perlu reindex]
+    B --> C[Admin klik Rebuild embeddings]
+    C --> D[Rebuild vector DB]
+    D --> E[Active index berubah]
+    E --> F[reset_semantic_cache]
+    F --> G[Hapus semantic_cache_entries]
+    F --> H[Delete collection semantic_chroma]
+    G --> I[Request berikutnya miss dan retrieve SOP terbaru]
+    H --> I
+    I --> J[Simpan cache baru jika jawaban valid]
 ```
 
-Cache lama tidak harus langsung dihapus. Entry tersebut tidak dipakai karena metadata `active_index` berbeda.
+Walaupun lookup juga tetap memfilter `active_index`, implementasi sekarang tetap
+membersihkan cache lama supaya payload SQLite dan vector cache tidak menumpuk
+lintas rebuild.
+
+Kode terkait:
+
+| Bagian | Lokasi |
+| --- | --- |
+| Tandai butuh reindex | `save_document()` dan `delete_document()` di `backend/api/routes_admin.py` |
+| Trigger rebuild | `reindex_documents()` di `backend/api/routes_admin.py` |
+| Rebuild dan reset cache | `main()` di `backend/preprocessing/ingest.py` |
+| Hapus cache | `reset_semantic_cache()` di `backend/semantic_cache.py` |
 
 ## Conversation Store vs Semantic Cache
 
@@ -329,7 +346,7 @@ Setelah respons selesai, pertanyaan dan jawaban baru ditambahkan ke tabel `conve
 ### Exact hit
 
 ```text
-semantic_cache=hit match=exact entry=... active_index=...
+[chat:...] cache   | HIT | sim=1.0000 thr=0.92
 ```
 
 Makna: normalized question dan seluruh metadata sama. Embedding tidak dipanggil.
@@ -337,7 +354,7 @@ Makna: normalized question dan seluruh metadata sama. Embedding tidak dipanggil.
 ### Semantic hit
 
 ```text
-semantic_cache=hit similarity=0.96 entry=... active_index=...
+[chat:...] cache   | HIT | sim=0.9600 thr=0.92
 ```
 
 Makna: wording berbeda, tetapi similarity melewati threshold dan seluruh guard valid.
@@ -345,7 +362,7 @@ Makna: wording berbeda, tetapi similarity melewati threshold dan seluruh guard v
 ### Di bawah threshold
 
 ```text
-semantic_cache=miss reason=below_threshold similarity=0.71 entry=...
+[chat:...] cache   | MISS (below_threshold) | sim=0.7100 thr=0.92
 ```
 
 Makna: Chroma menemukan kandidat, tetapi kemiripannya belum cukup aman.
@@ -353,17 +370,17 @@ Makna: Chroma menemukan kandidat, tetapi kemiripannya belum cukup aman.
 ### Index berbeda
 
 ```text
-semantic_cache=miss reason=index_mismatch cached_index=... active_index=...
+[chat:...] cache   | MISS (index_mismatch) | sim=...
 ```
 
 Makna: SOP telah direindex sehingga jawaban lama tidak boleh digunakan.
-Log ini sekarang seharusnya jarang muncul karena entry index lama sudah disaring
-sebelum vector search.
+Log ini seharusnya jarang muncul karena entry index lama difilter sebelum vector
+search dan cache juga di-reset setelah rebuild.
 
 ### Model berbeda
 
 ```text
-semantic_cache=miss reason=model_mismatch
+[chat:...] cache   | MISS (model_mismatch) | sim=...
 ```
 
 Makna: model generasi atau embedding berubah.
@@ -371,7 +388,7 @@ Makna: model generasi atau embedding berubah.
 ### Payload tidak aman
 
 ```text
-semantic_cache=miss reason=uncacheable_payload
+[chat:...] cache   | MISS (uncacheable) | sim=...
 ```
 
 Makna: payload kosong, citation hilang, atau jawaban merupakan fallback.
@@ -442,7 +459,7 @@ Skenario manual:
 7. Tanya topik mirip tetapi berbeda maksud.
 8. Pastikan tidak terjadi cache hit yang salah.
 9. Reindex SOP.
-10. Pastikan entry cache dari index lama tidak digunakan.
+10. Pastikan log reset muncul dan request berikutnya miss sebelum menyimpan cache baru.
 ```
 
 ## Ringkasan Satu Kalimat

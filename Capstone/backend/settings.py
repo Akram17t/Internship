@@ -51,3 +51,13 @@ def get_float_env(name: str, default: float) -> float:
         return float(raw_value)
     except ValueError as error:
         raise RuntimeError(f"{name} must be a number in {ENV_FILE}") from error
+
+
+def get_bool_env(name: str, default: bool) -> bool:
+    # Ambil env boolean umum seperti true/false, yes/no, atau 1/0.
+    raw_value = get_env(name, "true" if default else "false").lower()
+    if raw_value in {"1", "true", "yes", "on"}:
+        return True
+    if raw_value in {"0", "false", "no", "off"}:
+        return False
+    raise RuntimeError(f"{name} must be a boolean in {ENV_FILE}")

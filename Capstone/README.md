@@ -16,7 +16,7 @@ Architecture and design docs, including a topology diagram, are in [docs/ARCHITE
 
 1. Create a virtual environment and install dependencies from `requirements.txt`.
 2. Copy `.env.example` to `.env` and adjust values if needed.
-3. Put PDF or DOCX files into `backend/data/`.
+3. Put SOP/knowledge PDF or DOCX files into `backend/data/`; PDF forms should use filenames starting with `Form`.
 4. Run ingestion:
 
 ```bash
@@ -43,11 +43,16 @@ clean.bat
 - `run.bat` uses `backend\researcher_crew\.venv`, checks the required imports, reads `CHROMA_DIR` and `DATA_DIR` from `.env`, runs ingestion only when no valid vector index exists, then starts FastAPI and opens the web frontend in your browser.
 - `clean.bat` stops the server, removes `__pycache__`, `.pytest_cache`, and `*.pyc`, and clears the `CHROMA_DIR` vector index (keeping `.gitkeep`) so the next `run.bat` re-ingests documents.
 
+## Frontend Config
+
+- `TYPING_ANIMATION_ENABLED=true` keeps the assistant typing reveal enabled.
+- Set `TYPING_ANIMATION_ENABLED=false` to show full answers immediately.
+
 ## Frontend Pages
 
 - `Chat`: main conversational interface connected to `POST /query`
 - `FAQ`: curated operational starter questions
-- `Library`: indexed source document list with download links from `backend/data`
+- `Library`: admin document/form list with download links from `backend/data`
 
 ## Structure
 
