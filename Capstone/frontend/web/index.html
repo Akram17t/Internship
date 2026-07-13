@@ -499,10 +499,24 @@
           close
         </button>
         <span class="auth-kicker">Isi Form</span>
-        <h2 id="formFillTitle">Isi data untuk form</h2>
+        <h2 id="formFillTitle">Editor form PDF</h2>
         <p class="form-fill-sub" id="formFillSubtitle"></p>
-        <form class="auth-form" id="formFillForm">
-          <div class="form-fill-fields" id="formFillFields"></div>
+        <p class="form-fill-note" id="formFillStatus" hidden></p>
+        <form class="auth-form form-editor-form" id="formFillForm">
+          <div class="form-editor-layout">
+            <section class="form-preview-panel" aria-label="Preview PDF">
+              <div class="form-preview-toolbar">
+                <span class="material-symbols-outlined" aria-hidden="true">
+                  picture_as_pdf
+                </span>
+                Preview template
+              </div>
+              <div class="form-preview-scroll" id="formFillPreview"></div>
+            </section>
+            <section class="form-fields-panel" aria-label="Field form">
+              <div class="form-fill-fields" id="formFillFields"></div>
+            </section>
+          </div>
           <button class="auth-submit" type="submit">
             <span class="material-symbols-outlined">download</span>
             Download form terisi
@@ -511,6 +525,7 @@
       </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
     <script src="/assets/app.js"></script>
   </body>
 </html>

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -31,6 +33,42 @@ class FlowchartScreenshotResponse(BaseModel):
     section: str = ""
     confidence: float = 0
     image_url: str
+
+
+class FormSchemaRect(BaseModel):
+    x: float
+    y: float
+    width: float
+    height: float
+
+
+class FormSchemaPage(BaseModel):
+    number: int
+    width: float
+    height: float
+
+
+class FormSchemaField(BaseModel):
+    id: str
+    label: str
+    type: Literal["text", "textarea", "date", "checkbox", "signature_image"]
+    page: int
+    rect: FormSchemaRect
+    required: bool = False
+    section: str = ""
+    placeholder: str | None = None
+    font_size: float | None = None
+    align: Literal["left", "center", "right"] | None = None
+    line_height: float | None = None
+    clear: bool = True
+    clear_padding: float = 1.0
+
+
+class FormSchemaResponse(BaseModel):
+    path: str
+    title: str
+    pages: list[FormSchemaPage] = Field(default_factory=list)
+    fields: list[FormSchemaField] = Field(default_factory=list)
 
 
 class QueryResponse(BaseModel):
@@ -108,4 +146,4 @@ class AdminReindexResponse(BaseModel):
 
 class FormFillPayload(BaseModel):
     path: str = Field(..., min_length=1)
-    values: dict[str, str] = Field(default_factory=dict)
+    values: dict[str, str | bool] = Field(default_factory=dict)

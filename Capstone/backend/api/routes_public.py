@@ -1,17 +1,27 @@
 from __future__ import annotations
 
+import json
 import logging
 import time
 from urllib.parse import quote
 
-from fastapi import Header, HTTPException
+from fastapi import Header, HTTPException, Request
 from fastapi.responses import FileResponse, Response
+from pydantic import ValidationError
 
 from backend.api.auth import _require_admin
 from backend.api.cache_store import _append_conversation_turn, _clean_conversation_id, _get_conversation_context, _load_faqs
 from backend.api.core import FAQ_LOCK, FRONTEND_DIR, app
 from backend.api.faq_service import _pinned_faq_items
-from backend.api.forms_service import PDF_MIME, _fill_form_placeholders, _resolve_form_path, _unique_form_fields
+from backend.api.forms_service import (
+    PDF_MIME,
+    _fill_form_placeholders,
+    _resolve_form_path,
+    _unique_form_fields,
+    fill_schema_form,
+    get_form_schema,
+    has_schema_form,
+)
 from backend.api.flowchart_service import (
     find_flowcharts_for_citations,
     get_flowchart_image,
@@ -22,6 +32,7 @@ from backend.api.models import (
     FlowchartScreenshotResponse,
     FormDownloadResponse,
     FormFillPayload,
+    FormSchemaResponse,
     PublicConfigResponse,
     QueryRequest,
     QueryResponse,
@@ -37,6 +48,20 @@ from backend.api.storage import (
 from backend.settings import get_bool_env
 
 logger = logging.getLogger("uvicorn.error")
+
+
+def _filled_form_filename(path: str, values: dict[str, str | bool]) -> str:
+    resolved_path = _resolve_form_path(path)
+    first_value = next(
+        (
+            str(value).strip()
+            for value in values.values()
+            if isinstance(value, str) and value.strip()
+        ),
+        "",
+    )
+    suffix = f" - {first_value}" if first_value else ""
+    return f"{resolved_path.stem}{suffix}.pdf"
 
 
 @app.get("/health")
@@ -164,17 +189,68 @@ def form_fields(path: str) -> dict[str, object]:
     return {"fields": _unique_form_fields(resolved_path)}
 
 
+@app.get("/api/forms/schema", response_model=FormSchemaResponse)
+def form_schema(path: str) -> FormSchemaResponse:
+    return FormSchemaResponse(**get_form_schema(path))
+
+
 @app.post("/api/forms/fill")
-def fill_form(payload: FormFillPayload) -> Response:
+async def fill_form(request: Request) -> Response:
     # Isi template form di memory lalu kembalikan file PDF hasilnya.
-    resolved_path = _resolve_form_path(payload.path)
-    content = _fill_form_placeholders(resolved_path, payload.values)
-    nama = next(
-        (v.strip() for v in payload.values.values() if v.strip()),
-        "",
-    )
-    suffix = f" - {nama}" if nama else ""
-    filename = f"{resolved_path.stem}{suffix}.pdf"
+    content_type = request.headers.get("content-type", "").lower()
+    if "multipart/form-data" in content_type:
+        form = await request.form()
+        raw_payload = form.get("payload")
+        if raw_payload is None:
+            raise HTTPException(status_code=422, detail="Payload form tidak ditemukan.")
+
+        try:
+            payload = FormFillPayload.model_validate(json.loads(str(raw_payload)))
+        except (ValidationError, json.JSONDecodeError) as error:
+            raise HTTPException(status_code=422, detail="Payload form tidak valid.") from error
+
+        resolved_path = _resolve_form_path(payload.path)
+        signature_files: dict[str, dict[str, object]] = {}
+        for key, value in form.multi_items():
+            if key == "payload" or not hasattr(value, "filename"):
+                continue
+            content = await value.read()
+            signature_files[key] = {
+                "filename": value.filename or "",
+                "content_type": value.content_type or "",
+                "content": content,
+            }
+            await value.close()
+        if has_schema_form(resolved_path):
+            content = fill_schema_form(resolved_path, payload.values, signature_files)
+        else:
+            content = _fill_form_placeholders(
+                resolved_path,
+                {
+                    key: str(value).strip()
+                    for key, value in payload.values.items()
+                    if isinstance(value, str)
+                },
+            )
+    else:
+        try:
+            payload = FormFillPayload.model_validate(await request.json())
+        except (ValidationError, json.JSONDecodeError) as error:
+            raise HTTPException(status_code=422, detail="Payload form tidak valid.") from error
+
+        resolved_path = _resolve_form_path(payload.path)
+        if has_schema_form(resolved_path):
+            content = fill_schema_form(resolved_path, payload.values, {})
+        else:
+            content = _fill_form_placeholders(
+                resolved_path,
+                {
+                    key: str(value).strip()
+                    for key, value in payload.values.items()
+                    if isinstance(value, str)
+                },
+            )
+    filename = _filled_form_filename(payload.path, payload.values)
     return Response(
         content=content,
         media_type=PDF_MIME,

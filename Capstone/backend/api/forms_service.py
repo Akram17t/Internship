@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
+from typing import Any
 
 import fitz  # PyMuPDF
 from fastapi import HTTPException
 
-from backend.api.storage import _document_kind_for_path, _resolve_document_path
+from backend.api.storage import (
+    _document_kind_for_path,
+    _get_data_dir,
+    _resolve_document_path,
+)
 
 PDF_MIME = "application/pdf"
 
@@ -16,9 +22,13 @@ FORM_PLACEHOLDER_PATTERN = re.compile(r"\[[^\[\]]*\]")
 # Placeholder inline seperti "Nama: [ ]" atau header dilewati agar form tetap singkat.
 FORM_FIELD_CELL_PATTERN = re.compile(r"^\[[^\[\]]*\]$")
 
+FORM_FIELD_TYPES = {"text", "textarea", "date", "checkbox", "signature_image"}
+IMAGE_CONTENT_TYPES = {"image/png", "image/jpeg", "image/jpg"}
+
 # Helvetica bawaan PDF dipakai untuk menulis nilai agar tidak perlu embed font.
 _FILL_FONT = "helv"
 _MIN_FONT_SIZE = 6.0
+_ALIGNMENTS = {"left": 0, "center": 1, "right": 2}
 
 
 def _page_segments(page, page_number: int) -> list[dict]:
@@ -217,3 +227,338 @@ def _resolve_form_path(path: str) -> Path:
     ):
         raise HTTPException(status_code=400, detail="Dokumen ini bukan form yang bisa diisi.")
     return resolved_path
+
+
+def _form_schema_dir() -> Path:
+    return Path(__file__).resolve().parent.parent / "form_schemas"
+
+
+def _relative_form_path(path: Path) -> str:
+    return path.resolve().relative_to(_get_data_dir().resolve()).as_posix()
+
+
+def _coerce_checkbox(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+    if isinstance(value, (int, float)):
+        return bool(value)
+    return False
+
+
+def _rect_from_schema(rect: dict[str, Any]) -> fitz.Rect:
+    x = float(rect["x"])
+    y = float(rect["y"])
+    width = float(rect["width"])
+    height = float(rect["height"])
+    return fitz.Rect(x, y, x + width, y + height)
+
+
+def _public_field(field: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": str(field["id"]),
+        "label": str(field["label"]),
+        "type": str(field["type"]),
+        "page": int(field["page"]),
+        "rect": {
+            "x": float(field["rect"]["x"]),
+            "y": float(field["rect"]["y"]),
+            "width": float(field["rect"]["width"]),
+            "height": float(field["rect"]["height"]),
+        },
+        "required": bool(field.get("required", False)),
+        "section": str(field.get("section") or ""),
+        "placeholder": str(field.get("placeholder") or "") or None,
+        "font_size": float(field.get("font_size") or 10),
+        "align": str(field.get("align") or "left"),
+        "line_height": float(field.get("line_height") or 1.08),
+        "clear": bool(field.get("clear", True)),
+        "clear_padding": max(float(field.get("clear_padding") or 1.0), 0.0),
+    }
+
+
+def _validate_schema_payload(payload: dict[str, Any], schema_path: Path) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=500, detail=f"Schema {schema_path.name} tidak valid.")
+    path = str(payload.get("path") or "").strip()
+    title = str(payload.get("title") or "").strip()
+    pages = payload.get("pages")
+    fields = payload.get("fields")
+    if not path or not title or not isinstance(pages, list) or not isinstance(fields, list):
+        raise HTTPException(status_code=500, detail=f"Schema {schema_path.name} tidak lengkap.")
+
+    normalized_pages: list[dict[str, Any]] = []
+    for page in pages:
+        if not isinstance(page, dict):
+            raise HTTPException(status_code=500, detail=f"Schema {schema_path.name} tidak valid.")
+        normalized_pages.append(
+            {
+                "number": int(page["number"]),
+                "width": float(page["width"]),
+                "height": float(page["height"]),
+            }
+        )
+    page_numbers = {page["number"] for page in normalized_pages}
+
+    normalized_fields: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    for field in fields:
+        if not isinstance(field, dict):
+            raise HTTPException(status_code=500, detail=f"Schema {schema_path.name} tidak valid.")
+        field_id = str(field.get("id") or "").strip()
+        field_type = str(field.get("type") or "").strip()
+        page_number = int(field.get("page"))
+        rect = field.get("rect")
+        if (
+            not field_id
+            or field_id in seen_ids
+            or field_type not in FORM_FIELD_TYPES
+            or page_number not in page_numbers
+            or not isinstance(rect, dict)
+        ):
+            raise HTTPException(status_code=500, detail=f"Schema {schema_path.name} tidak valid.")
+        seen_ids.add(field_id)
+        normalized_fields.append(
+            {
+                "id": field_id,
+                "label": str(field.get("label") or field_id),
+                "type": field_type,
+                "page": page_number,
+                "rect": {
+                    "x": float(rect["x"]),
+                    "y": float(rect["y"]),
+                    "width": float(rect["width"]),
+                    "height": float(rect["height"]),
+                },
+                "required": bool(field.get("required", False)),
+                "section": str(field.get("section") or ""),
+                "placeholder": str(field.get("placeholder") or "") or None,
+                "font_size": float(field.get("font_size") or 10),
+                "align": str(field.get("align") or "left"),
+                "line_height": float(field.get("line_height") or 1.08),
+                "clear": bool(field.get("clear", True)),
+                "clear_padding": max(float(field.get("clear_padding") or 1.0), 0.0),
+            }
+        )
+
+    return {
+        "path": path,
+        "title": title,
+        "pages": normalized_pages,
+        "fields": normalized_fields,
+    }
+
+
+def _load_form_schema_payloads() -> list[dict[str, Any]]:
+    schema_dir = _form_schema_dir()
+    if not schema_dir.exists():
+        return []
+
+    payloads: list[dict[str, Any]] = []
+    for schema_path in sorted(schema_dir.glob("*.json")):
+        payload = json.loads(schema_path.read_text(encoding="utf-8"))
+        payloads.append(_validate_schema_payload(payload, schema_path))
+    return payloads
+
+
+def _schema_for_resolved_path(path: Path) -> dict[str, Any] | None:
+    relative_path = _relative_form_path(path)
+    for payload in _load_form_schema_payloads():
+        if payload["path"] == relative_path:
+            return payload
+    return None
+
+
+def _schema_field_map(schema: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    return {str(field["id"]): field for field in schema["fields"]}
+
+
+def has_schema_form(path: Path) -> bool:
+    return _schema_for_resolved_path(path) is not None
+
+
+def get_form_schema(path: str) -> dict[str, Any]:
+    resolved_path = _resolve_form_path(path)
+    schema = _schema_for_resolved_path(resolved_path)
+    if schema is None:
+        raise HTTPException(status_code=404, detail="Schema editor belum tersedia untuk form ini.")
+    return {
+        "path": schema["path"],
+        "title": schema["title"],
+        "pages": schema["pages"],
+        "fields": [_public_field(field) for field in schema["fields"]],
+    }
+
+
+def _shape_text_fits(
+    page: fitz.Page,
+    rect: fitz.Rect,
+    value: str,
+    *,
+    font_size: float,
+    align: str,
+    line_height: float,
+) -> fitz.Shape | None:
+    shape = page.new_shape()
+    spare = shape.insert_textbox(
+        rect,
+        value,
+        fontname=_FILL_FONT,
+        fontsize=font_size,
+        color=(0, 0, 0),
+        align=_ALIGNMENTS.get(align, 0),
+        lineheight=line_height,
+    )
+    return shape if spare >= 0 else None
+
+
+def _clear_rect_for_field(field: dict[str, Any]) -> fitz.Rect:
+    rect = _rect_from_schema(field["rect"])
+    padding = max(float(field.get("clear_padding") or 0.0), 0.0)
+    if padding <= 0:
+        return rect
+    return fitz.Rect(
+        rect.x0 - padding,
+        rect.y0 - padding,
+        rect.x1 + padding,
+        rect.y1 + padding,
+    )
+
+
+def _write_text_field(page: fitz.Page, field: dict[str, Any], value: str) -> None:
+    rect = _rect_from_schema(field["rect"])
+    font_size = float(field.get("font_size") or 10)
+    line_height = float(field.get("line_height") or 1.08)
+    align = str(field.get("align") or "left")
+
+    chosen_shape: fitz.Shape | None = None
+    current_size = font_size
+    while current_size >= _MIN_FONT_SIZE:
+        chosen_shape = _shape_text_fits(
+            page,
+            rect,
+            value,
+            font_size=current_size,
+            align=align,
+            line_height=line_height,
+        )
+        if chosen_shape is not None:
+            break
+        current_size -= 0.5
+
+    if field.get("clear", True):
+        page.draw_rect(_clear_rect_for_field(field), color=None, fill=(1, 1, 1))
+
+    if chosen_shape is None:
+        chosen_shape = page.new_shape()
+        chosen_shape.insert_textbox(
+            rect,
+            value,
+            fontname=_FILL_FONT,
+            fontsize=_MIN_FONT_SIZE,
+            color=(0, 0, 0),
+            align=_ALIGNMENTS.get(align, 0),
+            lineheight=line_height,
+        )
+    chosen_shape.commit(overlay=True)
+
+
+def _write_checkbox(page: fitz.Page, field: dict[str, Any]) -> None:
+    rect = _rect_from_schema(field["rect"])
+    if field.get("clear", True):
+        page.draw_rect(_clear_rect_for_field(field), color=None, fill=(1, 1, 1))
+
+    font_size = max(min(rect.height * 0.95, 16), _MIN_FONT_SIZE)
+    text_width = fitz.get_text_length("X", fontname=_FILL_FONT, fontsize=font_size)
+    page.insert_text(
+        (
+            rect.x0 + max((rect.width - text_width) / 2, 0),
+            rect.y1 - max((rect.height - font_size) / 2.8, 1),
+        ),
+        "X",
+        fontname=_FILL_FONT,
+        fontsize=font_size,
+        color=(0, 0, 0),
+    )
+
+
+def _write_signature_image(page: fitz.Page, field: dict[str, Any], image_content: bytes) -> None:
+    rect = _rect_from_schema(field["rect"])
+    if field.get("clear", True):
+        page.draw_rect(_clear_rect_for_field(field), color=None, fill=(1, 1, 1))
+    page.insert_image(rect, stream=image_content, keep_proportion=True, overlay=True)
+
+
+def _validate_schema_values(
+    schema: dict[str, Any],
+    values: dict[str, str | bool],
+    signature_files: dict[str, dict[str, Any]],
+) -> None:
+    field_map = _schema_field_map(schema)
+    unknown_values = sorted(key for key in values if key not in field_map)
+    if unknown_values:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Field tidak dikenal: {', '.join(unknown_values)}.",
+        )
+
+    invalid_signature_keys = sorted(
+        key
+        for key in signature_files
+        if key not in field_map or field_map[key]["type"] != "signature_image"
+    )
+    if invalid_signature_keys:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Upload signature tidak valid untuk field: {', '.join(invalid_signature_keys)}.",
+        )
+
+
+def fill_schema_form(
+    path: Path,
+    values: dict[str, str | bool],
+    signature_files: dict[str, dict[str, Any]],
+) -> bytes:
+    schema = _schema_for_resolved_path(path)
+    if schema is None:
+        raise HTTPException(status_code=404, detail="Schema editor belum tersedia untuk form ini.")
+
+    for field_id, file_payload in signature_files.items():
+        content_type = str(file_payload.get("content_type") or "").lower()
+        if content_type not in IMAGE_CONTENT_TYPES:
+            raise HTTPException(
+                status_code=422,
+                detail=f'Field "{field_id}" harus berupa PNG atau JPEG.',
+            )
+        if not isinstance(file_payload.get("content"), bytes) or not file_payload["content"]:
+            raise HTTPException(
+                status_code=422,
+                detail=f'File untuk field "{field_id}" kosong.',
+            )
+
+    _validate_schema_values(schema, values, signature_files)
+
+    doc = fitz.open(path)
+    try:
+        for field in schema["fields"]:
+            page = doc[int(field["page"])]
+            field_id = str(field["id"])
+            field_type = str(field["type"])
+            if field_type == "signature_image":
+                upload = signature_files.get(field_id)
+                if upload is None:
+                    continue
+                _write_signature_image(page, field, upload["content"])
+                continue
+            if field_type == "checkbox":
+                if _coerce_checkbox(values.get(field_id)):
+                    _write_checkbox(page, field)
+                continue
+            value = str(values.get(field_id) or "").strip()
+            if not value:
+                continue
+            _write_text_field(page, field, value)
+        return doc.tobytes(deflate=True)
+    finally:
+        doc.close()

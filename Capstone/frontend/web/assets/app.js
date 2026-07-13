@@ -3,6 +3,8 @@ const AUTH_STORAGE_KEY = "ics-hr-ai-auth-v1";
 const CONVERSATION_STORAGE_KEY = "ics-hr-ai-conversation-v1";
 const REINDEX_STORAGE_KEY = "ics-hr-ai-reindex-required-v1";
 const MOBILE_QUERY = "(max-width: 640px)";
+const PDFJS_WORKER_URL =
+  "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 
 const initialMessages = [];
 
@@ -49,6 +51,11 @@ const state = {
 };
 
 let publicConfigPromise = null;
+let formFillResizeTimeout = null;
+
+if (window.pdfjsLib?.GlobalWorkerOptions) {
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
+}
 
 const elements = {
   body: document.body,
@@ -106,7 +113,10 @@ const elements = {
   formFillModal: document.getElementById("formFillModal"),
   formFillForm: document.getElementById("formFillForm"),
   formFillCloseButton: document.getElementById("formFillCloseButton"),
+  formFillTitle: document.getElementById("formFillTitle"),
   formFillSubtitle: document.getElementById("formFillSubtitle"),
+  formFillStatus: document.getElementById("formFillStatus"),
+  formFillPreview: document.getElementById("formFillPreview"),
   formFillFields: document.getElementById("formFillFields"),
   adminDocumentPanel: document.getElementById("adminDocumentPanel"),
   adminDocumentForm: document.getElementById("adminDocumentForm"),
@@ -1752,6 +1762,7 @@ function bindAuth() {
     if (elements.accountPanel.contains(event.target)) return;
     closeAccountPopover();
   });
+  window.addEventListener("resize", handleFormFillResize);
 }
 
 function toggleAccountPopover() {
@@ -2648,43 +2659,349 @@ function formPathFromUrl(url) {
   return String(url || "").replace(/^\/api\/documents\//, "");
 }
 
+function setFormFillStatus(message = "", isError = false) {
+  elements.formFillStatus.hidden = !message;
+  elements.formFillStatus.textContent = message;
+  elements.formFillStatus.classList.toggle("is-error", Boolean(message) && isError);
+}
+
+function renderFormFillNote(container, message) {
+  container.innerHTML = "";
+  const note = document.createElement("p");
+  note.className = "form-fill-note";
+  note.textContent = message;
+  container.appendChild(note);
+}
+
+async function fetchFormSchema(path) {
+  const response = await fetch(`/api/forms/schema?path=${encodeURIComponent(path)}`, {
+    cache: "no-store",
+    headers: adminAuthHeaders(),
+  });
+  if (response.status === 404) return null;
+
+  const payload = await readJsonResponse(response);
+  if (!response.ok) {
+    throw new Error(formatApiError(payload.detail, "Gagal memuat schema form."));
+  }
+  return payload;
+}
+
 async function openFormFillModal(item) {
   const path = formPathFromUrl(item.download_url);
-  state.pendingFormFill = { path, label: item.label || item.name || "Form" };
-  elements.formFillSubtitle.textContent = "";
-  elements.formFillFields.innerHTML =
-    '<p class="form-fill-note">Memuat kolom dari form…</p>';
+  const pending = {
+    path,
+    label: item.label || item.name || "Form",
+    downloadUrl: item.download_url || "",
+    mode: "legacy",
+    schema: null,
+    fieldById: new Map(),
+    activeFieldId: "",
+    fieldElements: new Map(),
+    overlayElements: new Map(),
+    previewValueElements: new Map(),
+    previewSignatureUrls: new Map(),
+    renderVersion: 0,
+  };
+
+  state.pendingFormFill = pending;
+  elements.formFillTitle.textContent = "Editor form PDF";
+  elements.formFillSubtitle.textContent = pending.label;
+  setFormFillStatus("");
+  renderFormFillNote(elements.formFillPreview, "Memuat preview form…");
+  renderFormFillNote(elements.formFillFields, "Memuat kolom form…");
   elements.formFillModal.classList.add("is-open");
   elements.formFillModal.setAttribute("aria-hidden", "false");
 
   try {
-    const response = await fetch(
-      `/api/forms/fields?path=${encodeURIComponent(path)}`,
-    );
-    const payload = await readJsonResponse(response);
-    if (!response.ok)
-      throw new Error(
-        formatApiError(payload.detail, "Gagal memuat kolom form."),
+    const schema = await fetchFormSchema(path);
+    if (state.pendingFormFill !== pending) return;
+
+    if (schema) {
+      pending.mode = "schema";
+      pending.schema = schema;
+      elements.formFillTitle.textContent = schema.title || "Editor form PDF";
+      elements.formFillSubtitle.textContent =
+        "Isi field di panel kanan, upload tanda tangan bila ada, lalu unduh PDF hasilnya.";
+      renderSchemaFormFields(pending);
+      await renderSchemaPreview(pending);
+      const firstControl = elements.formFillFields.querySelector(
+        "input:not([type='file']), textarea",
       );
-    // Ignore a stale response if the user already closed/switched forms.
-    if (state.pendingFormFill?.path !== path) return;
-    renderFormFillFields(Array.isArray(payload.fields) ? payload.fields : []);
+      if (firstControl) window.setTimeout(() => firstControl.focus(), 0);
+      return;
+    }
+
+    const response = await fetch(`/api/forms/fields?path=${encodeURIComponent(path)}`, {
+      cache: "no-store",
+      headers: adminAuthHeaders(),
+    });
+    const payload = await readJsonResponse(response);
+    if (!response.ok) {
+      throw new Error(formatApiError(payload.detail, "Gagal memuat kolom form."));
+    }
+    if (state.pendingFormFill !== pending) return;
+    elements.formFillSubtitle.textContent =
+      "Template ini masih memakai mode isi form sederhana tanpa preview PDF.";
+    renderLegacyFormFillFields(Array.isArray(payload.fields) ? payload.fields : []);
+    renderFormFillNote(
+      elements.formFillPreview,
+      "Preview editor belum tersedia untuk template ini.",
+    );
   } catch (error) {
-    elements.formFillFields.innerHTML = "";
-    const note = document.createElement("p");
-    note.className = "form-fill-note";
-    note.textContent = error.message || "Gagal memuat kolom form.";
-    elements.formFillFields.appendChild(note);
+    if (state.pendingFormFill !== pending) return;
+    renderFormFillNote(
+      elements.formFillFields,
+      error.message || "Gagal memuat editor form.",
+    );
+    renderFormFillNote(elements.formFillPreview, "Preview form belum bisa dimuat.");
+    setFormFillStatus(error.message || "Gagal memuat editor form.", true);
   }
 }
 
-function renderFormFillFields(fields) {
+function groupSchemaFields(fields) {
+  const sections = new Map();
+  fields.forEach((field) => {
+    const section = field.section || "Field";
+    if (!sections.has(section)) sections.set(section, []);
+    sections.get(section).push(field);
+  });
+  return sections;
+}
+
+function getSchemaFieldControl(fieldId) {
+  return elements.formFillFields.querySelector(
+    `[data-field-id="${fieldId}"] input, [data-field-id="${fieldId}"] textarea`,
+  );
+}
+
+function revokePreviewSignatureUrl(pending, fieldId) {
+  const url = pending.previewSignatureUrls.get(fieldId);
+  if (url) {
+    URL.revokeObjectURL(url);
+    pending.previewSignatureUrls.delete(fieldId);
+  }
+}
+
+function syncPreviewValue(fieldId) {
+  const pending = state.pendingFormFill;
+  if (!pending) return;
+  const field = pending.fieldById.get(fieldId);
+  const previewElement = pending.previewValueElements.get(fieldId);
+  if (!field || !previewElement) return;
+
+  if (field.type === "signature_image") {
+    const image = previewElement.querySelector("img");
+    const file = getSchemaFieldControl(fieldId)?.files?.[0];
+    revokePreviewSignatureUrl(pending, fieldId);
+    if (file && image) {
+      const url = URL.createObjectURL(file);
+      pending.previewSignatureUrls.set(fieldId, url);
+      image.src = url;
+      image.alt = field.label;
+      previewElement.hidden = false;
+      previewElement.classList.add("has-value");
+    } else if (image) {
+      image.removeAttribute("src");
+      image.alt = "";
+      previewElement.hidden = true;
+      previewElement.classList.remove("has-value");
+    }
+    return;
+  }
+
+  const control = getSchemaFieldControl(fieldId);
+  if (!control) return;
+  let value = "";
+  if (field.type === "checkbox") {
+    value = control.checked ? "X" : "";
+  } else {
+    value = control.value || "";
+  }
+  previewElement.textContent = value;
+  previewElement.hidden = !value;
+  previewElement.classList.toggle("has-value", Boolean(value));
+}
+
+function syncAllPreviewValues(pending) {
+  pending.fieldById.forEach((_field, fieldId) => {
+    syncPreviewValue(fieldId);
+  });
+}
+
+function scrollFormFieldIntoView(fieldElement, { smooth = true } = {}) {
+  const container = elements.formFillFields;
+  if (!container || !fieldElement) return;
+
+  const containerRect = container.getBoundingClientRect();
+  const fieldRect = fieldElement.getBoundingClientRect();
+  const currentTop = container.scrollTop;
+  const offsetTop = fieldRect.top - containerRect.top;
+  const centeredTop =
+    currentTop +
+    offsetTop -
+    Math.max((container.clientHeight - fieldRect.height) / 2, 28);
+
+  container.scrollTo({
+    top: Math.max(0, centeredTop),
+    behavior: smooth ? "smooth" : "auto",
+  });
+}
+
+function setActiveFormField(fieldId, { focus = false, smooth = true } = {}) {
+  const pending = state.pendingFormFill;
+  if (!pending || !fieldId) return;
+  pending.activeFieldId = fieldId;
+
+  pending.fieldElements.forEach((element, id) => {
+    element.classList.toggle("is-active", id === fieldId);
+  });
+  pending.overlayElements.forEach((element, id) => {
+    element.classList.toggle("is-active", id === fieldId);
+  });
+
+  const fieldElement = pending.fieldElements.get(fieldId);
+  scrollFormFieldIntoView(fieldElement, { smooth });
+  if (focus && fieldElement) {
+    fieldElement.querySelector("input, textarea")?.focus({ preventScroll: true });
+  }
+
+  pending.overlayElements.get(fieldId)?.scrollIntoView({
+    block: "center",
+    inline: "center",
+    behavior: smooth ? "smooth" : "auto",
+  });
+}
+
+function createSchemaFieldElement(field, pending) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "form-editor-field";
+  wrapper.dataset.fieldId = field.id;
+  wrapper.dataset.fieldType = field.type;
+
+  const heading = document.createElement("div");
+  heading.className = "form-editor-field-label";
+  const labelText = document.createElement("span");
+  labelText.textContent = field.label;
+  heading.appendChild(labelText);
+  wrapper.appendChild(heading);
+
+  if (field.placeholder) {
+    const hint = document.createElement("p");
+    hint.className = "form-editor-field-hint";
+    hint.textContent = field.placeholder;
+    wrapper.appendChild(hint);
+  }
+
+  let control;
+  if (field.type === "textarea") {
+    control = document.createElement("textarea");
+    control.rows = 4;
+    wrapper.appendChild(control);
+  } else if (field.type === "date") {
+    control = document.createElement("input");
+    control.type = "date";
+    wrapper.appendChild(control);
+  } else if (field.type === "checkbox") {
+    const row = document.createElement("label");
+    row.className = "form-editor-checkbox";
+    control = document.createElement("input");
+    control.type = "checkbox";
+    const description = document.createElement("span");
+    description.textContent = "Centang untuk menandai field ini.";
+    row.append(control, description);
+    wrapper.appendChild(row);
+  } else if (field.type === "signature_image") {
+    control = document.createElement("input");
+    control.type = "file";
+    control.accept = "image/png,image/jpeg";
+    const meta = document.createElement("div");
+    meta.className = "form-editor-file-meta";
+    meta.textContent = "Upload file PNG atau JPEG.";
+    wrapper.append(control, meta);
+    control.addEventListener("change", () => {
+      const file = control.files?.[0];
+      meta.textContent = file
+        ? `${file.name} • ${Math.max(1, Math.round(file.size / 1024))} KB`
+        : "Upload file PNG atau JPEG.";
+      setActiveFormField(field.id, { smooth: false });
+      syncPreviewValue(field.id);
+    });
+  } else {
+    control = document.createElement("input");
+    control.type = "text";
+    wrapper.appendChild(control);
+  }
+
+  if (control && field.type !== "checkbox" && field.type !== "signature_image") {
+    control.placeholder = field.placeholder || "";
+  }
+
+  if (control) {
+    control.name = field.id;
+    control.dataset.fieldId = field.id;
+    control.addEventListener("focus", () =>
+      setActiveFormField(field.id, { smooth: false }),
+    );
+    control.addEventListener("click", () =>
+      setActiveFormField(field.id, { smooth: false }),
+    );
+    if (field.type === "checkbox") {
+      control.addEventListener("change", () => syncPreviewValue(field.id));
+    } else {
+      control.addEventListener("input", () => syncPreviewValue(field.id));
+      control.addEventListener("change", () => syncPreviewValue(field.id));
+    }
+    if (field.type === "checkbox") {
+      control.addEventListener("change", () =>
+        setActiveFormField(field.id, { smooth: false }),
+      );
+    }
+  }
+
+  wrapper.addEventListener("click", () => setActiveFormField(field.id, { focus: false }));
+  pending.fieldElements.set(field.id, wrapper);
+  return wrapper;
+}
+
+function renderSchemaFormFields(pending) {
+  pending.fieldElements = new Map();
+  pending.fieldById = new Map();
+  elements.formFillFields.innerHTML = "";
+  const fields = Array.isArray(pending.schema?.fields) ? pending.schema.fields : [];
+  if (!fields.length) {
+    renderFormFillNote(elements.formFillFields, "Schema form tidak punya field.");
+    return;
+  }
+
+  fields.forEach((field) => pending.fieldById.set(field.id, field));
+
+  groupSchemaFields(fields).forEach((sectionFields, sectionName) => {
+    const section = document.createElement("section");
+    section.className = "form-fields-section";
+
+    const title = document.createElement("h3");
+    title.className = "form-fields-section-title";
+    title.textContent = sectionName;
+    section.appendChild(title);
+
+    const grid = document.createElement("div");
+    grid.className = "form-field-grid";
+    sectionFields.forEach((field) => {
+      grid.appendChild(createSchemaFieldElement(field, pending));
+    });
+    section.appendChild(grid);
+    elements.formFillFields.appendChild(section);
+  });
+}
+
+function renderLegacyFormFillFields(fields) {
   elements.formFillFields.innerHTML = "";
   if (!fields.length) {
-    const note = document.createElement("p");
-    note.className = "form-fill-note";
-    note.textContent = "Form ini tidak punya kolom isian yang terdeteksi.";
-    elements.formFillFields.appendChild(note);
+    renderFormFillNote(
+      elements.formFillFields,
+      "Form ini tidak punya kolom isian yang terdeteksi.",
+    );
     return;
   }
   fields.forEach((field) => {
@@ -2701,10 +3018,163 @@ function renderFormFillFields(fields) {
   if (firstInput) window.setTimeout(() => firstInput.focus(), 0);
 }
 
+async function renderSchemaPreview(pending) {
+  if (!window.pdfjsLib?.getDocument) {
+    renderFormFillNote(
+      elements.formFillPreview,
+      "Library preview PDF tidak tersedia di browser ini.",
+    );
+    return;
+  }
+
+  const renderVersion = pending.renderVersion + 1;
+  pending.renderVersion = renderVersion;
+  pending.overlayElements = new Map();
+  pending.previewValueElements = new Map();
+  renderFormFillNote(elements.formFillPreview, "Memuat preview PDF…");
+
+  try {
+    const response = await fetch(pending.downloadUrl, {
+      cache: "no-store",
+      headers: adminAuthHeaders(),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const pdfBytes = new Uint8Array(await response.arrayBuffer());
+    const pdf = await window.pdfjsLib.getDocument({ data: pdfBytes }).promise;
+    if (state.pendingFormFill !== pending || pending.renderVersion !== renderVersion) {
+      return;
+    }
+
+    elements.formFillPreview.innerHTML = "";
+    const pages = Array.isArray(pending.schema?.pages) ? pending.schema.pages : [];
+    const widestPage = Math.max(
+      ...(pages.length ? pages.map((page) => Number(page.width) || 612) : [612]),
+    );
+    const containerWidth = Math.max(elements.formFillPreview.clientWidth - 28, 280);
+    const scale = Math.min(1.5, containerWidth / widestPage);
+    const outputScale = window.devicePixelRatio || 1;
+
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      const page = await pdf.getPage(pageNumber);
+      const viewport = page.getViewport({ scale });
+
+      const pageElement = document.createElement("div");
+      pageElement.className = "form-preview-page";
+      pageElement.style.width = `${viewport.width}px`;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.floor(viewport.width * outputScale);
+      canvas.height = Math.floor(viewport.height * outputScale);
+      canvas.style.width = `${viewport.width}px`;
+      canvas.style.height = `${viewport.height}px`;
+      pageElement.appendChild(canvas);
+
+      const overlay = document.createElement("div");
+      overlay.className = "form-preview-overlay";
+      pageElement.appendChild(overlay);
+      elements.formFillPreview.appendChild(pageElement);
+
+      const context = canvas.getContext("2d");
+      await page.render({
+        canvasContext: context,
+        viewport,
+        transform:
+          outputScale === 1 ? null : [outputScale, 0, 0, outputScale, 0, 0],
+      }).promise;
+
+      const pageFields = (pending.schema?.fields || []).filter(
+        (field) => Number(field.page) === pageNumber - 1,
+      );
+      pageFields.forEach((field) => {
+        const valueElement = document.createElement("div");
+        valueElement.className = "form-preview-field-value";
+        valueElement.classList.add(`is-${field.type.replace("_", "-")}`);
+        valueElement.classList.add(`is-${field.align || "left"}`);
+        if (field.clear !== false) {
+          valueElement.classList.add("is-clearing");
+        }
+        valueElement.style.left = `${Number(field.rect.x) * scale}px`;
+        valueElement.style.top = `${Number(field.rect.y) * scale}px`;
+        valueElement.style.width = `${Number(field.rect.width) * scale}px`;
+        valueElement.style.height = `${Number(field.rect.height) * scale}px`;
+        valueElement.style.setProperty(
+          "--form-clear-padding",
+          `${Math.max(0, Number(field.clear_padding ?? 1)) * scale}px`,
+        );
+        valueElement.style.fontSize = `${Math.max(
+          8,
+          Number(field.font_size || 10) * scale,
+        )}px`;
+        valueElement.style.lineHeight = `${field.line_height || 1.08}`;
+        valueElement.hidden = true;
+        if (field.type === "signature_image") {
+          valueElement.appendChild(document.createElement("img"));
+        }
+        overlay.appendChild(valueElement);
+        pending.previewValueElements.set(field.id, valueElement);
+
+        const hitbox = document.createElement("button");
+        hitbox.type = "button";
+        hitbox.className = "form-preview-field";
+        hitbox.title = field.label;
+        hitbox.style.left = `${Number(field.rect.x) * scale}px`;
+        hitbox.style.top = `${Number(field.rect.y) * scale}px`;
+        hitbox.style.width = `${Number(field.rect.width) * scale}px`;
+        hitbox.style.height = `${Number(field.rect.height) * scale}px`;
+        hitbox.addEventListener("click", () =>
+          setActiveFormField(field.id, { focus: true }),
+        );
+        overlay.appendChild(hitbox);
+        pending.overlayElements.set(field.id, hitbox);
+      });
+    }
+
+    if ((pending.schema?.fields || []).length) {
+      syncAllPreviewValues(pending);
+      setActiveFormField(
+        pending.activeFieldId || pending.schema.fields[0].id,
+        { smooth: false },
+      );
+    }
+  } catch (error) {
+    if (state.pendingFormFill !== pending || pending.renderVersion !== renderVersion) {
+      return;
+    }
+    renderFormFillNote(
+      elements.formFillPreview,
+      "Preview PDF belum bisa dimuat, tapi field form tetap bisa diisi.",
+    );
+    setFormFillStatus(
+      error.message || "Preview PDF belum bisa dimuat.",
+      true,
+    );
+  }
+}
+
 function closeFormFillModal() {
+  if (state.pendingFormFill) {
+    state.pendingFormFill.previewSignatureUrls.forEach((url) => URL.revokeObjectURL(url));
+  }
   state.pendingFormFill = null;
   elements.formFillModal.classList.remove("is-open");
   elements.formFillModal.setAttribute("aria-hidden", "true");
+  elements.formFillTitle.textContent = "Editor form PDF";
+  elements.formFillSubtitle.textContent = "";
+  setFormFillStatus("");
+  elements.formFillPreview.innerHTML = "";
+  elements.formFillFields.innerHTML = "";
+}
+
+function handleFormFillResize() {
+  const pending = state.pendingFormFill;
+  if (!pending || pending.mode !== "schema" || !pending.schema) return;
+  window.clearTimeout(formFillResizeTimeout);
+  formFillResizeTimeout = window.setTimeout(() => {
+    if (state.pendingFormFill === pending) {
+      renderSchemaPreview(pending);
+    }
+  }, 120);
 }
 
 async function submitFormFill(event) {
@@ -2712,19 +3182,47 @@ async function submitFormFill(event) {
   const pending = state.pendingFormFill;
   if (!pending) return;
 
-  const values = {};
-  elements.formFillFields
-    .querySelectorAll("input[data-key]")
-    .forEach((input) => {
-      values[input.dataset.key] = input.value.trim();
-    });
-
   try {
-    const response = await fetch("/api/forms/fill", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: pending.path, values }),
-    });
+    let response;
+    if (pending.mode === "schema" && pending.schema) {
+      const formData = new FormData();
+      const values = {};
+      (pending.schema.fields || []).forEach((field) => {
+        const control = elements.formFillFields.querySelector(
+          `[data-field-id="${field.id}"] input, [data-field-id="${field.id}"] textarea`,
+        );
+        if (!control) return;
+        if (field.type === "signature_image") {
+          const file = control.files?.[0];
+          if (file) formData.append(field.id, file);
+          return;
+        }
+        if (field.type === "checkbox") {
+          values[field.id] = Boolean(control.checked);
+          return;
+        }
+        values[field.id] = control.value.trim();
+      });
+      formData.append("payload", JSON.stringify({ path: pending.path, values }));
+      response = await fetch("/api/forms/fill", {
+        method: "POST",
+        headers: adminAuthHeaders(),
+        body: formData,
+      });
+    } else {
+      const values = {};
+      elements.formFillFields
+        .querySelectorAll("input[data-key]")
+        .forEach((input) => {
+          values[input.dataset.key] = input.value.trim();
+        });
+      response = await fetch("/api/forms/fill", {
+        method: "POST",
+        headers: adminAuthHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ path: pending.path, values }),
+      });
+    }
+
     if (!response.ok) {
       const payload = await readJsonResponse(response);
       throw new Error(formatApiError(payload.detail, "Gagal mengisi form."));
