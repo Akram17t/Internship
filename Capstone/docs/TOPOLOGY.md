@@ -29,7 +29,7 @@ flowchart TB
     end
 
     Chroma[("💾 ChromaDB<br/>index vektor")]
-    Conv[("💾 conversations.json")]
+    State[("💾 app_state.db")]
     Faqs[("💾 faqs.json")]
     Data[/"📄 data/ — dokumen sumber"/]
 
@@ -37,7 +37,7 @@ flowchart TB
 
     Chat -->|run_knowledge_crew| Main
     Faq -->|run_faq_crew| Main
-    Chat -->|riwayat| Conv
+    Chat -->|riwayat| State
     Faq -->|simpan| Faqs
     DocMgmt --> Prep
     DocMgmt --> Data
@@ -64,7 +64,7 @@ flowchart TB
     class Chat,Faq,DocMgmt api;
     class Main,Retrieve,CrewDef crew;
     class Loader,Chunker,Embed,VStore ing;
-    class Chroma,Conv,Faqs,Data store;
+    class Chroma,State,Faqs,Data store;
 ```
 
 ## Legenda

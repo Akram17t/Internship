@@ -61,8 +61,8 @@ Helper untuk file dan library:
 
 Helper cache lokal:
 - `admin.json`: `_load_admin_config()`, `_save_admin_config()`
-- `conversations.json`: `_load_conversations()`, `_save_conversations()`,
-  `_get_conversation_context()`, `_append_conversation_turn()`
+- context percakapan: `_get_conversation_context()`,
+  `_append_conversation_turn()` via `backend/cache_db.py`
 - `faqs.json`: `_load_faqs()`, `_save_faqs()`, `_find_faq_index()`
 - helper normalisasi citation dan FAQ
 
@@ -131,10 +131,10 @@ Alurnya:
 
 ```text
 1. Bersihkan / buat conversation_id
-2. Ambil context percakapan dari conversations.json
+2. Ambil context percakapan dari SQLite `app_state.db`
 3. Kumpulkan semua form xlsx yang tersedia
 4. Kirim question + context + katalog form ke run_knowledge_crew()
-5. Simpan turn baru ke conversations.json
+5. Simpan turn baru ke SQLite `app_state.db`
 6. Bentuk CitationResponse untuk frontend
 7. Jika jawaban supported, map selected_forms dari AI ke form_downloads
 8. Return answer + citations + form_downloads + conversation_id
@@ -283,7 +283,7 @@ Retrieval evidence:
 |---|---|
 | `backend/data/` | Dokumen sumber dan template form |
 | `backend/chroma_db/` | ChromaDB + marker active index |
-| `backend/cache/conversations.json` | Riwayat percakapan |
+| `backend/cache/app_state.db` | Riwayat percakapan + semantic cache |
 | `backend/cache/faqs.json` | FAQ tersimpan |
 | `backend/cache/admin.json` | Config admin lokal |
 

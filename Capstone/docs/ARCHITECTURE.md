@@ -21,7 +21,7 @@ flowchart TB
 
     subgraph Services["API services"]
         STORAGE["storage.py<br/>dokumen, library, form catalog"]
-        CACHE["cache_store.py<br/>conversation, faq, admin.json"]
+        CACHE["cache_store.py<br/>conversation state, faq, admin.json"]
         AUTH["auth.py<br/>token admin"]
         FAQSVC["faq_service.py<br/>build FAQ, pinned FAQ"]
         FORMSVC["forms_service.py<br/>scan/fill xlsx"]
@@ -87,7 +87,7 @@ flowchart TB
 | Public routes | `backend/api/routes_public.py` | Chat, FAQ publik, download dokumen, form fill, root UI |
 | Admin routes | `backend/api/routes_admin.py` | Login admin, FAQ admin, library, upload/delete docs, reindex |
 | Storage helpers | `backend/api/storage.py` | Dokumen, library, form catalog, path validation |
-| Cache helpers | `backend/api/cache_store.py` | `conversations.json`, `faqs.json`, `admin.json` |
+| Cache helpers | `backend/api/cache_store.py` | Context percakapan via `backend/cache_db.py`, plus `faqs.json` dan `admin.json` |
 | Auth helpers | `backend/api/auth.py` | Token admin, signing, verification |
 | FAQ helpers | `backend/api/faq_service.py` | Build FAQ dari RAG dan pinned organogram FAQ |
 | Form helpers | `backend/api/forms_service.py` | Scan field xlsx dan isi placeholder |

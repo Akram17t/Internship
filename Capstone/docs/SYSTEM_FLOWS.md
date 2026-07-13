@@ -27,7 +27,7 @@ flowchart TD
   M -->|Ya| O[Generate answer via CrewAI]
   O --> P[Rapikan citation marker dan form selection]
   P --> Q[Filter form_downloads jika jawaban supported]
-  Q --> R[Simpan turn ke conversations.json]
+  Q --> R[Simpan turn ke app_state.db]
   R --> S[Return answer + citations + forms]
 ```
 
@@ -63,7 +63,7 @@ flowchart TD
 
 | Item | Detail |
 |---|---|
-| File cache conversation | `backend/cache/conversations.json` |
+| File state conversation | `backend/cache/app_state.db` |
 | Batas context | Konstanta di `backend/api/core.py` |
 | TTL conversation | `CONVERSATION_TTL` di `backend/api/core.py` |
 | Model rewrite | Ollama direct lewat `_ollama_generate()` |
