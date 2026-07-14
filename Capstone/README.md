@@ -53,6 +53,17 @@ clean.bat
 - `Chat`: main conversational interface connected to `POST /query`
 - `FAQ`: curated operational starter questions
 - `Library`: admin document/form list with download links from `backend/data`
+- `PDF Form Editor`: schema-driven form preview/fill flow with local browser drafts
+
+## Frontend Scripts
+
+The frontend is still plain browser JavaScript without a bundler. `frontend/web/assets/app.js`
+is now the bootstrap/glue file, while feature logic lives in small global modules:
+
+- `assets/js/chat.js`: chat submit/rendering, citations, flowcharts, and form links
+- `assets/js/forms.js`: PDF form editor, live preview overlay, schema/legacy submit flow
+- `assets/js/storage.js` and `assets/js/drafts.js`: local form drafts and floating draft launcher
+- `assets/js/faq.js`, `assets/js/library.js`, `assets/js/auth.js`, `assets/js/api.js`, `assets/js/markdown.js`: FAQ, document admin, auth bindings, API helpers, and markdown rendering
 
 ## Structure
 
@@ -66,7 +77,7 @@ Capstone/
 |   |-- data/             # source documents
 |   `-- chroma_db/        # persisted vector database
 |-- frontend/
-|   `-- web/              # static web frontend (HTML/CSS/JS)
+|   `-- web/              # static web frontend (HTML/CSS/JS modular globals)
 |-- .env.example
 |-- README.md
 |-- clean.bat

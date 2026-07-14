@@ -40,7 +40,7 @@ flowchart TD
 
 | Step | Fungsi | Lokasi |
 |---|---|---|
-| Submit chat dari frontend | `submitQuestion()` | `frontend/web/assets/app.js` |
+| Submit chat dari frontend | `submitQuestion()` | `frontend/web/assets/js/chat.js` |
 | Endpoint chat | `query_knowledge_base()` | `backend/api/routes_public.py` |
 | Ambil context | `_get_conversation_context()` | `backend/api/cache_store.py` |
 | Simpan turn | `_append_conversation_turn()` | `backend/api/cache_store.py` |
@@ -162,10 +162,10 @@ flowchart TD
 
 | Step | Fungsi | Lokasi |
 |---|---|---|
-| Upload banyak file | `saveDocuments()` | `frontend/web/assets/app.js` |
-| Upload/update satu file | `saveDocument()` | `frontend/web/assets/app.js` |
-| Delete dokumen UI | `deleteDocument()` | `frontend/web/assets/app.js` |
-| Rebuild embeddings UI | `rebuildEmbeddings()` | `frontend/web/assets/app.js` |
+| Upload banyak file | `saveDocuments()` | `frontend/web/assets/js/library.js` |
+| Upload/update satu file | `saveDocument()` | `frontend/web/assets/js/library.js` |
+| Delete dokumen UI | `deleteDocument()` | `frontend/web/assets/js/library.js` |
+| Rebuild embeddings UI | `rebuildEmbeddings()` | `frontend/web/assets/js/library.js` |
 | Insert/update backend | `save_document()` | `backend/api/routes_admin.py` |
 | Delete backend | `delete_document()` | `backend/api/routes_admin.py` |
 | Rebuild backend | `reindex_documents()` | `backend/api/routes_admin.py` |
@@ -231,7 +231,7 @@ Flowchart extraction bisa aktif untuk embedding, tetapi screenshot hanya dikirim
 |---|---|
 | Cari payload flowchart untuk citation | `find_flowcharts_for_citations()` di `backend/api/flowchart_service.py` |
 | Endpoint screenshot | `GET /api/flowcharts/{flowchart_id}` di `backend/api/routes_public.py` |
-| Render frontend | `renderFlowchartScreenshots()` di `frontend/web/assets/app.js` |
+| Render frontend | `renderFlowchartScreenshots()` di `frontend/web/assets/js/chat.js` |
 
 ## 5. FAQ
 
@@ -257,9 +257,9 @@ flowchart TD
 
 | Step | Fungsi | Lokasi |
 |---|---|---|
-| Render FAQ list | `renderFaqs()` | `frontend/web/assets/app.js` |
-| Load FAQ list | `loadFaqs()` | `frontend/web/assets/app.js` |
-| Save FAQ frontend | `saveFaq()` | `frontend/web/assets/app.js` |
+| Render FAQ list | `renderFaqs()` | `frontend/web/assets/js/faq.js` |
+| Load FAQ list | `loadFaqs()` | `frontend/web/assets/js/faq.js` |
+| Save FAQ frontend | `saveFaq()` | `frontend/web/assets/js/faq.js` |
 | GET FAQ | `get_faq()` | `backend/api/routes_public.py` |
 | Build FAQ item | `_build_faq_item()` | `backend/api/faq_service.py` |
 | Create FAQ | `create_faq()` | `backend/api/routes_admin.py` |
@@ -290,7 +290,7 @@ flowchart TD
   F --> G[Frontend render Form yang bisa diunduh]
   G --> H{User pilih}
   H -->|Template| I[GET /api/documents/path]
-  H -->|Isi & download| J[openFormFillModal]
+  H -->|Isi & download| J[FormEditor.open]
   J --> K[GET /api/forms/schema]
   K --> L{Schema ada?}
   L -->|Ya| M[Render preview PDF + panel field]
@@ -314,12 +314,12 @@ flowchart TD
 | Kumpulkan form tersedia | `_iter_form_downloads()` | `backend/api/storage.py` |
 | Kirim katalog form ke AI | `_available_form_catalog()` | `backend/api/storage.py` |
 | Map form pilihan AI | `_selected_form_downloads()` | `backend/api/storage.py` |
-| Render block form | `renderFormDownloads()` | `frontend/web/assets/app.js` |
-| Buka modal isi form | `openFormFillModal()` | `frontend/web/assets/app.js` |
-| Fetch schema form | `fetchFormSchema()` | `frontend/web/assets/app.js` |
-| Render field schema | `renderSchemaFormFields()` | `frontend/web/assets/app.js` |
-| Render preview schema | `renderSchemaPreview()` | `frontend/web/assets/app.js` |
-| Submit form fill | `submitFormFill()` | `frontend/web/assets/app.js` |
+| Render block form | `renderFormDownloads()` | `frontend/web/assets/js/chat.js` |
+| Buka editor isi form | `FormEditor.open()` | `frontend/web/assets/js/forms.js` |
+| Fetch schema form | `fetchSchema()` | `frontend/web/assets/js/forms.js` |
+| Render field schema | `renderSchemaFormFields()` | `frontend/web/assets/js/forms.js` |
+| Render preview schema | `renderSchemaPreview()` | `frontend/web/assets/js/forms.js` |
+| Submit form fill | `FormEditor.submit()` | `frontend/web/assets/js/forms.js` |
 | Endpoint schema form | `form_schema()` | `backend/api/routes_public.py` |
 | Endpoint scan field | `form_fields()` | `backend/api/routes_public.py` |
 | Endpoint fill form | `fill_form()` | `backend/api/routes_public.py` |
@@ -339,6 +339,7 @@ flowchart TD
 | Preview schema | Browser render PDF asli via `pdf.js`, lalu overlay field aktif dan nilai live di atas preview |
 | Submit schema | `POST /api/forms/fill` kirim `multipart/form-data` berisi `payload` JSON + file signature image bila ada |
 | Render schema | Backend menulis `text`, `textarea`, `date`, `checkbox`, dan `signature_image` langsung ke PDF di memory |
+| Draft lokal | `frontend/web/assets/js/storage.js` menyimpan draft form ke `localStorage`, lalu `frontend/web/assets/js/drafts.js` menampilkan launcher draft di layar chat |
 | Placeholder valid | Segmen teks PDF yang seluruh isinya bracket, contoh `[  ]` atau `[Tanggal]` |
 | Label field | Diambil dari isi bracket, teks terdekat di kiri, atau teks tepat di atas lewat `_segment_label()` |
 | Field legacy yang ditampilkan | Blok isian awal yang contiguous; bagian bawah seperti signature/free text dilewati |

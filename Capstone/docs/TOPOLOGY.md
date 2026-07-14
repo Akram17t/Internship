@@ -5,7 +5,8 @@ flowchart extraction, document reindex, dan PDF form editor schema-driven.
 
 ```mermaid
 flowchart TB
-    Browser["Browser UI<br/>chat + admin + PDF form editor"]
+    Browser["Browser UI<br/>static vanilla JS"]
+    FrontendModules["frontend/web/assets/js<br/>chat + faq + library + forms + drafts"]
     Ollama["Ollama<br/>LLM + embedding + vision"]
     Reranker["CrossEncoder<br/>reranker"]
 
@@ -52,7 +53,8 @@ flowchart TB
     Data[/"backend/data<br/>SOP + forms"/]
     Chroma[("backend/chroma_db<br/>SOP vector indexes")]
 
-    Browser -->|HTTP| API
+    Browser --> FrontendModules
+    FrontendModules -->|HTTP| API
     Chat --> CacheStore
     CacheStore --> CacheDB
     Chat --> Main
@@ -91,10 +93,12 @@ flowchart TB
 
 ## Alur Ringkas
 
+- **Frontend**: `frontend/web/assets/app.js` hanya bootstrap state/navigasi; logic utama dipisah ke `assets/js/chat.js`, `forms.js`, `faq.js`, `library.js`, `auth.js`, `storage.js`, `drafts.js`, dan `markdown.js`.
 - **Chat**: `/query` mengambil conversation context, rewrite follow-up bila perlu, cek semantic cache, lalu hanya menjalankan retrieval + CrewAI/Ollama jika cache miss.
 - **Semantic cache**: payload jawaban ada di `app_state.db`; embedding pertanyaan ada di `backend/cache/semantic_chroma`; cache di-reset setelah reindex.
 - **FAQ**: admin membuat FAQ lewat retrieval + Ollama direct, lalu hasil valid disimpan ke `faqs.json`.
-- **Form editor PDF**: browser mengambil `GET /api/forms/schema` untuk template yang sudah dimigrasikan, menampilkan preview PDF di client, lalu submit `multipart/form-data` ke `POST /api/forms/fill`. `forms_service.py` merender text, textarea, checkbox, dan signature image langsung ke PDF di memory.
+- **Form editor PDF**: `assets/js/forms.js` mengambil `GET /api/forms/schema` untuk template yang sudah dimigrasikan, menampilkan preview PDF di client, lalu submit `multipart/form-data` ke `POST /api/forms/fill`. `forms_service.py` merender text, textarea, checkbox, dan signature image langsung ke PDF di memory.
+- **Draft form lokal**: `assets/js/storage.js` menyimpan draft field form ke `localStorage`; `assets/js/drafts.js` menampilkan launcher draft di chat supaya user bisa melanjutkan form yang belum selesai.
 - **Form fallback lama**: jika schema belum tersedia, frontend masih bisa pakai `GET /api/forms/fields` dan `POST /api/forms/fill` dengan mode placeholder-scan sederhana.
 - **Ingestion**: dokumen di `backend/data/` dimuat, flowchart PDF diekstrak bila enabled, teks di-chunk per section, lalu vector DB SOP dibangun ulang.
 - **Flowchart**: hasil vision disimpan ke `backend/cache/flowcharts`; screenshot hanya dikirim ke chat jika `FLOWCHART_DISPLAY_ENABLED=true`.

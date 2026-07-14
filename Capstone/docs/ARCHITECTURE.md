@@ -9,7 +9,11 @@ modul kecil. `backend/api/main.py` sekarang hanya entrypoint tipis yang mengeksp
 ```mermaid
 flowchart TB
     subgraph Client["Browser SPA"]
-        UI["Vanilla JS UI<br/>Chat - FAQ - Library - PDF Form Editor"]
+        UI["Vanilla JS UI<br/>modular globals"]
+        CHATUI["assets/js/chat.js<br/>chat, citations, flowcharts, form links"]
+        FORMUI["assets/js/forms.js<br/>PDF preview editor"]
+        DRAFTUI["assets/js/storage.js + drafts.js<br/>local form drafts"]
+        ADMINUI["assets/js/faq.js + library.js + auth.js<br/>FAQ, docs, admin"]
     end
 
     subgraph Server["FastAPI API layer"]
@@ -60,7 +64,13 @@ flowchart TB
     CACHEFILES[/"backend/cache<br/>app_state, FAQ, flowchart cache"/]
     SEMCHROMA[("semantic_chroma")]
 
-    UI --> MAIN
+    UI --> CHATUI
+    UI --> FORMUI
+    UI --> DRAFTUI
+    UI --> ADMINUI
+    CHATUI --> MAIN
+    FORMUI --> MAIN
+    ADMINUI --> MAIN
     MAIN --> PUBLIC
     MAIN --> ADMIN
     PUBLIC --> STORAGE
@@ -120,28 +130,40 @@ flowchart TB
 | Retrieval tool | `backend/researcher_crew/tools/custom_tool.py` | Evidence text dan citation dari hasil search |
 | Ingestion | `backend/preprocessing/` | Loader, flowchart extraction, cleaner, chunker, embedding, vector store |
 | Startup check | `backend/scripts/storage_status.py` | Cek source docs dan vector DB |
+| Frontend bootstrap | `frontend/web/assets/app.js` | Inisialisasi state, elemen DOM, navigasi, dan pemanggilan modul UI |
+| Frontend API helpers | `frontend/web/assets/js/api.js` | Helper fetch, auth header, error formatting, dan download response |
+| Frontend storage | `frontend/web/assets/js/storage.js` | Session admin, state UI kecil, dan draft form lokal via `localStorage` |
+| Frontend chat | `frontend/web/assets/js/chat.js` | Submit chat, render jawaban/citation/flowchart, dan render link form dari jawaban |
+| Frontend form editor | `frontend/web/assets/js/forms.js` | Modal editor PDF preview, schema/legacy form flow, live overlay, submit fill, dan auto-save draft |
+| Frontend form drafts | `frontend/web/assets/js/drafts.js` | Floating launcher draft form di layar chat |
+| Frontend FAQ | `frontend/web/assets/js/faq.js` | Load/render FAQ publik dan CRUD FAQ admin |
+| Frontend library | `frontend/web/assets/js/library.js` | List dokumen, upload/update/delete dokumen, dan rebuild embeddings |
+| Frontend auth | `frontend/web/assets/js/auth.js` | Login/logout admin dan binding modal admin/form |
+| Frontend markdown | `frontend/web/assets/js/markdown.js` | Render markdown jawaban chat |
 
 ## Jalur utama
 
 **Chat**
 
-`frontend/web/assets/app.js` -> `POST /query` -> `routes_public.py` ->
+`frontend/web/assets/js/chat.js` -> `POST /query` -> `routes_public.py` ->
 `cache_store.py` (context) -> `researcher_crew/main.py` -> semantic cache.
 Jika cache miss, lanjut ke `custom_tool.py` -> `vectorstore.py` -> CrewAI/Ollama.
 Setelah jawaban final, backend menyimpan semantic cache bila valid dan kembali ke
 `routes_public.py` untuk bentuk `answer + citations + form_downloads + flowcharts`.
+`chat.js` lalu merender jawaban, citation, screenshot flowchart, dan tombol form.
 
 **FAQ admin**
 
-Frontend admin -> `POST /api/admin/faq` -> `routes_admin.py` -> `faq_service.py`
--> `run_faq_crew()` -> retrieval -> Ollama -> validasi evidence -> simpan ke
-`backend/cache/faqs.json`.
+`frontend/web/assets/js/faq.js` -> `POST /api/admin/faq` -> `routes_admin.py`
+-> `faq_service.py` -> `run_faq_crew()` -> retrieval -> Ollama -> validasi
+evidence -> simpan ke `backend/cache/faqs.json`.
 
 **Upload dokumen dan reindex**
 
-Frontend admin -> `POST /api/admin/documents` / `DELETE /api/admin/documents/...`
--> `routes_admin.py` -> `storage.py`. Jika file embeddable berubah, frontend akan
-meminta reindex -> `POST /api/admin/reindex` -> `preprocessing/ingest.py`.
+`frontend/web/assets/js/library.js` -> `POST /api/admin/documents` /
+`DELETE /api/admin/documents/...` -> `routes_admin.py` -> `storage.py`.
+Jika file embeddable berubah, frontend akan meminta reindex ->
+`POST /api/admin/reindex` -> `preprocessing/ingest.py`.
 Reindex memuat dokumen terbaru, mengekstrak flowchart PDF jika enabled, rebuild
 vector DB, lalu memanggil `reset_semantic_cache()` agar jawaban lama tidak dipakai.
 
@@ -156,11 +178,13 @@ citation flowchart, `flowchart_service.py` bisa mengirim screenshot jika
 **Form fill**
 
 Untuk template yang sudah dimigrasikan, frontend membuka editor PDF preview:
-`GET /api/forms/schema` -> `forms_service.py` load schema dari
-`backend/form_schemas/*.json` -> browser render preview PDF + panel field ->
-`POST /api/forms/fill` dengan `multipart/form-data` -> `forms_service.py`
-render text / textarea / checkbox / signature image ke PDF di memory -> file
-hasil dikirim langsung ke browser.
+`frontend/web/assets/js/forms.js` -> `GET /api/forms/schema` -> `forms_service.py`
+load schema dari `backend/form_schemas/*.json` -> browser render preview PDF +
+panel field -> `POST /api/forms/fill` dengan `multipart/form-data` ->
+`forms_service.py` render text / textarea / checkbox / signature image ke PDF di
+memory -> file hasil dikirim langsung ke browser. Draft input disimpan lokal oleh
+`frontend/web/assets/js/storage.js`, dan launcher draft di chat dirender oleh
+`frontend/web/assets/js/drafts.js`.
 
 Untuk template yang belum punya schema, flow lama tetap tersedia:
 `GET /api/forms/fields` -> scan placeholder atas -> `POST /api/forms/fill` ->

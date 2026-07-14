@@ -39,6 +39,7 @@ Modul dasar API:
 Semua schema request/response Pydantic:
 - `QueryRequest`, `QueryResponse`
 - `CitationResponse`, `FormDownloadResponse`
+- `FormSchemaResponse`, `FormSchemaPage`, `FormSchemaField`
 - `FAQItem`, `AdminFAQPayload`, `AdminFAQResponse`
 - `AdminLoginPayload`, `AdminLoginResponse`
 - `LibraryItem`, `AdminDocumentPayload`, `AdminDocumentResponse`
@@ -260,12 +261,12 @@ Flow form fill:
 
 ```text
 1. User klik "Isi & download"
-2. Frontend coba GET /api/forms/schema
+2. frontend/web/assets/js/forms.js coba GET /api/forms/schema
 3. Jika schema ada, browser render preview PDF + field panel schema
-4. Jika schema tidak ada, frontend fallback ke GET /api/forms/fields
+4. Jika schema tidak ada, forms.js fallback ke GET /api/forms/fields
 5. forms_service.py scan placeholder PDF untuk mode legacy
-6. User isi nilai / upload signature
-7. Frontend panggil POST /api/forms/fill
+6. User isi nilai / upload signature; draft field disimpan lokal oleh assets/js/storage.js
+7. forms.js panggil POST /api/forms/fill
 8. Jika schema form, forms_service.py render PDF schema-driven di memory
 9. Jika legacy form, forms_service.py isi placeholder PDF di memory
 10. Backend kirim file PDF hasil ke browser
@@ -277,6 +278,7 @@ Helper penting:
 - `_fill_form_placeholders()` mengisi semua placeholder dengan label yang cocok
 - `get_form_schema()` membaca schema template dari `backend/form_schemas/*.json`
 - `fill_schema_form()` menulis `text`, `textarea`, `date`, `checkbox`, dan `signature_image` ke PDF
+- Draft form adalah fitur frontend-only via `localStorage`; backend tidak menyimpan draft atau file signature
 
 ---
 

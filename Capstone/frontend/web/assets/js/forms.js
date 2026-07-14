@@ -50,7 +50,6 @@
       elements.formFillFields,
     );
     storage().saveFormDraft(pending.path, pending.label, values);
-    setStatus("Draft tersimpan");
   }
 
   function restoreDraft(pending, schemaOrFields) {
@@ -61,7 +60,7 @@
       schemaOrFields,
       elements.formFillFields,
     );
-    if (restored) setStatus("Draft dipulihkan");
+    return restored;
   }
 
   function clearDraft() {
@@ -77,7 +76,6 @@
         else control.value = "";
       });
     syncAllPreviewValues(pending);
-    setStatus("Draft dihapus");
   }
 
   async function fetchSchema(path) {
@@ -115,7 +113,7 @@
 
     state.pendingFormFill = pending;
     elements.formFillTitle.textContent = "Editor form PDF";
-    elements.formFillSubtitle.textContent = pending.label;
+    elements.formFillSubtitle.textContent = "";
     setStatus("");
     renderNote(elements.formFillPreview, "Memuat preview form...");
     renderNote(elements.formFillFields, "Memuat kolom form...");
@@ -130,8 +128,7 @@
         pending.mode = "schema";
         pending.schema = schema;
         elements.formFillTitle.textContent = schema.title || "Editor form PDF";
-        elements.formFillSubtitle.textContent =
-          "Isi field di panel kanan, upload tanda tangan bila ada, lalu unduh PDF hasilnya.";
+        elements.formFillSubtitle.textContent = "";
         renderSchemaFormFields(pending);
         restoreDraft(pending, schema);
         await renderSchemaPreview(pending);
@@ -152,8 +149,7 @@
       }
       if (state.pendingFormFill !== pending) return;
       const legacyFields = Array.isArray(payload.fields) ? payload.fields : [];
-      elements.formFillSubtitle.textContent =
-        "Template ini masih memakai mode isi form sederhana tanpa preview PDF.";
+      elements.formFillSubtitle.textContent = "";
       renderLegacyFields(legacyFields, pending);
       restoreDraft(pending, legacyFields);
       renderNote(
