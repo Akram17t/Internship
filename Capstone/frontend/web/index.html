@@ -317,6 +317,36 @@
           </section>
         </div>
       </main>
+
+      <div class="form-draft-menu" id="formDraftMenu">
+        <button
+          class="form-draft-launcher"
+          id="formDraftButton"
+          type="button"
+          aria-label="Lanjutkan draft form"
+          aria-expanded="false"
+          aria-haspopup="dialog"
+          hidden
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">
+            description
+          </span>
+          <strong id="formDraftCount">0</strong>
+        </button>
+        <div
+          class="form-draft-popover"
+          id="formDraftPopover"
+          role="dialog"
+          aria-label="Draft form tersimpan"
+          hidden
+        >
+          <div class="form-draft-popover-head">
+            <span>Draft tersimpan</span>
+            <strong>Lanjutkan form</strong>
+          </div>
+          <div class="form-draft-list" id="formDraftList"></div>
+        </div>
+      </div>
     </div>
 
     <template id="messageTemplate">
@@ -517,6 +547,15 @@
               <div class="form-fill-fields" id="formFillFields"></div>
             </section>
           </div>
+          <div class="form-draft-actions">
+            <button
+              class="form-draft-clear"
+              id="formFillClearDraftButton"
+              type="button"
+            >
+              Hapus draft
+            </button>
+          </div>
           <button class="auth-submit" type="submit">
             <span class="material-symbols-outlined">download</span>
             Download form terisi
@@ -526,6 +565,15 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+    <script src="/assets/js/api.js"></script>
+    <script src="/assets/js/storage.js"></script>
+    <script src="/assets/js/forms.js"></script>
+    <script src="/assets/js/chat.js"></script>
+    <script src="/assets/js/markdown.js"></script>
+    <script src="/assets/js/faq.js"></script>
+    <script src="/assets/js/library.js"></script>
+    <script src="/assets/js/auth.js"></script>
+    <script src="/assets/js/drafts.js"></script>
     <script src="/assets/app.js"></script>
   </body>
 </html>
