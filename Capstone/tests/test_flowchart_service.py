@@ -15,8 +15,10 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from backend.api.flowchart_service import (  # noqa: E402
+    clear_flowchart_cache_for_source,
     find_flowcharts_for_citations,
     get_flowchart_image,
+    prune_stale_flowchart_cache,
 )
 
 
@@ -67,21 +69,26 @@ class FlowchartServiceTests(unittest.TestCase):
 
     def test_returns_diagram_for_matching_flowchart_citation(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_dir:
-            cache_dir = Path(temporary_dir)
+            root = Path(temporary_dir)
+            cache_dir = root
+            data_dir = root / "data"
+            data_dir.mkdir()
+            (data_dir / "SOP Test.pdf").write_bytes(b"%PDF-1.4\n")
             self._write_payload(cache_dir)
 
-            diagrams = find_flowcharts_for_citations(
-                [
-                    {
-                        "source": "SOP Test.pdf",
-                        "page": 5,
-                        "section": "8. ALUR PROSES",
-                    }
-                ],
-                cache_dir=cache_dir,
-                model_name="qwen3.5:9b",
-                display_enabled=True,
-            )
+            with patch.dict(os.environ, {"DATA_DIR": str(data_dir)}):
+                diagrams = find_flowcharts_for_citations(
+                    [
+                        {
+                            "source": "SOP Test.pdf",
+                            "page": 5,
+                            "section": "8. ALUR PROSES",
+                        }
+                    ],
+                    cache_dir=cache_dir,
+                    model_name="qwen3.5:9b",
+                    display_enabled=True,
+                )
 
         self.assertEqual(len(diagrams), 1)
         self.assertEqual(diagrams[0]["id"], "diagram-id")
@@ -89,21 +96,26 @@ class FlowchartServiceTests(unittest.TestCase):
 
     def test_ignores_non_flowchart_citation(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_dir:
-            cache_dir = Path(temporary_dir)
+            root = Path(temporary_dir)
+            cache_dir = root
+            data_dir = root / "data"
+            data_dir.mkdir()
+            (data_dir / "SOP Test.pdf").write_bytes(b"%PDF-1.4\n")
             self._write_payload(cache_dir)
 
-            diagrams = find_flowcharts_for_citations(
-                [
-                    {
-                        "source": "SOP Test.pdf",
-                        "page": 5,
-                        "section": "4. KETENTUAN",
-                    }
-                ],
-                cache_dir=cache_dir,
-                model_name="qwen3.5:9b",
-                display_enabled=True,
-            )
+            with patch.dict(os.environ, {"DATA_DIR": str(data_dir)}):
+                diagrams = find_flowcharts_for_citations(
+                    [
+                        {
+                            "source": "SOP Test.pdf",
+                            "page": 5,
+                            "section": "4. KETENTUAN",
+                        }
+                    ],
+                    cache_dir=cache_dir,
+                    model_name="qwen3.5:9b",
+                    display_enabled=True,
+                )
 
         self.assertEqual(diagrams, [])
 
@@ -160,23 +172,131 @@ class FlowchartServiceTests(unittest.TestCase):
 
     def test_ignores_payload_with_graph_anomaly(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_dir:
-            cache_dir = Path(temporary_dir)
+            root = Path(temporary_dir)
+            cache_dir = root
+            data_dir = root / "data"
+            data_dir.mkdir()
+            (data_dir / "SOP Test.pdf").write_bytes(b"%PDF-1.4\n")
             self._write_payload(cache_dir, graph_issues=["Node end terputus"])
 
-            diagrams = find_flowcharts_for_citations(
-                [
-                    {
-                        "source": "SOP Test.pdf",
-                        "page": 5,
-                        "section": "8. ALUR PROSES",
-                    }
-                ],
-                cache_dir=cache_dir,
-                model_name="qwen3.5:9b",
-                display_enabled=True,
-            )
+            with patch.dict(os.environ, {"DATA_DIR": str(data_dir)}):
+                diagrams = find_flowcharts_for_citations(
+                    [
+                        {
+                            "source": "SOP Test.pdf",
+                            "page": 5,
+                            "section": "8. ALUR PROSES",
+                        }
+                    ],
+                    cache_dir=cache_dir,
+                    model_name="qwen3.5:9b",
+                    display_enabled=True,
+                )
 
         self.assertEqual(diagrams, [])
+
+    def test_ignores_flowchart_when_source_file_has_been_deleted(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+            cache_dir = root / "flowcharts"
+            data_dir = root / "data"
+            cache_dir.mkdir()
+            data_dir.mkdir()
+            self._write_payload(cache_dir)
+
+            with patch.dict(
+                os.environ,
+                {
+                    "FLOWCHART_CACHE_DIR": str(cache_dir),
+                    "DATA_DIR": str(data_dir),
+                },
+            ):
+                diagrams = find_flowcharts_for_citations(
+                    [
+                        {
+                            "source": "SOP Test.pdf",
+                            "page": 5,
+                            "section": "8. ALUR PROSES",
+                        }
+                    ],
+                    cache_dir=cache_dir,
+                    model_name="qwen3.5:9b",
+                    display_enabled=True,
+                )
+
+        self.assertEqual(diagrams, [])
+
+    def test_clear_flowchart_cache_for_source_removes_matching_payloads(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            cache_dir = Path(temporary_dir)
+            self._write_payload(cache_dir)
+            (cache_dir / "other.json").write_text(
+                json.dumps(
+                    {
+                        "status": "success",
+                        "source": "SOP Lain.pdf",
+                        "image_page": 1,
+                        "model": "qwen3.5:9b",
+                        "graph_issues": [],
+                        "result": {"title": "Alur", "confidence": 0.9, "nodes": [1], "edges": [1]},
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            removed = clear_flowchart_cache_for_source("SOP Test.pdf", cache_dir=cache_dir)
+
+            self.assertEqual(removed, 1)
+            self.assertFalse((cache_dir / "diagram-id.json").exists())
+            self.assertTrue((cache_dir / "other.json").exists())
+
+    def test_prune_stale_flowchart_cache_removes_orphan_payloads(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            cache_dir = Path(temporary_dir)
+            self._write_payload(cache_dir)
+            (cache_dir / "active.json").write_text(
+                json.dumps(
+                    {
+                        "status": "success",
+                        "source": "SOP Aktif.pdf",
+                        "image_page": 1,
+                        "model": "qwen3.5:9b",
+                        "graph_issues": [],
+                        "result": {"title": "Alur", "confidence": 0.9, "nodes": [1], "edges": [1]},
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            removed = prune_stale_flowchart_cache({"SOP Aktif.pdf"}, cache_dir=cache_dir)
+
+            self.assertEqual(removed, 1)
+            self.assertFalse((cache_dir / "diagram-id.json").exists())
+            self.assertTrue((cache_dir / "active.json").exists())
+
+    def test_prune_stale_flowchart_cache_keeps_latest_duplicate_only(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            cache_dir = Path(temporary_dir)
+            older = cache_dir / "older.json"
+            newer = cache_dir / "newer.json"
+            payload = {
+                "status": "success",
+                "source": "SOP Aktif.pdf",
+                "image_page": 4,
+                "model": "qwen3.5:9b",
+                "graph_issues": [],
+                "result": {"title": "Alur", "confidence": 0.9, "nodes": [1], "edges": [1]},
+            }
+            older.write_text(json.dumps(payload), encoding="utf-8")
+            newer.write_text(json.dumps(payload), encoding="utf-8")
+            os.utime(older, (1, 1))
+            os.utime(newer, None)
+
+            removed = prune_stale_flowchart_cache({"SOP Aktif.pdf"}, cache_dir=cache_dir)
+
+            self.assertEqual(removed, 1)
+            self.assertFalse(older.exists())
+            self.assertTrue(newer.exists())
 
 
 if __name__ == "__main__":

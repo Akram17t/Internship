@@ -1,11 +1,11 @@
 # Backend Topology - ICS SOP & Knowledge Assistant
 
-Topologi komponen backend dan alur data utama: chat, semantic cache, FAQ,
-ingestion, flowchart extraction, dan document reindex.
+Topologi komponen utama aplikasi: chat RAG, semantic cache, FAQ, ingestion,
+flowchart extraction, document reindex, dan PDF form editor schema-driven.
 
 ```mermaid
 flowchart TB
-    Browser["Browser UI"]
+    Browser["Browser UI<br/>chat + admin + PDF form editor"]
     Ollama["Ollama<br/>LLM + embedding + vision"]
     Reranker["CrossEncoder<br/>reranker"]
 
@@ -13,6 +13,8 @@ flowchart TB
         direction TB
         Chat["routes_public.py<br/>/query"]
         FlowchartAPI["routes_public.py<br/>/api/flowcharts/{id}"]
+        FormSchemaAPI["routes_public.py<br/>/api/forms/schema + /api/forms/fields"]
+        FormFillAPI["routes_public.py<br/>/api/forms/fill"]
         Faq["routes_admin.py<br/>/api/admin/faq"]
         DocMgmt["routes_admin.py<br/>document upload/delete/reindex"]
     end
@@ -25,6 +27,12 @@ flowchart TB
         SemanticChroma[("semantic_chroma<br/>question vectors")]
         FlowchartCache[("cache/flowcharts<br/>vision JSON payloads")]
         Faqs[("faqs.json")]
+    end
+
+    subgraph FormSystem["Form system"]
+        direction TB
+        FormSvc["forms_service.py<br/>schema loader + legacy placeholder fill + schema render"]
+        FormSchemas[/"backend/form_schemas<br/>template schemas"/]
     end
 
     subgraph Crew["researcher_crew"]
@@ -49,7 +57,13 @@ flowchart TB
     CacheStore --> CacheDB
     Chat --> Main
     Chat --> FlowchartAPI
+    Browser --> FormSchemaAPI
+    Browser --> FormFillAPI
     FlowchartAPI --> FlowchartCache
+    FormSchemaAPI --> FormSvc
+    FormFillAPI --> FormSvc
+    FormSvc --> FormSchemas
+    FormSvc --> Data
 
     Main --> SemanticCache
     SemanticCache --> CacheDB
@@ -80,6 +94,8 @@ flowchart TB
 - **Chat**: `/query` mengambil conversation context, rewrite follow-up bila perlu, cek semantic cache, lalu hanya menjalankan retrieval + CrewAI/Ollama jika cache miss.
 - **Semantic cache**: payload jawaban ada di `app_state.db`; embedding pertanyaan ada di `backend/cache/semantic_chroma`; cache di-reset setelah reindex.
 - **FAQ**: admin membuat FAQ lewat retrieval + Ollama direct, lalu hasil valid disimpan ke `faqs.json`.
+- **Form editor PDF**: browser mengambil `GET /api/forms/schema` untuk template yang sudah dimigrasikan, menampilkan preview PDF di client, lalu submit `multipart/form-data` ke `POST /api/forms/fill`. `forms_service.py` merender text, textarea, checkbox, dan signature image langsung ke PDF di memory.
+- **Form fallback lama**: jika schema belum tersedia, frontend masih bisa pakai `GET /api/forms/fields` dan `POST /api/forms/fill` dengan mode placeholder-scan sederhana.
 - **Ingestion**: dokumen di `backend/data/` dimuat, flowchart PDF diekstrak bila enabled, teks di-chunk per section, lalu vector DB SOP dibangun ulang.
 - **Flowchart**: hasil vision disimpan ke `backend/cache/flowcharts`; screenshot hanya dikirim ke chat jika `FLOWCHART_DISPLAY_ENABLED=true`.
 - **Reindex**: upload/update/delete SOP menandai `requires_reindex`; rebuild embeddings membangun index baru dan menghapus semantic cache lama.

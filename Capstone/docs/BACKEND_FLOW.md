@@ -107,6 +107,9 @@ Logic auto-fill PDF form:
 - `_scan_form_fields()`
 - `_unique_form_fields()`
 - `_fill_form_placeholders()`
+- `_load_form_schema_payloads()`
+- `get_form_schema()`
+- `fill_schema_form()`
 - `_resolve_form_path()`
 
 ### `backend/api/routes_public.py`
@@ -117,6 +120,7 @@ Endpoint publik:
 - `GET /api/faq`
 - `GET /api/flowcharts/{flowchart_id}`
 - `GET /api/documents/{path}`
+- `GET /api/forms/schema`
 - `GET /api/forms/fields`
 - `POST /api/forms/fill`
 - `GET /`
@@ -256,19 +260,23 @@ Flow form fill:
 
 ```text
 1. User klik "Isi & download"
-2. Frontend panggil GET /api/forms/fields
-3. forms_service.py scan placeholder PDF
-4. Frontend render field hasil scan
-5. User isi nilai
-6. Frontend panggil POST /api/forms/fill
-7. forms_service.py isi placeholder PDF di memory
-8. Backend kirim file PDF hasil ke browser
+2. Frontend coba GET /api/forms/schema
+3. Jika schema ada, browser render preview PDF + field panel schema
+4. Jika schema tidak ada, frontend fallback ke GET /api/forms/fields
+5. forms_service.py scan placeholder PDF untuk mode legacy
+6. User isi nilai / upload signature
+7. Frontend panggil POST /api/forms/fill
+8. Jika schema form, forms_service.py render PDF schema-driven di memory
+9. Jika legacy form, forms_service.py isi placeholder PDF di memory
+10. Backend kirim file PDF hasil ke browser
 ```
 
 Helper penting:
 - `_scan_form_fields()` mendeteksi placeholder bracket dari blok awal PDF
 - `_unique_form_fields()` menghapus duplikasi label
 - `_fill_form_placeholders()` mengisi semua placeholder dengan label yang cocok
+- `get_form_schema()` membaca schema template dari `backend/form_schemas/*.json`
+- `fill_schema_form()` menulis `text`, `textarea`, `date`, `checkbox`, dan `signature_image` ke PDF
 
 ---
 

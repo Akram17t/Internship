@@ -10,6 +10,7 @@ from backend.api.auth import _admin_email, _admin_name, _admin_password, _create
 from backend.api.cache_store import _find_faq_index, _load_faqs, _save_faqs
 from backend.api.core import ASSETS_DIR, FAQ_LOCK, LIBRARY_EXTENSIONS, REINDEX_LOCK, app
 from backend.api.faq_service import PINNED_IMAGE_EXTENSIONS, PINNED_IMAGE_STEM, _build_faq_item
+from backend.api.flowchart_service import clear_flowchart_cache_for_source
 from backend.api.models import (
     AdminDocumentPayload,
     AdminDocumentResponse,
@@ -177,6 +178,8 @@ def save_document(
         action = "inserted"
 
     target_path.write_bytes(content)
+    if suffix == ".pdf":
+        clear_flowchart_cache_for_source(target_path.name)
     requires_reindex = _is_embeddable_path(target_path)
     return AdminDocumentResponse(
         message=f"Document {action}.",
@@ -201,6 +204,8 @@ def delete_document(
 
     requires_reindex = _is_embeddable_path(target_path)
     target_path.unlink()
+    if target_path.suffix.lower() == ".pdf":
+        clear_flowchart_cache_for_source(target_path.name)
     return AdminDocumentResponse(message="Document deleted.", requires_reindex=requires_reindex)
 
 

@@ -9,7 +9,7 @@ modul kecil. `backend/api/main.py` sekarang hanya entrypoint tipis yang mengeksp
 ```mermaid
 flowchart TB
     subgraph Client["Browser SPA"]
-        UI["Vanilla JS UI<br/>Chat - FAQ - Library - Form Fill"]
+        UI["Vanilla JS UI<br/>Chat - FAQ - Library - PDF Form Editor"]
     end
 
     subgraph Server["FastAPI API layer"]
@@ -26,9 +26,13 @@ flowchart TB
         SEMCACHE["semantic_cache.py<br/>answer cache"]
         AUTH["auth.py<br/>token admin"]
         FAQSVC["faq_service.py<br/>build FAQ, pinned FAQ"]
-        FORMSVC["forms_service.py<br/>scan/fill PDF form"]
+        FORMSVC["forms_service.py<br/>schema form + legacy placeholder fill"]
         FLOWSVC["flowchart_service.py<br/>flowchart screenshot lookup"]
         MODELS["models.py<br/>schema request/response"]
+    end
+
+    subgraph FormEditor["Form editor internals"]
+        FORMSCHEMA[/"backend/form_schemas<br/>template schemas"/]
     end
 
     subgraph RAG["RAG orchestration"]
@@ -89,6 +93,8 @@ flowchart TB
     CACHE --> CACHEFILES
     STATE --> CACHEFILES
     FLOWSVC --> CACHEFILES
+    FORMSVC --> FORMSCHEMA
+    FORMSVC --> DATA
 ```
 
 ## Komponen
@@ -106,7 +112,8 @@ flowchart TB
 | Semantic cache | `backend/semantic_cache.py` | Exact/vector answer cache dan reset saat reindex |
 | Auth helpers | `backend/api/auth.py` | Token admin, signing, verification |
 | FAQ helpers | `backend/api/faq_service.py` | Build FAQ dari RAG dan pinned organogram FAQ |
-| Form helpers | `backend/api/forms_service.py` | Scan field PDF dan isi placeholder |
+| Form helpers | `backend/api/forms_service.py` | Legacy placeholder scan/fill, schema loader, dan render PDF schema-driven |
+| Form schemas | `backend/form_schemas/*.json` | Mapping field per template PDF untuk editor v1 |
 | Flowchart helpers | `backend/api/flowchart_service.py` | Cari payload flowchart untuk citation dan serve screenshot |
 | Chat orchestration | `backend/researcher_crew/main.py` | Rewrite query, panggil retrieval, panggil CrewAI/Ollama |
 | Crew definition | `backend/researcher_crew/crew.py` | Agent, task, dan CrewAI object |
@@ -148,6 +155,13 @@ citation flowchart, `flowchart_service.py` bisa mengirim screenshot jika
 
 **Form fill**
 
-Frontend -> `GET /api/forms/fields` -> `forms_service.py` scan template PDF ->
-Frontend isi modal -> `POST /api/forms/fill` -> `forms_service.py` isi placeholder
-PDF di memory -> file PDF hasil dikirim langsung ke browser.
+Untuk template yang sudah dimigrasikan, frontend membuka editor PDF preview:
+`GET /api/forms/schema` -> `forms_service.py` load schema dari
+`backend/form_schemas/*.json` -> browser render preview PDF + panel field ->
+`POST /api/forms/fill` dengan `multipart/form-data` -> `forms_service.py`
+render text / textarea / checkbox / signature image ke PDF di memory -> file
+hasil dikirim langsung ke browser.
+
+Untuk template yang belum punya schema, flow lama tetap tersedia:
+`GET /api/forms/fields` -> scan placeholder atas -> `POST /api/forms/fill` ->
+isi placeholder sederhana lalu kirim PDF hasil.

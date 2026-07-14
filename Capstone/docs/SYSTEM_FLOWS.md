@@ -291,13 +291,20 @@ flowchart TD
   G --> H{User pilih}
   H -->|Template| I[GET /api/documents/path]
   H -->|Isi & download| J[openFormFillModal]
-  J --> K[GET /api/forms/fields]
-  K --> L[Scan placeholder PDF]
-  L --> M[Render input field]
-  M --> N[User isi data]
-  N --> O[POST /api/forms/fill]
-  O --> P[Fill PDF in memory]
-  P --> Q[Download PDF terisi]
+  J --> K[GET /api/forms/schema]
+  K --> L{Schema ada?}
+  L -->|Ya| M[Render preview PDF + panel field]
+  L -->|Tidak| N[GET /api/forms/fields]
+  N --> O[Scan placeholder PDF]
+  O --> P[Render input field sederhana]
+  M --> Q[User isi data]
+  P --> Q
+  Q --> R[POST /api/forms/fill]
+  R --> S{Mode schema?}
+  S -->|Ya| T[Render PDF schema-driven di memory]
+  S -->|Tidak| U[Fill placeholder PDF di memory]
+  T --> V[Download PDF terisi]
+  U --> V
 ```
 
 ### Fungsi dan lokasi
@@ -309,21 +316,33 @@ flowchart TD
 | Map form pilihan AI | `_selected_form_downloads()` | `backend/api/storage.py` |
 | Render block form | `renderFormDownloads()` | `frontend/web/assets/app.js` |
 | Buka modal isi form | `openFormFillModal()` | `frontend/web/assets/app.js` |
+| Fetch schema form | `fetchFormSchema()` | `frontend/web/assets/app.js` |
+| Render field schema | `renderSchemaFormFields()` | `frontend/web/assets/app.js` |
+| Render preview schema | `renderSchemaPreview()` | `frontend/web/assets/app.js` |
 | Submit form fill | `submitFormFill()` | `frontend/web/assets/app.js` |
+| Endpoint schema form | `form_schema()` | `backend/api/routes_public.py` |
 | Endpoint scan field | `form_fields()` | `backend/api/routes_public.py` |
 | Endpoint fill form | `fill_form()` | `backend/api/routes_public.py` |
 | Resolve form path | `_resolve_form_path()` | `backend/api/forms_service.py` |
+| Cek schema template | `has_schema_form()` | `backend/api/forms_service.py` |
+| Load schema form | `get_form_schema()` | `backend/api/forms_service.py` |
 | Scan field PDF | `_scan_form_fields()` | `backend/api/forms_service.py` |
 | Fill placeholder PDF | `_fill_form_placeholders()` | `backend/api/forms_service.py` |
+| Render PDF schema | `fill_schema_form()` | `backend/api/forms_service.py` |
 
-### Cara field PDF dideteksi
+### Cara editor form bekerja
 
 | Rule | Detail |
 |---|---|
+| Prioritas mode | Frontend mencoba schema editor dulu lewat `GET /api/forms/schema`; jika 404, baru fallback ke `GET /api/forms/fields` |
+| Schema editor | Field didefinisikan manual per template di `backend/form_schemas/*.json` dengan `id`, `type`, `page`, `rect`, `section`, dan opsi render |
+| Preview schema | Browser render PDF asli via `pdf.js`, lalu overlay field aktif dan nilai live di atas preview |
+| Submit schema | `POST /api/forms/fill` kirim `multipart/form-data` berisi `payload` JSON + file signature image bila ada |
+| Render schema | Backend menulis `text`, `textarea`, `date`, `checkbox`, dan `signature_image` langsung ke PDF di memory |
 | Placeholder valid | Segmen teks PDF yang seluruh isinya bracket, contoh `[  ]` atau `[Tanggal]` |
 | Label field | Diambil dari isi bracket, teks terdekat di kiri, atau teks tepat di atas lewat `_segment_label()` |
-| Field yang ditampilkan | Blok isian awal yang contiguous; bagian bawah seperti signature/free text dilewati |
-| Deduplicate | Label sama hanya muncul sekali di modal, tapi saat fill semua placeholder dengan label itu ikut terisi |
+| Field legacy yang ditampilkan | Blok isian awal yang contiguous; bagian bawah seperti signature/free text dilewati |
+| Deduplicate legacy | Label sama hanya muncul sekali di modal, tapi saat fill semua placeholder dengan label itu ikut terisi |
 | Security | `_resolve_form_path()` memastikan path ada di `DATA_DIR`, file `.pdf`, dan `document_kind=form` |
 
 ## Index Lokasi Cepat

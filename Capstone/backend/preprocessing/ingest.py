@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from time import perf_counter
 
+from backend.api.flowchart_service import prune_stale_flowchart_cache
 from backend.settings import get_env, load_capstone_env
 from backend.preprocessing.chunker import chunk_documents
 from backend.preprocessing.flowchart_extractor import (
@@ -35,7 +36,11 @@ def main() -> None:
     print("[1/3] Loading documents and extracting flowcharts...")
     stage_started_at = perf_counter()
     reset_flowchart_timing()
-    documents = load_documents(get_data_dir())
+    data_dir = get_data_dir()
+    documents = load_documents(data_dir)
+    removed_flowcharts = prune_stale_flowchart_cache(
+        {path.name for path in data_dir.rglob("*.pdf") if path.is_file()}
+    )
     load_seconds = perf_counter() - stage_started_at
     flowchart_seconds, flowchart_count = get_flowchart_timing()
     flowchart_enabled = get_env("FLOWCHART_EXTRACTION_ENABLED", "true").lower() in {
@@ -49,6 +54,7 @@ def main() -> None:
         "[flowchart] "
         f"enabled={str(flowchart_enabled).lower()}, "
         f"extracted={flowchart_count}, "
+        f"pruned={removed_flowcharts}, "
         f"time={flowchart_seconds:.2f}s."
     )
 

@@ -19,6 +19,11 @@ def _flowchart_cache_dir() -> Path:
     return configured if configured.is_absolute() else ROOT_DIR / configured
 
 
+def _data_dir() -> Path:
+    configured = Path(get_env("DATA_DIR", "backend/data"))
+    return configured if configured.is_absolute() else ROOT_DIR / configured
+
+
 def _is_display_enabled() -> bool:
     return get_env("FLOWCHART_DISPLAY_ENABLED", "false").lower() in {
         "1",
@@ -46,6 +51,62 @@ def _load_cache_payloads(cache_dir: Path) -> list[tuple[Path, dict[str, Any]]]:
         key=lambda item: item[0].stat().st_mtime,
         reverse=True,
     )
+
+
+def _existing_source_names(data_dir: Path | None = None) -> set[str]:
+    base_dir = data_dir or _data_dir()
+    if not base_dir.exists():
+        return set()
+    return {path.name for path in base_dir.rglob("*") if path.is_file()}
+
+
+def clear_flowchart_cache_for_source(
+    source: str,
+    *,
+    cache_dir: Path | None = None,
+) -> int:
+    normalized_source = Path(str(source or "")).name.strip()
+    if not normalized_source:
+        return 0
+
+    removed = 0
+    for path, payload in _load_cache_payloads(cache_dir or _flowchart_cache_dir()):
+        if str(payload.get("source") or "").strip() != normalized_source:
+            continue
+        try:
+            path.unlink()
+            removed += 1
+        except OSError:
+            continue
+    return removed
+
+
+def prune_stale_flowchart_cache(
+    valid_sources: set[str] | list[str] | tuple[str, ...],
+    *,
+    cache_dir: Path | None = None,
+) -> int:
+    normalized_sources = {
+        Path(str(source or "")).name.strip()
+        for source in valid_sources
+        if str(source or "").strip()
+    }
+
+    removed = 0
+    seen_keys: set[tuple[str, int | None]] = set()
+    for path, payload in _load_cache_payloads(cache_dir or _flowchart_cache_dir()):
+        payload_source = Path(str(payload.get("source") or "")).name.strip()
+        image_page = payload.get("image_page")
+        dedupe_key = (payload_source, image_page if isinstance(image_page, int) else None)
+        if payload_source and payload_source in normalized_sources and dedupe_key not in seen_keys:
+            seen_keys.add(dedupe_key)
+            continue
+        try:
+            path.unlink()
+            removed += 1
+        except OSError:
+            continue
+    return removed
 
 
 def _flowchart_from_payload(
@@ -95,6 +156,7 @@ def find_flowcharts_for_citations(
     expected_model = model_name or get_env("FLOWCHART_VISION_MODEL", "qwen3.5:9b")
     minimum_confidence = get_float_env("FLOWCHART_MIN_CONFIDENCE", 0.6)
     payloads = _load_cache_payloads(cache_dir or _flowchart_cache_dir())
+    existing_sources = _existing_source_names()
     flowcharts: list[dict[str, Any]] = []
     used_ids: set[str] = set()
 
@@ -104,6 +166,8 @@ def find_flowcharts_for_citations(
         section = str(citation.get("section") or "")
         content_type = str(citation.get("content_type") or "")
         if content_type != "flowchart" and "alur proses" not in section.lower():
+            continue
+        if source not in existing_sources:
             continue
 
         for path, payload in payloads:
@@ -163,12 +227,7 @@ def get_flowchart_image(
     if not source or not isinstance(page_index, int):
         return None
 
-    configured_data_dir = Path(get_env("DATA_DIR", "backend/data"))
-    data_dir = (
-        configured_data_dir
-        if configured_data_dir.is_absolute()
-        else ROOT_DIR / configured_data_dir
-    )
+    data_dir = _data_dir()
     source_path = next(
         (path for path in data_dir.rglob(source) if path.is_file() and path.name == source),
         None,
