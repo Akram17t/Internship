@@ -392,6 +392,24 @@ def _split_form_selection(answer: str) -> tuple[str, list[str]]:
     return cleaned_answer, selected_forms
 
 
+def _normalize_visible_citation_style(answer: str) -> str:
+    """Rapikan gaya citation supaya body jawaban tidak terasa seperti debug source."""
+
+    # Model kadang menumpuk marker di akhir kalimat: "[1] [2] [3]".
+    # UI sudah merender detail citation, jadi cukup pertahankan marker pertama.
+    answer = re.sub(
+        r"\[(?P<first>\d+)\](?:\s*\[\d+\])+",
+        lambda match: f"[{match.group('first')}]",
+        answer,
+    )
+    answer = re.sub(
+        r"\[(?P<first>\d+)\](?:\s*,\s*\[\d+\])+",
+        lambda match: f"[{match.group('first')}]",
+        answer,
+    )
+    return answer.strip()
+
+
 def _generate_faq_answer(question: str, evidence: str) -> str:
     # Buat jawaban FAQ yang ringkas, tetapi tetap memuat detail paling berguna.
     prompt = (
@@ -408,9 +426,11 @@ def _generate_faq_answer(question: str, evidence: str) -> str:
         "5. Prioritaskan detail konkret. Jangan mengulang pertanyaan, mengulang gagasan yang "
         "sama, atau memakai filler seperti 'secara umum', 'pada dasarnya', dan 'penting untuk diketahui'.\n"
         "6. Pertahankan marker sitasi angka seperti [1] atau [2] setelah kalimat yang didukung. "
-        "Jangan gunakan [n] dan jangan membuat sumber baru.\n"
+        "Jangan gunakan [n] dan jangan membuat sumber baru. Jangan menumpuk citation seperti "
+        "[1] [2] [3]; pisahkan antar kalimat/bullet jika memang butuh sumber berbeda.\n"
         "7. Bullet boleh memakai label singkat dalam bold, misalnya '- **Persetujuan:** ...'. "
-        "Jangan menulis markdown table, bagian sumber terpisah, atau informasi yang tidak ada di evidence.\n"
+        "Jangan menulis markdown table, bagian sumber terpisah, nama file/dokumen/section "
+        "sebagai penjelasan sumber, atau informasi yang tidak ada di evidence.\n"
         "8. Jika evidence tidak menjawab pertanyaan secara langsung, balas persis: "
         f"\"{faq_unavailable_answer_text()}\"\n\n"
         f"Pertanyaan:\n{question}\n\n"
@@ -484,6 +504,7 @@ def run_knowledge_crew(
         return unsupported_answer_text(), [], []
     if citations:
         answer = re.sub(r"\[[nN]\]", f"[{citations[0]['id']}]", answer)
+    answer = _normalize_visible_citation_style(answer)
     used_citation_ids = {int(value) for value in re.findall(r"\[(\d+)\]", answer)}
     if used_citation_ids:
         citations = [citation for citation in citations if citation["id"] in used_citation_ids]
@@ -513,6 +534,7 @@ def run_faq_crew(question: str) -> tuple[str, list[dict[str, object]]]:
     answer = _strip_generated_sources_section(_generate_faq_answer(question, evidence))
     if citations:
         answer = re.sub(r"\[[nN]\]", f"[{citations[0]['id']}]", answer)
+    answer = _normalize_visible_citation_style(answer)
     used_citation_ids = {int(value) for value in re.findall(r"\[(\d+)\]", answer)}
     if used_citation_ids:
         citations = [citation for citation in citations if citation["id"] in used_citation_ids]

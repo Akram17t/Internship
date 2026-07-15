@@ -373,11 +373,17 @@ function renderMessages(scrollBehavior = "auto") {
   state.messages.forEach((message) => {
     const fragment = elements.messageTemplate.content.cloneNode(true);
     const article = fragment.querySelector(".message");
+    const avatar = fragment.querySelector(".message-avatar");
     const bubble = fragment.querySelector(".message-bubble");
     const meta = fragment.querySelector(".message-meta");
     const isAssistant = message.role === "assistant";
 
     article.classList.add(isAssistant ? "is-assistant" : "is-user");
+    if (isAssistant) {
+      avatar.alt = "AI Assistant";
+    } else {
+      avatar.remove();
+    }
     if (message.loading) {
       article.classList.add("message--loading");
       bubble.innerHTML = `<span class="loading-dots"><span></span><span></span><span></span></span>${message.loading_text || loadingStageLabels[0]}`;

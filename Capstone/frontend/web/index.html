@@ -109,6 +109,13 @@
             class="screen chat-screen is-active"
             data-screen-panel="chat"
           >
+            <div class="assistant-hero" aria-hidden="true">
+              <img
+                src="/assets/avatar-removebg-preview.png"
+                alt=""
+                class="assistant-hero-image"
+              />
+            </div>
             <div class="chat-thread" id="chatThread" aria-live="polite"></div>
             <form class="composer" id="chatForm">
               <div class="composer-control">
@@ -351,6 +358,12 @@
 
     <template id="messageTemplate">
       <article class="message">
+        <img
+          class="message-avatar"
+          src="/assets/avatar-removebg-preview.png"
+          alt=""
+          loading="lazy"
+        />
         <div class="message-content">
           <div class="message-bubble"></div>
           <div class="message-citations" hidden></div>

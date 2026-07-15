@@ -1106,6 +1106,29 @@ body:not([data-active-screen="chat"]) .form-draft-menu {
   padding: clamp(28px, 6vw, 76px);
 }
 
+.assistant-hero {
+  display: none;
+}
+
+.chat-screen.is-empty .assistant-hero {
+  display: grid;
+  width: min(198px, 36vw);
+  aspect-ratio: 1;
+  margin: 0 auto 22px;
+  place-items: center;
+  animation: assistant-hero-rise 0.46s ease both;
+}
+
+.assistant-hero-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  filter: drop-shadow(0 18px 34px rgba(10, 10, 10, 0.12));
+  object-fit: contain;
+}
+
 .chat-thread {
   position: relative;
   display: flex;
@@ -1126,6 +1149,8 @@ body:not([data-active-screen="chat"]) .form-draft-menu {
 .message {
   display: flex;
   width: min(860px, 80%);
+  gap: 14px;
+  align-items: flex-start;
   animation: message-rise 0.32s ease both;
 }
 .message.is-assistant {
@@ -1134,6 +1159,16 @@ body:not([data-active-screen="chat"]) .form-draft-menu {
 .message.is-user {
   align-self: flex-end;
   justify-content: flex-end;
+}
+.message-avatar {
+  display: block;
+  width: 52px;
+  height: 52px;
+  flex: 0 0 52px;
+  border: 0;
+  background: transparent;
+  filter: drop-shadow(0 8px 16px rgba(10, 10, 10, 0.1));
+  object-fit: contain;
 }
 .message-content {
   display: flex;
@@ -1222,6 +1257,17 @@ body:not([data-active-screen="chat"]) .form-draft-menu {
 @keyframes streaming-caret {
   50% {
     opacity: 0;
+  }
+}
+
+@keyframes assistant-hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -1684,7 +1730,7 @@ body:not([data-active-screen="chat"]) .form-draft-menu {
   position: relative;
   bottom: auto;
   flex: 0 0 auto;
-  margin: auto;
+  margin: 0 auto;
   padding: 0;
   border-top: 0;
   background: transparent;
@@ -3362,6 +3408,10 @@ body.logout-open {
   .chat-screen.is-empty {
     padding: 24px 16px;
   }
+  .chat-screen.is-empty .assistant-hero {
+    width: 124px;
+    margin-bottom: 16px;
+  }
   .chat-screen.is-empty .composer {
     width: min(340px, calc(100vw - 48px));
     max-width: min(340px, calc(100vw - 48px));
@@ -3381,6 +3431,12 @@ body.logout-open {
   .message {
     width: 100%;
     max-width: 100%;
+    gap: 10px;
+  }
+  .message-avatar {
+    width: 42px;
+    height: 42px;
+    flex-basis: 42px;
   }
   .message-content {
     max-width: 100%;

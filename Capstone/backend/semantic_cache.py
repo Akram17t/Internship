@@ -60,7 +60,10 @@ def _top_k() -> int:
 
 
 def _model_name() -> str:
-    return get_required_env("MODEL")
+    cache_version = get_env("SEMANTIC_CACHE_VERSION", "answer-style-v2").strip()
+    if not cache_version:
+        cache_version = "answer-style-v2"
+    return f"{get_required_env('MODEL')}::{cache_version}"
 
 
 def _embed_model_name() -> str:
