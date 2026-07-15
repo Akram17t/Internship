@@ -99,7 +99,7 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
         len(available_forms),
     )
     try:
-        answer, raw_citations, selected_form_names = run_knowledge_crew(
+        answer, raw_citations, selected_form_names, answer_source = run_knowledge_crew(
             payload.question,
             conversation_context,
             available_forms=_available_form_catalog(available_forms),
@@ -138,6 +138,7 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
         form_downloads=form_downloads,
         flowcharts=flowcharts,
         conversation_id=conversation_id,
+        answer_source=answer_source,
     )
 
 

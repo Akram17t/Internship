@@ -14,6 +14,22 @@ from researcher_crew import main as crew_main
 
 
 class AnswerFinalizationTests(unittest.TestCase):
+    def test_strip_thinking_blocks_removes_qwen_reasoning(self) -> None:
+        answer = crew_main._strip_thinking_blocks(
+            "<think>\nreasoning yang tidak boleh tampil\n</think>\nJawaban final [1]."
+        )
+
+        self.assertEqual(answer, "Jawaban final [1].")
+
+    def test_finalize_answer_citations_replaces_invalid_marker(self) -> None:
+        answer, citations = crew_main._finalize_answer_citations(
+            "Jawaban didukung sumber [99].",
+            [{"id": 1, "source": "SOP.pdf"}],
+        )
+
+        self.assertEqual(answer, "Jawaban didukung sumber [1].")
+        self.assertEqual(citations, [{"id": 1, "source": "SOP.pdf"}])
+
     def test_faq_prompt_requests_compact_but_informative_answer(self) -> None:
         with patch(
             "researcher_crew.main._ollama_generate",
@@ -240,7 +256,7 @@ class AnswerFinalizationTests(unittest.TestCase):
             patch("researcher_crew.main._generate_answer", return_value=f"{unsupported_answer_text()} [1]"),
             patch("researcher_crew.main.store_semantic_cache", store_cache),
         ):
-            answer, citations, selected_forms = crew_main.run_knowledge_crew(
+            answer, citations, selected_forms, answer_source = crew_main.run_knowledge_crew(
                 "Apa saja aturan yang tidak ada di evidence?",
                 trace_id="test",
             )
@@ -248,6 +264,7 @@ class AnswerFinalizationTests(unittest.TestCase):
         self.assertEqual(answer, unsupported_answer_text())
         self.assertEqual(citations, [])
         self.assertEqual(selected_forms, [])
+        self.assertEqual(answer_source, "fallback")
         store_cache.assert_not_called()
 
 

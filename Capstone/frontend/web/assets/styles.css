@@ -1372,6 +1372,22 @@ body:not([data-active-screen="chat"]) .form-draft-menu {
   font-weight: 500;
 }
 
+.message-source {
+  font-weight: 600;
+}
+
+.message-source--cache {
+  color: #167246;
+}
+
+.message-source--model {
+  color: #9b2c36;
+}
+
+.message-source--fallback {
+  color: #846000;
+}
+
 .message-citations {
   display: flex;
   width: 100%;

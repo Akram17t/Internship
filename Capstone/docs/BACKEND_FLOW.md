@@ -292,17 +292,9 @@ Fungsi penting:
 - `store_semantic_cache()` dipanggil setelah jawaban final valid
 - `run_knowledge_crew()` untuk chat
 - `run_faq_crew()` untuk FAQ
-- `_generate_answer()` lewat CrewAI
-- `_generate_faq_answer()` lewat Ollama langsung
+- `_generate_answer()` lewat Groq/Ollama direct
+- `_generate_faq_answer()` lewat Groq/Ollama direct
 - `_split_form_selection()` untuk ambil `FORM_SELECTION`
-
-### `backend/researcher_crew/crew.py`
-
-Definisi CrewAI:
-- `_llm()`
-- `answer_writer()`
-- `chat_answer_task()`
-- `crew()`
 
 ### `backend/researcher_crew/tools/custom_tool.py`
 

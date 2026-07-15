@@ -77,6 +77,7 @@ class QueryResponse(BaseModel):
     form_downloads: list[FormDownloadResponse] = Field(default_factory=list)
     flowcharts: list[FlowchartScreenshotResponse] = Field(default_factory=list)
     conversation_id: str
+    answer_source: Literal["model", "cache", "fallback"] = "model"
 
 
 class PublicConfigResponse(BaseModel):

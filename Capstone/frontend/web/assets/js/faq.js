@@ -357,10 +357,10 @@ function formatFaqSaveError(error) {
     return "FAQ tidak dibuat karena pertanyaan ini tidak punya sumber yang relevan di dokumen terindeks. Coba pertanyaan lain atau tambahkan dokumen terkait.";
   }
 
-  // 5xx: layanan AI lokal (Ollama) mati atau gagal membuat jawaban.
+  // 5xx: layanan AI mati atau gagal membuat jawaban.
   if (status >= 500) {
     console.warn("FAQ generation detail:", rawMessage);
-    return "FAQ belum bisa dibuat karena layanan AI (Ollama) gagal merespons. Pastikan Ollama berjalan lalu coba lagi.";
+    return "FAQ belum bisa dibuat karena layanan AI gagal merespons. Periksa konfigurasi provider lalu coba lagi.";
   }
 
   // Error dari sisi klien (tanpa status HTTP) — fallback ke isi pesannya.

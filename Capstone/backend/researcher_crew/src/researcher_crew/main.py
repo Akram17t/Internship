@@ -7,8 +7,8 @@ import logging
 import time
 import urllib.error
 import urllib.request
-import warnings
 from pathlib import Path
+from typing import Any
 
 project_root = Path(__file__).resolve().parents[5]
 if str(project_root) not in sys.path:
@@ -23,9 +23,6 @@ from backend.answer_policy import (
 from backend.settings import get_int_env, get_required_env, load_capstone_env
 from backend.semantic_cache import lookup_semantic_cache, store_semantic_cache
 
-warnings.filterwarnings("ignore", category=SyntaxWarning, module="pysbd")
-
-from researcher_crew.crew import ResearcherCrew
 from researcher_crew.tools import retrieve_knowledge
 
 load_capstone_env()
@@ -37,9 +34,45 @@ if hasattr(sys.stderr, "reconfigure"):
 
 logger = logging.getLogger("uvicorn.error")
 
+ANSWER_ROLE_PROMPT = (
+    "Kamu adalah ICS Knowledge Assistant. Kamu menjelaskan dokumen operasional "
+    "seperti rekan kerja yang reliable: jelas untuk ditindaklanjuti, fleksibel "
+    "dalam format, dan jujur ketika evidence tidak lengkap."
+)
+
+ANSWER_TASK_RULES = (
+    "Jawab pertanyaan user dalam bahasa Indonesia hanya memakai retrieved evidence "
+    "yang diberikan.\n\n"
+    "Gaya jawaban:\n"
+    "- Natural, jelas, dan membantu.\n"
+    "- Pilih format yang paling cocok: paragraf, bullet, numbered steps, tabel kecil, atau campuran.\n"
+    "- Jika membahas proses/SOP, jelaskan alur, aktor, form, approval, output, deadline, kondisi, dan pengecualian hanya jika didukung evidence.\n\n"
+    "Aturan sitasi:\n"
+    "- Pertahankan marker sitasi angka seperti [1] dan [2] di jawaban visible.\n"
+    "- Letakkan citation di akhir paragraf, bullet, atau baris tabel yang penting.\n"
+    "- Jika membuat tabel, pastikan minimal kalimat pengantar atau heading tabel memiliki marker citation yang mendukung isi tabel.\n"
+    "- Jangan tulis nama file/source/section sebagai bagian jawaban visible kecuali user memang bertanya sumbernya.\n"
+    "- Hindari citation bertumpuk seperti [1] [2] [3]; pecah kalimat/bullet jika perlu.\n"
+    "- Jangan pakai marker generik seperti [n].\n"
+    "- Jangan buat bagian sources/references terpisah.\n\n"
+    "Aturan pemilihan form:\n"
+    "- Jika jawaban membutuhkan downloadable form, pilih hanya dari available downloadable forms.\n"
+    "- Jangan invent nama form.\n"
+    "- Jangan menulis filename PDF atau section download form di jawaban visible; app akan render form terpisah.\n"
+    "- Jika evidence menjawab pertanyaan, di akhir jawaban tambahkan tepat satu baris machine-readable:\n"
+    "FORM_SELECTION: [\"exact form filename.pdf\"]\n"
+    "- Jika tidak perlu form, tulis tepat:\n"
+    "FORM_SELECTION: []\n\n"
+    "Aturan reliabilitas:\n"
+    "- Jangan invent detail policy, file, page, form number, approval, aktor, kalkulasi, requirement, pengecualian, atau rekomendasi.\n"
+    "- Jangan pernah output reasoning tersembunyi, chain-of-thought, atau tag <think>...</think>.\n"
+    "- Jika evidence tidak menjawab langsung, balas persis kalimat ini saja tanpa FORM_SELECTION:\n"
+    "\"Sistem tidak dapat menemukan informasi terkait hal tersebut di dalam dokumen SOP. Silakan lakukan eskalasi ke HR atau manajer terkait untuk instruksi manual.\""
+)
+
 
 class OllamaGenerationError(RuntimeError):
-    """Muncul saat stack LLM lokal gagal menyelesaikan proses generasi."""
+    """Muncul saat stack LLM gagal menyelesaikan proses generasi."""
 
 
 def _strip_trailing_unsupported_answer(answer: str) -> str:
@@ -61,9 +94,35 @@ def _strip_generated_sources_section(answer: str) -> str:
     return pattern.sub("", answer).strip()
 
 
+def _strip_thinking_blocks(text: str) -> str:
+    # Qwen reasoning models via Groq can emit <think>...</think>; never show it.
+    value = re.sub(
+        r"^\s*<think\b[^>]*>.*?</think>\s*",
+        "",
+        str(text),
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    value = re.sub(
+        r"<think\b[^>]*>.*?</think>",
+        "",
+        value,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    return value.replace("<think>", "").replace("</think>", "").strip()
+
+
+def _configured_model() -> str:
+    return get_required_env("MODEL")
+
+
 def _ollama_model_name() -> str:
     # Ambil nama model Ollama tanpa prefix provider.
-    return get_required_env("MODEL").removeprefix("ollama/")
+    return _configured_model().removeprefix("ollama/")
+
+
+def _groq_model_name() -> str:
+    # Groq SDK memakai nama model tanpa prefix LiteLLM provider.
+    return _configured_model().removeprefix("groq/")
 
 
 def _ollama_base_url() -> str:
@@ -114,7 +173,45 @@ def _post_ollama_generate(payload: dict[str, object]) -> str:
             f"Ollama belum bisa dihubungi atau responsnya tidak valid: {error}"
         ) from error
 
-    return str(body.get("response", "")).strip()
+    return _strip_thinking_blocks(str(body.get("response", "")))
+
+
+def _groq_generate(
+    prompt: str,
+    *,
+    num_predict: int,
+    temperature: float,
+) -> str:
+    try:
+        from groq import Groq
+    except ImportError as error:
+        raise OllamaGenerationError(
+            "Dependency Groq belum terpasang. Jalankan pip install -r requirements.txt."
+        ) from error
+
+    try:
+        client = Groq(
+            api_key=get_required_env("GROQ_API_KEY"),
+            timeout=get_int_env("GROQ_TIMEOUT_SECONDS", 240),
+        )
+        completion = client.chat.completions.create(
+            model=_groq_model_name(),
+            messages=[{"role": "user", "content": prompt}],
+            temperature=temperature,
+            max_completion_tokens=num_predict,
+            top_p=0.95,
+            reasoning_effort="default",
+            stream=False,
+            stop=None,
+        )
+    except Exception as error:
+        raise OllamaGenerationError(f"Groq gagal membuat jawaban: {error}") from error
+
+    choices: Any = getattr(completion, "choices", None)
+    if not choices:
+        return ""
+    message = getattr(choices[0], "message", None)
+    return _strip_thinking_blocks(str(getattr(message, "content", "") or ""))
 
 
 def _ollama_generate(
@@ -124,7 +221,14 @@ def _ollama_generate(
     temperature: float = 0.1,
     seed: int | None = None,
 ) -> str:
-    """Kirim prompt ke Ollama sambil mematikan hidden reasoning bila didukung."""
+    """Kirim prompt ke provider aktif, tetap mempertahankan nama lama untuk test."""
+    if _configured_model().startswith("groq/"):
+        return _groq_generate(
+            prompt,
+            num_predict=num_predict,
+            temperature=temperature,
+        )
+
     options: dict[str, object] = {
         "temperature": temperature,
         "num_ctx": get_int_env("OLLAMA_NUM_CTX", 4096),
@@ -316,25 +420,24 @@ def _rewrite_query(question: str, conversation_context: str = "") -> str:
     return rewritten_question
 
 
-def _crew_output_to_text(result: object) -> str:
-    # Ubah output CrewAI menjadi teks respons biasa.
-    raw = getattr(result, "raw", None)
-    return str(raw if raw is not None else result).strip()
+def _direct_answer_prompt(question: str, evidence: str, available_forms: str) -> str:
+    return (
+        f"{ANSWER_ROLE_PROMPT}\n\n"
+        f"Pertanyaan terbaru:\n{question}\n\n"
+        f"Retrieved evidence:\n{evidence}\n\n"
+        f"Available downloadable forms:\n{available_forms or '[]'}\n\n"
+        f"{ANSWER_TASK_RULES}\n\n"
+        "Jawaban:"
+    )
 
 
 def _generate_answer(question: str, evidence: str, available_forms: str) -> str:
-    # Jalankan chat crew untuk menghasilkan jawaban akhir ke user.
-    inputs = {
-        "question": question,
-        "evidence": evidence,
-        "available_forms": available_forms or "[]",
-    }
-    try:
-        result = ResearcherCrew().crew().kickoff(inputs=inputs)
-    except Exception as error:
-        raise OllamaGenerationError(f"CrewAI gagal membuat jawaban: {error}") from error
-
-    return _crew_output_to_text(result)
+    # Generate jawaban akhir langsung lewat provider aktif.
+    return _ollama_generate(
+        _direct_answer_prompt(question, evidence, available_forms),
+        num_predict=get_int_env("OLLAMA_NUM_PREDICT", 1100),
+        temperature=0.05,
+    )
 
 
 def _split_form_selection(answer: str) -> tuple[str, list[str]]:
@@ -395,6 +498,8 @@ def _split_form_selection(answer: str) -> tuple[str, list[str]]:
 def _normalize_visible_citation_style(answer: str) -> str:
     """Rapikan gaya citation supaya body jawaban tidak terasa seperti debug source."""
 
+    answer = re.sub(r"【\s*(\d+)\s*】", r"[\1]", answer)
+    answer = re.sub(r"\[\s*(\d+)\s*\]", r"[\1]", answer)
     # Model kadang menumpuk marker di akhir kalimat: "[1] [2] [3]".
     # UI sudah merender detail citation, jadi cukup pertahankan marker pertama.
     answer = re.sub(
@@ -408,6 +513,33 @@ def _normalize_visible_citation_style(answer: str) -> str:
         answer,
     )
     return answer.strip()
+
+
+def _finalize_answer_citations(
+    answer: str,
+    citations: list[dict[str, object]],
+) -> tuple[str, list[dict[str, object]]]:
+    if not citations:
+        return answer.strip(), []
+
+    valid_ids = {int(citation["id"]) for citation in citations if "id" in citation}
+    first_id = int(citations[0]["id"])
+    answer = re.sub(r"\[[nN]\]", f"[{first_id}]", answer)
+    answer = _normalize_visible_citation_style(answer)
+
+    def replace_invalid(match: re.Match[str]) -> str:
+        citation_id = int(match.group(1))
+        return match.group(0) if citation_id in valid_ids else f"[{first_id}]"
+
+    answer = re.sub(r"\[(\d+)\]", replace_invalid, answer)
+    used_ids = {int(value) for value in re.findall(r"\[(\d+)\]", answer)}
+    if not used_ids:
+        answer = f"{answer} [{first_id}]"
+        used_ids = {first_id}
+
+    # Tetap kirim semua citation ke frontend agar panel sumber bawah lengkap,
+    # walaupun model lupa menaruh marker inline untuk salah satu sumber.
+    return answer.strip(), citations
 
 
 def _generate_faq_answer(question: str, evidence: str) -> str:
@@ -453,7 +585,7 @@ def run_knowledge_crew(
     conversation_context: str = "",
     available_forms: str = "",
     trace_id: str = "",
-) -> tuple[str, list[dict[str, object]], list[str]]:
+) -> tuple[str, list[dict[str, object]], list[str], str]:
     """Ambil evidence dokumen lalu hasilkan jawaban lewat chat crew."""
     trace_label = trace_id or "chat"
     started_at = time.perf_counter()
@@ -480,14 +612,18 @@ def run_knowledge_crew(
         logger.info(
             "[%s] total   | %.2fs (dari cache)", trace_label, time.perf_counter() - started_at
         )
-        return cache_hit.answer, cache_hit.citations, cache_hit.selected_forms
+        cached_answer, cached_citations = _finalize_answer_citations(
+            _strip_thinking_blocks(cache_hit.answer),
+            cache_hit.citations,
+        )
+        return cached_answer, cached_citations, cache_hit.selected_forms, "cache"
 
     evidence, citations = retrieve_knowledge(standalone_question)
     if not citations:
         logger.info(
             "[%s] total   | %.2fs (tanpa sumber)", trace_label, time.perf_counter() - started_at
         )
-        return unsupported_answer_text(), [], []
+        return unsupported_answer_text(), [], [], "fallback"
 
     crew_started = time.perf_counter()
     answer = _strip_generated_sources_section(
@@ -501,16 +637,8 @@ def run_knowledge_crew(
         logger.info(
             "[%s] total   | %.2fs (tanpa sumber)", trace_label, time.perf_counter() - started_at
         )
-        return unsupported_answer_text(), [], []
-    if citations:
-        answer = re.sub(r"\[[nN]\]", f"[{citations[0]['id']}]", answer)
-    answer = _normalize_visible_citation_style(answer)
-    used_citation_ids = {int(value) for value in re.findall(r"\[(\d+)\]", answer)}
-    if used_citation_ids:
-        citations = [citation for citation in citations if citation["id"] in used_citation_ids]
-    elif citations:
-        answer = f"{answer} [{citations[0]['id']}]"
-        citations = citations[:1]
+        return unsupported_answer_text(), [], [], "fallback"
+    answer, citations = _finalize_answer_citations(answer, citations)
     store_semantic_cache(
         standalone_question,
         answer,
@@ -519,7 +647,7 @@ def run_knowledge_crew(
         trace_id=trace_label,
     )
     logger.info("[%s] total   | %.2fs", trace_label, time.perf_counter() - started_at)
-    return answer, citations, selected_forms
+    return answer, citations, selected_forms, "model"
 
 
 def run_faq_crew(question: str) -> tuple[str, list[dict[str, object]]]:
@@ -532,13 +660,5 @@ def run_faq_crew(question: str) -> tuple[str, list[dict[str, object]]]:
         )
 
     answer = _strip_generated_sources_section(_generate_faq_answer(question, evidence))
-    if citations:
-        answer = re.sub(r"\[[nN]\]", f"[{citations[0]['id']}]", answer)
-    answer = _normalize_visible_citation_style(answer)
-    used_citation_ids = {int(value) for value in re.findall(r"\[(\d+)\]", answer)}
-    if used_citation_ids:
-        citations = [citation for citation in citations if citation["id"] in used_citation_ids]
-    elif citations:
-        answer = f"{answer} [{citations[0]['id']}]"
-        citations = citations[:1]
+    answer, citations = _finalize_answer_citations(answer, citations)
     return answer, citations

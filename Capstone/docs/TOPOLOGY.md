@@ -36,11 +36,10 @@ flowchart TB
         FormSchemas[/"backend/form_schemas<br/>template schemas"/]
     end
 
-    subgraph Crew["researcher_crew"]
+    subgraph RagRuntime["researcher_crew"]
         direction TB
         Main["main.py<br/>rewrite, cache lookup, generate"]
         Retrieve["custom_tool.py<br/>retrieve_knowledge"]
-        CrewDef["crew.py + config<br/>CrewAI chat answer"]
     end
 
     subgraph Prep["preprocessing"]
@@ -71,9 +70,7 @@ flowchart TB
     SemanticCache --> CacheDB
     SemanticCache --> SemanticChroma
     Main --> Retrieve
-    Main --> CrewDef
     Main --> Ollama
-    CrewDef --> Ollama
     Retrieve --> VStore
     VStore --> Chroma
     VStore --> Reranker
@@ -94,7 +91,7 @@ flowchart TB
 ## Alur Ringkas
 
 - **Frontend**: `frontend/web/assets/app.js` hanya bootstrap state/navigasi; logic utama dipisah ke `assets/js/chat.js`, `forms.js`, `faq.js`, `library.js`, `auth.js`, `storage.js`, `drafts.js`, dan `markdown.js`.
-- **Chat**: `/query` mengambil conversation context, rewrite follow-up bila perlu, cek semantic cache, lalu hanya menjalankan retrieval + CrewAI/Ollama jika cache miss.
+- **Chat**: `/query` mengambil conversation context, rewrite follow-up bila perlu, cek semantic cache, lalu hanya menjalankan retrieval + Groq/Ollama direct jika cache miss.
 - **Semantic cache**: payload jawaban ada di `app_state.db`; embedding pertanyaan ada di `backend/cache/semantic_chroma`; cache di-reset setelah reindex.
 - **FAQ**: admin membuat FAQ lewat retrieval + Ollama direct, lalu hasil valid disimpan ke `faqs.json`.
 - **Form editor PDF**: `assets/js/forms.js` mengambil `GET /api/forms/schema` untuk template yang sudah dimigrasikan, menampilkan preview PDF di client, lalu submit `multipart/form-data` ke `POST /api/forms/fill`. `forms_service.py` merender text, textarea, checkbox, dan signature image langsung ke PDF di memory.

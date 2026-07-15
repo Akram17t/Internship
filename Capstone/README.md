@@ -8,9 +8,9 @@ Architecture and design docs, including a topology diagram, are in [docs/ARCHITE
 
 - FastAPI for REST backend and frontend hosting
 - Vanilla HTML, CSS, and JavaScript for the web UI
-- CrewAI for the chat answer agent (FAQ answers use a direct Ollama call)
+- Direct Groq/Ollama LLM calls for chat and FAQ generation
 - ChromaDB for local vector storage
-- Ollama for local LLM and embedding
+- Ollama for local embedding and optional local LLM fallback
 
 ## Quick Start
 
@@ -71,7 +71,7 @@ is now the bootstrap/glue file, while feature logic lives in small global module
 Capstone/
 |-- backend/
 |   |-- api/              # FastAPI routes and frontend hosting
-|   |-- researcher_crew/  # CrewAI project and its venv
+|   |-- researcher_crew/  # RAG answer generation and retrieval helpers
 |   |-- preprocessing/    # ingestion, loaders, chunking, embeddings, vectorstore
 |   |-- scripts/          # small command-line helpers used by Windows scripts
 |   |-- data/             # source documents

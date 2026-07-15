@@ -201,6 +201,7 @@ async function submitQuestion(rawQuestion) {
         ? payload.form_downloads
         : [],
       flowcharts: Array.isArray(payload.flowcharts) ? payload.flowcharts : [],
+      answer_source: normalizeAnswerSource(payload.answer_source),
       duration_ms: Math.round(performance.now() - startedAt),
       timestamp: "Just now",
     };
@@ -218,9 +219,10 @@ async function submitQuestion(rawQuestion) {
     if (error.name === "AbortError") return;
     replaceLoading({
       role: "assistant",
-      content: `Aku belum bisa menyelesaikan jawaban ini. ${error.message || "Pastikan FastAPI, Ollama, dan database embedding sedang berjalan."}`,
+      content: `Aku belum bisa menyelesaikan jawaban ini. ${error.message || "Pastikan FastAPI, layanan AI, dan database embedding sedang berjalan."}`,
       citations: [],
       flowcharts: [],
+      answer_source: "fallback",
       duration_ms: Math.round(performance.now() - startedAt),
       timestamp: "Just now",
     });
@@ -404,6 +406,12 @@ function renderMessages(scrollBehavior = "auto") {
     }
 
     meta.textContent = `${isAssistant ? "AI Assistant" : "You"} • ${message.timestamp || "Just now"}`;
+    if (isAssistant && message.answer_source) {
+      const source = document.createElement("span");
+      source.className = `message-source message-source--${message.answer_source}`;
+      source.textContent = formatAnswerSource(message.answer_source);
+      meta.append(" â€¢ ", source);
+    }
     if (isAssistant && Number.isFinite(message.duration_ms)) {
       const duration = document.createElement("span");
       duration.className = "message-duration";
@@ -505,6 +513,20 @@ function renderMessageCitations(container, citations) {
 
   container.appendChild(list);
   container.hidden = false;
+}
+
+function normalizeAnswerSource(value) {
+  const source = String(value || "").toLowerCase();
+  if (source === "cache" || source === "model" || source === "fallback") {
+    return source;
+  }
+  return "model";
+}
+
+function formatAnswerSource(source) {
+  if (source === "cache") return "Hit cache";
+  if (source === "fallback") return "Fallback";
+  return "Model";
 }
 
 function createCitationChip(citation, index, isInline = false) {

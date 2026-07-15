@@ -41,7 +41,6 @@ flowchart TB
 
     subgraph RAG["RAG orchestration"]
         RCMAIN["researcher_crew/main.py"]
-        CREW["researcher_crew/crew.py"]
         TOOL["tools/custom_tool.py"]
     end
 
@@ -88,10 +87,8 @@ flowchart TB
     SEMCACHE --> STATE
     SEMCACHE --> SEMCHROMA
     RCMAIN --> TOOL
-    RCMAIN --> CREW
     RCMAIN --> SEMCACHE
     TOOL --> VS
-    CREW --> OLLAMA
     RCMAIN --> OLLAMA
     VS --> CHROMA
     VS --> RERANK
@@ -125,8 +122,7 @@ flowchart TB
 | Form helpers | `backend/api/forms_service.py` | Legacy placeholder scan/fill, schema loader, dan render PDF schema-driven |
 | Form schemas | `backend/form_schemas/*.json` | Mapping field per template PDF untuk editor v1 |
 | Flowchart helpers | `backend/api/flowchart_service.py` | Cari payload flowchart untuk citation dan serve screenshot |
-| Chat orchestration | `backend/researcher_crew/main.py` | Rewrite query, panggil retrieval, panggil CrewAI/Ollama |
-| Crew definition | `backend/researcher_crew/crew.py` | Agent, task, dan CrewAI object |
+| Chat orchestration | `backend/researcher_crew/main.py` | Rewrite query, panggil retrieval, dan generate jawaban via Groq/Ollama direct |
 | Retrieval tool | `backend/researcher_crew/tools/custom_tool.py` | Evidence text dan citation dari hasil search |
 | Ingestion | `backend/preprocessing/` | Loader, flowchart extraction, cleaner, chunker, embedding, vector store |
 | Startup check | `backend/scripts/storage_status.py` | Cek source docs dan vector DB |
@@ -147,7 +143,7 @@ flowchart TB
 
 `frontend/web/assets/js/chat.js` -> `POST /query` -> `routes_public.py` ->
 `cache_store.py` (context) -> `researcher_crew/main.py` -> semantic cache.
-Jika cache miss, lanjut ke `custom_tool.py` -> `vectorstore.py` -> CrewAI/Ollama.
+Jika cache miss, lanjut ke `custom_tool.py` -> `vectorstore.py` -> Groq/Ollama direct.
 Setelah jawaban final, backend menyimpan semantic cache bila valid dan kembali ke
 `routes_public.py` untuk bentuk `answer + citations + form_downloads + flowcharts`.
 `chat.js` lalu merender jawaban, citation, screenshot flowchart, dan tombol form.

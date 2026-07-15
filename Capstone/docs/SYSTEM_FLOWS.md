@@ -26,7 +26,7 @@ flowchart TD
   M --> N[hybrid_search Chroma + rerank]
   N --> O{Citation ada?}
   O -->|Tidak| P[Jawab fallback tanpa sumber]
-  O -->|Ya| Q[Generate answer via CrewAI]
+  O -->|Ya| Q[Generate answer via direct LLM call]
   P --> R[Finalisasi citation dan form]
   Q --> R
   R --> S[store_semantic_cache jika jawaban cacheable]
@@ -52,7 +52,6 @@ flowchart TD
 | Retrieval evidence | `retrieve_knowledge()` | `backend/researcher_crew/src/researcher_crew/tools/custom_tool.py` |
 | Vector search/rerank | `hybrid_search()` | `backend/preprocessing/vectorstore.py` |
 | Generate jawaban | `_generate_answer()` | `backend/researcher_crew/src/researcher_crew/main.py` |
-| CrewAI object | `ResearcherCrew.crew()` | `backend/researcher_crew/src/researcher_crew/crew.py` |
 | Filter form untuk unsupported answer | `_answer_has_supported_form_context()` | `backend/api/storage.py` |
 | Katalog form untuk AI | `_available_form_catalog()` | `backend/api/storage.py` |
 | Map form pilihan AI | `_selected_form_downloads()` | `backend/api/storage.py` |
@@ -76,7 +75,7 @@ flowchart TD
 | Batas context | Konstanta di `backend/api/core.py` |
 | TTL conversation | `CONVERSATION_TTL` di `backend/api/core.py` |
 | Model rewrite | Ollama direct lewat `_ollama_generate()` |
-| Model answer | CrewAI single-agent `answer_writer` |
+| Model answer | Direct Groq/Ollama call lewat `_generate_answer()` |
 | Unsupported answer | Backend tidak menampilkan form download jika jawaban terdeteksi unsupported |
 | Semantic cache | Exact lookup dulu, lalu similarity lookup dengan threshold `SEMANTIC_CACHE_THRESHOLD` |
 
