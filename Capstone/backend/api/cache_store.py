@@ -4,7 +4,6 @@ import json
 import secrets
 import uuid
 from pathlib import Path
-from urllib.parse import quote
 
 from fastapi import HTTPException
 
@@ -18,6 +17,7 @@ from backend.api.core import (
     ROOT_DIR,
 )
 from backend.api.models import CitationResponse, FAQItem
+from backend.api.storage import _citation_download_url
 from backend.settings import get_env
 
 
@@ -113,11 +113,6 @@ def _append_conversation_turn(conversation_id: str, question: str, answer: str) 
     # Tambahkan satu pasangan turn user/assistant ke cache percakapan.
     with CONVERSATION_LOCK:
         append_conversation_turn(conversation_id, question, answer)
-
-
-def _citation_download_url(source: str) -> str:
-    # Buat URL download dokumen dari nama file sumber citation.
-    return f"/api/documents/{quote(source, safe='')}" if source else ""
 
 
 def _normalize_citation(raw_item: object, index: int) -> CitationResponse | None:

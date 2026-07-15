@@ -40,8 +40,11 @@ from backend.api.models import (
 from backend.api.storage import (
     _answer_has_supported_form_context,
     _available_form_catalog,
+    _citation_download_url,
     _document_kind_for_path,
+    _is_embeddable_path,
     _iter_form_downloads,
+    _resolve_citation_document_path,
     _resolve_document_path,
     _selected_form_downloads,
 )
@@ -113,7 +116,7 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
     citations = [
         CitationResponse(
             **citation,
-            download_url=f"/api/documents/{quote(str(citation['source']), safe='')}",
+            download_url=_citation_download_url(str(citation["source"])),
         )
         for citation in raw_citations
     ]
@@ -161,6 +164,23 @@ def get_faq() -> list[FAQItem]:
     with FAQ_LOCK:
         stored = _load_faqs()
     return [*_pinned_faq_items(), *stored]
+
+
+@app.get("/api/citations/{document_path:path}")
+def download_citation_document(document_path: str) -> FileResponse:
+    # Unduh dokumen yang memang boleh menjadi sumber citation untuk guest.
+    resolved_path = _resolve_citation_document_path(document_path)
+
+    if not resolved_path.exists() or not resolved_path.is_file():
+        raise HTTPException(status_code=404, detail="Document not found.")
+    if not _is_embeddable_path(resolved_path):
+        raise HTTPException(status_code=403, detail="Citation document is not public.")
+
+    return FileResponse(
+        path=resolved_path,
+        filename=resolved_path.name,
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @app.get("/api/documents/{document_path:path}")

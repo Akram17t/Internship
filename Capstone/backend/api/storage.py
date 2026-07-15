@@ -100,6 +100,11 @@ def _form_download_response(path: Path, data_dir: Path) -> FormDownloadResponse:
     )
 
 
+def _citation_download_url(source: str) -> str:
+    # Citation memakai endpoint publik terpisah dari library admin.
+    return f"/api/citations/{quote(source, safe='')}" if source else ""
+
+
 def _iter_form_downloads() -> list[FormDownloadResponse]:
     # Daftar semua template form yang bisa diunduh.
     data_dir = _get_data_dir()
@@ -193,6 +198,31 @@ def _resolve_document_path(document_path: str) -> Path:
     except ValueError as error:
         raise HTTPException(status_code=400, detail="Invalid document path.") from error
 
+    return resolved_path
+
+
+def _resolve_citation_document_path(document_path: str) -> Path:
+    # Citation biasanya menyimpan nama file saja; cari di DATA_DIR jika bukan path relatif penuh.
+    resolved_path = _resolve_document_path(document_path)
+    if resolved_path.exists():
+        return resolved_path
+
+    data_dir = _get_data_dir().resolve()
+    raw_path = unquote(document_path).replace("\\", "/")
+    if "/" in raw_path:
+        return resolved_path
+
+    source_name = Path(raw_path).name
+    if not source_name:
+        return resolved_path
+
+    matches = [
+        path.resolve()
+        for path in data_dir.rglob(source_name)
+        if path.is_file() and path.name == source_name
+    ]
+    if len(matches) == 1:
+        return matches[0]
     return resolved_path
 
 

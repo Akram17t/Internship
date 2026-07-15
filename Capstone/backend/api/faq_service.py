@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from urllib.parse import quote
 
 from fastapi import HTTPException
 
 from backend.answer_policy import is_unsupported_answer
 from backend.api.core import ASSETS_DIR
 from backend.api.models import AdminFAQPayload, CitationResponse, FAQItem
+from backend.api.storage import _citation_download_url
 
 
 def _is_unusable_faq_answer(answer: str, citations: list[CitationResponse]) -> bool:
@@ -29,7 +29,7 @@ def _build_faq_item(payload: AdminFAQPayload, faq_id: str | None = None) -> FAQI
     citations = [
         CitationResponse(
             **citation,
-            download_url=f"/api/documents/{quote(str(citation['source']), safe='')}",
+            download_url=_citation_download_url(str(citation["source"])),
         )
         for citation in raw_citations
     ]

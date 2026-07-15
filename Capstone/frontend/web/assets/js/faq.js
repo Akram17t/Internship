@@ -44,7 +44,7 @@ function renderFaqs() {
       source.hidden = true;
     } else if (item.source) {
       source.textContent = item.source;
-      if (item.source_url && isAdminSession()) {
+      if (item.source_url) {
         source.href = item.source_url;
         source.addEventListener("click", (event) => {
           event.preventDefault();
@@ -183,7 +183,7 @@ function renderFaqCitations(container, citations) {
   const list = document.createElement("div");
   list.className = "faq-citation-list";
   citations.forEach((citation) => {
-    const canOpenDocument = Boolean(citation.download_url) && isAdminSession();
+    const canOpenDocument = Boolean(citation.download_url);
     const source = canOpenDocument
       ? document.createElement("a")
       : document.createElement("span");

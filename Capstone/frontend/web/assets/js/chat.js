@@ -410,7 +410,7 @@ function renderMessages(scrollBehavior = "auto") {
       const source = document.createElement("span");
       source.className = `message-source message-source--${message.answer_source}`;
       source.textContent = formatAnswerSource(message.answer_source);
-      meta.append(" â€¢ ", source);
+      meta.append(" • ", source);
     }
     if (isAssistant && Number.isFinite(message.duration_ms)) {
       const duration = document.createElement("span");
@@ -531,7 +531,7 @@ function formatAnswerSource(source) {
 
 function createCitationChip(citation, index, isInline = false) {
   const fileType = getCitationFileType(citation);
-  const canOpenDocument = Boolean(citation.download_url) && isAdminSession();
+  const canOpenDocument = Boolean(citation.download_url);
   const isPublicForm =
     Boolean(citation.download_url) && isFormSource(citation.source);
   const chip = isPublicForm
