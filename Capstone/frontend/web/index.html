@@ -42,6 +42,10 @@
             <span class="material-symbols-outlined">policy</span
             ><span>Docs</span>
           </button>
+          <button class="nav-link" data-screen="logs" type="button" hidden>
+            <span class="material-symbols-outlined">receipt_long</span
+            ><span>Logs</span>
+          </button>
         </nav>
 
         <section class="account-panel" aria-label="Current access">
@@ -322,6 +326,98 @@
               </footer>
             </div>
           </section>
+
+          <section class="screen logs-screen" data-screen-panel="logs">
+            <div class="logs-canvas">
+              <div class="logs-heading">
+                <div class="logs-intro">
+                  <span class="section-label">Dashboard / Chatbot Logs</span>
+                  <h2>Chatbot <span class="accent-text">Logs</span></h2>
+                  <p>
+                    Monitor chatbot usage patterns and review recent questions
+                    without crowding the dashboard.
+                  </p>
+                </div>
+              </div>
+              <div class="logs-summary-grid" id="logsSummaryGrid">
+                <article class="logs-summary-card is-primary">
+                  <div class="logs-summary-topline">
+                    <span>Total Chat</span>
+                    <span class="material-symbols-outlined" aria-hidden="true">
+                      forum
+                    </span>
+                  </div>
+                  <strong id="logsTotalChat">0</strong>
+                  <small>Questions in selected range</small>
+                </article>
+                <article class="logs-summary-card">
+                  <div class="logs-summary-topline">
+                    <span>Total Session</span>
+                    <span class="material-symbols-outlined" aria-hidden="true">
+                      grid_view
+                    </span>
+                  </div>
+                  <strong id="logsTotalSessions">0</strong>
+                  <small>Active chatbot sessions</small>
+                </article>
+                <article class="logs-summary-card">
+                  <div class="logs-summary-topline">
+                    <span>Average / Session</span>
+                    <span class="material-symbols-outlined" aria-hidden="true">
+                      monitoring
+                    </span>
+                  </div>
+                  <strong id="logsAverageChat">0</strong>
+                  <small>Questions per session</small>
+                </article>
+                <article class="logs-summary-card">
+                  <div class="logs-summary-topline">
+                    <span>Fallback / Error</span>
+                    <span class="material-symbols-outlined" aria-hidden="true">
+                      error
+                    </span>
+                  </div>
+                  <strong id="logsFallbackError">0</strong>
+                  <small>Responses that need attention</small>
+                </article>
+              </div>
+              <section class="logs-activity-panel">
+                <header class="logs-list-toolbar">
+                  <div>
+                    <span class="logs-list-kicker">Activity stream</span>
+                    <h3>Recent questions</h3>
+                  </div>
+                  <div class="logs-list-actions">
+                    <div class="logs-date-range" aria-label="Activity date range">
+                      <label class="logs-date-field">
+                        <span>Start</span>
+                        <input id="logsStartDate" type="date" />
+                      </label>
+                      <label class="logs-date-field">
+                        <span>End</span>
+                        <input id="logsEndDate" type="date" />
+                      </label>
+                    </div>
+                    <span class="logs-result-count" id="logsResultCount"></span>
+                    <button
+                      class="logs-refresh-button"
+                      id="logsRefreshButton"
+                      type="button"
+                      aria-label="Refresh activity"
+                      title="Refresh activity"
+                    >
+                      <span class="material-symbols-outlined" aria-hidden="true">
+                        refresh
+                      </span>
+                    </button>
+                  </div>
+                </header>
+                <p class="logs-status" id="logsStatus" aria-live="polite"></p>
+                <div class="logs-list" id="logsList"></div>
+                <div class="logs-pagination" id="logsPagination"></div>
+              </section>
+            </div>
+          </section>
         </div>
       </main>
 
@@ -585,6 +681,7 @@
     <script src="/assets/js/markdown.js"></script>
     <script src="/assets/js/faq.js"></script>
     <script src="/assets/js/library.js"></script>
+    <script src="/assets/js/logs.js"></script>
     <script src="/assets/js/auth.js"></script>
     <script src="/assets/js/drafts.js"></script>
     <script src="/assets/app.js"></script>

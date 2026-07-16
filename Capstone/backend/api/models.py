@@ -130,6 +130,23 @@ class LibraryItem(BaseModel):
     download_url: str
 
 
+class ActivityLogItem(BaseModel):
+    id: int
+    event_type: Literal["chat", "document"]
+    action: str = ""
+    status: Literal["success", "error"]
+    summary: str = ""
+    details: dict[str, Any] = Field(default_factory=dict)
+    created_at: str
+
+
+class ActivityLogSummaryResponse(BaseModel):
+    total_chat: int = 0
+    total_sessions: int = 0
+    average_chat_per_session: float = 0
+    fallback_or_error: int = 0
+
+
 class AdminDocumentPayload(BaseModel):
     filename: str = Field(..., min_length=1)
     content_base64: str = Field(..., min_length=1)

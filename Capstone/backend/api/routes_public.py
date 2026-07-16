@@ -48,9 +48,65 @@ from backend.api.storage import (
     _resolve_document_path,
     _selected_form_downloads,
 )
+from backend.cache_db import insert_activity_log
 from backend.settings import get_bool_env
 
 logger = logging.getLogger("uvicorn.error")
+
+
+def _truncate(value: object, limit: int = 300) -> str:
+    text = str(value or "").strip()
+    if len(text) <= limit:
+        return text
+    if limit <= 3:
+        return "." * max(0, limit)
+    return f"{text[: limit - 3].rstrip()}..."
+
+
+def _record_chat_activity(
+    *,
+    status: str,
+    conversation_id: str,
+    question: str,
+    response_time_seconds: float,
+    answer: str = "",
+    answer_source: str = "",
+    citations: list[CitationResponse] | None = None,
+    form_downloads: list[FormDownloadResponse] | None = None,
+    flowcharts: list[FlowchartScreenshotResponse] | None = None,
+    error: object = "",
+) -> None:
+    citation_items = citations or []
+    source_names = []
+    for citation in citation_items:
+        if citation.source and citation.source not in source_names:
+            source_names.append(citation.source)
+        if len(source_names) >= 3:
+            break
+    details: dict[str, object] = {
+        "conversation_id": conversation_id,
+        "question": question.strip(),
+        "answer": answer.strip(),
+        "answer_preview": _truncate(answer),
+        "answer_source": answer_source,
+        "citation_count": len(citation_items),
+        "citation_sources": source_names,
+        "form_count": len(form_downloads or []),
+        "flowchart_count": len(flowcharts or []),
+        "response_time_seconds": round(response_time_seconds, 3),
+    }
+    if error:
+        details["error"] = _truncate(error)
+    try:
+        insert_activity_log(
+            event_type="chat",
+            action="query",
+            status=status,
+            summary=_truncate(question, 180),
+            details=details,
+        )
+    except Exception as log_error:
+        logger.warning("[activity-log] gagal menyimpan log chat: %s", log_error)
 
 
 def _filled_form_filename(path: str, values: dict[str, str | bool]) -> str:
@@ -110,7 +166,24 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
         )
     except OllamaGenerationError as error:
         logger.exception("[chat:%s] Request gagal", conversation_id)
+        _record_chat_activity(
+            status="error",
+            conversation_id=conversation_id,
+            question=payload.question,
+            response_time_seconds=time.perf_counter() - request_started,
+            error=error,
+        )
         raise HTTPException(status_code=502, detail=str(error)) from error
+    except Exception as error:
+        logger.exception("[chat:%s] Request gagal", conversation_id)
+        _record_chat_activity(
+            status="error",
+            conversation_id=conversation_id,
+            question=payload.question,
+            response_time_seconds=time.perf_counter() - request_started,
+            error=error,
+        )
+        raise
     _append_conversation_turn(conversation_id, payload.question, answer)
     logger.debug("[chat:%s] Riwayat percakapan tersimpan", conversation_id)
     citations = [
@@ -134,6 +207,17 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
         len(citations),
         len(form_downloads),
         len(flowcharts),
+    )
+    _record_chat_activity(
+        status="success",
+        conversation_id=conversation_id,
+        question=payload.question,
+        answer=answer,
+        answer_source=answer_source,
+        citations=citations,
+        form_downloads=form_downloads,
+        flowcharts=flowcharts,
+        response_time_seconds=time.perf_counter() - request_started,
     )
     return QueryResponse(
         answer=answer,

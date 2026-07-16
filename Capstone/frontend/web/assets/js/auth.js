@@ -232,16 +232,24 @@ function syncAuth() {
     isAdmin ? "Logout admin" : "Login admin",
   );
   if (elements.policyNavLink) elements.policyNavLink.hidden = !isAdmin;
-  if (!isAdmin && state.activeScreen === "policy") navigateTo("chat");
+  if (elements.logsNavLink) elements.logsNavLink.hidden = !isAdmin;
+  if (!isAdmin && (state.activeScreen === "policy" || state.activeScreen === "logs")) {
+    navigateTo("chat");
+  }
   if (!isAdmin) resetFaqForm();
   clearDocumentStatus();
   syncReindexState();
   updateFaqControls();
   if (isAdmin) {
     void loadLibrary();
+    void loadActivityLogs();
   } else {
     state.documents = [];
+    state.activityLogs = [];
+    state.activityLogSummary = null;
+    state.logError = "";
     renderLibrary();
+    renderActivityLogs();
   }
 }
 

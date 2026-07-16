@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import json
 import os
+import sqlite3
 import tempfile
+import threading
 import unittest
+from contextlib import closing
 from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
@@ -13,10 +16,14 @@ from backend.cache_db import (
     append_conversation_turn,
     get_conversation_context,
     get_semantic_cache_entry_by_question,
+    get_state_db_path,
     init_state_db,
+    insert_activity_log,
     insert_semantic_cache_entry,
+    list_activity_logs,
     load_conversations,
     replace_conversations,
+    summarize_activity_logs,
 )
 
 
@@ -131,6 +138,100 @@ class CacheDbTests(unittest.TestCase):
             stored = load_conversations()
 
         self.assertEqual(set(stored), {"conv-2", "conv-3"})
+
+    def test_activity_log_insert_and_filter(self) -> None:
+        insert_activity_log(
+            event_type="chat",
+            action="query",
+            status="success",
+            summary="Apa itu HRIS?",
+            details={"answer_source": "model"},
+        )
+        insert_activity_log(
+            event_type="document",
+            action="insert",
+            status="success",
+            summary="SOP Test.pdf",
+            details={"requires_reindex": True},
+        )
+
+        all_logs = list_activity_logs()
+        chat_logs = list_activity_logs(event_type="chat")
+        document_logs = list_activity_logs(event_type="document")
+
+        self.assertEqual(len(all_logs), 2)
+        self.assertEqual(len(chat_logs), 1)
+        self.assertEqual(chat_logs[0]["event_type"], "chat")
+        self.assertEqual(chat_logs[0]["details"]["answer_source"], "model")
+        self.assertEqual(len(document_logs), 1)
+        self.assertTrue(document_logs[0]["details"]["requires_reindex"])
+
+    def test_activity_log_retention_removes_old_rows(self) -> None:
+        init_state_db()
+        old_timestamp = (datetime.now() - timedelta(days=31)).isoformat(timespec="seconds")
+        fresh_timestamp = datetime.now().isoformat(timespec="seconds")
+        with closing(sqlite3.connect(get_state_db_path())) as connection:
+            connection.execute(
+                """
+                INSERT INTO activity_logs(
+                    event_type, action, status, summary, details_json, created_at
+                )
+                VALUES ('chat', 'query', 'success', 'old', '{}', ?)
+                """,
+                (old_timestamp,),
+            )
+            connection.execute(
+                """
+                INSERT INTO activity_logs(
+                    event_type, action, status, summary, details_json, created_at
+                )
+                VALUES ('chat', 'query', 'success', 'fresh', '{}', ?)
+                """,
+                (fresh_timestamp,),
+            )
+            connection.commit()
+
+        logs = list_activity_logs()
+
+        self.assertEqual(len(logs), 1)
+        self.assertEqual(logs[0]["summary"], "fresh")
+
+    def test_activity_log_reads_and_writes_are_thread_safe(self) -> None:
+        errors: list[BaseException] = []
+
+        def insert_logs() -> None:
+            try:
+                for index in range(20):
+                    insert_activity_log(
+                        event_type="chat",
+                        action="query",
+                        status="success",
+                        summary=f"chat {index}",
+                        details={"conversation_id": f"conv-{index % 3}"},
+                    )
+            except BaseException as error:  # pragma: no cover - reported below
+                errors.append(error)
+
+        def read_logs() -> None:
+            try:
+                for _ in range(20):
+                    list_activity_logs(event_type="chat")
+                    summarize_activity_logs(event_type="chat")
+            except BaseException as error:  # pragma: no cover - reported below
+                errors.append(error)
+
+        threads = [
+            threading.Thread(target=insert_logs),
+            threading.Thread(target=read_logs),
+            threading.Thread(target=read_logs),
+        ]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        self.assertEqual(errors, [])
+        self.assertEqual(len(list_activity_logs(event_type="chat")), 20)
 
 
 if __name__ == "__main__":

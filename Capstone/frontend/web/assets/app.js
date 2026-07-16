@@ -12,7 +12,9 @@ const screens = {
   chat: "Active Session",
   faq: "Frequently Asked Questions",
   policy: "Document Library",
+  logs: "Activity Logs",
 };
+const adminScreens = new Set(["policy", "logs"]);
 
 const loadingStageLabels = [
   "Memahami pertanyaan...",
@@ -46,6 +48,13 @@ const state = {
   documentUndo: null,
   documentUndoStack: [],
   documentChanges: [],
+  activityLogs: [],
+  activityLogSummary: null,
+  logDateRange: null,
+  logPage: 1,
+  logPageSize: 10,
+  isLoadingLogs: false,
+  logError: "",
   pendingFormFill: null,
   typingAnimationEnabled: true,
 };
@@ -79,6 +88,18 @@ const elements = {
   librarySearch: document.getElementById("librarySearch"),
   policySearchWrap: document.getElementById("policySearchWrap"),
   policyNavLink: document.querySelector('.nav-link[data-screen="policy"]'),
+  logsNavLink: document.querySelector('.nav-link[data-screen="logs"]'),
+  logsStartDate: document.getElementById("logsStartDate"),
+  logsEndDate: document.getElementById("logsEndDate"),
+  logsRefreshButton: document.getElementById("logsRefreshButton"),
+  logsResultCount: document.getElementById("logsResultCount"),
+  logsPagination: document.getElementById("logsPagination"),
+  logsList: document.getElementById("logsList"),
+  logsStatus: document.getElementById("logsStatus"),
+  logsTotalChat: document.getElementById("logsTotalChat"),
+  logsTotalSessions: document.getElementById("logsTotalSessions"),
+  logsAverageChat: document.getElementById("logsAverageChat"),
+  logsFallbackError: document.getElementById("logsFallbackError"),
   filterButton: document.getElementById("filterButton"),
   chatLink: document.getElementById("chatLink"),
   formDraftMenu: document.getElementById("formDraftMenu"),
@@ -147,6 +168,7 @@ function init() {
   bindPolicyActions();
   bindAuth();
   bindAdminDocuments();
+  bindAdminLogs();
   window.FormDraftLauncher.init({ state, elements });
   syncAuth();
   syncReindexState();
@@ -182,7 +204,7 @@ function bindNavigation() {
 function syncScreenFromHash() {
   const hash = window.location.hash.slice(1);
   const target =
-    screens[hash] && (hash !== "policy" || isAdminSession()) ? hash : "chat";
+    screens[hash] && (!adminScreens.has(hash) || isAdminSession()) ? hash : "chat";
   state.activeScreen = target;
   elements.body.dataset.activeScreen = target;
   elements.screenTitle.textContent = screens[target];
@@ -193,12 +215,13 @@ function syncScreenFromHash() {
   elements.screens.forEach((screen) =>
     screen.classList.toggle("is-active", screen.dataset.screenPanel === target),
   );
+  if (target === "logs") refreshActivityLogsIfVisible();
   closeMobileNav();
 }
 
 function navigateTo(screen) {
   const target =
-    screen === "policy" && !isAdminSession() ? "chat" : screen || "chat";
+    adminScreens.has(screen) && !isAdminSession() ? "chat" : screen || "chat";
   window.location.hash = target;
 }
 

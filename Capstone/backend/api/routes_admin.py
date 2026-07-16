@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import hmac
 import logging
+from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Annotated
 from urllib.parse import unquote
 
-from fastapi import Header, HTTPException
+from fastapi import Header, HTTPException, Query
 
 from backend.api.auth import _admin_email, _admin_name, _admin_password, _create_admin_token, _require_admin
 from backend.api.cache_store import _find_faq_index, _load_faqs, _save_faqs
@@ -14,6 +16,8 @@ from backend.api.faq_service import PINNED_IMAGE_EXTENSIONS, PINNED_IMAGE_STEM, 
 from backend.api.form_schema_generator import delete_schema_for_form_pdf, generate_schema_for_form_pdf
 from backend.api.flowchart_service import clear_flowchart_cache_for_source
 from backend.api.models import (
+    ActivityLogItem,
+    ActivityLogSummaryResponse,
     AdminDocumentPayload,
     AdminDocumentResponse,
     AdminFAQPayload,
@@ -32,8 +36,28 @@ from backend.api.storage import (
     _resolve_document_path,
     _to_library_item,
 )
+from backend.cache_db import list_activity_logs, summarize_activity_logs
 
 logger = logging.getLogger("uvicorn.error")
+
+
+def _activity_date_range(
+    start_date: str | None,
+    end_date: str | None,
+) -> tuple[str, str]:
+    today = datetime.now().date()
+    default_start = today - timedelta(days=29)
+    try:
+        start = datetime.fromisoformat(start_date).date() if start_date else default_start
+        end = datetime.fromisoformat(end_date).date() if end_date else today
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail="Format tanggal harus YYYY-MM-DD.") from error
+    if end < start:
+        raise HTTPException(status_code=422, detail="Tanggal akhir harus setelah tanggal mulai.")
+    return (
+        datetime.combine(start, datetime.min.time()).isoformat(timespec="seconds"),
+        datetime.combine(end, datetime.max.time()).isoformat(timespec="seconds"),
+    )
 
 
 @app.post("/api/admin/login", response_model=AdminLoginResponse)
@@ -145,6 +169,47 @@ def get_library(authorization: str = Header(default="")) -> list[LibraryItem]:
     return _iter_library_items()
 
 
+@app.get("/api/admin/logs", response_model=list[ActivityLogItem])
+def get_activity_logs(
+    start_date: str | None = None,
+    end_date: str | None = None,
+    limit: Annotated[int, Query(ge=1, le=250)] = 100,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    authorization: str = Header(default=""),
+) -> list[ActivityLogItem]:
+    # Kembalikan activity log chat untuk dashboard pemakaian chatbot.
+    _require_admin(authorization)
+    start_at, end_at = _activity_date_range(start_date, end_date)
+    return [
+        ActivityLogItem(**item)
+        for item in list_activity_logs(
+            event_type="chat",
+            start_at=start_at,
+            end_at=end_at,
+            limit=limit,
+            offset=offset,
+        )
+    ]
+
+
+@app.get("/api/admin/logs/summary", response_model=ActivityLogSummaryResponse)
+def get_activity_log_summary(
+    start_date: str | None = None,
+    end_date: str | None = None,
+    authorization: str = Header(default=""),
+) -> ActivityLogSummaryResponse:
+    # Ringkasan pemakaian chatbot untuk rentang tanggal yang sama dengan list log.
+    _require_admin(authorization)
+    start_at, end_at = _activity_date_range(start_date, end_date)
+    return ActivityLogSummaryResponse(
+        **summarize_activity_logs(
+            event_type="chat",
+            start_at=start_at,
+            end_at=end_at,
+        )
+    )
+
+
 @app.post("/api/admin/documents", response_model=AdminDocumentResponse)
 def save_document(
     payload: AdminDocumentPayload,
@@ -152,10 +217,10 @@ def save_document(
 ) -> AdminDocumentResponse:
     # Tambahkan atau ganti dokumen backend yang dikelola.
     _require_admin(authorization)
+    filename = Path(unquote(payload.filename)).name
     data_dir = _get_data_dir().resolve()
     data_dir.mkdir(parents=True, exist_ok=True)
 
-    filename = Path(unquote(payload.filename)).name
     suffix = Path(filename).suffix.lower()
     if suffix not in LIBRARY_EXTENSIONS:
         raise HTTPException(status_code=400, detail="Unsupported document type.")
@@ -224,7 +289,6 @@ def delete_document(
     # Hapus satu dokumen terkelola dan laporkan kebutuhan reindex.
     _require_admin(authorization)
     target_path = _resolve_document_path(document_path)
-
     if not target_path.exists() or not target_path.is_file():
         raise HTTPException(status_code=404, detail="Document not found.")
     if target_path.suffix.lower() not in LIBRARY_EXTENSIONS:

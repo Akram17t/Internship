@@ -235,6 +235,7 @@ async function submitQuestion(rawQuestion) {
     updateComposer();
     persistMessages();
     renderMessages("smooth");
+    refreshActivityLogsIfVisible();
   }
 }
 

@@ -3,8 +3,9 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+import threading
 from contextlib import closing
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +22,9 @@ load_capstone_env()
 
 SCHEMA_VERSION = "2"
 MIGRATION_KEY = "conversations_json_migrated"
+ACTIVITY_LOG_RETENTION = timedelta(days=30)
+MAX_ACTIVITY_LOG_LIMIT = 250
+STATE_DB_LOCK = threading.RLock()
 
 
 def _resolve_root_path(raw_path: str) -> Path:
@@ -42,9 +46,14 @@ def get_legacy_conversation_file() -> Path:
 def _connect(db_path: Path | None = None) -> sqlite3.Connection:
     path = db_path or get_state_db_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(path)
+    connection = sqlite3.connect(path, timeout=60)
     connection.row_factory = sqlite3.Row
-    connection.execute("PRAGMA journal_mode=WAL")
+    connection.execute("PRAGMA busy_timeout=60000")
+    try:
+        connection.execute("PRAGMA journal_mode=WAL")
+    except sqlite3.OperationalError as error:
+        if "database is locked" not in str(error).lower():
+            raise
     connection.execute("PRAGMA foreign_keys=ON")
     return connection
 
@@ -90,6 +99,20 @@ def _init_schema(connection: sqlite3.Connection) -> None:
         );
         CREATE INDEX IF NOT EXISTS idx_semantic_cache_metadata
             ON semantic_cache_entries (active_index, model_name, embed_model_name);
+
+        CREATE TABLE IF NOT EXISTS activity_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_type TEXT NOT NULL CHECK (event_type IN ('chat', 'document')),
+            action TEXT NOT NULL DEFAULT '',
+            status TEXT NOT NULL CHECK (status IN ('success', 'error')),
+            summary TEXT NOT NULL DEFAULT '',
+            details_json TEXT NOT NULL DEFAULT '{}',
+            created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_activity_logs_lookup
+            ON activity_logs (event_type, created_at DESC, id DESC);
+        CREATE INDEX IF NOT EXISTS idx_activity_logs_created
+            ON activity_logs (created_at DESC, id DESC);
         """
     )
     semantic_columns = {
@@ -214,13 +237,15 @@ def init_state_db(
     db_path: Path | None = None,
     legacy_conversations_path: Path | None = None,
 ) -> None:
-    with closing(_connect(db_path)) as connection:
-        _init_schema(connection)
-        if _get_meta(connection, MIGRATION_KEY) != "1":
-            _migrate_legacy_conversations(connection, legacy_conversations_path)
-            _set_meta(connection, MIGRATION_KEY, "1")
-        _cleanup_conversations(connection)
-        connection.commit()
+    with STATE_DB_LOCK:
+        with closing(_connect(db_path)) as connection:
+            _init_schema(connection)
+            if _get_meta(connection, MIGRATION_KEY) != "1":
+                _migrate_legacy_conversations(connection, legacy_conversations_path)
+                _set_meta(connection, MIGRATION_KEY, "1")
+            _cleanup_activity_logs(connection)
+            _cleanup_conversations(connection)
+            connection.commit()
 
 
 def _cleanup_conversations(connection: sqlite3.Connection, now: datetime | None = None) -> None:
@@ -290,23 +315,32 @@ def _cleanup_conversations(connection: sqlite3.Connection, now: datetime | None 
             )
 
 
+def _cleanup_activity_logs(connection: sqlite3.Connection, now: datetime | None = None) -> None:
+    cutoff = (now or datetime.now()) - ACTIVITY_LOG_RETENTION
+    connection.execute(
+        "DELETE FROM activity_logs WHERE created_at < ?",
+        (cutoff.isoformat(timespec="seconds"),),
+    )
+
+
 def get_conversation_context(conversation_id: str) -> str:
-    init_state_db()
-    with closing(_connect()) as connection:
-        _cleanup_conversations(connection)
-        rows = list(
-            connection.execute(
-                """
-                SELECT role, content
-                FROM conversation_messages
-                WHERE conversation_id = ?
-                ORDER BY created_at DESC, id DESC
-                LIMIT ?
-                """,
-                (conversation_id, MAX_CONVERSATION_MESSAGES),
+    with STATE_DB_LOCK:
+        init_state_db()
+        with closing(_connect()) as connection:
+            _cleanup_conversations(connection)
+            rows = list(
+                connection.execute(
+                    """
+                    SELECT role, content
+                    FROM conversation_messages
+                    WHERE conversation_id = ?
+                    ORDER BY created_at DESC, id DESC
+                    LIMIT ?
+                    """,
+                    (conversation_id, MAX_CONVERSATION_MESSAGES),
+                )
             )
-        )
-        connection.commit()
+            connection.commit()
 
     context_lines: list[str] = []
     for row in reversed(rows):
@@ -318,76 +352,229 @@ def get_conversation_context(conversation_id: str) -> str:
 
 
 def append_conversation_turn(conversation_id: str, question: str, answer: str) -> None:
-    init_state_db()
-    now = datetime.now().isoformat(timespec="seconds")
-    with closing(_connect()) as connection:
-        _cleanup_conversations(connection)
-        connection.executemany(
-            """
-            INSERT INTO conversation_messages(
-                conversation_id, role, content, created_at
+    with STATE_DB_LOCK:
+        init_state_db()
+        now = datetime.now().isoformat(timespec="seconds")
+        with closing(_connect()) as connection:
+            _cleanup_conversations(connection)
+            connection.executemany(
+                """
+                INSERT INTO conversation_messages(
+                    conversation_id, role, content, created_at
+                )
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    (conversation_id, "user", question.strip(), now),
+                    (conversation_id, "assistant", answer.strip(), now),
+                ),
             )
-            VALUES (?, ?, ?, ?)
-            """,
-            (
-                (conversation_id, "user", question.strip(), now),
-                (conversation_id, "assistant", answer.strip(), now),
-            ),
-        )
-        _cleanup_conversations(connection)
-        connection.commit()
+            _cleanup_conversations(connection)
+            connection.commit()
+
+
+def insert_activity_log(
+    *,
+    event_type: str,
+    action: str,
+    status: str,
+    summary: str,
+    details: dict[str, Any] | None = None,
+) -> int:
+    with STATE_DB_LOCK:
+        init_state_db()
+        now = datetime.now().isoformat(timespec="seconds")
+        with closing(_connect()) as connection:
+            _cleanup_activity_logs(connection)
+            cursor = connection.execute(
+                """
+                INSERT INTO activity_logs(
+                    event_type, action, status, summary, details_json, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    event_type,
+                    action.strip(),
+                    status,
+                    summary.strip(),
+                    json.dumps(details or {}, ensure_ascii=False),
+                    now,
+                ),
+            )
+            _cleanup_activity_logs(connection)
+            connection.commit()
+            return int(cursor.lastrowid)
+
+
+def _activity_log_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    try:
+        details = json.loads(str(row["details_json"]))
+    except json.JSONDecodeError:
+        details = {}
+    return {
+        "id": int(row["id"]),
+        "event_type": str(row["event_type"]),
+        "action": str(row["action"]),
+        "status": str(row["status"]),
+        "summary": str(row["summary"]),
+        "details": details if isinstance(details, dict) else {},
+        "created_at": str(row["created_at"]),
+    }
+
+
+def list_activity_logs(
+    *,
+    event_type: str | None = None,
+    start_at: str | None = None,
+    end_at: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> list[dict[str, Any]]:
+    with STATE_DB_LOCK:
+        init_state_db()
+        bounded_limit = max(1, min(limit, MAX_ACTIVITY_LOG_LIMIT))
+        bounded_offset = max(0, offset)
+        filters: list[str] = []
+        params: list[object] = []
+        if event_type in {"chat", "document"}:
+            filters.append("event_type = ?")
+            params.append(event_type)
+        if start_at:
+            filters.append("created_at >= ?")
+            params.append(start_at)
+        if end_at:
+            filters.append("created_at <= ?")
+            params.append(end_at)
+        where_clause = f"WHERE {' AND '.join(filters)}" if filters else ""
+        with closing(_connect()) as connection:
+            _cleanup_activity_logs(connection)
+            rows = connection.execute(
+                f"""
+                SELECT *
+                FROM activity_logs
+                {where_clause}
+                ORDER BY created_at DESC, id DESC
+                LIMIT ? OFFSET ?
+                """,
+                (*params, bounded_limit, bounded_offset),
+            ).fetchall()
+            connection.commit()
+    return [_activity_log_from_row(row) for row in rows]
+
+
+def summarize_activity_logs(
+    *,
+    event_type: str | None = None,
+    start_at: str | None = None,
+    end_at: str | None = None,
+) -> dict[str, int | float]:
+    with STATE_DB_LOCK:
+        init_state_db()
+        filters: list[str] = []
+        params: list[object] = []
+        if event_type in {"chat", "document"}:
+            filters.append("event_type = ?")
+            params.append(event_type)
+        if start_at:
+            filters.append("created_at >= ?")
+            params.append(start_at)
+        if end_at:
+            filters.append("created_at <= ?")
+            params.append(end_at)
+        where_clause = f"WHERE {' AND '.join(filters)}" if filters else ""
+        with closing(_connect()) as connection:
+            _cleanup_activity_logs(connection)
+            rows = connection.execute(
+                f"""
+                SELECT status, details_json
+                FROM activity_logs
+                {where_clause}
+                """,
+                params,
+            ).fetchall()
+            connection.commit()
+
+    sessions: set[str] = set()
+    fallback_or_error = 0
+    for row in rows:
+        try:
+            details = json.loads(str(row["details_json"]))
+        except json.JSONDecodeError:
+            details = {}
+        if isinstance(details, dict):
+            conversation_id = str(details.get("conversation_id") or "").strip()
+            if conversation_id:
+                sessions.add(conversation_id)
+            answer_source = str(details.get("answer_source") or "").strip()
+        else:
+            answer_source = ""
+        if row["status"] == "error" or answer_source == "fallback":
+            fallback_or_error += 1
+
+    total = len(rows)
+    session_count = len(sessions)
+    average = round(total / session_count, 2) if session_count else 0
+    return {
+        "total_chat": total,
+        "total_sessions": session_count,
+        "average_chat_per_session": average,
+        "fallback_or_error": fallback_or_error,
+    }
 
 
 def load_conversations() -> dict[str, list[dict[str, object]]]:
-    init_state_db()
     conversations: dict[str, list[dict[str, object]]] = {}
-    with closing(_connect()) as connection:
-        _cleanup_conversations(connection)
-        rows = connection.execute(
-            """
-            SELECT conversation_id, role, content, created_at
-            FROM conversation_messages
-            ORDER BY conversation_id, created_at, id
-            """
-        )
-        for row in rows:
-            conversations.setdefault(str(row["conversation_id"]), []).append(
-                {
-                    "role": str(row["role"]),
-                    "content": str(row["content"]),
-                    "created_at": str(row["created_at"]),
-                }
+    with STATE_DB_LOCK:
+        init_state_db()
+        with closing(_connect()) as connection:
+            _cleanup_conversations(connection)
+            rows = connection.execute(
+                """
+                SELECT conversation_id, role, content, created_at
+                FROM conversation_messages
+                ORDER BY conversation_id, created_at, id
+                """
             )
-        connection.commit()
+            for row in rows:
+                conversations.setdefault(str(row["conversation_id"]), []).append(
+                    {
+                        "role": str(row["role"]),
+                        "content": str(row["content"]),
+                        "created_at": str(row["created_at"]),
+                    }
+                )
+            connection.commit()
     return conversations
 
 
 def replace_conversations(conversations: dict[str, list[dict[str, object]]]) -> None:
-    init_state_db()
-    with closing(_connect()) as connection:
-        connection.execute("DELETE FROM conversation_messages")
-        for conversation_id, messages in conversations.items():
-            if not isinstance(messages, list):
-                continue
-            for message in messages:
-                if not isinstance(message, dict):
+    with STATE_DB_LOCK:
+        init_state_db()
+        with closing(_connect()) as connection:
+            connection.execute("DELETE FROM conversation_messages")
+            for conversation_id, messages in conversations.items():
+                if not isinstance(messages, list):
                     continue
-                role = str(message.get("role") or "").strip()
-                content = str(message.get("content") or "").strip()
-                created_at = _parse_timestamp(message.get("created_at"))
-                if role not in {"user", "assistant"} or not content or created_at is None:
-                    continue
-                connection.execute(
-                    """
-                    INSERT INTO conversation_messages(
-                        conversation_id, role, content, created_at
+                for message in messages:
+                    if not isinstance(message, dict):
+                        continue
+                    role = str(message.get("role") or "").strip()
+                    content = str(message.get("content") or "").strip()
+                    created_at = _parse_timestamp(message.get("created_at"))
+                    if role not in {"user", "assistant"} or not content or created_at is None:
+                        continue
+                    connection.execute(
+                        """
+                        INSERT INTO conversation_messages(
+                            conversation_id, role, content, created_at
+                        )
+                        VALUES (?, ?, ?, ?)
+                        """,
+                        (str(conversation_id), role, content, created_at),
                     )
-                    VALUES (?, ?, ?, ?)
-                    """,
-                    (str(conversation_id), role, content, created_at),
-                )
-        _cleanup_conversations(connection)
-        connection.commit()
+            _cleanup_conversations(connection)
+            connection.commit()
 
 
 def insert_semantic_cache_entry(
@@ -401,33 +588,34 @@ def insert_semantic_cache_entry(
     model_name: str,
     embed_model_name: str,
 ) -> None:
-    init_state_db()
-    now = datetime.now().isoformat(timespec="seconds")
-    with closing(_connect()) as connection:
-        connection.execute(
-            """
-            INSERT OR REPLACE INTO semantic_cache_entries(
-                id, question, normalized_question, answer,
-                citations_json, selected_forms_json,
-                active_index, model_name, embed_model_name, created_at,
-                hit_count, last_hit_at
+    with STATE_DB_LOCK:
+        init_state_db()
+        now = datetime.now().isoformat(timespec="seconds")
+        with closing(_connect()) as connection:
+            connection.execute(
+                """
+                INSERT OR REPLACE INTO semantic_cache_entries(
+                    id, question, normalized_question, answer,
+                    citations_json, selected_forms_json,
+                    active_index, model_name, embed_model_name, created_at,
+                    hit_count, last_hit_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL)
+                """,
+                (
+                    entry_id,
+                    question,
+                    normalize_semantic_question(question),
+                    answer,
+                    json.dumps(citations, ensure_ascii=False),
+                    json.dumps(selected_forms, ensure_ascii=False),
+                    active_index,
+                    model_name,
+                    embed_model_name,
+                    now,
+                ),
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL)
-            """,
-            (
-                entry_id,
-                question,
-                normalize_semantic_question(question),
-                answer,
-                json.dumps(citations, ensure_ascii=False),
-                json.dumps(selected_forms, ensure_ascii=False),
-                active_index,
-                model_name,
-                embed_model_name,
-                now,
-            ),
-        )
-        connection.commit()
+            connection.commit()
 
 
 def _semantic_entry_from_row(row: sqlite3.Row) -> dict[str, Any]:
@@ -455,12 +643,13 @@ def _semantic_entry_from_row(row: sqlite3.Row) -> dict[str, Any]:
 
 
 def get_semantic_cache_entry(entry_id: str) -> dict[str, Any] | None:
-    init_state_db()
-    with closing(_connect()) as connection:
-        row = connection.execute(
-            "SELECT * FROM semantic_cache_entries WHERE id = ?",
-            (entry_id,),
-        ).fetchone()
+    with STATE_DB_LOCK:
+        init_state_db()
+        with closing(_connect()) as connection:
+            row = connection.execute(
+                "SELECT * FROM semantic_cache_entries WHERE id = ?",
+                (entry_id,),
+            ).fetchone()
     if row is None:
         return None
     return _semantic_entry_from_row(row)
@@ -473,64 +662,72 @@ def get_semantic_cache_entry_by_question(
     model_name: str,
     embed_model_name: str,
 ) -> dict[str, Any] | None:
-    init_state_db()
-    normalized_question = normalize_semantic_question(question)
-    with closing(_connect()) as connection:
-        row = connection.execute(
-            """
-            SELECT *
-            FROM semantic_cache_entries
-            WHERE normalized_question = ?
-              AND active_index = ?
-              AND model_name = ?
-              AND embed_model_name = ?
-            ORDER BY created_at DESC
-            LIMIT 1
-            """,
-            (
-                normalized_question,
-                active_index,
-                model_name,
-                embed_model_name,
-            ),
-        ).fetchone()
+    with STATE_DB_LOCK:
+        init_state_db()
+        normalized_question = normalize_semantic_question(question)
+        with closing(_connect()) as connection:
+            row = connection.execute(
+                """
+                SELECT *
+                FROM semantic_cache_entries
+                WHERE normalized_question = ?
+                  AND active_index = ?
+                  AND model_name = ?
+                  AND embed_model_name = ?
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                (
+                    normalized_question,
+                    active_index,
+                    model_name,
+                    embed_model_name,
+                ),
+            ).fetchone()
     return _semantic_entry_from_row(row) if row is not None else None
 
 
 def mark_semantic_cache_hit(entry_id: str) -> None:
-    init_state_db()
-    now = datetime.now().isoformat(timespec="seconds")
-    with closing(_connect()) as connection:
-        connection.execute(
-            """
-            UPDATE semantic_cache_entries
-            SET hit_count = hit_count + 1, last_hit_at = ?
-            WHERE id = ?
-            """,
-            (now, entry_id),
-        )
-        connection.commit()
+    with STATE_DB_LOCK:
+        init_state_db()
+        now = datetime.now().isoformat(timespec="seconds")
+        with closing(_connect()) as connection:
+            connection.execute(
+                """
+                UPDATE semantic_cache_entries
+                SET hit_count = hit_count + 1, last_hit_at = ?
+                WHERE id = ?
+                """,
+                (now, entry_id),
+            )
+            connection.commit()
 
 
 def clear_semantic_cache() -> int:
     # Hapus semua entri semantic cache; dipakai saat vector index dibangun ulang.
-    init_state_db()
-    with closing(_connect()) as connection:
-        cursor = connection.execute("DELETE FROM semantic_cache_entries")
-        connection.commit()
-        return cursor.rowcount
+    with STATE_DB_LOCK:
+        init_state_db()
+        with closing(_connect()) as connection:
+            cursor = connection.execute("DELETE FROM semantic_cache_entries")
+            connection.commit()
+            return cursor.rowcount
 
 
 def state_counts() -> dict[str, int]:
-    init_state_db()
-    with closing(_connect()) as connection:
-        conversation_rows = int(
-            connection.execute("SELECT COUNT(*) AS count FROM conversation_messages").fetchone()["count"]
-        )
-        semantic_rows = int(
-            connection.execute("SELECT COUNT(*) AS count FROM semantic_cache_entries").fetchone()["count"]
-        )
+    with STATE_DB_LOCK:
+        init_state_db()
+        with closing(_connect()) as connection:
+            conversation_rows = int(
+                connection.execute("SELECT COUNT(*) AS count FROM conversation_messages").fetchone()["count"]
+            )
+            semantic_rows = int(
+                connection.execute("SELECT COUNT(*) AS count FROM semantic_cache_entries").fetchone()["count"]
+            )
+            activity_rows = int(
+                connection.execute("SELECT COUNT(*) AS count FROM activity_logs").fetchone()["count"]
+            )
     return {
         "conversation_messages": conversation_rows,
         "semantic_cache_entries": semantic_rows,
+        "activity_logs": activity_rows,
     }
