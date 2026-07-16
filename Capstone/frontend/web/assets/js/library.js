@@ -115,9 +115,8 @@ async function saveDocument(file, replacePath = "") {
     return;
   state.isMutatingDocument = true;
   updateDocumentControls();
-  showDocumentStatus(
-    replacePath ? "Updating document..." : "Uploading document...",
-  );
+  const isFormPdf = isFormPdfFile(file);
+  showDocumentStatus(getDocumentSaveStatus(file, replacePath));
 
   try {
     const previousSnapshot = replacePath
@@ -145,7 +144,7 @@ async function saveDocument(file, replacePath = "") {
         requires_reindex: false,
       });
       showDocumentStatus(
-        `${payload.message || "File saved."} Tidak perlu rebuild embeddings.`,
+        formatDocumentSaveMessage(payload, isFormPdf),
       );
     }
   } catch (error) {
@@ -154,6 +153,31 @@ async function saveDocument(file, replacePath = "") {
     state.isMutatingDocument = false;
     updateDocumentControls();
   }
+}
+
+function isFormPdfFile(file) {
+  return (
+    String(file?.name || "")
+      .trim()
+      .toLowerCase()
+      .startsWith("form") &&
+    String(file?.name || "")
+      .trim()
+      .toLowerCase()
+      .endsWith(".pdf")
+  );
+}
+
+function getDocumentSaveStatus(file, replacePath = "") {
+  if (isFormPdfFile(file)) {
+    return replacePath ? "Updating form..." : "Uploading form...";
+  }
+  return replacePath ? "Updating document..." : "Uploading document...";
+}
+
+function formatDocumentSaveMessage(payload, isFormPdf = false) {
+  const baseMessage = payload.message || "File saved.";
+  return `${baseMessage} Tidak perlu rebuild embeddings.`;
 }
 
 async function saveDocumentRequest(file, replacePath = "") {

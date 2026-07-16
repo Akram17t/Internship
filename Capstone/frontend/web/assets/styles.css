@@ -623,7 +623,9 @@ textarea:focus-visible {
 
 .form-editor-field input[type="text"],
 .form-editor-field input[type="date"],
-.form-editor-field input[type="file"] {
+.form-editor-field input[type="file"],
+.form-table-group-cell input[type="text"],
+.form-table-group-cell input[type="date"] {
   min-height: 44px;
   padding: 0 12px;
 }
@@ -661,6 +663,109 @@ textarea:focus-visible {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.4;
+}
+
+.form-layout-group {
+  display: grid;
+  gap: 8px;
+  padding: 0 12px 12px;
+  overflow-x: auto;
+}
+
+.form-layout-group-title {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.form-choice-matrix,
+.form-table-group {
+  display: grid;
+  grid-template-columns: minmax(170px, 1.8fr);
+  min-width: max-content;
+  border: 1px solid rgba(10, 10, 10, 0.12);
+  background: #fff;
+}
+
+.form-table-group {
+  grid-template-columns: minmax(160px, 1.6fr);
+}
+
+.form-choice-matrix-header,
+.form-table-group-header,
+.form-choice-matrix-row-label,
+.form-table-group-row-label,
+.form-choice-matrix-cell,
+.form-table-group-cell {
+  min-height: 38px;
+  padding: 8px;
+  border-right: 1px solid rgba(10, 10, 10, 0.08);
+  border-bottom: 1px solid rgba(10, 10, 10, 0.08);
+}
+
+.form-choice-matrix-header,
+.form-table-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 10, 10, 0.04);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.form-choice-matrix-row-label,
+.form-table-group-row-label {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.form-choice-matrix-cell {
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.form-choice-matrix-cell input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--red);
+}
+
+.form-choice-matrix-mark {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.form-table-group-cell .form-editor-field {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.form-table-group-cell .form-editor-field-label,
+.form-table-group-cell .form-editor-field-hint {
+  display: none;
+}
+
+.form-table-group-cell .form-editor-checkbox {
+  justify-content: center;
+  min-height: 32px;
+}
+
+.form-table-group-cell .form-editor-checkbox span {
+  display: none;
 }
 
 .form-draft-actions {
@@ -1162,9 +1267,9 @@ body:not([data-active-screen="chat"]) .form-draft-menu {
 }
 .message-avatar {
   display: block;
-  width: 52px;
-  height: 52px;
-  flex: 0 0 52px;
+  width: 58px;
+  height: 58px;
+  flex: 0 0 58px;
   border: 0;
   background: transparent;
   filter: drop-shadow(0 8px 16px rgba(10, 10, 10, 0.1));
@@ -3450,9 +3555,9 @@ body.logout-open {
     gap: 10px;
   }
   .message-avatar {
-    width: 42px;
-    height: 42px;
-    flex-basis: 42px;
+    width: 46px;
+    height: 46px;
+    flex-basis: 46px;
   }
   .message-content {
     max-width: 100%;

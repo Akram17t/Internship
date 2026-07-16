@@ -1,802 +1,1508 @@
 {
   "path": "Form - Exit Interview (Template).pdf",
-  "title": "Form Exit Interview",
+  "title": "Form - Exit Interview (Template)",
   "pages": [
     {
       "number": 0,
-      "width": 612,
-      "height": 792
+      "width": 612.0,
+      "height": 792.0
     },
     {
       "number": 1,
-      "width": 612,
-      "height": 792
+      "width": 612.0,
+      "height": 792.0
     }
   ],
   "fields": [
     {
-      "id": "form_number",
+      "id": "no_form",
       "label": "No. Form",
       "type": "text",
       "page": 0,
-      "rect": { "x": 97, "y": 72, "width": 58, "height": 14 },
+      "rect": {
+        "x": 54.94,
+        "y": 73.66,
+        "width": 98.84,
+        "height": 11.72
+      },
       "required": false,
-      "section": "Informasi Karyawan",
-      "placeholder": "Nomor form",
-      "font_size": 9,
+      "section": "",
+      "placeholder": "No. Form",
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.2
+      "clear_padding": 1.0,
+      "layout": {}
     },
     {
-      "id": "employee_name",
+      "id": "nama_karyawan",
       "label": "Nama Karyawan",
       "type": "text",
       "page": 0,
-      "rect": { "x": 300, "y": 129.5, "width": 250, "height": 13.5 },
+      "rect": {
+        "x": 299.99,
+        "y": 130.84,
+        "width": 257.01,
+        "height": 11.72
+      },
       "required": false,
-      "section": "Informasi Karyawan",
-      "placeholder": "Nama lengkap",
-      "font_size": 10.5,
+      "section": "",
+      "placeholder": "Nama Karyawan",
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.2
+      "clear_padding": 1.0,
+      "layout": {}
     },
     {
-      "id": "employee_nik",
+      "id": "nik",
       "label": "NIK",
       "type": "text",
       "page": 0,
-      "rect": { "x": 300, "y": 146.8, "width": 250, "height": 13.5 },
+      "rect": {
+        "x": 299.99,
+        "y": 148.12,
+        "width": 257.01,
+        "height": 11.72
+      },
       "required": false,
-      "section": "Informasi Karyawan",
+      "section": "",
       "placeholder": "NIK",
-      "font_size": 10.5,
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.2
+      "clear_padding": 1.0,
+      "layout": {}
     },
     {
-      "id": "last_position",
+      "id": "jabatan_terakhir",
       "label": "Jabatan Terakhir",
       "type": "text",
       "page": 0,
-      "rect": { "x": 300, "y": 164.1, "width": 250, "height": 13.5 },
+      "rect": {
+        "x": 299.99,
+        "y": 165.4,
+        "width": 257.01,
+        "height": 11.72
+      },
       "required": false,
-      "section": "Informasi Karyawan",
-      "placeholder": "Jabatan terakhir",
-      "font_size": 10.5,
+      "section": "",
+      "placeholder": "Jabatan Terakhir",
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.2
+      "clear_padding": 1.0,
+      "layout": {}
     },
     {
-      "id": "department",
+      "id": "departemen",
       "label": "Departemen",
       "type": "text",
       "page": 0,
-      "rect": { "x": 300, "y": 181.4, "width": 250, "height": 13.5 },
+      "rect": {
+        "x": 299.99,
+        "y": 182.68,
+        "width": 257.01,
+        "height": 11.72
+      },
       "required": false,
-      "section": "Informasi Karyawan",
+      "section": "",
       "placeholder": "Departemen",
-      "font_size": 10.5,
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.2
+      "clear_padding": 1.0,
+      "layout": {}
     },
     {
-      "id": "direct_manager",
+      "id": "atasan_langsung",
       "label": "Atasan Langsung",
       "type": "text",
       "page": 0,
-      "rect": { "x": 300, "y": 198.7, "width": 250, "height": 13.5 },
+      "rect": {
+        "x": 299.99,
+        "y": 199.96,
+        "width": 257.01,
+        "height": 11.72
+      },
       "required": false,
-      "section": "Informasi Karyawan",
-      "placeholder": "Nama atasan langsung",
-      "font_size": 10.5,
+      "section": "",
+      "placeholder": "Atasan Langsung",
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.2
+      "clear_padding": 1.0,
+      "layout": {}
     },
     {
-      "id": "resign_submitted_date",
+      "id": "tanggal_mengajukan_resign",
       "label": "Tanggal Mengajukan Resign",
       "type": "date",
       "page": 0,
-      "rect": { "x": 300, "y": 216, "width": 250, "height": 13.5 },
+      "rect": {
+        "x": 299.99,
+        "y": 217.24,
+        "width": 257.01,
+        "height": 11.72
+      },
       "required": false,
-      "section": "Informasi Karyawan",
-      "placeholder": "Tanggal resign diajukan",
-      "font_size": 10,
+      "section": "",
+      "placeholder": "Tanggal Mengajukan Resign",
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.2
+      "clear_padding": 1.0,
+      "layout": {}
     },
     {
-      "id": "last_work_date",
+      "id": "tanggal_terakhir_kerja",
       "label": "Tanggal Terakhir Kerja",
       "type": "date",
       "page": 0,
-      "rect": { "x": 300, "y": 233.3, "width": 250, "height": 13.5 },
+      "rect": {
+        "x": 299.99,
+        "y": 234.52,
+        "width": 257.01,
+        "height": 11.72
+      },
       "required": false,
-      "section": "Informasi Karyawan",
-      "placeholder": "Tanggal terakhir bekerja",
-      "font_size": 10,
+      "section": "",
+      "placeholder": "Tanggal Terakhir Kerja",
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.2
+      "clear_padding": 1.0,
+      "layout": {}
     },
     {
-      "id": "new_company_name",
+      "id": "nama_perusahaan_baru",
       "label": "Nama Perusahaan Baru",
       "type": "text",
       "page": 0,
-      "rect": { "x": 300, "y": 267.8, "width": 250, "height": 13.5 },
+      "rect": {
+        "x": 299.99,
+        "y": 269.08,
+        "width": 257.01,
+        "height": 11.72
+      },
       "required": false,
-      "section": "Informasi Perusahaan Baru",
-      "placeholder": "Nama perusahaan",
-      "font_size": 10.5,
+      "section": "",
+      "placeholder": "Nama Perusahaan Baru",
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.2
+      "clear_padding": 1.0,
+      "layout": {}
     },
     {
-      "id": "new_industry_type",
+      "id": "jenis_industri",
       "label": "Jenis Industri",
       "type": "text",
       "page": 0,
-      "rect": { "x": 300, "y": 285.1, "width": 250, "height": 13.5 },
+      "rect": {
+        "x": 299.99,
+        "y": 286.36,
+        "width": 257.01,
+        "height": 11.72
+      },
       "required": false,
-      "section": "Informasi Perusahaan Baru",
-      "placeholder": "Jenis industri",
-      "font_size": 10.5,
+      "section": "",
+      "placeholder": "Jenis Industri",
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.2
+      "clear_padding": 1.0,
+      "layout": {}
     },
     {
-      "id": "new_position",
+      "id": "posisi",
       "label": "Posisi",
       "type": "text",
       "page": 0,
-      "rect": { "x": 300, "y": 302.4, "width": 250, "height": 13.5 },
+      "rect": {
+        "x": 299.99,
+        "y": 303.64,
+        "width": 257.01,
+        "height": 11.72
+      },
       "required": false,
-      "section": "Informasi Perusahaan Baru",
-      "placeholder": "Posisi baru",
-      "font_size": 10.5,
+      "section": "",
+      "placeholder": "Posisi",
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.2
+      "clear_padding": 1.0,
+      "layout": {}
     },
     {
-      "id": "new_company_start_date",
+      "id": "tanggal_bergabung",
       "label": "Tanggal Bergabung",
       "type": "date",
       "page": 0,
-      "rect": { "x": 300, "y": 319.7, "width": 250, "height": 13.5 },
+      "rect": {
+        "x": 299.99,
+        "y": 320.92,
+        "width": 257.01,
+        "height": 11.72
+      },
       "required": false,
-      "section": "Informasi Perusahaan Baru",
-      "placeholder": "Tanggal mulai di perusahaan baru",
-      "font_size": 10,
+      "section": "",
+      "placeholder": "Tanggal Bergabung",
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.2
+      "clear_padding": 1.0,
+      "layout": {}
     },
     {
-      "id": "reason_career_growth",
+      "id": "kesempatan_karir_lebih_baik",
       "label": "Kesempatan karir lebih baik",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 55, "y": 352.8, "width": 14, "height": 13 },
+      "rect": {
+        "x": 54.94,
+        "y": 354.44,
+        "width": 11.72,
+        "height": 11.72
+      },
       "required": false,
-      "section": "Alasan Mengundurkan Diri",
-      "placeholder": "Centang bila dipilih",
-      "font_size": 11,
+      "section": "",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {}
     },
     {
-      "id": "reason_compensation",
+      "id": "kompensasi_benefit",
       "label": "Kompensasi & benefit",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 300, "y": 352.8, "width": 14, "height": 13 },
+      "rect": {
+        "x": 299.99,
+        "y": 354.44,
+        "width": 11.72,
+        "height": 11.72
+      },
       "required": false,
-      "section": "Alasan Mengundurkan Diri",
-      "placeholder": "Centang bila dipilih",
-      "font_size": 11,
+      "section": "",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {}
     },
     {
-      "id": "reason_work_life_balance",
+      "id": "work_life_balance",
       "label": "Work-life balance",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 55, "y": 367.2, "width": 14, "height": 13 },
+      "rect": {
+        "x": 54.94,
+        "y": 368.84,
+        "width": 11.72,
+        "height": 11.72
+      },
       "required": false,
-      "section": "Alasan Mengundurkan Diri",
-      "placeholder": "Centang bila dipilih",
-      "font_size": 11,
+      "section": "",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {}
     },
     {
-      "id": "reason_work_environment",
+      "id": "lingkungan_kerja",
       "label": "Lingkungan kerja",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 300, "y": 367.2, "width": 14, "height": 13 },
+      "rect": {
+        "x": 299.99,
+        "y": 368.84,
+        "width": 11.72,
+        "height": 11.72
+      },
       "required": false,
-      "section": "Alasan Mengundurkan Diri",
-      "placeholder": "Centang bila dipilih",
-      "font_size": 11,
+      "section": "",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {}
     },
     {
-      "id": "reason_commute",
+      "id": "jarak_tempuh_ke_tempat_kerja",
       "label": "Jarak tempuh ke tempat kerja",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 55, "y": 381.6, "width": 14, "height": 13 },
+      "rect": {
+        "x": 54.94,
+        "y": 383.23,
+        "width": 11.72,
+        "height": 11.72
+      },
       "required": false,
-      "section": "Alasan Mengundurkan Diri",
-      "placeholder": "Centang bila dipilih",
-      "font_size": 11,
+      "section": "",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {}
     },
     {
-      "id": "reason_relationships",
+      "id": "hubungan_dengan_karyawan_lain",
       "label": "Hubungan dengan karyawan lain",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 300, "y": 381.6, "width": 14, "height": 13 },
+      "rect": {
+        "x": 299.99,
+        "y": 383.23,
+        "width": 11.72,
+        "height": 11.72
+      },
       "required": false,
-      "section": "Alasan Mengundurkan Diri",
-      "placeholder": "Centang bila dipilih",
-      "font_size": 11,
+      "section": "",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {}
     },
     {
-      "id": "reason_health",
+      "id": "alasan_kesehatan",
       "label": "Alasan kesehatan",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 55, "y": 396, "width": 14, "height": 13 },
+      "rect": {
+        "x": 54.94,
+        "y": 397.63,
+        "width": 11.72,
+        "height": 11.72
+      },
       "required": false,
-      "section": "Alasan Mengundurkan Diri",
-      "placeholder": "Centang bila dipilih",
-      "font_size": 11,
+      "section": "",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {}
     },
     {
-      "id": "reason_other",
+      "id": "lain_lain",
       "label": "Lain-lain",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 300, "y": 396, "width": 14, "height": 13 },
+      "rect": {
+        "x": 299.99,
+        "y": 397.63,
+        "width": 11.72,
+        "height": 11.72
+      },
       "required": false,
-      "section": "Alasan Mengundurkan Diri",
-      "placeholder": "Centang bila dipilih",
-      "font_size": 11,
+      "section": "",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {}
     },
     {
-      "id": "reason_explanation",
+      "id": "textarea_37_alasan_penjelasan",
       "label": "Alasan / Penjelasan",
       "type": "textarea",
       "page": 0,
-      "rect": { "x": 60, "y": 430, "width": 488, "height": 35 },
+      "rect": {
+        "x": 55.0,
+        "y": 429.56,
+        "width": 502.0,
+        "height": 39.18
+      },
       "required": false,
-      "section": "Alasan Mengundurkan Diri",
-      "placeholder": "Jelaskan alasan resign",
-      "font_size": 10,
-      "line_height": 1.15,
+      "section": "",
+      "placeholder": "Alasan / Penjelasan",
+      "font_size": 9.0,
+      "align": "left",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.2
+      "clear_padding": 1.0,
+      "layout": {}
     },
     {
-      "id": "retention_feedback",
-      "label": "Hal yang dapat dilakukan perusahaan untuk mempertahankan Anda",
+      "id": "textarea_38_4_apakah_ada_hal_yang_dapat_dilakukan_perusahaan_untuk_mempertahankan_anda",
+      "label": "4. Apakah ada hal yang dapat dilakukan perusahaan untuk mempertahankan Anda?",
       "type": "textarea",
       "page": 0,
-      "rect": { "x": 60, "y": 491, "width": 488, "height": 35 },
+      "rect": {
+        "x": 55.0,
+        "y": 490.03,
+        "width": 502.0,
+        "height": 39.17
+      },
       "required": false,
-      "section": "Retensi",
-      "placeholder": "Masukan untuk perusahaan",
-      "font_size": 10,
-      "line_height": 1.15,
+      "section": "",
+      "placeholder": "4. Apakah ada hal yang dapat dilakukan perusahaan untuk mempertahankan Anda?",
+      "font_size": 9.0,
+      "align": "left",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.2
+      "clear_padding": 1.0,
+      "layout": {}
     },
     {
-      "id": "q_role_understanding_sts",
-      "label": "Peran & tanggung jawab - Sangat Tidak Setuju",
+      "id": "saya_memahami_peran_dan_tanggung_jawab_pekerjaan_saya_sangat_tidak_setuju",
+      "label": "Saya memahami peran dan tanggung jawab pekerjaan saya - Sangat Tidak Setuju",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 216, "y": 564.5, "width": 81, "height": 19 },
+      "rect": {
+        "x": 215.78,
+        "y": 564.89,
+        "width": 81.23,
+        "height": 18.92
+      },
       "required": false,
-      "section": "Kuesioner",
-      "placeholder": "Centang pilihan",
-      "font_size": 11,
+      "section": "5. Kuesioner",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "center",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "choice_matrix",
+        "group_id": "5_kuesioner",
+        "group_label": "5. Kuesioner",
+        "row_label": "Saya memahami peran dan tanggung jawab pekerjaan saya",
+        "column_label": "Sangat Tidak Setuju",
+        "choice_group": "5_kuesioner_saya_memahami_peran_dan_tanggung_jawab_pekerjaan_saya"
+      }
     },
     {
-      "id": "q_role_understanding_ts",
-      "label": "Peran & tanggung jawab - Tidak Setuju",
+      "id": "saya_memahami_peran_dan_tanggung_jawab_pekerjaan_saya_tidak_setuju",
+      "label": "Saya memahami peran dan tanggung jawab pekerjaan saya - Tidak Setuju",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 301, "y": 564.5, "width": 81, "height": 19 },
+      "rect": {
+        "x": 301.01,
+        "y": 564.89,
+        "width": 81.23,
+        "height": 18.92
+      },
       "required": false,
-      "section": "Kuesioner",
-      "placeholder": "Centang pilihan",
-      "font_size": 11,
+      "section": "5. Kuesioner",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "center",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "choice_matrix",
+        "group_id": "5_kuesioner",
+        "group_label": "5. Kuesioner",
+        "row_label": "Saya memahami peran dan tanggung jawab pekerjaan saya",
+        "column_label": "Tidak Setuju",
+        "choice_group": "5_kuesioner_saya_memahami_peran_dan_tanggung_jawab_pekerjaan_saya"
+      }
     },
     {
-      "id": "q_role_understanding_s",
-      "label": "Peran & tanggung jawab - Setuju",
+      "id": "saya_memahami_peran_dan_tanggung_jawab_pekerjaan_saya_setuju",
+      "label": "Saya memahami peran dan tanggung jawab pekerjaan saya - Setuju",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 386, "y": 564.5, "width": 81, "height": 19 },
+      "rect": {
+        "x": 386.24,
+        "y": 564.89,
+        "width": 81.23,
+        "height": 18.92
+      },
       "required": false,
-      "section": "Kuesioner",
-      "placeholder": "Centang pilihan",
-      "font_size": 11,
+      "section": "5. Kuesioner",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "center",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "choice_matrix",
+        "group_id": "5_kuesioner",
+        "group_label": "5. Kuesioner",
+        "row_label": "Saya memahami peran dan tanggung jawab pekerjaan saya",
+        "column_label": "Setuju",
+        "choice_group": "5_kuesioner_saya_memahami_peran_dan_tanggung_jawab_pekerjaan_saya"
+      }
     },
     {
-      "id": "q_role_understanding_ss",
-      "label": "Peran & tanggung jawab - Sangat Setuju",
+      "id": "saya_memahami_peran_dan_tanggung_jawab_pekerjaan_saya_sangat_setuju",
+      "label": "Saya memahami peran dan tanggung jawab pekerjaan saya - Sangat Setuju",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 471, "y": 564.5, "width": 81, "height": 19 },
+      "rect": {
+        "x": 471.47,
+        "y": 564.89,
+        "width": 81.19,
+        "height": 18.92
+      },
       "required": false,
-      "section": "Kuesioner",
-      "placeholder": "Centang pilihan",
-      "font_size": 11,
+      "section": "5. Kuesioner",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "center",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "choice_matrix",
+        "group_id": "5_kuesioner",
+        "group_label": "5. Kuesioner",
+        "row_label": "Saya memahami peran dan tanggung jawab pekerjaan saya",
+        "column_label": "Sangat Setuju",
+        "choice_group": "5_kuesioner_saya_memahami_peran_dan_tanggung_jawab_pekerjaan_saya"
+      }
     },
     {
-      "id": "q_workload_sts",
-      "label": "Beban kerja - Sangat Tidak Setuju",
+      "id": "beban_kerja_sesuai_dengan_kapasitas_dan_waktu_kerja_sangat_tidak_setuju",
+      "label": "Beban kerja sesuai dengan kapasitas dan waktu kerja - Sangat Tidak Setuju",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 216, "y": 587.4, "width": 81, "height": 19 },
+      "rect": {
+        "x": 215.78,
+        "y": 587.81,
+        "width": 81.23,
+        "height": 18.88
+      },
       "required": false,
-      "section": "Kuesioner",
-      "placeholder": "Centang pilihan",
-      "font_size": 11,
+      "section": "5. Kuesioner",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "center",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "choice_matrix",
+        "group_id": "5_kuesioner",
+        "group_label": "5. Kuesioner",
+        "row_label": "Beban kerja sesuai dengan kapasitas dan waktu kerja",
+        "column_label": "Sangat Tidak Setuju",
+        "choice_group": "5_kuesioner_beban_kerja_sesuai_dengan_kapasitas_dan_waktu_kerja"
+      }
     },
     {
-      "id": "q_workload_ts",
-      "label": "Beban kerja - Tidak Setuju",
+      "id": "beban_kerja_sesuai_dengan_kapasitas_dan_waktu_kerja_tidak_setuju",
+      "label": "Beban kerja sesuai dengan kapasitas dan waktu kerja - Tidak Setuju",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 301, "y": 587.4, "width": 81, "height": 19 },
+      "rect": {
+        "x": 301.01,
+        "y": 587.81,
+        "width": 81.23,
+        "height": 18.88
+      },
       "required": false,
-      "section": "Kuesioner",
-      "placeholder": "Centang pilihan",
-      "font_size": 11,
+      "section": "5. Kuesioner",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "center",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "choice_matrix",
+        "group_id": "5_kuesioner",
+        "group_label": "5. Kuesioner",
+        "row_label": "Beban kerja sesuai dengan kapasitas dan waktu kerja",
+        "column_label": "Tidak Setuju",
+        "choice_group": "5_kuesioner_beban_kerja_sesuai_dengan_kapasitas_dan_waktu_kerja"
+      }
     },
     {
-      "id": "q_workload_s",
-      "label": "Beban kerja - Setuju",
+      "id": "beban_kerja_sesuai_dengan_kapasitas_dan_waktu_kerja_setuju",
+      "label": "Beban kerja sesuai dengan kapasitas dan waktu kerja - Setuju",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 386, "y": 587.4, "width": 81, "height": 19 },
+      "rect": {
+        "x": 386.24,
+        "y": 587.81,
+        "width": 81.23,
+        "height": 18.88
+      },
       "required": false,
-      "section": "Kuesioner",
-      "placeholder": "Centang pilihan",
-      "font_size": 11,
+      "section": "5. Kuesioner",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "center",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "choice_matrix",
+        "group_id": "5_kuesioner",
+        "group_label": "5. Kuesioner",
+        "row_label": "Beban kerja sesuai dengan kapasitas dan waktu kerja",
+        "column_label": "Setuju",
+        "choice_group": "5_kuesioner_beban_kerja_sesuai_dengan_kapasitas_dan_waktu_kerja"
+      }
     },
     {
-      "id": "q_workload_ss",
-      "label": "Beban kerja - Sangat Setuju",
+      "id": "beban_kerja_sesuai_dengan_kapasitas_dan_waktu_kerja_sangat_setuju",
+      "label": "Beban kerja sesuai dengan kapasitas dan waktu kerja - Sangat Setuju",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 471, "y": 587.4, "width": 81, "height": 19 },
+      "rect": {
+        "x": 471.47,
+        "y": 587.81,
+        "width": 81.19,
+        "height": 18.88
+      },
       "required": false,
-      "section": "Kuesioner",
-      "placeholder": "Centang pilihan",
-      "font_size": 11,
+      "section": "5. Kuesioner",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "center",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "choice_matrix",
+        "group_id": "5_kuesioner",
+        "group_label": "5. Kuesioner",
+        "row_label": "Beban kerja sesuai dengan kapasitas dan waktu kerja",
+        "column_label": "Sangat Setuju",
+        "choice_group": "5_kuesioner_beban_kerja_sesuai_dengan_kapasitas_dan_waktu_kerja"
+      }
     },
     {
-      "id": "q_manager_support_sts",
-      "label": "Arahan & dukungan atasan - Sangat Tidak Setuju",
+      "id": "atasan_memberikan_arahan_dan_dukungan_yang_memadai_sangat_tidak_setuju",
+      "label": "Atasan memberikan arahan dan dukungan yang memadai - Sangat Tidak Setuju",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 216, "y": 610.3, "width": 81, "height": 19 },
+      "rect": {
+        "x": 215.78,
+        "y": 610.69,
+        "width": 81.23,
+        "height": 18.89
+      },
       "required": false,
-      "section": "Kuesioner",
-      "placeholder": "Centang pilihan",
-      "font_size": 11,
+      "section": "5. Kuesioner",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "center",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "choice_matrix",
+        "group_id": "5_kuesioner",
+        "group_label": "5. Kuesioner",
+        "row_label": "Atasan memberikan arahan dan dukungan yang memadai",
+        "column_label": "Sangat Tidak Setuju",
+        "choice_group": "5_kuesioner_atasan_memberikan_arahan_dan_dukungan_yang_memadai"
+      }
     },
     {
-      "id": "q_manager_support_ts",
-      "label": "Arahan & dukungan atasan - Tidak Setuju",
+      "id": "atasan_memberikan_arahan_dan_dukungan_yang_memadai_tidak_setuju",
+      "label": "Atasan memberikan arahan dan dukungan yang memadai - Tidak Setuju",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 301, "y": 610.3, "width": 81, "height": 19 },
+      "rect": {
+        "x": 301.01,
+        "y": 610.69,
+        "width": 81.23,
+        "height": 18.89
+      },
       "required": false,
-      "section": "Kuesioner",
-      "placeholder": "Centang pilihan",
-      "font_size": 11,
+      "section": "5. Kuesioner",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "center",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "choice_matrix",
+        "group_id": "5_kuesioner",
+        "group_label": "5. Kuesioner",
+        "row_label": "Atasan memberikan arahan dan dukungan yang memadai",
+        "column_label": "Tidak Setuju",
+        "choice_group": "5_kuesioner_atasan_memberikan_arahan_dan_dukungan_yang_memadai"
+      }
     },
     {
-      "id": "q_manager_support_s",
-      "label": "Arahan & dukungan atasan - Setuju",
+      "id": "atasan_memberikan_arahan_dan_dukungan_yang_memadai_setuju",
+      "label": "Atasan memberikan arahan dan dukungan yang memadai - Setuju",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 386, "y": 610.3, "width": 81, "height": 19 },
+      "rect": {
+        "x": 386.24,
+        "y": 610.69,
+        "width": 81.23,
+        "height": 18.89
+      },
       "required": false,
-      "section": "Kuesioner",
-      "placeholder": "Centang pilihan",
-      "font_size": 11,
+      "section": "5. Kuesioner",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "center",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "choice_matrix",
+        "group_id": "5_kuesioner",
+        "group_label": "5. Kuesioner",
+        "row_label": "Atasan memberikan arahan dan dukungan yang memadai",
+        "column_label": "Setuju",
+        "choice_group": "5_kuesioner_atasan_memberikan_arahan_dan_dukungan_yang_memadai"
+      }
     },
     {
-      "id": "q_manager_support_ss",
-      "label": "Arahan & dukungan atasan - Sangat Setuju",
+      "id": "atasan_memberikan_arahan_dan_dukungan_yang_memadai_sangat_setuju",
+      "label": "Atasan memberikan arahan dan dukungan yang memadai - Sangat Setuju",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 471, "y": 610.3, "width": 81, "height": 19 },
+      "rect": {
+        "x": 471.47,
+        "y": 610.69,
+        "width": 81.19,
+        "height": 18.89
+      },
       "required": false,
-      "section": "Kuesioner",
-      "placeholder": "Centang pilihan",
-      "font_size": 11,
+      "section": "5. Kuesioner",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "center",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "choice_matrix",
+        "group_id": "5_kuesioner",
+        "group_label": "5. Kuesioner",
+        "row_label": "Atasan memberikan arahan dan dukungan yang memadai",
+        "column_label": "Sangat Setuju",
+        "choice_group": "5_kuesioner_atasan_memberikan_arahan_dan_dukungan_yang_memadai"
+      }
     },
     {
-      "id": "q_facilities_sts",
-      "label": "Fasilitas kerja - Sangat Tidak Setuju",
+      "id": "fasilitas_kerja_mendukung_produktivitas_sangat_tidak_setuju",
+      "label": "Fasilitas kerja mendukung produktivitas - Sangat Tidak Setuju",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 216, "y": 633, "width": 81, "height": 10 },
+      "rect": {
+        "x": 215.78,
+        "y": 633.58,
+        "width": 81.23,
+        "height": 10.39
+      },
       "required": false,
-      "section": "Kuesioner",
-      "placeholder": "Centang pilihan",
-      "font_size": 10,
+      "section": "5. Kuesioner",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "center",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "choice_matrix",
+        "group_id": "5_kuesioner",
+        "group_label": "5. Kuesioner",
+        "row_label": "Fasilitas kerja mendukung produktivitas",
+        "column_label": "Sangat Tidak Setuju",
+        "choice_group": "5_kuesioner_fasilitas_kerja_mendukung_produktivitas"
+      }
     },
     {
-      "id": "q_facilities_ts",
-      "label": "Fasilitas kerja - Tidak Setuju",
+      "id": "fasilitas_kerja_mendukung_produktivitas_tidak_setuju",
+      "label": "Fasilitas kerja mendukung produktivitas - Tidak Setuju",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 301, "y": 633, "width": 81, "height": 10 },
+      "rect": {
+        "x": 301.01,
+        "y": 633.58,
+        "width": 81.23,
+        "height": 10.39
+      },
       "required": false,
-      "section": "Kuesioner",
-      "placeholder": "Centang pilihan",
-      "font_size": 10,
+      "section": "5. Kuesioner",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "center",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "choice_matrix",
+        "group_id": "5_kuesioner",
+        "group_label": "5. Kuesioner",
+        "row_label": "Fasilitas kerja mendukung produktivitas",
+        "column_label": "Tidak Setuju",
+        "choice_group": "5_kuesioner_fasilitas_kerja_mendukung_produktivitas"
+      }
     },
     {
-      "id": "q_facilities_s",
-      "label": "Fasilitas kerja - Setuju",
+      "id": "fasilitas_kerja_mendukung_produktivitas_setuju",
+      "label": "Fasilitas kerja mendukung produktivitas - Setuju",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 386, "y": 633, "width": 81, "height": 10 },
+      "rect": {
+        "x": 386.24,
+        "y": 633.58,
+        "width": 81.23,
+        "height": 10.39
+      },
       "required": false,
-      "section": "Kuesioner",
-      "placeholder": "Centang pilihan",
-      "font_size": 10,
+      "section": "5. Kuesioner",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "center",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "choice_matrix",
+        "group_id": "5_kuesioner",
+        "group_label": "5. Kuesioner",
+        "row_label": "Fasilitas kerja mendukung produktivitas",
+        "column_label": "Setuju",
+        "choice_group": "5_kuesioner_fasilitas_kerja_mendukung_produktivitas"
+      }
     },
     {
-      "id": "q_facilities_ss",
-      "label": "Fasilitas kerja - Sangat Setuju",
+      "id": "fasilitas_kerja_mendukung_produktivitas_sangat_setuju",
+      "label": "Fasilitas kerja mendukung produktivitas - Sangat Setuju",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 471, "y": 633, "width": 81, "height": 10 },
+      "rect": {
+        "x": 471.47,
+        "y": 633.58,
+        "width": 81.19,
+        "height": 10.39
+      },
       "required": false,
-      "section": "Kuesioner",
-      "placeholder": "Centang pilihan",
-      "font_size": 10,
+      "section": "5. Kuesioner",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "center",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "choice_matrix",
+        "group_id": "5_kuesioner",
+        "group_label": "5. Kuesioner",
+        "row_label": "Fasilitas kerja mendukung produktivitas",
+        "column_label": "Sangat Setuju",
+        "choice_group": "5_kuesioner_fasilitas_kerja_mendukung_produktivitas"
+      }
     },
     {
-      "id": "q_compensation_sts",
-      "label": "Kompensasi & benefit - Sangat Tidak Setuju",
+      "id": "kompensasi_dan_benefit_sesuai_tanggung_jawab_pekerjaan_sangat_tidak_setuju",
+      "label": "Kompensasi dan benefit sesuai tanggung jawab pekerjaan - Sangat Tidak Setuju",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 216, "y": 647.4, "width": 81, "height": 19 },
+      "rect": {
+        "x": 215.78,
+        "y": 647.97,
+        "width": 81.23,
+        "height": 18.89
+      },
       "required": false,
-      "section": "Kuesioner",
-      "placeholder": "Centang pilihan",
-      "font_size": 11,
+      "section": "5. Kuesioner",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "center",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "choice_matrix",
+        "group_id": "5_kuesioner",
+        "group_label": "5. Kuesioner",
+        "row_label": "Kompensasi dan benefit sesuai tanggung jawab pekerjaan",
+        "column_label": "Sangat Tidak Setuju",
+        "choice_group": "5_kuesioner_kompensasi_dan_benefit_sesuai_tanggung_jawab_pekerjaan"
+      }
     },
     {
-      "id": "q_compensation_ts",
-      "label": "Kompensasi & benefit - Tidak Setuju",
+      "id": "kompensasi_dan_benefit_sesuai_tanggung_jawab_pekerjaan_tidak_setuju",
+      "label": "Kompensasi dan benefit sesuai tanggung jawab pekerjaan - Tidak Setuju",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 301, "y": 647.4, "width": 81, "height": 19 },
+      "rect": {
+        "x": 301.01,
+        "y": 647.97,
+        "width": 81.23,
+        "height": 18.89
+      },
       "required": false,
-      "section": "Kuesioner",
-      "placeholder": "Centang pilihan",
-      "font_size": 11,
+      "section": "5. Kuesioner",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "center",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "choice_matrix",
+        "group_id": "5_kuesioner",
+        "group_label": "5. Kuesioner",
+        "row_label": "Kompensasi dan benefit sesuai tanggung jawab pekerjaan",
+        "column_label": "Tidak Setuju",
+        "choice_group": "5_kuesioner_kompensasi_dan_benefit_sesuai_tanggung_jawab_pekerjaan"
+      }
     },
     {
-      "id": "q_compensation_s",
-      "label": "Kompensasi & benefit - Setuju",
+      "id": "kompensasi_dan_benefit_sesuai_tanggung_jawab_pekerjaan_setuju",
+      "label": "Kompensasi dan benefit sesuai tanggung jawab pekerjaan - Setuju",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 386, "y": 647.4, "width": 81, "height": 19 },
+      "rect": {
+        "x": 386.24,
+        "y": 647.97,
+        "width": 81.23,
+        "height": 18.89
+      },
       "required": false,
-      "section": "Kuesioner",
-      "placeholder": "Centang pilihan",
-      "font_size": 11,
+      "section": "5. Kuesioner",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "center",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "choice_matrix",
+        "group_id": "5_kuesioner",
+        "group_label": "5. Kuesioner",
+        "row_label": "Kompensasi dan benefit sesuai tanggung jawab pekerjaan",
+        "column_label": "Setuju",
+        "choice_group": "5_kuesioner_kompensasi_dan_benefit_sesuai_tanggung_jawab_pekerjaan"
+      }
     },
     {
-      "id": "q_compensation_ss",
-      "label": "Kompensasi & benefit - Sangat Setuju",
+      "id": "kompensasi_dan_benefit_sesuai_tanggung_jawab_pekerjaan_sangat_setuju",
+      "label": "Kompensasi dan benefit sesuai tanggung jawab pekerjaan - Sangat Setuju",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 471, "y": 647.4, "width": 81, "height": 19 },
+      "rect": {
+        "x": 471.47,
+        "y": 647.97,
+        "width": 81.19,
+        "height": 18.89
+      },
       "required": false,
-      "section": "Kuesioner",
-      "placeholder": "Centang pilihan",
-      "font_size": 11,
+      "section": "5. Kuesioner",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "center",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "choice_matrix",
+        "group_id": "5_kuesioner",
+        "group_label": "5. Kuesioner",
+        "row_label": "Kompensasi dan benefit sesuai tanggung jawab pekerjaan",
+        "column_label": "Sangat Setuju",
+        "choice_group": "5_kuesioner_kompensasi_dan_benefit_sesuai_tanggung_jawab_pekerjaan"
+      }
     },
     {
-      "id": "q_career_development_sts",
-      "label": "Pengembangan karir - Sangat Tidak Setuju",
+      "id": "kesempatan_pengembangan_karir_tersedia_dengan_baik_sangat_tidak_setuju",
+      "label": "Kesempatan pengembangan karir tersedia dengan baik - Sangat Tidak Setuju",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 216, "y": 670.3, "width": 81, "height": 18 },
+      "rect": {
+        "x": 215.78,
+        "y": 670.86,
+        "width": 81.23,
+        "height": 18.88
+      },
       "required": false,
-      "section": "Kuesioner",
-      "placeholder": "Centang pilihan",
-      "font_size": 11,
+      "section": "5. Kuesioner",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "center",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "choice_matrix",
+        "group_id": "5_kuesioner",
+        "group_label": "5. Kuesioner",
+        "row_label": "Kesempatan pengembangan karir tersedia dengan baik",
+        "column_label": "Sangat Tidak Setuju",
+        "choice_group": "5_kuesioner_kesempatan_pengembangan_karir_tersedia_dengan_baik"
+      }
     },
     {
-      "id": "q_career_development_ts",
-      "label": "Pengembangan karir - Tidak Setuju",
+      "id": "kesempatan_pengembangan_karir_tersedia_dengan_baik_tidak_setuju",
+      "label": "Kesempatan pengembangan karir tersedia dengan baik - Tidak Setuju",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 301, "y": 670.3, "width": 81, "height": 18 },
+      "rect": {
+        "x": 301.01,
+        "y": 670.86,
+        "width": 81.23,
+        "height": 18.88
+      },
       "required": false,
-      "section": "Kuesioner",
-      "placeholder": "Centang pilihan",
-      "font_size": 11,
+      "section": "5. Kuesioner",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "center",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "choice_matrix",
+        "group_id": "5_kuesioner",
+        "group_label": "5. Kuesioner",
+        "row_label": "Kesempatan pengembangan karir tersedia dengan baik",
+        "column_label": "Tidak Setuju",
+        "choice_group": "5_kuesioner_kesempatan_pengembangan_karir_tersedia_dengan_baik"
+      }
     },
     {
-      "id": "q_career_development_s",
-      "label": "Pengembangan karir - Setuju",
+      "id": "kesempatan_pengembangan_karir_tersedia_dengan_baik_setuju",
+      "label": "Kesempatan pengembangan karir tersedia dengan baik - Setuju",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 386, "y": 670.3, "width": 81, "height": 18 },
+      "rect": {
+        "x": 386.24,
+        "y": 670.86,
+        "width": 81.23,
+        "height": 18.88
+      },
       "required": false,
-      "section": "Kuesioner",
-      "placeholder": "Centang pilihan",
-      "font_size": 11,
+      "section": "5. Kuesioner",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "center",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "choice_matrix",
+        "group_id": "5_kuesioner",
+        "group_label": "5. Kuesioner",
+        "row_label": "Kesempatan pengembangan karir tersedia dengan baik",
+        "column_label": "Setuju",
+        "choice_group": "5_kuesioner_kesempatan_pengembangan_karir_tersedia_dengan_baik"
+      }
     },
     {
-      "id": "q_career_development_ss",
-      "label": "Pengembangan karir - Sangat Setuju",
+      "id": "kesempatan_pengembangan_karir_tersedia_dengan_baik_sangat_setuju",
+      "label": "Kesempatan pengembangan karir tersedia dengan baik - Sangat Setuju",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 471, "y": 670.3, "width": 81, "height": 18 },
+      "rect": {
+        "x": 471.47,
+        "y": 670.86,
+        "width": 81.19,
+        "height": 18.88
+      },
       "required": false,
-      "section": "Kuesioner",
-      "placeholder": "Centang pilihan",
-      "font_size": 11,
+      "section": "5. Kuesioner",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "center",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "choice_matrix",
+        "group_id": "5_kuesioner",
+        "group_label": "5. Kuesioner",
+        "row_label": "Kesempatan pengembangan karir tersedia dengan baik",
+        "column_label": "Sangat Setuju",
+        "choice_group": "5_kuesioner_kesempatan_pengembangan_karir_tersedia_dengan_baik"
+      }
     },
     {
-      "id": "q_internal_communication_sts",
-      "label": "Komunikasi internal - Sangat Tidak Setuju",
+      "id": "komunikasi_internal_perusahaan_berjalan_dengan_baik_sangat_tidak_setuju",
+      "label": "Komunikasi internal perusahaan berjalan dengan baik - Sangat Tidak Setuju",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 216, "y": 693.1, "width": 81, "height": 18 },
+      "rect": {
+        "x": 215.78,
+        "y": 693.74,
+        "width": 81.23,
+        "height": 18.89
+      },
       "required": false,
-      "section": "Kuesioner",
-      "placeholder": "Centang pilihan",
-      "font_size": 11,
+      "section": "5. Kuesioner",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "center",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "choice_matrix",
+        "group_id": "5_kuesioner",
+        "group_label": "5. Kuesioner",
+        "row_label": "Komunikasi internal perusahaan berjalan dengan baik",
+        "column_label": "Sangat Tidak Setuju",
+        "choice_group": "5_kuesioner_komunikasi_internal_perusahaan_berjalan_dengan_baik"
+      }
     },
     {
-      "id": "q_internal_communication_ts",
-      "label": "Komunikasi internal - Tidak Setuju",
+      "id": "komunikasi_internal_perusahaan_berjalan_dengan_baik_tidak_setuju",
+      "label": "Komunikasi internal perusahaan berjalan dengan baik - Tidak Setuju",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 301, "y": 693.1, "width": 81, "height": 18 },
+      "rect": {
+        "x": 301.01,
+        "y": 693.74,
+        "width": 81.23,
+        "height": 18.89
+      },
       "required": false,
-      "section": "Kuesioner",
-      "placeholder": "Centang pilihan",
-      "font_size": 11,
+      "section": "5. Kuesioner",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "center",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "choice_matrix",
+        "group_id": "5_kuesioner",
+        "group_label": "5. Kuesioner",
+        "row_label": "Komunikasi internal perusahaan berjalan dengan baik",
+        "column_label": "Tidak Setuju",
+        "choice_group": "5_kuesioner_komunikasi_internal_perusahaan_berjalan_dengan_baik"
+      }
     },
     {
-      "id": "q_internal_communication_s",
-      "label": "Komunikasi internal - Setuju",
+      "id": "komunikasi_internal_perusahaan_berjalan_dengan_baik_setuju",
+      "label": "Komunikasi internal perusahaan berjalan dengan baik - Setuju",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 386, "y": 693.1, "width": 81, "height": 18 },
+      "rect": {
+        "x": 386.24,
+        "y": 693.74,
+        "width": 81.23,
+        "height": 18.89
+      },
       "required": false,
-      "section": "Kuesioner",
-      "placeholder": "Centang pilihan",
-      "font_size": 11,
+      "section": "5. Kuesioner",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "center",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "choice_matrix",
+        "group_id": "5_kuesioner",
+        "group_label": "5. Kuesioner",
+        "row_label": "Komunikasi internal perusahaan berjalan dengan baik",
+        "column_label": "Setuju",
+        "choice_group": "5_kuesioner_komunikasi_internal_perusahaan_berjalan_dengan_baik"
+      }
     },
     {
-      "id": "q_internal_communication_ss",
-      "label": "Komunikasi internal - Sangat Setuju",
+      "id": "komunikasi_internal_perusahaan_berjalan_dengan_baik_sangat_setuju",
+      "label": "Komunikasi internal perusahaan berjalan dengan baik - Sangat Setuju",
       "type": "checkbox",
       "page": 0,
-      "rect": { "x": 471, "y": 693.1, "width": 81, "height": 18 },
+      "rect": {
+        "x": 471.47,
+        "y": 693.74,
+        "width": 81.19,
+        "height": 18.89
+      },
       "required": false,
-      "section": "Kuesioner",
-      "placeholder": "Centang pilihan",
-      "font_size": 11,
+      "section": "5. Kuesioner",
+      "placeholder": null,
+      "font_size": 10.0,
+      "align": "center",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 0.8
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "choice_matrix",
+        "group_id": "5_kuesioner",
+        "group_label": "5. Kuesioner",
+        "row_label": "Komunikasi internal perusahaan berjalan dengan baik",
+        "column_label": "Sangat Setuju",
+        "choice_group": "5_kuesioner_komunikasi_internal_perusahaan_berjalan_dengan_baik"
+      }
     },
     {
-      "id": "company_improvement_notes",
-      "label": "Hal yang perlu dipertahankan / ditingkatkan perusahaan",
+      "id": "textarea_58_6_hal_yang_perlu_dipertahankan_ditingkatkan_perusahaan",
+      "label": "6. Hal yang perlu dipertahankan/ditingkatkan perusahaan",
       "type": "textarea",
       "page": 1,
-      "rect": { "x": 60, "y": 92, "width": 488, "height": 35 },
+      "rect": {
+        "x": 55.0,
+        "y": 91.21,
+        "width": 502.0,
+        "height": 39.21
+      },
       "required": false,
-      "section": "Peningkatan Perusahaan",
-      "placeholder": "Masukan umum untuk perusahaan",
-      "font_size": 10,
-      "line_height": 1.15,
+      "section": "",
+      "placeholder": "6. Hal yang perlu dipertahankan/ditingkatkan perusahaan",
+      "font_size": 9.0,
+      "align": "left",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.2
+      "clear_padding": 1.0,
+      "layout": {}
     },
     {
-      "id": "prepared_signature",
-      "label": "Dibuat oleh - Tanda Tangan",
+      "id": "tanda_tangan_dibuat_oleh",
+      "label": "Tanda tangan Dibuat oleh",
       "type": "signature_image",
       "page": 1,
-      "rect": { "x": 110, "y": 160, "width": 110, "height": 42 },
+      "rect": {
+        "x": 121.68,
+        "y": 171.84,
+        "width": 109.64,
+        "height": 39.47
+      },
       "required": false,
       "section": "Persetujuan",
-      "placeholder": "Upload tanda tangan",
-      "clear": false
+      "placeholder": "Tanda tangan Dibuat oleh",
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
+      "clear": false,
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "signature_block",
+        "group_id": "persetujuan",
+        "group_label": "Persetujuan",
+        "row_label": "Dibuat oleh"
+      }
     },
     {
-      "id": "prepared_name",
-      "label": "Dibuat oleh - Nama",
-      "type": "text",
-      "page": 1,
-      "rect": { "x": 112, "y": 206, "width": 108, "height": 11 },
-      "required": false,
-      "section": "Persetujuan",
-      "placeholder": "Nama pembuat",
-      "font_size": 8.5,
-      "align": "center",
-      "clear": true,
-      "clear_padding": 1.4
-    },
-    {
-      "id": "prepared_role",
-      "label": "Dibuat oleh - Jabatan",
-      "type": "text",
-      "page": 1,
-      "rect": { "x": 112, "y": 220, "width": 108, "height": 11 },
-      "required": false,
-      "section": "Persetujuan",
-      "placeholder": "Jabatan pembuat",
-      "font_size": 8.5,
-      "align": "center",
-      "clear": true,
-      "clear_padding": 1.4
-    },
-    {
-      "id": "approved_signature",
-      "label": "Disetujui oleh - Tanda Tangan",
+      "id": "tanda_tangan_disetujui_oleh",
+      "label": "Tanda tangan Disetujui oleh",
       "type": "signature_image",
       "page": 1,
-      "rect": { "x": 314, "y": 160, "width": 110, "height": 42 },
+      "rect": {
+        "x": 329.45,
+        "y": 171.84,
+        "width": 109.64,
+        "height": 39.47
+      },
       "required": false,
       "section": "Persetujuan",
-      "placeholder": "Upload tanda tangan",
-      "clear": false
+      "placeholder": "Tanda tangan Disetujui oleh",
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
+      "clear": false,
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "signature_block",
+        "group_id": "persetujuan",
+        "group_label": "Persetujuan",
+        "row_label": "Disetujui oleh"
+      }
     },
     {
-      "id": "approved_name",
-      "label": "Disetujui oleh - Nama",
-      "type": "text",
-      "page": 1,
-      "rect": { "x": 314, "y": 206, "width": 114, "height": 11 },
-      "required": false,
-      "section": "Persetujuan",
-      "placeholder": "Nama approver",
-      "font_size": 8.5,
-      "align": "center",
-      "clear": true,
-      "clear_padding": 6
-    },
-    {
-      "id": "approved_role",
-      "label": "Disetujui oleh - Jabatan",
-      "type": "text",
-      "page": 1,
-      "rect": { "x": 314, "y": 219, "width": 114, "height": 12 },
-      "required": false,
-      "section": "Persetujuan",
-      "placeholder": "Jabatan approver",
-      "font_size": 8.5,
-      "align": "center",
-      "clear": true,
-      "clear_padding": 6
-    },
-    {
-      "id": "acknowledged_signature",
-      "label": "Diketahui oleh - Tanda Tangan",
+      "id": "tanda_tangan_diketahui_oleh",
+      "label": "Tanda tangan Diketahui oleh",
       "type": "signature_image",
       "page": 1,
-      "rect": { "x": 438, "y": 154, "width": 108, "height": 42 },
+      "rect": {
+        "x": 460.91,
+        "y": 171.84,
+        "width": 89.09,
+        "height": 36.0
+      },
       "required": false,
       "section": "Persetujuan",
-      "placeholder": "Upload tanda tangan",
-      "clear": false
+      "placeholder": "Tanda tangan Diketahui oleh",
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
+      "clear": false,
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "signature_block",
+        "group_id": "persetujuan",
+        "group_label": "Persetujuan",
+        "row_label": "Diketahui oleh"
+      }
     },
     {
-      "id": "acknowledged_name",
-      "label": "Diketahui oleh - Nama",
+      "id": "nama",
+      "label": "Nama",
       "type": "text",
       "page": 1,
-      "rect": { "x": 434, "y": 199, "width": 118, "height": 12 },
+      "rect": {
+        "x": 492.95,
+        "y": 213.54,
+        "width": 21.71,
+        "height": 11.72
+      },
       "required": false,
-      "section": "Persetujuan",
-      "placeholder": "Nama pihak yang mengetahui",
-      "font_size": 8.2,
-      "align": "center",
+      "section": "",
+      "placeholder": "Nama",
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 6
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "inline_placeholder"
+      }
     },
     {
-      "id": "acknowledged_role",
-      "label": "Diketahui oleh - Jabatan",
+      "id": "jabatan",
+      "label": "Jabatan",
       "type": "text",
       "page": 1,
-      "rect": { "x": 432, "y": 213, "width": 122, "height": 19 },
+      "rect": {
+        "x": 551.71,
+        "y": 213.54,
+        "width": 18.0,
+        "height": 11.72
+      },
       "required": false,
-      "section": "Persetujuan",
-      "placeholder": "Jabatan pihak yang mengetahui",
-      "font_size": 8.2,
-      "align": "center",
-      "line_height": 1.0,
+      "section": "",
+      "placeholder": "Jabatan",
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
       "clear": true,
-      "clear_padding": 6
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "inline_placeholder"
+      }
+    },
+    {
+      "id": "nama_2",
+      "label": "Nama",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 152.37,
+        "y": 219.31,
+        "width": 20.13,
+        "height": 11.72
+      },
+      "required": false,
+      "section": "",
+      "placeholder": "Nama",
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
+      "clear": true,
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "inline_placeholder"
+      }
+    },
+    {
+      "id": "jabatan_2",
+      "label": "Jabatan",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 207.53,
+        "y": 219.31,
+        "width": 40.0,
+        "height": 11.72
+      },
+      "required": false,
+      "section": "",
+      "placeholder": "Jabatan",
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
+      "clear": true,
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "inline_placeholder"
+      }
+    },
+    {
+      "id": "nama_3",
+      "label": "Nama",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 360.14,
+        "y": 219.31,
+        "width": 20.13,
+        "height": 11.72
+      },
+      "required": false,
+      "section": "",
+      "placeholder": "Nama",
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
+      "clear": true,
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "inline_placeholder"
+      }
+    },
+    {
+      "id": "jabatan_3",
+      "label": "Jabatan",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 415.3,
+        "y": 219.31,
+        "width": 40.0,
+        "height": 11.72
+      },
+      "required": false,
+      "section": "",
+      "placeholder": "Jabatan",
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
+      "clear": true,
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "inline_placeholder"
+      }
     }
-  ]
+  ],
+  "generator": {
+    "source": "model",
+    "quality_score": 1.0,
+    "warnings": [
+      "dedupe_overlap:3. Alasan Mengundurkan Diri"
+    ]
+  }
 }

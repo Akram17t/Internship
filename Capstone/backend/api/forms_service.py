@@ -25,10 +25,20 @@ FORM_FIELD_CELL_PATTERN = re.compile(r"^\[[^\[\]]*\]$")
 FORM_FIELD_TYPES = {"text", "textarea", "date", "checkbox", "signature_image"}
 IMAGE_CONTENT_TYPES = {"image/png", "image/jpeg", "image/jpg"}
 
-# Helvetica bawaan PDF dipakai untuk menulis nilai agar tidak perlu embed font.
-_FILL_FONT = "helv"
+# Pakai Calibri agar hasil isi form mendekati template Office; fallback ke Helvetica
+# kalau backend jalan di environment yang tidak punya font Windows.
+_CALIBRI_FONT_PATH = Path("C:/Windows/Fonts/calibri.ttf")
+_FILL_FONT = "Calibri" if _CALIBRI_FONT_PATH.exists() else "helv"
+_FILL_FONT_FILE = str(_CALIBRI_FONT_PATH) if _CALIBRI_FONT_PATH.exists() else None
+_FILL_FONT_OBJECT = fitz.Font(fontfile=_FILL_FONT_FILE) if _FILL_FONT_FILE else None
 _MIN_FONT_SIZE = 6.0
 _ALIGNMENTS = {"left": 0, "center": 1, "right": 2}
+
+
+def _text_length(value: str, *, fontsize: float) -> float:
+    if _FILL_FONT_OBJECT is not None:
+        return _FILL_FONT_OBJECT.text_length(value, fontsize=fontsize)
+    return fitz.get_text_length(value, fontname=_FILL_FONT, fontsize=fontsize)
 
 
 def _page_segments(page, page_number: int) -> list[dict]:
@@ -176,7 +186,7 @@ def _fit_font_size(page, field: dict, value: str) -> float:
     available = max(right_boundary - x0, 20)
 
     size = field["size"]
-    while size > _MIN_FONT_SIZE and fitz.get_text_length(value, fontname=_FILL_FONT, fontsize=size) > available:
+    while size > _MIN_FONT_SIZE and _text_length(value, fontsize=size) > available:
         size -= 0.5
     return size
 
@@ -207,6 +217,7 @@ def _fill_form_placeholders(path: Path, values: dict[str, str]) -> bytes:
                     (x0, y1 - 2),
                     value,
                     fontname=_FILL_FONT,
+                    fontfile=_FILL_FONT_FILE,
                     fontsize=size,
                     color=(0, 0, 0),
                 )
@@ -256,7 +267,7 @@ def _rect_from_schema(rect: dict[str, Any]) -> fitz.Rect:
 
 
 def _public_field(field: dict[str, Any]) -> dict[str, Any]:
-    return {
+    payload = {
         "id": str(field["id"]),
         "label": str(field["label"]),
         "type": str(field["type"]),
@@ -276,6 +287,10 @@ def _public_field(field: dict[str, Any]) -> dict[str, Any]:
         "clear": bool(field.get("clear", True)),
         "clear_padding": max(float(field.get("clear_padding") or 1.0), 0.0),
     }
+    layout = field.get("layout")
+    if isinstance(layout, dict):
+        payload["layout"] = {str(key): str(value) for key, value in layout.items() if value is not None}
+    return payload
 
 
 def _validate_schema_payload(payload: dict[str, Any], schema_path: Path) -> dict[str, Any]:
@@ -319,35 +334,52 @@ def _validate_schema_payload(payload: dict[str, Any], schema_path: Path) -> dict
         ):
             raise HTTPException(status_code=500, detail=f"Schema {schema_path.name} tidak valid.")
         seen_ids.add(field_id)
-        normalized_fields.append(
-            {
-                "id": field_id,
-                "label": str(field.get("label") or field_id),
-                "type": field_type,
-                "page": page_number,
-                "rect": {
-                    "x": float(rect["x"]),
-                    "y": float(rect["y"]),
-                    "width": float(rect["width"]),
-                    "height": float(rect["height"]),
-                },
-                "required": bool(field.get("required", False)),
-                "section": str(field.get("section") or ""),
-                "placeholder": str(field.get("placeholder") or "") or None,
-                "font_size": float(field.get("font_size") or 10),
-                "align": str(field.get("align") or "left"),
-                "line_height": float(field.get("line_height") or 1.08),
-                "clear": bool(field.get("clear", True)),
-                "clear_padding": max(float(field.get("clear_padding") or 1.0), 0.0),
+        normalized_field = {
+            "id": field_id,
+            "label": str(field.get("label") or field_id),
+            "type": field_type,
+            "page": page_number,
+            "rect": {
+                "x": float(rect["x"]),
+                "y": float(rect["y"]),
+                "width": float(rect["width"]),
+                "height": float(rect["height"]),
+            },
+            "required": bool(field.get("required", False)),
+            "section": str(field.get("section") or ""),
+            "placeholder": str(field.get("placeholder") or "") or None,
+            "font_size": float(field.get("font_size") or 10),
+            "align": str(field.get("align") or "left"),
+            "line_height": float(field.get("line_height") or 1.08),
+            "clear": bool(field.get("clear", True)),
+            "clear_padding": max(float(field.get("clear_padding") or 1.0), 0.0),
+        }
+        layout = field.get("layout")
+        if isinstance(layout, dict):
+            normalized_field["layout"] = {
+                str(key): str(value)
+                for key, value in layout.items()
+                if key in {"kind", "group_id", "group_label", "row_label", "column_label", "choice_group"}
+                and value is not None
             }
-        )
+        normalized_fields.append(normalized_field)
 
-    return {
+    normalized_payload = {
         "path": path,
         "title": title,
         "pages": normalized_pages,
         "fields": normalized_fields,
     }
+    generator = payload.get("generator")
+    if isinstance(generator, dict):
+        raw_warnings = generator.get("warnings", [])
+        warnings = raw_warnings if isinstance(raw_warnings, list) else []
+        normalized_payload["generator"] = {
+            "source": str(generator.get("source") or ""),
+            "quality_score": float(generator.get("quality_score") or 0),
+            "warnings": [str(warning) for warning in warnings],
+        }
+    return normalized_payload
 
 
 def _load_form_schema_payloads() -> list[dict[str, Any]]:
@@ -405,6 +437,7 @@ def _shape_text_fits(
         rect,
         value,
         fontname=_FILL_FONT,
+        fontfile=_FILL_FONT_FILE,
         fontsize=font_size,
         color=(0, 0, 0),
         align=_ALIGNMENTS.get(align, 0),
@@ -456,6 +489,7 @@ def _write_text_field(page: fitz.Page, field: dict[str, Any], value: str) -> Non
             rect,
             value,
             fontname=_FILL_FONT,
+            fontfile=_FILL_FONT_FILE,
             fontsize=_MIN_FONT_SIZE,
             color=(0, 0, 0),
             align=_ALIGNMENTS.get(align, 0),
@@ -470,7 +504,7 @@ def _write_checkbox(page: fitz.Page, field: dict[str, Any]) -> None:
         page.draw_rect(_clear_rect_for_field(field), color=None, fill=(1, 1, 1))
 
     font_size = max(min(rect.height * 0.95, 16), _MIN_FONT_SIZE)
-    text_width = fitz.get_text_length("X", fontname=_FILL_FONT, fontsize=font_size)
+    text_width = _text_length("X", fontsize=font_size)
     page.insert_text(
         (
             rect.x0 + max((rect.width - text_width) / 2, 0),
@@ -478,6 +512,7 @@ def _write_checkbox(page: fitz.Page, field: dict[str, Any]) -> None:
         ),
         "X",
         fontname=_FILL_FONT,
+        fontfile=_FILL_FONT_FILE,
         fontsize=font_size,
         color=(0, 0, 0),
     )

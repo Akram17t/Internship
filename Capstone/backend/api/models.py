@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -62,6 +62,7 @@ class FormSchemaField(BaseModel):
     line_height: float | None = None
     clear: bool = True
     clear_padding: float = 1.0
+    layout: dict[str, Any] | None = None
 
 
 class FormSchemaResponse(BaseModel):
@@ -139,6 +140,9 @@ class AdminDocumentResponse(BaseModel):
     message: str
     requires_reindex: bool = False
     item: LibraryItem | None = None
+    schema_generated: bool = False
+    schema_path: str | None = None
+    schema_error: str | None = None
 
 
 class AdminReindexResponse(BaseModel):

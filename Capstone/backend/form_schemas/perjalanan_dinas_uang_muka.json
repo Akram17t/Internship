@@ -1,6 +1,6 @@
 {
-  "path": "Form - Perjalanan Dinas - Penyelesaian (Template).pdf",
-  "title": "Form - Perjalanan Dinas - Penyelesaian (Template)",
+  "path": "Form - Perjalanan Dinas - Uang Muka (Template).pdf",
+  "title": "Form - Perjalanan Dinas - Uang Muka (Template)",
   "pages": [
     {
       "number": 0,
@@ -253,6 +253,27 @@
       "layout": {}
     },
     {
+      "id": "2",
+      "label": "2",
+      "type": "text",
+      "page": 0,
+      "rect": {
+        "x": 403.74,
+        "y": 263.82,
+        "width": 153.26,
+        "height": 12.21
+      },
+      "required": false,
+      "section": "",
+      "placeholder": "2",
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
+      "clear": true,
+      "clear_padding": 1.0,
+      "layout": {}
+    },
+    {
       "id": "baris_3_keterangan",
       "label": "Baris 3 - Keterangan",
       "type": "text",
@@ -280,8 +301,29 @@
       }
     },
     {
-      "id": "transportasi_rumah_kantor_ke_airport_stasiun",
-      "label": "Transportasi Rumah/Kantor ke Airport/Stasiun",
+      "id": "perjalanan_lokal",
+      "label": "Perjalanan Lokal",
+      "type": "text",
+      "page": 0,
+      "rect": {
+        "x": 88.27,
+        "y": 278.81,
+        "width": 142.1,
+        "height": 12.21
+      },
+      "required": false,
+      "section": "",
+      "placeholder": "Perjalanan Lokal",
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
+      "clear": true,
+      "clear_padding": 1.0,
+      "layout": {}
+    },
+    {
+      "id": "3",
+      "label": "3",
       "type": "text",
       "page": 0,
       "rect": {
@@ -292,7 +334,7 @@
       },
       "required": false,
       "section": "",
-      "placeholder": "Transportasi Rumah/Kantor ke Airport/Stasiun",
+      "placeholder": "3",
       "font_size": 10.0,
       "align": "left",
       "line_height": 1.08,
@@ -328,8 +370,8 @@
       }
     },
     {
-      "id": "transportasi_airport_stasiun_ke_tujuan",
-      "label": "Transportasi Airport/Stasiun ke tujuan",
+      "id": "airport_tax",
+      "label": "Airport Tax",
       "type": "text",
       "page": 0,
       "rect": {
@@ -340,7 +382,7 @@
       },
       "required": false,
       "section": "",
-      "placeholder": "Transportasi Airport/Stasiun ke tujuan",
+      "placeholder": "Airport Tax",
       "font_size": 10.0,
       "align": "left",
       "line_height": 1.08,
@@ -376,19 +418,40 @@
       }
     },
     {
-      "id": "perjalanan_lokal",
-      "label": "Perjalanan Lokal",
+      "id": "uang_saku",
+      "label": "Uang Saku",
       "type": "text",
       "page": 0,
       "rect": {
         "x": 88.27,
         "y": 308.81,
-        "width": 142.1,
+        "width": 118.15,
         "height": 12.21
       },
       "required": false,
       "section": "",
-      "placeholder": "Perjalanan Lokal",
+      "placeholder": "Uang Saku",
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
+      "clear": true,
+      "clear_padding": 1.0,
+      "layout": {}
+    },
+    {
+      "id": "5",
+      "label": "5",
+      "type": "text",
+      "page": 0,
+      "rect": {
+        "x": 403.74,
+        "y": 308.81,
+        "width": 153.26,
+        "height": 12.21
+      },
+      "required": false,
+      "section": "",
+      "placeholder": "5",
       "font_size": 10.0,
       "align": "left",
       "line_height": 1.08,
@@ -424,8 +487,29 @@
       }
     },
     {
-      "id": "airport_tax",
-      "label": "Airport Tax",
+      "id": "uang_makan",
+      "label": "Uang Makan",
+      "type": "text",
+      "page": 0,
+      "rect": {
+        "x": 88.27,
+        "y": 323.8,
+        "width": 126.9,
+        "height": 12.21
+      },
+      "required": false,
+      "section": "",
+      "placeholder": "Uang Makan",
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
+      "clear": true,
+      "clear_padding": 1.0,
+      "layout": {}
+    },
+    {
+      "id": "6",
+      "label": "6",
       "type": "text",
       "page": 0,
       "rect": {
@@ -436,7 +520,7 @@
       },
       "required": false,
       "section": "",
-      "placeholder": "Airport Tax",
+      "placeholder": "6",
       "font_size": 10.0,
       "align": "left",
       "line_height": 1.08,
@@ -472,19 +556,19 @@
       }
     },
     {
-      "id": "uang_saku",
-      "label": "Uang Saku",
+      "id": "travel_insurance",
+      "label": "Travel Insurance",
       "type": "text",
       "page": 0,
       "rect": {
-        "x": 88.27,
+        "x": 403.74,
         "y": 338.8,
-        "width": 118.15,
+        "width": 153.26,
         "height": 12.21
       },
       "required": false,
       "section": "",
-      "placeholder": "Uang Saku",
+      "placeholder": "Travel Insurance",
       "font_size": 10.0,
       "align": "left",
       "line_height": 1.08,
@@ -520,109 +604,13 @@
       }
     },
     {
-      "id": "uang_makan",
-      "label": "Uang Makan",
-      "type": "text",
-      "page": 0,
-      "rect": {
-        "x": 88.27,
-        "y": 353.79,
-        "width": 126.9,
-        "height": 12.21
-      },
-      "required": false,
-      "section": "",
-      "placeholder": "Uang Makan",
-      "font_size": 10.0,
-      "align": "left",
-      "line_height": 1.08,
-      "clear": true,
-      "clear_padding": 1.0,
-      "layout": {}
-    },
-    {
-      "id": "baris_9_keterangan",
-      "label": "Baris 9 - Keterangan",
-      "type": "text",
-      "page": 0,
-      "rect": {
-        "x": 199.23,
-        "y": 368.4,
-        "width": 164.42,
-        "height": 12.99
-      },
-      "required": false,
-      "section": "Jumlah uang muka / realisasi",
-      "placeholder": "Baris 9 - Keterangan",
-      "font_size": 8.0,
-      "align": "left",
-      "line_height": 1.08,
-      "clear": true,
-      "clear_padding": 0.25,
-      "layout": {
-        "kind": "table_cell",
-        "group_id": "jumlah_uang_muka_realisasi",
-        "group_label": "Jumlah uang muka / realisasi",
-        "row_label": "Baris 9",
-        "column_label": "Keterangan"
-      }
-    },
-    {
-      "id": "travel_insurance",
-      "label": "Travel Insurance",
-      "type": "text",
-      "page": 0,
-      "rect": {
-        "x": 403.74,
-        "y": 368.79,
-        "width": 153.26,
-        "height": 12.21
-      },
-      "required": false,
-      "section": "",
-      "placeholder": "Travel Insurance",
-      "font_size": 10.0,
-      "align": "left",
-      "line_height": 1.08,
-      "clear": true,
-      "clear_padding": 1.0,
-      "layout": {}
-    },
-    {
-      "id": "baris_10_keterangan",
-      "label": "Baris 10 - Keterangan",
-      "type": "text",
-      "page": 0,
-      "rect": {
-        "x": 199.23,
-        "y": 383.39,
-        "width": 164.42,
-        "height": 13.0
-      },
-      "required": false,
-      "section": "Jumlah uang muka / realisasi",
-      "placeholder": "Baris 10 - Keterangan",
-      "font_size": 8.0,
-      "align": "left",
-      "line_height": 1.08,
-      "clear": true,
-      "clear_padding": 0.25,
-      "layout": {
-        "kind": "table_cell",
-        "group_id": "jumlah_uang_muka_realisasi",
-        "group_label": "Jumlah uang muka / realisasi",
-        "row_label": "Baris 10",
-        "column_label": "Keterangan"
-      }
-    },
-    {
       "id": "lain_lain",
       "label": "Lain-lain",
       "type": "text",
       "page": 0,
       "rect": {
         "x": 403.74,
-        "y": 383.78,
+        "y": 353.79,
         "width": 153.26,
         "height": 12.21
       },
@@ -637,19 +625,19 @@
       "layout": {}
     },
     {
-      "id": "total_biaya",
-      "label": "Total Biaya",
+      "id": "total",
+      "label": "Total",
       "type": "text",
       "page": 0,
       "rect": {
         "x": 403.54,
-        "y": 398.78,
+        "y": 368.79,
         "width": 153.45999999999998,
         "height": 12.21
       },
       "required": false,
       "section": "",
-      "placeholder": "Total Biaya",
+      "placeholder": "Total",
       "font_size": 10.0,
       "align": "left",
       "line_height": 1.08,
@@ -664,7 +652,7 @@
       "page": 0,
       "rect": {
         "x": 69.4,
-        "y": 467.97,
+        "y": 437.98,
         "width": 112.53,
         "height": 37.52
       },
@@ -690,7 +678,7 @@
       "page": 0,
       "rect": {
         "x": 197.93,
-        "y": 467.97,
+        "y": 437.98,
         "width": 111.59,
         "height": 37.52
       },
@@ -716,7 +704,7 @@
       "page": 0,
       "rect": {
         "x": 325.52,
-        "y": 467.97,
+        "y": 437.98,
         "width": 112.46,
         "height": 37.52
       },
@@ -742,7 +730,7 @@
       "page": 0,
       "rect": {
         "x": 100.95,
-        "y": 513.49,
+        "y": 483.5,
         "width": 21.14,
         "height": 12.21
       },
@@ -765,7 +753,7 @@
       "page": 0,
       "rect": {
         "x": 158.41,
-        "y": 513.49,
+        "y": 483.5,
         "width": 40.0,
         "height": 12.21
       },
@@ -788,7 +776,7 @@
       "page": 0,
       "rect": {
         "x": 228.56,
-        "y": 513.49,
+        "y": 483.5,
         "width": 21.14,
         "height": 12.21
       },
@@ -811,7 +799,7 @@
       "page": 0,
       "rect": {
         "x": 286.02,
-        "y": 513.49,
+        "y": 483.5,
         "width": 40.0,
         "height": 12.21
       },
@@ -834,7 +822,7 @@
       "page": 0,
       "rect": {
         "x": 356.15,
-        "y": 513.49,
+        "y": 483.5,
         "width": 21.14,
         "height": 12.21
       },
@@ -857,7 +845,7 @@
       "page": 0,
       "rect": {
         "x": 413.61,
-        "y": 513.49,
+        "y": 483.5,
         "width": 40.0,
         "height": 12.21
       },

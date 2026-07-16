@@ -33,6 +33,10 @@ def _sample_png_bytes() -> bytes:
 PNG_BYTES = _sample_png_bytes()
 
 
+def _normalized_pdf_text(text: str) -> str:
+    return text.replace("\u00a0", " ").replace("\u2010", "-")
+
+
 class FormSchemaRouteTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -40,12 +44,12 @@ class FormSchemaRouteTests(unittest.TestCase):
 
     def _valid_values(self) -> dict[str, str]:
         return {
-            "division": "Finance",
-            "employee_name": "Akram",
-            "position": "Staff",
-            "destination": "Bandung",
-            "duration": "2 hari, 10-11 Juli 2026",
-            "total_amount": "1500000",
+            "divisi": "Finance",
+            "nama": "Akram",
+            "jabatan": "Staff",
+            "tujuan_kota_daerah": "Bandung",
+            "lama": "2 hari, 10-11 Juli 2026",
+            "total_biaya": "1500000",
         }
 
     def test_schema_endpoint_returns_target_schema(self) -> None:
@@ -55,8 +59,8 @@ class FormSchemaRouteTests(unittest.TestCase):
         payload = response.json()
         self.assertEqual(payload["path"], TARGET_FORM_PATH)
         self.assertEqual(payload["pages"][0]["width"], 612)
-        self.assertTrue(any(field["id"] == "applicant_signature" for field in payload["fields"]))
-        division_field = next(field for field in payload["fields"] if field["id"] == "division")
+        self.assertTrue(any(field["id"] == "tanda_tangan_pemohon" for field in payload["fields"]))
+        division_field = next(field for field in payload["fields"] if field["id"] == "divisi")
         self.assertTrue(division_field["clear"])
         self.assertGreaterEqual(division_field["clear_padding"], 0)
 
@@ -75,8 +79,9 @@ class FormSchemaRouteTests(unittest.TestCase):
         payload = response.json()
         self.assertEqual(payload["path"], EXIT_INTERVIEW_FORM_PATH)
         self.assertEqual(len(payload["pages"]), 2)
-        self.assertTrue(any(field["id"] == "reason_compensation" for field in payload["fields"]))
-        self.assertTrue(any(field["id"] == "company_improvement_notes" for field in payload["fields"]))
+        self.assertTrue(any(field["id"] == "kompensasi_benefit" for field in payload["fields"]))
+        self.assertTrue(any((field.get("layout") or {}).get("kind") == "choice_matrix" for field in payload["fields"]))
+        self.assertTrue(any(field["type"] == "signature_image" for field in payload["fields"]))
 
     def test_fill_endpoint_rejects_unknown_schema_field(self) -> None:
         response = self.client.post(
@@ -95,7 +100,7 @@ class FormSchemaRouteTests(unittest.TestCase):
             "/api/forms/fill",
             json={
                 "path": TARGET_FORM_PATH,
-                "values": {"division": "Finance"},
+                "values": {"divisi": "Finance"},
             },
         )
 
@@ -107,7 +112,7 @@ class FormSchemaRouteTests(unittest.TestCase):
         response = self.client.post(
             "/api/forms/fill",
             data={"payload": json.dumps(payload)},
-            files={"applicant_signature": ("signature.txt", io.BytesIO(b"not-image"), "text/plain")},
+            files={"tanda_tangan_pemohon": ("signature.txt", io.BytesIO(b"not-image"), "text/plain")},
         )
 
         self.assertEqual(response.status_code, 422)
@@ -116,17 +121,17 @@ class FormSchemaRouteTests(unittest.TestCase):
     def test_fill_endpoint_returns_pdf_for_schema_form(self) -> None:
         values = {
             **self._valid_values(),
-            "hotel_detail": "2 malam @ Rp 500.000 x 1 kamar",
-            "hotel_amount": "1000000",
-            "applicant_name": "Akram",
-            "applicant_role": "Staff",
+            "hotel": "2 malam @ Rp 500.000 x 1 kamar",
+            "baris_2_keterangan": "1000000",
+            "nama_2": "Akram",
+            "jabatan_2": "Staff",
         }
         payload = {"path": TARGET_FORM_PATH, "values": values}
 
         response = self.client.post(
             "/api/forms/fill",
             data={"payload": json.dumps(payload)},
-            files={"applicant_signature": ("signature.png", io.BytesIO(PNG_BYTES), "image/png")},
+            files={"tanda_tangan_pemohon": ("signature.png", io.BytesIO(PNG_BYTES), "image/png")},
         )
 
         self.assertEqual(response.status_code, 200)
@@ -145,36 +150,36 @@ class FormSchemaRouteTests(unittest.TestCase):
             json={
                 "path": EXIT_INTERVIEW_FORM_PATH,
                 "values": {
-                    "form_number": "EI-001",
-                    "employee_name": "Akram",
-                    "employee_nik": "EMP-001",
-                    "last_position": "Software Engineer",
-                    "department": "Professional Service",
-                    "direct_manager": "Budi",
-                    "resign_submitted_date": "2026-07-10",
-                    "last_work_date": "2026-07-31",
-                    "new_company_name": "Contoso",
-                    "new_industry_type": "Teknologi",
-                    "new_position": "Senior Engineer",
-                    "new_company_start_date": "2026-08-15",
-                    "reason_compensation": True,
-                    "reason_other": True,
-                    "reason_explanation": "Mencari tantangan baru dan kompensasi yang lebih baik.",
-                    "retention_feedback": "Skema kerja hybrid mungkin bisa membantu.",
-                    "q_role_understanding_s": True,
-                    "q_workload_ts": True,
-                    "q_manager_support_s": True,
-                    "q_facilities_ss": True,
-                    "q_compensation_ts": True,
-                    "q_career_development_ts": True,
-                    "q_internal_communication_s": True,
-                    "company_improvement_notes": "Pertahankan budaya tim yang suportif.",
-                    "prepared_name": "Akram",
-                    "prepared_role": "HR",
-                    "approved_name": "Budi",
-                    "approved_role": "Manager",
-                    "acknowledged_name": "Citra",
-                    "acknowledged_role": "HRBP",
+                    "no_form": "EI-001",
+                    "nama_karyawan": "Akram",
+                    "nik": "EMP-001",
+                    "jabatan_terakhir": "Software Engineer",
+                    "departemen": "Professional Service",
+                    "atasan_langsung": "Budi",
+                    "tanggal_mengajukan_resign": "2026-07-10",
+                    "tanggal_terakhir_kerja": "2026-07-31",
+                    "nama_perusahaan_baru": "Contoso",
+                    "jenis_industri": "Teknologi",
+                    "posisi": "Senior Engineer",
+                    "tanggal_bergabung": "2026-08-15",
+                    "kompensasi_benefit": True,
+                    "lain_lain": True,
+                    "textarea_37_alasan_penjelasan": "Mencari tantangan baru dan kompensasi yang lebih baik.",
+                    "textarea_38_4_apakah_ada_hal_yang_dapat_dilakukan_perusahaan_untuk_mempertahankan_anda": "Skema kerja hybrid mungkin bisa membantu.",
+                    "saya_memahami_peran_dan_tanggung_jawab_pekerjaan_saya_setuju": True,
+                    "beban_kerja_sesuai_dengan_kapasitas_dan_waktu_kerja_tidak_setuju": True,
+                    "atasan_memberikan_arahan_dan_dukungan_yang_memadai_setuju": True,
+                    "fasilitas_kerja_mendukung_produktivitas_sangat_setuju": True,
+                    "kompensasi_dan_benefit_sesuai_tanggung_jawab_pekerjaan_tidak_setuju": True,
+                    "kesempatan_pengembangan_karir_tersedia_dengan_baik_tidak_setuju": True,
+                    "komunikasi_internal_perusahaan_berjalan_dengan_baik_setuju": True,
+                    "textarea_58_6_hal_yang_perlu_dipertahankan_ditingkatkan_perusahaan": "Pertahankan budaya tim yang suportif.",
+                    "nama": "Akram",
+                    "jabatan": "HR",
+                    "nama_2": "Budi",
+                    "jabatan_2": "Manager",
+                    "nama_3": "Citra",
+                    "jabatan_3": "HRBP",
                 },
             },
         )
@@ -184,8 +189,8 @@ class FormSchemaRouteTests(unittest.TestCase):
 
         with fitz.open(stream=response.content, filetype="pdf") as doc:
             self.assertEqual(doc.page_count, 2)
-            first_page_text = doc[0].get_text()
-            second_page_text = doc[1].get_text()
+            first_page_text = _normalized_pdf_text(doc[0].get_text())
+            second_page_text = _normalized_pdf_text(doc[1].get_text())
             self.assertIn("EI-001", first_page_text)
             self.assertIn("Professional Service", first_page_text)
             self.assertIn("Contoso", first_page_text)
@@ -272,7 +277,7 @@ class SchemaRenderUnitTests(unittest.TestCase):
 
         with fitz.open(stream=content, filetype="pdf") as rendered:
             page = rendered[0]
-            text = page.get_text()
+            text = _normalized_pdf_text(page.get_text())
             self.assertIn("Baris pertama", text)
             self.assertIn("X", text)
             self.assertGreater(len(page.get_images(full=True)), 0)

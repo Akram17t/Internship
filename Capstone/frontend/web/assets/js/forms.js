@@ -168,8 +168,24 @@
     const sections = new Map();
     fields.forEach((field) => {
       const section = field.section || "Field";
-      if (!sections.has(section)) sections.set(section, []);
-      sections.get(section).push(field);
+      if (!sections.has(section)) {
+        sections.set(section, { regular: [], groups: new Map() });
+      }
+      const layout = field.layout || {};
+      if (layout.group_id) {
+        const groups = sections.get(section).groups;
+        if (!groups.has(layout.group_id)) {
+          groups.set(layout.group_id, {
+            id: layout.group_id,
+            label: layout.group_label || section,
+            kind: layout.kind || "table_cell",
+            fields: [],
+          });
+        }
+        groups.get(layout.group_id).fields.push(field);
+      } else {
+        sections.get(section).regular.push(field);
+      }
     });
     return sections;
   }
@@ -229,6 +245,16 @@
     });
   }
 
+  function syncChoiceGroup(field) {
+    const choiceGroup = field?.layout?.choice_group;
+    if (!choiceGroup) return;
+    state.pendingFormFill?.fieldById.forEach((candidate) => {
+      if (candidate?.layout?.choice_group === choiceGroup) {
+        syncPreviewValue(candidate.id);
+      }
+    });
+  }
+
   function scrollFieldIntoView(fieldElement, { smooth = true } = {}) {
     const container = elements.formFillFields;
     if (!container || !fieldElement) return;
@@ -274,6 +300,7 @@
 
   function handleControlChange(field) {
     syncPreviewValue(field.id);
+    syncChoiceGroup(field);
     scheduleDraftSave(state.pendingFormFill);
   }
 
@@ -310,9 +337,13 @@
       const row = document.createElement("label");
       row.className = "form-editor-checkbox";
       control = document.createElement("input");
-      control.type = "checkbox";
+      control.type = field.layout?.choice_group ? "radio" : "checkbox";
+      if (field.layout?.choice_group) {
+        control.name = field.layout.choice_group;
+        control.value = field.id;
+      }
       const description = document.createElement("span");
-      description.textContent = "Centang untuk menandai field ini.";
+      description.textContent = field.layout?.column_label || "Centang untuk menandai field ini.";
       row.append(control, description);
       wrapper.appendChild(row);
     } else if (field.type === "signature_image") {
@@ -362,6 +393,137 @@
     return wrapper;
   }
 
+  function createChoiceMatrixElement(group, pending) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "form-layout-group is-choice-matrix";
+
+    const title = document.createElement("h4");
+    title.className = "form-layout-group-title";
+    title.textContent = group.label || "Pilihan";
+    wrapper.appendChild(title);
+
+    const rows = new Map();
+    const columns = [];
+    group.fields.forEach((field) => {
+      const layout = field.layout || {};
+      const rowLabel = layout.row_label || field.label;
+      const columnLabel = layout.column_label || field.label;
+      if (!rows.has(rowLabel)) rows.set(rowLabel, []);
+      rows.get(rowLabel).push(field);
+      if (!columns.includes(columnLabel)) columns.push(columnLabel);
+    });
+
+    const table = document.createElement("div");
+    table.className = "form-choice-matrix";
+    table.style.gridTemplateColumns = `minmax(170px, 1.8fr) repeat(${columns.length}, minmax(96px, 1fr))`;
+
+    const empty = document.createElement("div");
+    empty.className = "form-choice-matrix-header";
+    table.appendChild(empty);
+    columns.forEach((column) => {
+      const header = document.createElement("div");
+      header.className = "form-choice-matrix-header";
+      header.textContent = column;
+      table.appendChild(header);
+    });
+
+    rows.forEach((rowFields, rowLabel) => {
+      const rowHeading = document.createElement("div");
+      rowHeading.className = "form-choice-matrix-row-label";
+      rowHeading.textContent = rowLabel;
+      table.appendChild(rowHeading);
+      columns.forEach((column) => {
+        const field = rowFields.find((candidate) => candidate.layout?.column_label === column);
+        const cell = document.createElement("label");
+        cell.className = "form-choice-matrix-cell";
+        if (field) {
+          cell.dataset.fieldId = field.id;
+          cell.dataset.fieldType = field.type;
+          const control = document.createElement("input");
+          control.type = "radio";
+          control.name = field.layout.choice_group || `${group.id}-${rowLabel}`;
+          control.value = field.id;
+          control.dataset.fieldId = field.id;
+          control.addEventListener("focus", () => setActiveField(field.id, { smooth: false }));
+          control.addEventListener("click", () => setActiveField(field.id, { smooth: false }));
+          control.addEventListener("change", () => {
+            setActiveField(field.id, { smooth: false });
+            handleControlChange(field);
+          });
+          const mark = document.createElement("span");
+          mark.className = "form-choice-matrix-mark";
+          mark.textContent = column;
+          cell.append(control, mark);
+          cell.addEventListener("click", () => setActiveField(field.id, { focus: false }));
+          pending.fieldElements.set(field.id, cell);
+        }
+        table.appendChild(cell);
+      });
+    });
+
+    wrapper.appendChild(table);
+    return wrapper;
+  }
+
+  function createTableGroupElement(group, pending) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "form-layout-group is-table";
+
+    const title = document.createElement("h4");
+    title.className = "form-layout-group-title";
+    title.textContent = group.label || "Tabel";
+    wrapper.appendChild(title);
+
+    const rows = new Map();
+    const columns = [];
+    group.fields.forEach((field) => {
+      const layout = field.layout || {};
+      const rowLabel = layout.row_label || field.label;
+      const columnLabel = layout.column_label || field.label;
+      if (!rows.has(rowLabel)) rows.set(rowLabel, []);
+      rows.get(rowLabel).push(field);
+      if (!columns.includes(columnLabel)) columns.push(columnLabel);
+    });
+
+    const table = document.createElement("div");
+    table.className = "form-table-group";
+    table.style.gridTemplateColumns = `minmax(160px, 1.6fr) repeat(${columns.length}, minmax(120px, 1fr))`;
+
+    table.appendChild(document.createElement("div"));
+    columns.forEach((column) => {
+      const header = document.createElement("div");
+      header.className = "form-table-group-header";
+      header.textContent = column;
+      table.appendChild(header);
+    });
+
+    rows.forEach((rowFields, rowLabel) => {
+      const rowHeading = document.createElement("div");
+      rowHeading.className = "form-table-group-row-label";
+      rowHeading.textContent = rowLabel;
+      table.appendChild(rowHeading);
+      columns.forEach((column) => {
+        const cell = document.createElement("div");
+        cell.className = "form-table-group-cell";
+        const field = rowFields.find((candidate) => candidate.layout?.column_label === column);
+        if (field) {
+          cell.appendChild(createSchemaFieldElement(field, pending));
+        }
+        table.appendChild(cell);
+      });
+    });
+
+    wrapper.appendChild(table);
+    return wrapper;
+  }
+
+  function createLayoutGroupElement(group, pending) {
+    if (group.kind === "choice_matrix") {
+      return createChoiceMatrixElement(group, pending);
+    }
+    return createTableGroupElement(group, pending);
+  }
+
   function renderSchemaFormFields(pending) {
     pending.fieldElements = new Map();
     pending.fieldById = new Map();
@@ -383,12 +545,17 @@
       title.textContent = sectionName;
       section.appendChild(title);
 
-      const grid = document.createElement("div");
-      grid.className = "form-field-grid";
-      sectionFields.forEach((field) => {
-        grid.appendChild(createSchemaFieldElement(field, pending));
+      if (sectionFields.regular.length) {
+        const grid = document.createElement("div");
+        grid.className = "form-field-grid";
+        sectionFields.regular.forEach((field) => {
+          grid.appendChild(createSchemaFieldElement(field, pending));
+        });
+        section.appendChild(grid);
+      }
+      sectionFields.groups.forEach((group) => {
+        section.appendChild(createLayoutGroupElement(group, pending));
       });
-      section.appendChild(grid);
       elements.formFillFields.appendChild(section);
     });
   }
@@ -418,9 +585,14 @@
   function togglePreviewCheckbox(field) {
     const control = getControl(field.id);
     if (!control) return;
-    control.checked = !control.checked;
+    if (field.layout?.choice_group) {
+      control.checked = true;
+    } else {
+      control.checked = !control.checked;
+    }
     setActiveField(field.id, { focus: false });
     syncPreviewValue(field.id);
+    syncChoiceGroup(field);
     scheduleDraftSave(state.pendingFormFill);
   }
 
