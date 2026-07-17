@@ -122,6 +122,44 @@ class AnswerFinalizationTests(unittest.TestCase):
         )
         generate.assert_called_once()
 
+    def test_rewrite_ignores_forced_reference_reasoning_without_rewrite_line(self) -> None:
+        with patch(
+            "researcher_crew.main._ollama_generate",
+            return_value=(
+                "Okay, let's see. The user is asking about the previous case. "
+                "I need to make this standalone."
+            ),
+        ):
+            rewritten = crew_main._rewrite_query(
+                "Dari kasus tadi, uang makan dan uang sakunya itu dihitung per hari atau langsung total?",
+                "Percakapan membahas perjalanan dinas Manager ke luar negeri selama 3 hari.",
+            )
+
+        self.assertEqual(
+            rewritten,
+            "Dari kasus tadi, uang makan dan uang sakunya itu dihitung per hari atau langsung total?",
+        )
+
+    def test_rewrite_extracts_rewrite_line_after_extra_text(self) -> None:
+        with patch(
+            "researcher_crew.main._ollama_generate",
+            return_value=(
+                "Saya akan membuat pertanyaan mandiri.\n"
+                "REWRITE: Untuk perjalanan dinas Manager ke luar negeri selama 3 hari, "
+                "uang makan dan uang sakunya dihitung per hari atau langsung total?"
+            ),
+        ):
+            rewritten = crew_main._rewrite_query(
+                "Dari kasus tadi, uang makan dan uang sakunya itu dihitung per hari atau langsung total?",
+                "Percakapan membahas perjalanan dinas Manager ke luar negeri selama 3 hari.",
+            )
+
+        self.assertEqual(
+            rewritten,
+            "Untuk perjalanan dinas Manager ke luar negeri selama 3 hari, "
+            "uang makan dan uang sakunya dihitung per hari atau langsung total?",
+        )
+
     def test_rewrite_supports_implicit_context_reference(self) -> None:
         with patch(
             "researcher_crew.main._ollama_generate",

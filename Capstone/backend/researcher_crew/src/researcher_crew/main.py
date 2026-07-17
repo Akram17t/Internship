@@ -266,6 +266,19 @@ def _has_context_reference(question: str) -> bool:
     return bool(_CONTEXT_REFERENCE_PATTERN.search(question))
 
 
+def _extract_rewrite_decision(raw_decision: str) -> str | None:
+    decision = raw_decision.strip().strip('"').strip()
+    rewrite_match = re.search(
+        r"^\s*REWRITE\s*:\s*(?P<question>.+?)\s*$",
+        decision,
+        flags=re.IGNORECASE | re.MULTILINE,
+    )
+    if not rewrite_match:
+        return None
+    rewritten_question = rewrite_match.group("question").strip().strip('"').strip()
+    return rewritten_question or None
+
+
 def _rewrite_query(question: str, conversation_context: str = "") -> str:
     """Ubah pertanyaan follow-up menjadi query mandiri dengan bantuan LLM.
 
@@ -302,16 +315,7 @@ def _rewrite_query(question: str, conversation_context: str = "") -> str:
         except OllamaGenerationError:
             return question
 
-        decision = rewritten.strip().strip('"').strip()
-        rewrite_match = re.match(
-            r"^\s*REWRITE\s*:\s*(?P<question>.+?)\s*$",
-            decision,
-            flags=re.IGNORECASE | re.DOTALL,
-        )
-        if rewrite_match:
-            rewritten_question = rewrite_match.group("question").strip().strip('"').strip()
-            return rewritten_question or question
-        return decision or question
+        return _extract_rewrite_decision(rewritten) or question
 
     prompt = (
         "Tentukan apakah pertanyaan terakhir perlu ditulis ulang agar bisa "
@@ -353,15 +357,7 @@ def _rewrite_query(question: str, conversation_context: str = "") -> str:
     decision = rewritten.strip().strip('"').strip()
     if decision.upper() == "KEEP":
         return question
-    rewrite_match = re.match(
-        r"^\s*REWRITE\s*:\s*(?P<question>.+?)\s*$",
-        decision,
-        flags=re.IGNORECASE | re.DOTALL,
-    )
-    if not rewrite_match:
-        return question
-    rewritten_question = rewrite_match.group("question").strip().strip('"').strip()
-    return rewritten_question or question
+    return _extract_rewrite_decision(decision) or question
 
 
 def _direct_answer_prompt(question: str, evidence: str, available_forms: str) -> str:
