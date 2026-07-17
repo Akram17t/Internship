@@ -407,11 +407,67 @@ def insert_activity_log(
             return int(cursor.lastrowid)
 
 
+def delete_activity_log(log_id: int, *, event_type: str | None = None) -> bool:
+    with STATE_DB_LOCK:
+        init_state_db()
+        filters = ["id = ?"]
+        params: list[object] = [log_id]
+        if event_type in {"chat", "document"}:
+            filters.append("event_type = ?")
+            params.append(event_type)
+        with closing(_connect()) as connection:
+            cursor = connection.execute(
+                f"DELETE FROM activity_logs WHERE {' AND '.join(filters)}",
+                params,
+            )
+            connection.commit()
+            return cursor.rowcount > 0
+
+
+def delete_activity_logs_for_conversation(
+    conversation_id: str,
+    *,
+    event_type: str | None = None,
+) -> int:
+    selected_conversation_id = conversation_id.strip()
+    if not selected_conversation_id:
+        return 0
+    with STATE_DB_LOCK:
+        init_state_db()
+        filters: list[str] = []
+        params: list[object] = []
+        if event_type in {"chat", "document"}:
+            filters.append("event_type = ?")
+            params.append(event_type)
+        where_clause = f"WHERE {' AND '.join(filters)}" if filters else ""
+        with closing(_connect()) as connection:
+            rows = connection.execute(
+                f"""
+                SELECT id, details_json
+                FROM activity_logs
+                {where_clause}
+                """,
+                params,
+            ).fetchall()
+            delete_ids = [
+                int(row["id"])
+                for row in rows
+                if _activity_log_conversation_id(row) == selected_conversation_id
+            ]
+            if not delete_ids:
+                connection.commit()
+                return 0
+            placeholders = ",".join("?" for _ in delete_ids)
+            cursor = connection.execute(
+                f"DELETE FROM activity_logs WHERE id IN ({placeholders})",
+                delete_ids,
+            )
+            connection.commit()
+            return int(cursor.rowcount)
+
+
 def _activity_log_from_row(row: sqlite3.Row) -> dict[str, Any]:
-    try:
-        details = json.loads(str(row["details_json"]))
-    except json.JSONDecodeError:
-        details = {}
+    details = _activity_log_details(row)
     return {
         "id": int(row["id"]),
         "event_type": str(row["event_type"]),
@@ -423,11 +479,30 @@ def _activity_log_from_row(row: sqlite3.Row) -> dict[str, Any]:
     }
 
 
+def _activity_log_details(row: sqlite3.Row) -> dict[str, Any]:
+    try:
+        details = json.loads(str(row["details_json"]))
+    except json.JSONDecodeError:
+        details = {}
+    return details if isinstance(details, dict) else {}
+
+
+def _activity_log_conversation_id(row: sqlite3.Row) -> str:
+    return str(_activity_log_details(row).get("conversation_id") or "").strip()
+
+
+def _activity_log_is_fallback_or_error(row: sqlite3.Row) -> bool:
+    details = _activity_log_details(row)
+    answer_source = str(details.get("answer_source") or "").strip()
+    return row["status"] == "error" or answer_source == "fallback"
+
+
 def list_activity_logs(
     *,
     event_type: str | None = None,
     start_at: str | None = None,
     end_at: str | None = None,
+    conversation_id: str | None = None,
     limit: int = 100,
     offset: int = 0,
 ) -> list[dict[str, Any]]:
@@ -435,6 +510,7 @@ def list_activity_logs(
         init_state_db()
         bounded_limit = max(1, min(limit, MAX_ACTIVITY_LOG_LIMIT))
         bounded_offset = max(0, offset)
+        selected_conversation_id = str(conversation_id or "").strip()
         filters: list[str] = []
         params: list[object] = []
         if event_type in {"chat", "document"}:
@@ -449,17 +525,34 @@ def list_activity_logs(
         where_clause = f"WHERE {' AND '.join(filters)}" if filters else ""
         with closing(_connect()) as connection:
             _cleanup_activity_logs(connection)
-            rows = connection.execute(
-                f"""
-                SELECT *
-                FROM activity_logs
-                {where_clause}
-                ORDER BY created_at DESC, id DESC
-                LIMIT ? OFFSET ?
-                """,
-                (*params, bounded_limit, bounded_offset),
-            ).fetchall()
+            if selected_conversation_id:
+                rows = connection.execute(
+                    f"""
+                    SELECT *
+                    FROM activity_logs
+                    {where_clause}
+                    ORDER BY created_at DESC, id DESC
+                    """,
+                    params,
+                ).fetchall()
+            else:
+                rows = connection.execute(
+                    f"""
+                    SELECT *
+                    FROM activity_logs
+                    {where_clause}
+                    ORDER BY created_at DESC, id DESC
+                    LIMIT ? OFFSET ?
+                    """,
+                    (*params, bounded_limit, bounded_offset),
+                ).fetchall()
             connection.commit()
+    if selected_conversation_id:
+        rows = [
+            row
+            for row in rows
+            if _activity_log_conversation_id(row) == selected_conversation_id
+        ][bounded_offset : bounded_offset + bounded_limit]
     return [_activity_log_from_row(row) for row in rows]
 
 
@@ -468,9 +561,11 @@ def summarize_activity_logs(
     event_type: str | None = None,
     start_at: str | None = None,
     end_at: str | None = None,
+    conversation_id: str | None = None,
 ) -> dict[str, int | float]:
     with STATE_DB_LOCK:
         init_state_db()
+        selected_conversation_id = str(conversation_id or "").strip()
         filters: list[str] = []
         params: list[object] = []
         if event_type in {"chat", "document"}:
@@ -494,22 +589,20 @@ def summarize_activity_logs(
                 params,
             ).fetchall()
             connection.commit()
+    if selected_conversation_id:
+        rows = [
+            row
+            for row in rows
+            if _activity_log_conversation_id(row) == selected_conversation_id
+        ]
 
     sessions: set[str] = set()
     fallback_or_error = 0
     for row in rows:
-        try:
-            details = json.loads(str(row["details_json"]))
-        except json.JSONDecodeError:
-            details = {}
-        if isinstance(details, dict):
-            conversation_id = str(details.get("conversation_id") or "").strip()
-            if conversation_id:
-                sessions.add(conversation_id)
-            answer_source = str(details.get("answer_source") or "").strip()
-        else:
-            answer_source = ""
-        if row["status"] == "error" or answer_source == "fallback":
+        row_conversation_id = _activity_log_conversation_id(row)
+        if row_conversation_id:
+            sessions.add(row_conversation_id)
+        if _activity_log_is_fallback_or_error(row):
             fallback_or_error += 1
 
     total = len(rows)
@@ -521,6 +614,92 @@ def summarize_activity_logs(
         "average_chat_per_session": average,
         "fallback_or_error": fallback_or_error,
     }
+
+
+def list_activity_log_sessions(
+    *,
+    event_type: str | None = None,
+    start_at: str | None = None,
+    end_at: str | None = None,
+) -> list[dict[str, Any]]:
+    with STATE_DB_LOCK:
+        init_state_db()
+        filters: list[str] = []
+        params: list[object] = []
+        if event_type in {"chat", "document"}:
+            filters.append("event_type = ?")
+            params.append(event_type)
+        if start_at:
+            filters.append("created_at >= ?")
+            params.append(start_at)
+        if end_at:
+            filters.append("created_at <= ?")
+            params.append(end_at)
+        where_clause = f"WHERE {' AND '.join(filters)}" if filters else ""
+        with closing(_connect()) as connection:
+            _cleanup_activity_logs(connection)
+            rows = connection.execute(
+                f"""
+                SELECT id, status, summary, details_json, created_at
+                FROM activity_logs
+                {where_clause}
+                ORDER BY created_at ASC, id ASC
+                """,
+                params,
+            ).fetchall()
+            connection.commit()
+
+    sessions: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        details = _activity_log_details(row)
+        conversation_id = str(details.get("conversation_id") or "").strip()
+        if not conversation_id:
+            continue
+        created_at = str(row["created_at"])
+        row_id = int(row["id"])
+        item = sessions.setdefault(
+            conversation_id,
+            {
+                "conversation_id": conversation_id,
+                "question_count": 0,
+                "fallback_or_error": 0,
+                "_first_id": row_id,
+                "_last_id": row_id,
+                "first_at": created_at,
+                "last_at": created_at,
+                "first_question": "",
+                "latest_question": "",
+                "latest_status": "success",
+            },
+        )
+        item["question_count"] += 1
+        if _activity_log_is_fallback_or_error(row):
+            item["fallback_or_error"] += 1
+        question = str(details.get("question") or row["summary"] or "").strip()
+        if (created_at, row_id) < (item["first_at"], item["_first_id"]):
+            item["_first_id"] = row_id
+            item["first_at"] = created_at
+            item["first_question"] = question
+        elif not item["first_question"]:
+            item["first_question"] = question
+        if (created_at, row_id) > (item["last_at"], item["_last_id"]):
+            item["_last_id"] = row_id
+            item["last_at"] = created_at
+            item["latest_question"] = question
+            item["latest_status"] = str(row["status"])
+        elif not item["latest_question"]:
+            item["latest_question"] = question
+            item["latest_status"] = str(row["status"])
+
+    for item in sessions.values():
+        item.pop("_first_id", None)
+        item.pop("_last_id", None)
+
+    return sorted(
+        sessions.values(),
+        key=lambda item: (str(item["last_at"]), str(item["conversation_id"])),
+        reverse=True,
+    )
 
 
 def load_conversations() -> dict[str, list[dict[str, object]]]:

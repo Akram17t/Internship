@@ -15,6 +15,21 @@ function bindAdminLogs() {
   elements.logsRefreshButton?.addEventListener("click", () => {
     void loadActivityLogs();
   });
+  elements.logsTabs?.querySelectorAll("[data-log-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const nextTab = button.dataset.logTab === "sessions" ? "sessions" : "questions";
+      if (state.activeLogsTab === nextTab) return;
+      state.activeLogsTab = nextTab;
+      resetLogPage();
+      renderActivityLogs();
+    });
+  });
+  elements.logsClearSessionButton?.addEventListener("click", () => {
+    if (!state.selectedLogSessionId) return;
+    state.selectedLogSessionId = "";
+    resetLogPage();
+    void loadActivityLogs();
+  });
 }
 
 function setDefaultLogDateRange() {
@@ -36,6 +51,7 @@ async function loadActivityLogs() {
   setDefaultLogDateRange();
   if (!isAdminSession()) {
     state.activityLogs = [];
+    state.activityLogSessions = [];
     state.activityLogSummary = null;
     resetLogPage();
     renderActivityLogs();
@@ -46,9 +62,10 @@ async function loadActivityLogs() {
   state.logError = "";
   renderActivityLogs();
   const params = buildLogQueryParams();
+  const sessionsParams = buildLogQueryParams({ includeSession: false });
 
   try {
-    const [logsResponse, summaryResponse] = await Promise.all([
+    const [logsResponse, summaryResponse, sessionsResponse] = await Promise.all([
       fetch(`/api/admin/logs?${params.toString()}`, {
         cache: "no-store",
         headers: adminAuthHeaders(),
@@ -57,9 +74,14 @@ async function loadActivityLogs() {
         cache: "no-store",
         headers: adminAuthHeaders(),
       }),
+      fetch(`/api/admin/logs/sessions?${sessionsParams.toString()}`, {
+        cache: "no-store",
+        headers: adminAuthHeaders(),
+      }),
     ]);
     const logsPayload = await readJsonResponse(logsResponse);
     const summaryPayload = await readJsonResponse(summaryResponse);
+    const sessionsPayload = await readJsonResponse(sessionsResponse);
     if (!logsResponse.ok) {
       throw new Error(formatApiError(logsPayload.detail, "Unable to load logs."));
     }
@@ -68,11 +90,18 @@ async function loadActivityLogs() {
         formatApiError(summaryPayload.detail, "Unable to load log summary."),
       );
     }
+    if (!sessionsResponse.ok) {
+      throw new Error(
+        formatApiError(sessionsPayload.detail, "Unable to load log sessions."),
+      );
+    }
     state.activityLogs = Array.isArray(logsPayload) ? logsPayload : [];
+    state.activityLogSessions = Array.isArray(sessionsPayload) ? sessionsPayload : [];
     state.activityLogSummary = summaryPayload || null;
     clampLogPage(filterActivityLogs(state.activityLogs).length);
   } catch (error) {
     state.activityLogs = [];
+    state.activityLogSessions = [];
     state.activityLogSummary = null;
     state.logError = error.message || "Unable to load logs.";
   } finally {
@@ -81,11 +110,15 @@ async function loadActivityLogs() {
   }
 }
 
-function buildLogQueryParams() {
+function buildLogQueryParams(options = {}) {
+  const includeSession = options.includeSession !== false;
   const params = new URLSearchParams({ limit: "100" });
   const range = state.logDateRange || {};
   if (range.start) params.set("start_date", range.start);
   if (range.end) params.set("end_date", range.end);
+  if (includeSession && state.selectedLogSessionId) {
+    params.set("conversation_id", state.selectedLogSessionId);
+  }
   return params;
 }
 
@@ -102,11 +135,14 @@ function renderActivityLogs() {
   elements.logsStatus.classList.remove("is-error");
   elements.logsRefreshButton?.classList.toggle("is-loading", state.isLoadingLogs);
   syncLogDateInputs();
+  syncLogTabs();
+  renderActiveSessionFilter();
   renderActivitySummary();
 
   if (!isAdminSession()) {
     elements.logsStatus.textContent = "";
     updateLogResultCount(0);
+    state.activityLogSessions = [];
     return;
   }
 
@@ -121,6 +157,11 @@ function renderActivityLogs() {
     elements.logsStatus.textContent = state.logError;
     elements.logsStatus.classList.add("is-error");
     updateLogResultCount(0);
+    return;
+  }
+
+  if (state.activeLogsTab === "sessions") {
+    renderActivityLogSessions();
     return;
   }
 
@@ -146,6 +187,23 @@ function filterActivityLogs(items) {
   return items;
 }
 
+function renderActivityLogSessions() {
+  if (!elements.logsList) return;
+  if (elements.logsPagination) elements.logsPagination.innerHTML = "";
+  const sessions = Array.isArray(state.activityLogSessions)
+    ? state.activityLogSessions
+    : [];
+  updateLogResultCount(sessions.length, "session");
+  if (!sessions.length) {
+    elements.logsStatus.textContent =
+      "No chatbot sessions in the selected date range.";
+    elements.logsList.appendChild(createLogsEmptyState("forum", "No sessions yet"));
+    return;
+  }
+  elements.logsStatus.textContent = "";
+  elements.logsList.appendChild(createLogSessionsTable(sessions));
+}
+
 function renderActivitySummary() {
   const summary = state.activityLogSummary || {};
   setLogMetric(elements.logsTotalChat, summary.total_chat);
@@ -166,6 +224,83 @@ function createLogsTable(items, startIndex = 0) {
     feed.appendChild(createLogRow(item, startIndex + index)),
   );
   return feed;
+}
+
+function createLogSessionsTable(sessions) {
+  const feed = document.createElement("div");
+  feed.className = "logs-table logs-sessions-table";
+  sessions.forEach((item, index) => {
+    feed.appendChild(createLogSessionRow(item, index));
+  });
+  return feed;
+}
+
+function createLogSessionRow(item, index) {
+  const row = document.createElement("article");
+  row.className = "logs-session-row";
+  row.style.setProperty("--row-index", String(Math.min(index, 8)));
+
+  const openButton = document.createElement("button");
+  openButton.className = "logs-session-open";
+  openButton.type = "button";
+
+  const detail = document.createElement("div");
+  detail.className = "log-detail";
+  const topLine = document.createElement("div");
+  topLine.className = "log-question-line";
+  const dot = document.createElement("span");
+  dot.className = "material-symbols-outlined logs-session-marker";
+  dot.textContent = "chat_bubble";
+  dot.setAttribute("aria-hidden", "true");
+  if (item.latest_status === "error") row.dataset.status = "error";
+  const title = document.createElement("span");
+  title.className = "log-question";
+  title.textContent = item.first_question || item.latest_question || "Chat session";
+  topLine.append(dot, title);
+
+  const meta = document.createElement("small");
+  meta.className = "logs-session-meta";
+  meta.textContent = `${shortSessionId(item.conversation_id)} · ${formatLogNumber(
+    item.question_count,
+  )} ${Number(item.question_count) === 1 ? "question" : "questions"} · ${
+    formatLogNumber(item.fallback_or_error)
+  } fallback/error`;
+  detail.append(topLine, meta);
+
+  const timestamp = createLogTimestamp(item.last_at);
+  const action = document.createElement("span");
+  action.className = "material-symbols-outlined log-row-chevron";
+  action.textContent = "chevron_right";
+  action.setAttribute("aria-hidden", "true");
+
+  openButton.append(detail, timestamp);
+  openButton.addEventListener("click", () => {
+    state.selectedLogSessionId = item.conversation_id || "";
+    state.activeLogsTab = "questions";
+    resetLogPage();
+    void loadActivityLogs();
+  });
+  row.append(openButton, createLogSessionDeleteButton(item), action);
+  return row;
+}
+
+function createLogSessionDeleteButton(item) {
+  const button = document.createElement("button");
+  button.className = "log-delete-button logs-session-delete";
+  button.type = "button";
+  button.setAttribute("aria-label", "Delete session logs");
+  button.title = "Delete session logs";
+  const icon = document.createElement("span");
+  icon.className = "material-symbols-outlined";
+  icon.textContent = "delete";
+  icon.setAttribute("aria-hidden", "true");
+  button.appendChild(icon);
+  button.addEventListener("click", async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    await deleteActivityLogSession(item.conversation_id, button);
+  });
+  return button;
 }
 
 function createLogRow(item, index) {
@@ -194,12 +329,9 @@ function createLogRow(item, index) {
 
   const timestamp = createLogTimestamp(item.created_at);
 
-  const chevron = document.createElement("span");
-  chevron.className = "material-symbols-outlined log-row-chevron";
-  chevron.textContent = "expand_more";
-  chevron.setAttribute("aria-hidden", "true");
+  const deleteButton = createLogDeleteButton(item);
 
-  toggle.append(detail, timestamp, chevron);
+  toggle.append(detail, timestamp);
 
   const panel = createLogConversationPanel(item);
   const panelId = `log-detail-${item.id || index}`;
@@ -216,8 +348,87 @@ function createLogRow(item, index) {
     setLogRowOpen(row, willOpen);
   });
 
-  row.append(toggle, panel);
+  row.append(toggle, deleteButton, panel);
   return row;
+}
+
+function createLogDeleteButton(item) {
+  const button = document.createElement("button");
+  button.className = "log-delete-button";
+  button.type = "button";
+  button.setAttribute("aria-label", "Delete log");
+  button.title = "Delete log";
+  const icon = document.createElement("span");
+  icon.className = "material-symbols-outlined";
+  icon.textContent = "delete";
+  icon.setAttribute("aria-hidden", "true");
+  button.appendChild(icon);
+  button.addEventListener("click", async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    await deleteActivityLog(item.id, button);
+  });
+  return button;
+}
+
+async function deleteActivityLog(logId, button) {
+  if (!logId || button?.disabled) return;
+  button.disabled = true;
+  try {
+    const response = await fetch(`/api/admin/logs/${encodeURIComponent(logId)}`, {
+      method: "DELETE",
+      cache: "no-store",
+      headers: adminAuthHeaders(),
+    });
+    const payload = await readJsonResponse(response);
+    if (!response.ok) {
+      throw new Error(formatApiError(payload.detail, "Unable to delete log."));
+    }
+    state.activityLogs = state.activityLogs.filter((item) => item.id !== logId);
+    clampLogPage(filterActivityLogs(state.activityLogs).length);
+    renderActivityLogs();
+    void loadActivityLogs();
+  } catch (error) {
+    state.logError = error.message || "Unable to delete log.";
+    renderActivityLogs();
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function deleteActivityLogSession(conversationId, button) {
+  if (!conversationId || button?.disabled) return;
+  button.disabled = true;
+  try {
+    const response = await fetch(
+      `/api/admin/logs/sessions/${encodeURIComponent(conversationId)}`,
+      {
+        method: "DELETE",
+        cache: "no-store",
+        headers: adminAuthHeaders(),
+      },
+    );
+    const payload = await readJsonResponse(response);
+    if (!response.ok) {
+      throw new Error(formatApiError(payload.detail, "Unable to delete session."));
+    }
+    if (state.selectedLogSessionId === conversationId) {
+      state.selectedLogSessionId = "";
+    }
+    state.activityLogSessions = state.activityLogSessions.filter(
+      (item) => item.conversation_id !== conversationId,
+    );
+    state.activityLogs = state.activityLogs.filter(
+      (item) => item.details?.conversation_id !== conversationId,
+    );
+    renderActivityLogs();
+    void loadActivityLogs();
+  } catch (error) {
+    state.logError = error.message || "Unable to delete session.";
+    renderActivityLogs();
+  } finally {
+    button.disabled = false;
+  }
 }
 
 function setLogRowOpen(row, isOpen) {
@@ -307,15 +518,15 @@ function createLogsSkeleton() {
   return skeleton;
 }
 
-function createLogsEmptyState() {
+function createLogsEmptyState(iconName = "forum", titleText = "No questions yet") {
   const empty = document.createElement("div");
   empty.className = "logs-empty-state";
   const icon = document.createElement("span");
   icon.className = "material-symbols-outlined";
-  icon.textContent = "forum";
+  icon.textContent = iconName;
   icon.setAttribute("aria-hidden", "true");
   const title = document.createElement("span");
-  title.textContent = "No questions yet";
+  title.textContent = titleText;
   empty.append(icon, title);
   return empty;
 }
@@ -333,9 +544,10 @@ function createLogTimestamp(value) {
   return time;
 }
 
-function updateLogResultCount(count) {
+function updateLogResultCount(count, singular = "question") {
   if (!elements.logsResultCount) return;
-  const label = count === 1 ? "question" : "questions";
+  const plural = singular === "session" ? "sessions" : "questions";
+  const label = count === 1 ? singular : plural;
   elements.logsResultCount.textContent = `${formatLogNumber(count)} ${label}`;
 }
 
@@ -421,6 +633,30 @@ function syncLogDateInputs() {
   if (elements.logsEndDate && elements.logsEndDate.value !== state.logDateRange.end) {
     elements.logsEndDate.value = state.logDateRange.end || "";
   }
+}
+
+function syncLogTabs() {
+  elements.logsTabs?.querySelectorAll("[data-log-tab]").forEach((button) => {
+    const isActive = button.dataset.logTab === state.activeLogsTab;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-selected", String(isActive));
+  });
+}
+
+function renderActiveSessionFilter() {
+  if (!elements.logsSessionFilter) return;
+  const sessionId = state.selectedLogSessionId || "";
+  elements.logsSessionFilter.hidden = !sessionId;
+  if (elements.logsActiveSessionLabel) {
+    elements.logsActiveSessionLabel.textContent = sessionId
+      ? `Session ${shortSessionId(sessionId)}`
+      : "Session";
+  }
+}
+
+function shortSessionId(value) {
+  const sessionId = String(value || "").trim();
+  return sessionId ? sessionId.slice(0, 8) : "-";
 }
 
 function toDateInputValue(date) {

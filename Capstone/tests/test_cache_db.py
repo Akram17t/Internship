@@ -20,6 +20,7 @@ from backend.cache_db import (
     init_state_db,
     insert_activity_log,
     insert_semantic_cache_entry,
+    list_activity_log_sessions,
     list_activity_logs,
     load_conversations,
     replace_conversations,
@@ -165,6 +166,68 @@ class CacheDbTests(unittest.TestCase):
         self.assertEqual(chat_logs[0]["details"]["answer_source"], "model")
         self.assertEqual(len(document_logs), 1)
         self.assertTrue(document_logs[0]["details"]["requires_reindex"])
+
+    def test_activity_logs_filter_by_conversation_id(self) -> None:
+        insert_activity_log(
+            event_type="chat",
+            action="query",
+            status="success",
+            summary="Chat A",
+            details={"conversation_id": "conv-a", "answer_source": "model"},
+        )
+        insert_activity_log(
+            event_type="chat",
+            action="query",
+            status="success",
+            summary="Chat B",
+            details={"conversation_id": "conv-b", "answer_source": "model"},
+        )
+
+        logs = list_activity_logs(event_type="chat", conversation_id="conv-a")
+        summary = summarize_activity_logs(event_type="chat", conversation_id="conv-a")
+
+        self.assertEqual(len(logs), 1)
+        self.assertEqual(logs[0]["summary"], "Chat A")
+        self.assertEqual(summary["total_chat"], 1)
+        self.assertEqual(summary["total_sessions"], 1)
+        self.assertEqual(summary["average_chat_per_session"], 1)
+
+    def test_activity_log_sessions_group_by_conversation_id(self) -> None:
+        insert_activity_log(
+            event_type="chat",
+            action="query",
+            status="success",
+            summary="Old question",
+            details={
+                "conversation_id": "conv-a",
+                "question": "Old question",
+                "answer_source": "model",
+            },
+        )
+        insert_activity_log(
+            event_type="chat",
+            action="query",
+            status="error",
+            summary="Latest question",
+            details={"conversation_id": "conv-a", "question": "Latest question"},
+        )
+        insert_activity_log(
+            event_type="chat",
+            action="query",
+            status="success",
+            summary="No session",
+            details={"answer_source": "model"},
+        )
+
+        sessions = list_activity_log_sessions(event_type="chat")
+
+        self.assertEqual(len(sessions), 1)
+        self.assertEqual(sessions[0]["conversation_id"], "conv-a")
+        self.assertEqual(sessions[0]["question_count"], 2)
+        self.assertEqual(sessions[0]["fallback_or_error"], 1)
+        self.assertEqual(sessions[0]["first_question"], "Old question")
+        self.assertEqual(sessions[0]["latest_question"], "Latest question")
+        self.assertEqual(sessions[0]["latest_status"], "error")
 
     def test_activity_log_retention_removes_old_rows(self) -> None:
         init_state_db()

@@ -110,6 +110,17 @@ class ActivityLogSummaryResponse(BaseModel):
     fallback_or_error: int = 0
 
 
+class ActivityLogSessionItem(BaseModel):
+    conversation_id: str
+    question_count: int = 0
+    fallback_or_error: int = 0
+    first_at: str = ""
+    last_at: str = ""
+    first_question: str = ""
+    latest_question: str = ""
+    latest_status: Literal["success", "error"] = "success"
+
+
 class AdminDocumentPayload(BaseModel):
     filename: str = Field(..., min_length=1)
     content_base64: str = Field(..., min_length=1)

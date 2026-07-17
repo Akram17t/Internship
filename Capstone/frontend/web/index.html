@@ -419,6 +419,34 @@
                     </button>
                   </div>
                 </header>
+                <div class="logs-subtoolbar">
+                  <div class="logs-tabs" id="logsTabs" role="tablist" aria-label="Log view">
+                    <button
+                      class="logs-tab is-active"
+                      data-log-tab="questions"
+                      type="button"
+                      role="tab"
+                      aria-selected="true"
+                    >
+                      Questions
+                    </button>
+                    <button
+                      class="logs-tab"
+                      data-log-tab="sessions"
+                      type="button"
+                      role="tab"
+                      aria-selected="false"
+                    >
+                      Sessions
+                    </button>
+                  </div>
+                  <div class="logs-session-filter" id="logsSessionFilter" hidden>
+                    <span id="logsActiveSessionLabel">Session</span>
+                    <button id="logsClearSessionButton" type="button">
+                      Clear
+                    </button>
+                  </div>
+                </div>
                 <p class="logs-status" id="logsStatus" aria-live="polite"></p>
                 <div class="logs-list" id="logsList"></div>
                 <div class="logs-pagination" id="logsPagination"></div>

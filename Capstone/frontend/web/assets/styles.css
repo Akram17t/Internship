@@ -3087,6 +3087,104 @@ body[data-role="admin"] .admin-only {
   gap: 14px;
 }
 
+.logs-screen .logs-subtoolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper-deep);
+}
+
+.logs-screen .logs-tabs {
+  display: inline-flex;
+  border: 1px solid var(--ink);
+  background: var(--paper-light);
+}
+
+.logs-screen .logs-tab {
+  min-width: 118px;
+  height: 38px;
+  padding: 0 18px;
+  border: 0;
+  border-right: 1px solid var(--ink);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  font:
+    400 11px/1 "JetBrains Mono",
+    monospace;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.logs-screen .logs-tab:last-child {
+  border-right: 0;
+}
+
+.logs-screen .logs-tab.is-active,
+.logs-screen .logs-tab:hover {
+  background: var(--ink);
+  color: var(--paper-light);
+}
+
+.logs-screen .logs-session-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  min-height: 42px;
+  border: 1px solid var(--red);
+  background: var(--red);
+  color: #fff;
+  box-shadow: 4px 4px 0 rgba(10, 10, 10, 0.1);
+  font:
+    400 10px/1 "JetBrains Mono",
+    monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition:
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.logs-screen .logs-session-filter:hover,
+.logs-screen .logs-session-filter:focus-within {
+  box-shadow: 6px 6px 0 rgba(10, 10, 10, 0.16);
+  transform: translateY(-1px);
+}
+
+.logs-screen .logs-session-filter span {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  padding: 0 16px;
+}
+
+.logs-screen .logs-session-filter[hidden] {
+  display: none;
+}
+
+.logs-screen .logs-session-filter button {
+  min-height: 42px;
+  padding: 0 14px;
+  border: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.42);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  cursor: pointer;
+  font:
+    400 10px/1 "JetBrains Mono",
+    monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.logs-screen .logs-session-filter button:hover {
+  background: #fff;
+  color: var(--red);
+}
+
 .logs-search-field {
   display: flex;
   width: min(310px, 31vw);
@@ -3171,6 +3269,7 @@ body[data-role="admin"] .admin-only {
 }
 
 .logs-table .log-row {
+  position: relative;
   display: block;
   min-height: 0;
   padding: 0;
@@ -3297,6 +3396,45 @@ body[data-role="admin"] .admin-only {
   background: var(--red);
   color: #fff;
   transform: rotate(180deg);
+}
+
+.log-delete-button {
+  position: absolute;
+  top: 50%;
+  right: 24px;
+  z-index: 2;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  place-items: center;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.log-delete-button .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.log-delete-button:hover,
+.log-delete-button:focus-visible {
+  border-color: var(--red);
+  background: var(--red);
+  color: #fff;
+  outline: 0;
+  transform: translateY(-50%) scale(1.04);
+}
+
+.log-delete-button:disabled {
+  cursor: wait;
+  opacity: 0.45;
 }
 
 .log-row-panel {
@@ -3531,6 +3669,25 @@ body[data-role="admin"] .admin-only {
     flex-direction: column;
   }
 
+  .logs-screen .logs-subtoolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .logs-screen .logs-tabs {
+    width: 100%;
+  }
+
+  .logs-screen .logs-tab {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .logs-screen .logs-session-filter {
+    justify-content: space-between;
+    width: 100%;
+  }
+
   .logs-list-actions,
   .logs-search-field {
     width: 100%;
@@ -3545,17 +3702,24 @@ body[data-role="admin"] .admin-only {
     gap: 14px;
   }
 
+  .logs-screen .logs-session-open {
+    grid-template-columns: minmax(0, 1fr) 34px;
+    gap: 14px;
+  }
+
   .logs-table-head {
     display: none;
   }
 
-  .log-row-toggle time {
+  .log-row-toggle time,
+  .logs-screen .logs-session-open time {
     grid-column: 1;
     grid-row: 2;
     flex-direction: row;
   }
 
-  .log-row-chevron {
+  .log-row-chevron,
+  .logs-screen .logs-session-row .log-row-chevron {
     grid-column: 2;
     grid-row: 1 / 3;
   }
@@ -3912,6 +4076,99 @@ body[data-role="admin"] .admin-only {
 .template-format-button.is-primary {
   background: var(--ink);
   color: var(--paper);
+}
+
+.logs-screen .logs-sessions-table {
+  border-top: 0;
+  background: transparent;
+}
+
+.logs-screen .logs-session-row {
+  position: relative;
+  border-bottom: 1px solid var(--line-soft);
+  animation: logsRowReveal 360ms both;
+  animation-delay: calc(var(--row-index) * 45ms);
+}
+
+.logs-screen .logs-session-open {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px;
+  gap: 24px;
+  align-items: center;
+  width: 100%;
+  min-height: 88px;
+  padding: 19px 82px 19px 24px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition:
+    background-color 180ms ease,
+    padding-left 180ms ease;
+}
+
+.logs-screen .logs-session-row:last-child {
+  border-bottom: 0;
+}
+
+.logs-screen .logs-session-open:hover,
+.logs-screen .logs-session-open:focus-visible,
+.logs-screen .logs-session-row:focus-within .logs-session-open {
+  padding-left: 30px;
+  background: rgba(188, 24, 35, 0.045);
+  outline: 0;
+}
+
+.logs-screen .logs-session-marker {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(188, 24, 35, 0.32);
+  place-items: center;
+  background: rgba(188, 24, 35, 0.06);
+  color: var(--red);
+  font-family: "Material Symbols Outlined";
+  font-size: 17px;
+  font-style: normal;
+  font-weight: normal;
+  letter-spacing: normal;
+  line-height: 1;
+  text-transform: none;
+  white-space: nowrap;
+  transition:
+    background-color 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.logs-screen .logs-session-row:hover .logs-session-marker,
+.logs-screen .logs-session-row:focus-within .logs-session-marker {
+  background: var(--red);
+  color: #fff;
+  transform: translateX(2px);
+}
+
+.logs-screen .logs-session-row .log-detail .log-question {
+  font-family: "Instrument Sans", sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 24px;
+  letter-spacing: 0;
+}
+
+.logs-screen .logs-session-row .log-row-chevron {
+  display: none;
+}
+
+.logs-screen .logs-session-delete {
+  right: 24px;
+}
+
+.logs-screen .logs-session-meta {
+  padding-left: 41px;
 }
 
 .template-download-actions:has(#templateDownloadWordButton[hidden])
@@ -4802,6 +5059,27 @@ body.logout-open {
   font-size: 18px;
 }
 
+.logs-screen .logs-session-row {
+  grid-template-columns: minmax(0, 1fr) 132px 38px;
+}
+
+.logs-screen .logs-session-row .logs-session-meta {
+  display: block;
+  overflow: hidden;
+  color: var(--muted);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logs-screen .logs-session-row[data-status="error"] .logs-session-marker {
+  border-color: rgba(188, 24, 35, 0.54);
+  background: rgba(188, 24, 35, 0.12);
+}
+
 @media (max-width: 720px) {
   .logs-screen .logs-list-actions {
     width: 100%;
@@ -4834,6 +5112,10 @@ body.logout-open {
   .logs-screen .logs-table .logs-table-row {
     grid-template-columns: minmax(0, 1fr) 34px;
     gap: 14px;
+  }
+
+  .logs-screen .logs-session-open {
+    grid-template-columns: minmax(0, 1fr) 34px;
   }
 
   .logs-screen .log-row-time {
@@ -4882,6 +5164,15 @@ body.logout-open {
   .logs-screen .log-row-toggle {
     padding: 17px 16px;
   }
+
+  .logs-screen .log-delete-button {
+    right: 16px;
+  }
+
+  .logs-screen .logs-session-open {
+    padding: 17px 66px 17px 16px;
+  }
+
 }
 
 @media (prefers-reduced-motion: reduce) {

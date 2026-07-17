@@ -165,6 +165,159 @@ class AdminLogsTests(unittest.TestCase):
         self.assertEqual(payload["average_chat_per_session"], 1.5)
         self.assertEqual(payload["fallback_or_error"], 2)
 
+    def test_logs_endpoint_filters_by_conversation_id(self) -> None:
+        insert_activity_log(
+            event_type="chat",
+            action="query",
+            status="success",
+            summary="Conv A question",
+            details={"conversation_id": "conv-a", "answer_source": "model"},
+        )
+        insert_activity_log(
+            event_type="chat",
+            action="query",
+            status="success",
+            summary="Conv B question",
+            details={"conversation_id": "conv-b", "answer_source": "model"},
+        )
+
+        with patch("backend.api.routes_admin._require_admin", return_value=None):
+            response = self.client.get("/api/admin/logs?conversation_id=conv-a")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(len(payload), 1)
+        self.assertEqual(payload[0]["summary"], "Conv A question")
+
+    def test_logs_summary_filters_by_conversation_id(self) -> None:
+        insert_activity_log(
+            event_type="chat",
+            action="query",
+            status="success",
+            summary="Conv A success",
+            details={"conversation_id": "conv-a", "answer_source": "model"},
+        )
+        insert_activity_log(
+            event_type="chat",
+            action="query",
+            status="success",
+            summary="Conv A fallback",
+            details={"conversation_id": "conv-a", "answer_source": "fallback"},
+        )
+        insert_activity_log(
+            event_type="chat",
+            action="query",
+            status="error",
+            summary="Conv B error",
+            details={"conversation_id": "conv-b"},
+        )
+
+        with patch("backend.api.routes_admin._require_admin", return_value=None):
+            response = self.client.get("/api/admin/logs/summary?conversation_id=conv-a")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["total_chat"], 2)
+        self.assertEqual(payload["total_sessions"], 1)
+        self.assertEqual(payload["average_chat_per_session"], 2)
+        self.assertEqual(payload["fallback_or_error"], 1)
+
+    def test_logs_sessions_endpoint_groups_sessions(self) -> None:
+        insert_activity_log(
+            event_type="chat",
+            action="query",
+            status="success",
+            summary="Conv A old",
+            details={"conversation_id": "conv-a", "question": "Conv A old"},
+        )
+        insert_activity_log(
+            event_type="chat",
+            action="query",
+            status="error",
+            summary="Conv A latest",
+            details={"conversation_id": "conv-a", "question": "Conv A latest"},
+        )
+        insert_activity_log(
+            event_type="chat",
+            action="query",
+            status="success",
+            summary="No session",
+            details={"answer_source": "model"},
+        )
+
+        with patch("backend.api.routes_admin._require_admin", return_value=None):
+            response = self.client.get("/api/admin/logs/sessions")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(len(payload), 1)
+        self.assertEqual(payload[0]["conversation_id"], "conv-a")
+        self.assertEqual(payload[0]["question_count"], 2)
+        self.assertEqual(payload[0]["fallback_or_error"], 1)
+        self.assertEqual(payload[0]["first_question"], "Conv A old")
+        self.assertEqual(payload[0]["latest_question"], "Conv A latest")
+        self.assertEqual(payload[0]["latest_status"], "error")
+
+    def test_delete_log_endpoint_removes_chat_log(self) -> None:
+        log_id = insert_activity_log(
+            event_type="chat",
+            action="query",
+            status="success",
+            summary="Delete me",
+            details={"conversation_id": "conv-delete"},
+        )
+
+        with patch("backend.api.routes_admin._require_admin", return_value=None):
+            response = self.client.delete(f"/api/admin/logs/{log_id}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["message"], "Log deleted.")
+        self.assertEqual(list_activity_logs(event_type="chat"), [])
+
+    def test_delete_log_endpoint_returns_404_for_missing_log(self) -> None:
+        with patch("backend.api.routes_admin._require_admin", return_value=None):
+            response = self.client.delete("/api/admin/logs/999")
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_delete_log_session_endpoint_removes_all_chat_logs_in_session(self) -> None:
+        insert_activity_log(
+            event_type="chat",
+            action="query",
+            status="success",
+            summary="Session question 1",
+            details={"conversation_id": "conv-delete"},
+        )
+        insert_activity_log(
+            event_type="chat",
+            action="query",
+            status="success",
+            summary="Session question 2",
+            details={"conversation_id": "conv-delete"},
+        )
+        insert_activity_log(
+            event_type="chat",
+            action="query",
+            status="success",
+            summary="Other session",
+            details={"conversation_id": "conv-keep"},
+        )
+
+        with patch("backend.api.routes_admin._require_admin", return_value=None):
+            response = self.client.delete("/api/admin/logs/sessions/conv-delete")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["message"], "Session logs deleted.")
+        remaining = list_activity_logs(event_type="chat")
+        self.assertEqual(len(remaining), 1)
+        self.assertEqual(remaining[0]["details"]["conversation_id"], "conv-keep")
+
+    def test_delete_log_session_endpoint_returns_404_for_missing_session(self) -> None:
+        with patch("backend.api.routes_admin._require_admin", return_value=None):
+            response = self.client.delete("/api/admin/logs/sessions/missing")
+
+        self.assertEqual(response.status_code, 404)
+
     def test_document_save_does_not_create_activity_log(self) -> None:
         data_dir = self.root / "data"
         data_dir.mkdir(parents=True, exist_ok=True)

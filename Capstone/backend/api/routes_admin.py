@@ -17,6 +17,7 @@ from backend.api.flowchart_service import clear_flowchart_cache_for_source
 from backend.api.forms_service import delete_form_docx_template, ensure_form_docx_template
 from backend.api.models import (
     ActivityLogItem,
+    ActivityLogSessionItem,
     ActivityLogSummaryResponse,
     AdminDocumentPayload,
     AdminDocumentResponse,
@@ -36,7 +37,13 @@ from backend.api.storage import (
     _resolve_document_path,
     _to_library_item,
 )
-from backend.cache_db import list_activity_logs, summarize_activity_logs
+from backend.cache_db import (
+    delete_activity_log,
+    delete_activity_logs_for_conversation,
+    list_activity_log_sessions,
+    list_activity_logs,
+    summarize_activity_logs,
+)
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -172,6 +179,7 @@ def get_library() -> list[LibraryItem]:
 def get_activity_logs(
     start_date: str | None = None,
     end_date: str | None = None,
+    conversation_id: str | None = None,
     limit: Annotated[int, Query(ge=1, le=250)] = 100,
     offset: Annotated[int, Query(ge=0)] = 0,
     authorization: str = Header(default=""),
@@ -185,16 +193,66 @@ def get_activity_logs(
             event_type="chat",
             start_at=start_at,
             end_at=end_at,
+            conversation_id=conversation_id,
             limit=limit,
             offset=offset,
         )
     ]
 
 
+@app.get("/api/admin/logs/sessions", response_model=list[ActivityLogSessionItem])
+def get_activity_log_sessions(
+    start_date: str | None = None,
+    end_date: str | None = None,
+    authorization: str = Header(default=""),
+) -> list[ActivityLogSessionItem]:
+    # Kembalikan daftar sesi chat dalam date range yang dipilih.
+    _require_admin(authorization)
+    start_at, end_at = _activity_date_range(start_date, end_date)
+    return [
+        ActivityLogSessionItem(**item)
+        for item in list_activity_log_sessions(
+            event_type="chat",
+            start_at=start_at,
+            end_at=end_at,
+        )
+    ]
+
+
+@app.delete("/api/admin/logs/{log_id}", response_model=AdminFAQResponse)
+def delete_activity_log_item(
+    log_id: int,
+    authorization: str = Header(default=""),
+) -> AdminFAQResponse:
+    # Hapus satu activity log chat dari dashboard admin.
+    _require_admin(authorization)
+    deleted = delete_activity_log(log_id, event_type="chat")
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Log not found.")
+    return AdminFAQResponse(message="Log deleted.")
+
+
+@app.delete("/api/admin/logs/sessions/{conversation_id}", response_model=AdminFAQResponse)
+def delete_activity_log_session(
+    conversation_id: str,
+    authorization: str = Header(default=""),
+) -> AdminFAQResponse:
+    # Hapus semua activity log chat dalam satu session.
+    _require_admin(authorization)
+    deleted_count = delete_activity_logs_for_conversation(
+        unquote(conversation_id),
+        event_type="chat",
+    )
+    if not deleted_count:
+        raise HTTPException(status_code=404, detail="Session not found.")
+    return AdminFAQResponse(message="Session logs deleted.")
+
+
 @app.get("/api/admin/logs/summary", response_model=ActivityLogSummaryResponse)
 def get_activity_log_summary(
     start_date: str | None = None,
     end_date: str | None = None,
+    conversation_id: str | None = None,
     authorization: str = Header(default=""),
 ) -> ActivityLogSummaryResponse:
     # Ringkasan pemakaian chatbot untuk rentang tanggal yang sama dengan list log.
@@ -205,6 +263,7 @@ def get_activity_log_summary(
             event_type="chat",
             start_at=start_at,
             end_at=end_at,
+            conversation_id=conversation_id,
         )
     )
 
