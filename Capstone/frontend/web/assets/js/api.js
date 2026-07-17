@@ -51,6 +51,22 @@
       return String(url || "").replace(/^\/api\/documents\//, "");
     },
 
+    filenameFromResponse(response, fallback = "document") {
+      const disposition = response?.headers?.get("content-disposition") || "";
+      const encodedMatch = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+      if (encodedMatch?.[1]) {
+        try {
+          return decodeURIComponent(encodedMatch[1]);
+        } catch {
+          return encodedMatch[1];
+        }
+      }
+
+      const plainMatch = disposition.match(/filename="?([^";]+)"?/i);
+      if (plainMatch?.[1]) return plainMatch[1];
+      return fallback;
+    },
+
     downloadBlob(blob, filename) {
       const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement("a");

@@ -621,6 +621,44 @@
     </div>
 
     <div
+      class="template-download-modal"
+      id="templateDownloadModal"
+      aria-hidden="true"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="templateDownloadTitle"
+    >
+      <div class="template-download-card">
+        <span class="auth-kicker">Download Template</span>
+        <h2 id="templateDownloadTitle">Pilih format</h2>
+        <p id="templateDownloadName">Form template</p>
+        <div class="template-download-actions">
+          <button
+            class="template-format-button"
+            id="templateDownloadPdfButton"
+            type="button"
+          >
+            PDF
+          </button>
+          <button
+            class="template-format-button is-primary"
+            id="templateDownloadWordButton"
+            type="button"
+          >
+            Word
+          </button>
+          <button
+            class="template-format-cancel"
+            id="templateDownloadCancelButton"
+            type="button"
+          >
+            Batal
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
       class="auth-modal"
       id="formFillModal"
       aria-hidden="true"
@@ -652,11 +690,9 @@
               </div>
               <div class="form-preview-scroll" id="formFillPreview"></div>
             </section>
-            <section class="form-fields-panel" aria-label="Field form">
-              <div class="form-fill-fields" id="formFillFields"></div>
-            </section>
           </div>
-          <div class="form-draft-actions">
+          <div class="form-fill-fields" id="formFillFields" hidden></div>
+          <div class="form-fill-actions">
             <button
               class="form-draft-clear"
               id="formFillClearDraftButton"

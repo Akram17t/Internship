@@ -3956,6 +3956,29 @@
         "row_label": "Baris 18",
         "column_label": "Keterangan"
       }
+    },
+    {
+      "id": "bulan_tahun",
+      "label": "Bulan / Tahun",
+      "type": "text",
+      "page": 0,
+      "rect": {
+        "x": 84.50255584716797,
+        "y": 106.08224487304688,
+        "width": 51.992469787597656,
+        "height": 9.766098022460938
+      },
+      "required": false,
+      "section": "Word",
+      "placeholder": "Bulan / Tahun",
+      "font_size": 10.0,
+      "align": "left",
+      "line_height": 1.08,
+      "clear": true,
+      "clear_padding": 0.5,
+      "layout": {
+        "kind": "docx_placeholder"
+      }
     }
   ],
   "generator": {

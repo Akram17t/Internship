@@ -14,12 +14,15 @@ from backend.api.cache_store import _append_conversation_turn, _clean_conversati
 from backend.api.core import FAQ_LOCK, FRONTEND_DIR, app
 from backend.api.faq_service import _pinned_faq_items
 from backend.api.forms_service import (
+    DOCX_MIME,
     PDF_MIME,
     _fill_form_placeholders,
     _resolve_form_path,
     _unique_form_fields,
-    fill_schema_form,
+    fill_docx_schema_form,
+    filled_pdf_to_docx,
     get_form_schema,
+    get_word_template_docx,
     has_schema_form,
 )
 from backend.api.flowchart_service import (
@@ -109,7 +112,11 @@ def _record_chat_activity(
         logger.warning("[activity-log] gagal menyimpan log chat: %s", log_error)
 
 
-def _filled_form_filename(path: str, values: dict[str, str | bool]) -> str:
+def _filled_form_filename(
+    path: str,
+    values: dict[str, str | bool],
+    output_format: str = "pdf",
+) -> str:
     resolved_path = _resolve_form_path(path)
     first_value = next(
         (
@@ -120,7 +127,8 @@ def _filled_form_filename(path: str, values: dict[str, str | bool]) -> str:
         "",
     )
     suffix = f" - {first_value}" if first_value else ""
-    return f"{resolved_path.stem}{suffix}.pdf"
+    extension = "docx" if output_format == "docx" else "pdf"
+    return f"{resolved_path.stem}{suffix}.{extension}"
 
 
 @app.get("/health")
@@ -270,15 +278,31 @@ def download_citation_document(document_path: str) -> FileResponse:
 @app.get("/api/documents/{document_path:path}")
 def download_document(
     document_path: str,
+    format: str = "pdf",
     authorization: str = Header(default=""),
-) -> FileResponse:
+) -> Response:
     # Unduh dokumen tersimpan, dengan file non-form dibatasi untuk admin.
     resolved_path = _resolve_document_path(document_path)
 
     if not resolved_path.exists() or not resolved_path.is_file():
         raise HTTPException(status_code=404, detail="Document not found.")
-    if _document_kind_for_path(resolved_path) != "form":
+    document_kind = _document_kind_for_path(resolved_path)
+    if document_kind != "form":
         _require_admin(authorization)
+    output_format = format.strip().lower()
+    if output_format == "docx":
+        if document_kind != "form" or resolved_path.suffix.lower() != ".pdf":
+            raise HTTPException(status_code=400, detail="Dokumen ini tidak bisa diunduh sebagai Word.")
+        content = get_word_template_docx(resolved_path)
+        filename = f"{resolved_path.stem}.docx"
+        return Response(
+            content=content,
+            media_type=DOCX_MIME,
+            headers={
+                "Cache-Control": "no-store",
+                "Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}",
+            },
+        )
 
     return FileResponse(
         path=resolved_path,
@@ -301,7 +325,7 @@ def form_schema(path: str) -> FormSchemaResponse:
 
 @app.post("/api/forms/fill")
 async def fill_form(request: Request) -> Response:
-    # Isi template form di memory lalu kembalikan file PDF hasilnya.
+    # Isi template form di memory lalu kembalikan file sesuai format pilihan.
     content_type = request.headers.get("content-type", "").lower()
     if "multipart/form-data" in content_type:
         form = await request.form()
@@ -327,9 +351,22 @@ async def fill_form(request: Request) -> Response:
             }
             await value.close()
         if has_schema_form(resolved_path):
-            content = fill_schema_form(resolved_path, payload.values, signature_files)
+            if payload.output_format != "docx":
+                raise HTTPException(
+                    status_code=422,
+                    detail="PDF terisi belum didukung untuk form schema. Gunakan format Word.",
+                )
+            content = fill_docx_schema_form(resolved_path, payload.values, signature_files)
+            filename = _filled_form_filename(payload.path, payload.values, "docx")
+            return Response(
+                content=content,
+                media_type=DOCX_MIME,
+                headers={
+                    "Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"
+                },
+            )
         else:
-            content = _fill_form_placeholders(
+            pdf_content = _fill_form_placeholders(
                 resolved_path,
                 {
                     key: str(value).strip()
@@ -345,9 +382,23 @@ async def fill_form(request: Request) -> Response:
 
         resolved_path = _resolve_form_path(payload.path)
         if has_schema_form(resolved_path):
-            content = fill_schema_form(resolved_path, payload.values, {})
+            if payload.output_format != "docx":
+                raise HTTPException(
+                    status_code=422,
+                    detail="PDF terisi belum didukung untuk form schema. Gunakan format Word.",
+                )
+            content = fill_docx_schema_form(resolved_path, payload.values, {})
+            media_type = DOCX_MIME
+            filename = _filled_form_filename(payload.path, payload.values, "docx")
+            return Response(
+                content=content,
+                media_type=media_type,
+                headers={
+                    "Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"
+                },
+            )
         else:
-            content = _fill_form_placeholders(
+            pdf_content = _fill_form_placeholders(
                 resolved_path,
                 {
                     key: str(value).strip()
@@ -355,10 +406,18 @@ async def fill_form(request: Request) -> Response:
                     if isinstance(value, str)
                 },
             )
-    filename = _filled_form_filename(payload.path, payload.values)
+    output_format = payload.output_format
+    if output_format == "docx":
+        content = filled_pdf_to_docx(pdf_content)
+        media_type = DOCX_MIME
+    else:
+        content = pdf_content
+        media_type = PDF_MIME
+
+    filename = _filled_form_filename(payload.path, payload.values, output_format)
     return Response(
         content=content,
-        media_type=PDF_MIME,
+        media_type=media_type,
         headers={
             "Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"
         },

@@ -45,9 +45,13 @@
 
   function saveDraft(pending) {
     if (!pending || !elements?.formFillFields) return;
+    const container =
+      pending.mode === "schema" && elements.formFillForm
+        ? elements.formFillForm
+        : elements.formFillFields;
     const values = storage().serializeFormValues(
       pending.mode === "schema" ? pending.schema : null,
-      elements.formFillFields,
+      container,
     );
     storage().saveFormDraft(pending.path, pending.label, values);
   }
@@ -58,7 +62,9 @@
     const restored = storage().applyFormDraftValues(
       draft,
       schemaOrFields,
-      elements.formFillFields,
+      pending.mode === "schema" && elements.formFillForm
+        ? elements.formFillForm
+        : elements.formFillFields,
     );
     return restored;
   }
@@ -69,7 +75,11 @@
     window.clearTimeout(pending.draftTimer);
     pending.draftTimer = null;
     storage().clearFormDraft(pending.path);
-    elements.formFillFields
+    const container =
+      pending.mode === "schema" && elements.formFillForm
+        ? elements.formFillForm
+        : elements.formFillFields;
+    container
       .querySelectorAll("input:not([type='file']), textarea")
       .forEach((control) => {
         if (control.type === "checkbox") control.checked = false;
@@ -105,6 +115,7 @@
       activeFieldId: "",
       fieldElements: new Map(),
       overlayElements: new Map(),
+      previewControlElements: new Map(),
       previewValueElements: new Map(),
       previewSignatureUrls: new Map(),
       renderVersion: 0,
@@ -115,6 +126,7 @@
     elements.formFillTitle.textContent = "Editor form PDF";
     elements.formFillSubtitle.textContent = "";
     setStatus("");
+    resetOutputFormat();
     renderNote(elements.formFillPreview, "Memuat preview form...");
     renderNote(elements.formFillFields, "Memuat kolom form...");
     elements.formFillModal.classList.add("is-open");
@@ -132,7 +144,7 @@
         renderSchemaFormFields(pending);
         restoreDraft(pending, schema);
         await renderSchemaPreview(pending);
-        const firstControl = elements.formFillFields.querySelector(
+        const firstControl = elements.formFillPreview.querySelector(
           "input:not([type='file']), textarea",
         );
         if (firstControl) window.setTimeout(() => firstControl.focus(), 0);
@@ -190,10 +202,64 @@
     return sections;
   }
 
-  function getControl(fieldId) {
-    return elements.formFillFields.querySelector(
-      `[data-field-id="${fieldId}"] input, [data-field-id="${fieldId}"] textarea`,
+  function findFieldControl(container, fieldId) {
+    if (!container || !fieldId) return null;
+    const escapedId = CSS.escape(fieldId);
+    return container.querySelector(
+      `input[data-field-id="${escapedId}"], textarea[data-field-id="${escapedId}"], [data-field-id="${escapedId}"] input, [data-field-id="${escapedId}"] textarea`,
     );
+  }
+
+  function getHiddenControl(fieldId) {
+    return findFieldControl(elements.formFillFields, fieldId);
+  }
+
+  function getControl(fieldId) {
+    return (
+      state?.pendingFormFill?.previewControlElements?.get(fieldId) ||
+      findFieldControl(elements.formFillForm, fieldId) ||
+      getHiddenControl(fieldId)
+    );
+  }
+
+  function hasFieldRect(field) {
+    return (
+      field &&
+      field.rect &&
+      Number.isFinite(Number(field.rect.x)) &&
+      Number.isFinite(Number(field.rect.y)) &&
+      Number.isFinite(Number(field.rect.width)) &&
+      Number.isFinite(Number(field.rect.height)) &&
+      field.page !== null &&
+      field.page !== undefined
+    );
+  }
+
+  function getOutputFormat() {
+    return "docx";
+  }
+
+  function filenameFromFillResponse(response, fallback) {
+    if (typeof api().filenameFromResponse === "function") {
+      return api().filenameFromResponse(response, fallback);
+    }
+
+    const disposition = response?.headers?.get("content-disposition") || "";
+    const encodedMatch = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+    if (encodedMatch?.[1]) {
+      try {
+        return decodeURIComponent(encodedMatch[1]);
+      } catch {
+        return encodedMatch[1];
+      }
+    }
+
+    const plainMatch = disposition.match(/filename="?([^";]+)"?/i);
+    return plainMatch?.[1] || fallback;
+  }
+
+  function resetOutputFormat() {
+    return "docx";
   }
 
   function revokeSignatureUrl(pending, fieldId) {
@@ -222,11 +288,13 @@
         image.alt = field.label;
         previewElement.hidden = false;
         previewElement.classList.add("has-value");
+        pending.overlayElements.get(fieldId)?.classList.add("has-value");
       } else if (image) {
         image.removeAttribute("src");
         image.alt = "";
         previewElement.hidden = true;
         previewElement.classList.remove("has-value");
+        pending.overlayElements.get(fieldId)?.classList.remove("has-value");
       }
       return;
     }
@@ -234,9 +302,13 @@
     const control = getControl(fieldId);
     if (!control) return;
     const value = field.type === "checkbox" ? (control.checked ? "X" : "") : control.value || "";
-    previewElement.textContent = value;
+    const hasPreviewControl = state.pendingFormFill?.previewControlElements?.has(fieldId);
+    previewElement.textContent = hasPreviewControl ? "" : value;
     previewElement.hidden = !value;
     previewElement.classList.toggle("has-value", Boolean(value));
+    state.pendingFormFill?.overlayElements
+      ?.get(fieldId)
+      ?.classList.toggle("has-value", Boolean(value));
   }
 
   function syncAllPreviewValues(pending) {
@@ -255,7 +327,104 @@
     });
   }
 
+  function syncHiddenControl(field, control) {
+    const hiddenControl = getHiddenControl(field.id);
+    if (!hiddenControl || hiddenControl === control || field.type === "signature_image") {
+      return;
+    }
+    if (field.type === "checkbox") {
+      hiddenControl.checked = Boolean(control.checked);
+      return;
+    }
+    hiddenControl.value = control.value || "";
+  }
+
+  function getFieldIdFromEventTarget(target) {
+    if (!target || !(target instanceof HTMLElement)) return "";
+    return target.dataset.fieldId || target.closest("[data-field-id]")?.dataset.fieldId || "";
+  }
+
+  function getNavigableSchemaFields(pending) {
+    const fields = Array.isArray(pending?.schema?.fields) ? pending.schema.fields : [];
+    return fields
+      .filter((field) => {
+        const control = pending.previewControlElements.get(field.id);
+        return control && field.type !== "signature_image" && !control.disabled;
+      })
+      .sort((left, right) => {
+        const leftHasRect = hasFieldRect(left);
+        const rightHasRect = hasFieldRect(right);
+        if (leftHasRect !== rightHasRect) return leftHasRect ? -1 : 1;
+        const pageDelta = Number(left.page || 0) - Number(right.page || 0);
+        if (pageDelta) return pageDelta;
+        const yDelta = Number(left.rect?.y || 0) - Number(right.rect?.y || 0);
+        if (Math.abs(yDelta) > 1) return yDelta;
+        const xDelta = Number(left.rect?.x || 0) - Number(right.rect?.x || 0);
+        if (xDelta) return xDelta;
+        return String(left.label || "").localeCompare(String(right.label || ""));
+      });
+  }
+
+  function focusSchemaFieldByOffset(currentFieldId, offset) {
+    const pending = state?.pendingFormFill;
+    if (!pending || pending.mode !== "schema") return false;
+    const fields = getNavigableSchemaFields(pending);
+    if (!fields.length) return false;
+    const currentIndex = fields.findIndex((field) => field.id === currentFieldId);
+    if (currentIndex < 0) return false;
+
+    const nextIndex = currentIndex + offset;
+    if (nextIndex < 0 || nextIndex >= fields.length) {
+      return true;
+    }
+    setActiveField(fields[nextIndex].id, { focus: true });
+    return true;
+  }
+
+  function focusLegacyFieldByOffset(target, offset) {
+    const controls = Array.from(
+      elements.formFillFields.querySelectorAll("input[data-key]"),
+    ).filter((control) => !control.disabled);
+    const currentIndex = controls.indexOf(target);
+    if (currentIndex < 0) return false;
+    const nextControl = controls[currentIndex + offset];
+    if (nextControl) nextControl.focus();
+    return true;
+  }
+
+  function handleKeydown(event) {
+    if (event.key !== "Enter" || event.isComposing) return;
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (!target.matches("input, textarea")) return;
+    if (target.type === "file" || target.type === "submit" || target.type === "button") {
+      return;
+    }
+
+    const pending = state?.pendingFormFill;
+    if (!pending) return;
+    const offset = event.shiftKey ? -1 : 1;
+    const handled =
+      pending.mode === "schema"
+        ? focusSchemaFieldByOffset(getFieldIdFromEventTarget(target), offset)
+        : focusLegacyFieldByOffset(target, offset);
+
+    if (handled) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }
+
   function scrollFieldIntoView(fieldElement, { smooth = true } = {}) {
+    if (fieldElement?.closest?.("#formFillPreview")) {
+      fieldElement.scrollIntoView({
+        block: "center",
+        inline: "nearest",
+        behavior: smooth ? "smooth" : "auto",
+      });
+      return;
+    }
+
     const container = elements.formFillFields;
     if (!container || !fieldElement) return;
 
@@ -287,7 +456,10 @@
 
     const fieldElement = pending.fieldElements.get(fieldId);
     scrollFieldIntoView(fieldElement, { smooth });
-    if (focus && fieldElement) {
+    const previewControl = pending.previewControlElements.get(fieldId);
+    if (focus && previewControl) {
+      previewControl.focus({ preventScroll: true });
+    } else if (focus && fieldElement) {
       fieldElement.querySelector("input, textarea")?.focus({ preventScroll: true });
     }
 
@@ -331,7 +503,7 @@
       wrapper.appendChild(control);
     } else if (field.type === "date") {
       control = document.createElement("input");
-      control.type = "date";
+      control.type = "text";
       wrapper.appendChild(control);
     } else if (field.type === "checkbox") {
       const row = document.createElement("label");
@@ -375,16 +547,31 @@
     if (control) {
       control.name = field.id;
       control.dataset.fieldId = field.id;
+      const hiddenControl = getHiddenControl(field.id);
+      if (hiddenControl && hiddenControl !== control && field.type !== "signature_image") {
+        if (field.type === "checkbox") {
+          control.checked = Boolean(hiddenControl.checked);
+        } else {
+          control.value = hiddenControl.value || "";
+        }
+      }
       control.addEventListener("focus", () => setActiveField(field.id, { smooth: false }));
       control.addEventListener("click", () => setActiveField(field.id, { smooth: false }));
       if (field.type === "checkbox") {
         control.addEventListener("change", () => {
           setActiveField(field.id, { smooth: false });
+          syncHiddenControl(field, control);
           handleControlChange(field);
         });
       } else if (field.type !== "signature_image") {
-        control.addEventListener("input", () => handleControlChange(field));
-        control.addEventListener("change", () => handleControlChange(field));
+        control.addEventListener("input", () => {
+          syncHiddenControl(field, control);
+          handleControlChange(field);
+        });
+        control.addEventListener("change", () => {
+          syncHiddenControl(field, control);
+          handleControlChange(field);
+        });
       }
     }
 
@@ -596,6 +783,92 @@
     scheduleDraftSave(state.pendingFormFill);
   }
 
+  function positionPreviewElement(element, field, scale) {
+    element.style.left = `${Number(field.rect.x) * scale}px`;
+    element.style.top = `${Number(field.rect.y) * scale}px`;
+    element.style.width = `${Number(field.rect.width) * scale}px`;
+    element.style.height = `${Number(field.rect.height) * scale}px`;
+  }
+
+  function createPreviewFieldElement(field, pending, scale) {
+    const wrapper = document.createElement(field.type === "signature_image" ? "label" : "div");
+    wrapper.className = "form-preview-field";
+    wrapper.dataset.fieldId = field.id;
+    wrapper.dataset.fieldType = field.type;
+    wrapper.title = field.label;
+    positionPreviewElement(wrapper, field, scale);
+    wrapper.style.fontSize = `${Math.max(8, Number(field.font_size || 10) * scale)}px`;
+    wrapper.style.lineHeight = `${field.line_height || 1.08}`;
+
+    let control;
+    if (field.type === "textarea") {
+      control = document.createElement("textarea");
+      control.rows = 1;
+    } else {
+      control = document.createElement("input");
+      if (field.type === "checkbox") {
+        control.type = field.layout?.choice_group ? "radio" : "checkbox";
+      } else if (field.type === "signature_image") {
+        control.type = "file";
+        control.accept = "image/png,image/jpeg";
+      } else {
+        control.type = "text";
+      }
+    }
+
+    control.name = field.layout?.choice_group || field.id;
+    control.dataset.fieldId = field.id;
+    control.title = field.label;
+    if (field.type !== "checkbox" && field.type !== "signature_image") {
+      control.placeholder = field.placeholder || field.label || "";
+    }
+    if (field.layout?.choice_group) {
+      control.value = field.id;
+    }
+
+    const hiddenControl = getHiddenControl(field.id);
+    if (hiddenControl && field.type !== "signature_image") {
+      if (field.type === "checkbox") control.checked = Boolean(hiddenControl.checked);
+      else control.value = hiddenControl.value || "";
+    }
+
+    control.addEventListener("focus", () => setActiveField(field.id, { smooth: false }));
+    control.addEventListener("click", () => setActiveField(field.id, { smooth: false }));
+
+    if (field.type === "checkbox") {
+      control.addEventListener("change", () => {
+        syncHiddenControl(field, control);
+        handleControlChange(field);
+      });
+    } else if (field.type === "signature_image") {
+      control.addEventListener("change", () => {
+        setActiveField(field.id, { smooth: false });
+        syncPreviewValue(field.id);
+      });
+    } else {
+      control.addEventListener("input", () => {
+        syncHiddenControl(field, control);
+        handleControlChange(field);
+      });
+      control.addEventListener("change", () => {
+        syncHiddenControl(field, control);
+        handleControlChange(field);
+      });
+    }
+
+    if (field.type === "signature_image") {
+      const label = document.createElement("span");
+      label.className = "form-preview-field-file-label";
+      label.textContent = "Upload";
+      wrapper.append(label, control);
+    } else {
+      wrapper.appendChild(control);
+    }
+
+    pending.previewControlElements.set(field.id, control);
+    return wrapper;
+  }
+
   async function renderSchemaPreview(pending) {
     if (!window.pdfjsLib?.getDocument) {
       renderNote(elements.formFillPreview, "Library preview PDF tidak tersedia di browser ini.");
@@ -605,6 +878,7 @@
     const renderVersion = pending.renderVersion + 1;
     pending.renderVersion = renderVersion;
     pending.overlayElements = new Map();
+    pending.previewControlElements = new Map();
     pending.previewValueElements = new Map();
     renderNote(elements.formFillPreview, "Memuat preview PDF...");
 
@@ -658,7 +932,7 @@
         }).promise;
 
         const pageFields = (pending.schema?.fields || []).filter(
-          (field) => Number(field.page) === pageNumber - 1,
+          (field) => hasFieldRect(field) && Number(field.page) === pageNumber - 1,
         );
         pageFields.forEach((field) => {
           const valueElement = document.createElement("div");
@@ -666,10 +940,7 @@
           valueElement.classList.add(`is-${field.type.replace("_", "-")}`);
           valueElement.classList.add(`is-${field.align || "left"}`);
           if (field.clear !== false) valueElement.classList.add("is-clearing");
-          valueElement.style.left = `${Number(field.rect.x) * scale}px`;
-          valueElement.style.top = `${Number(field.rect.y) * scale}px`;
-          valueElement.style.width = `${Number(field.rect.width) * scale}px`;
-          valueElement.style.height = `${Number(field.rect.height) * scale}px`;
+          positionPreviewElement(valueElement, field, scale);
           valueElement.style.setProperty(
             "--form-clear-padding",
             `${Math.max(0, Number(field.clear_padding ?? 1)) * scale}px`,
@@ -686,26 +957,11 @@
           overlay.appendChild(valueElement);
           pending.previewValueElements.set(field.id, valueElement);
 
-          const hitbox = document.createElement("button");
-          hitbox.type = "button";
-          hitbox.className = "form-preview-field";
-          hitbox.title = field.label;
-          hitbox.style.left = `${Number(field.rect.x) * scale}px`;
-          hitbox.style.top = `${Number(field.rect.y) * scale}px`;
-          hitbox.style.width = `${Number(field.rect.width) * scale}px`;
-          hitbox.style.height = `${Number(field.rect.height) * scale}px`;
-          hitbox.addEventListener("click", () => {
-            if (field.type === "checkbox") {
-              togglePreviewCheckbox(field);
-              return;
-            }
-            setActiveField(field.id, { focus: true });
-          });
-          overlay.appendChild(hitbox);
-          pending.overlayElements.set(field.id, hitbox);
+          const previewField = createPreviewFieldElement(field, pending, scale);
+          overlay.appendChild(previewField);
+          pending.overlayElements.set(field.id, previewField);
         });
       }
-
       if ((pending.schema?.fields || []).length) {
         syncAllPreviewValues(pending);
         setActiveField(pending.activeFieldId || pending.schema.fields[0].id, {
@@ -759,6 +1015,7 @@
     event.preventDefault();
     const pending = state.pendingFormFill;
     if (!pending) return;
+    const outputFormat = getOutputFormat();
 
     try {
       let response;
@@ -775,7 +1032,10 @@
           }
           values[field.id] = field.type === "checkbox" ? Boolean(control.checked) : control.value.trim();
         });
-        formData.append("payload", JSON.stringify({ path: pending.path, values }));
+        formData.append(
+          "payload",
+          JSON.stringify({ path: pending.path, values, output_format: outputFormat }),
+        );
         response = await fetch("/api/forms/fill", {
           method: "POST",
           headers: authHeaders(),
@@ -789,7 +1049,11 @@
         response = await fetch("/api/forms/fill", {
           method: "POST",
           headers: authHeaders({ "Content-Type": "application/json" }),
-          body: JSON.stringify({ path: pending.path, values }),
+          body: JSON.stringify({
+            path: pending.path,
+            values,
+            output_format: outputFormat,
+          }),
         });
       }
 
@@ -798,7 +1062,11 @@
         throw new Error(api().formatApiError(payload.detail, "Gagal mengisi form."));
       }
       const blob = await response.blob();
-      api().downloadBlob(blob, `${pending.label}.pdf`);
+      const filename = filenameFromFillResponse(
+        response,
+        `${pending.label}.docx`,
+      );
+      api().downloadBlob(blob, filename);
       storage().clearFormDraft(pending.path);
       close({ flushDraft: false });
     } catch (error) {
@@ -814,6 +1082,7 @@
     open,
     close,
     submit,
+    handleKeydown,
     handleResize,
     clearDraft,
   };

@@ -620,7 +620,7 @@ function createFormDownloadRow(item) {
   templateButton.textContent = "Template";
   templateButton.title = "Unduh form kosong";
   templateButton.addEventListener("click", () => {
-    if (item.download_url) downloadDocument(item.download_url, fileName);
+    if (item.download_url) window.openTemplateDownloadModal?.(item.download_url, fileName);
   });
 
   const filledButton = document.createElement("button");

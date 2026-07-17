@@ -23,6 +23,7 @@ function bindAuth() {
     if (event.target === elements.logoutModal) closeLogoutModal();
   });
   elements.formFillCloseButton.addEventListener("click", window.FormEditor.close);
+  elements.formFillForm.addEventListener("keydown", window.FormEditor.handleKeydown);
   elements.formFillForm.addEventListener("submit", window.FormEditor.submit);
   elements.formFillClearDraftButton.addEventListener(
     "click",
@@ -46,6 +47,9 @@ function bindAuth() {
     if (elements.logoutModal.classList.contains("is-open")) closeLogoutModal();
     if (elements.documentErrorModal.classList.contains("is-open")) {
       closeDocumentErrorModal();
+    }
+    if (elements.templateDownloadModal?.classList.contains("is-open")) {
+      window.closeTemplateDownloadModal?.();
     }
     if (elements.formFillModal.classList.contains("is-open")) {
       window.FormEditor.close();

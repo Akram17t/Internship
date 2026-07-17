@@ -2709,6 +2709,306 @@
       "line_height": 1.08,
       "clear": true,
       "clear_padding": 1.0
+    },
+    {
+      "id": "surat_keterangan_kerja_paklaring_bpjs_tk_ya",
+      "label": "Surat Keterangan Kerja & Paklaring BPJS TK - Ya",
+      "type": "checkbox",
+      "page": 0,
+      "rect": {
+        "x": 248.93,
+        "y": 686.9119262695312,
+        "width": 28.62,
+        "height": 11.72
+      },
+      "required": false,
+      "section": "Word",
+      "placeholder": "Surat Keterangan Kerja & Paklaring BPJS TK - Ya",
+      "font_size": 8.0,
+      "align": "left",
+      "line_height": 1.08,
+      "clear": true,
+      "clear_padding": 0.25,
+      "layout": {
+        "kind": "docx_cell",
+        "row_label": "Surat Keterangan Kerja & Paklaring BPJS TK",
+        "column_label": "Ya"
+      }
+    },
+    {
+      "id": "surat_keterangan_kerja_paklaring_bpjs_tk_tidak",
+      "label": "Surat Keterangan Kerja & Paklaring BPJS TK - Tidak",
+      "type": "checkbox",
+      "page": 0,
+      "rect": {
+        "x": 279.55,
+        "y": 686.9119262695312,
+        "width": 28.61,
+        "height": 11.72
+      },
+      "required": false,
+      "section": "Word",
+      "placeholder": "Surat Keterangan Kerja & Paklaring BPJS TK - Tidak",
+      "font_size": 8.0,
+      "align": "left",
+      "line_height": 1.08,
+      "clear": true,
+      "clear_padding": 0.25,
+      "layout": {
+        "kind": "docx_cell",
+        "row_label": "Surat Keterangan Kerja & Paklaring BPJS TK",
+        "column_label": "Tidak"
+      }
+    },
+    {
+      "id": "surat_keterangan_kerja_paklaring_bpjs_tk_tanggal_serah_terima",
+      "label": "Surat Keterangan Kerja & Paklaring BPJS TK - Tanggal Serah Terima",
+      "type": "text",
+      "page": 0,
+      "rect": {
+        "x": 310.16,
+        "y": 686.9119262695312,
+        "width": 79.68,
+        "height": 11.72
+      },
+      "required": false,
+      "section": "Word",
+      "placeholder": "Surat Keterangan Kerja & Paklaring BPJS TK - Tanggal Serah Terima",
+      "font_size": 8.0,
+      "align": "left",
+      "line_height": 1.08,
+      "clear": true,
+      "clear_padding": 0.25,
+      "layout": {
+        "kind": "docx_cell",
+        "row_label": "Surat Keterangan Kerja & Paklaring BPJS TK",
+        "column_label": "Tanggal Serah Terima"
+      }
+    },
+    {
+      "id": "surat_keterangan_kerja_paklaring_bpjs_tk_keterangan",
+      "label": "Surat Keterangan Kerja & Paklaring BPJS TK - Keterangan",
+      "type": "text",
+      "page": 0,
+      "rect": {
+        "x": 453.1,
+        "y": 686.9119262695312,
+        "width": 100.06,
+        "height": 11.72
+      },
+      "required": false,
+      "section": "Word",
+      "placeholder": "Surat Keterangan Kerja & Paklaring BPJS TK - Keterangan",
+      "font_size": 8.0,
+      "align": "left",
+      "line_height": 1.08,
+      "clear": true,
+      "clear_padding": 0.25,
+      "layout": {
+        "kind": "docx_cell",
+        "row_label": "Surat Keterangan Kerja & Paklaring BPJS TK",
+        "column_label": "Keterangan"
+      }
+    },
+    {
+      "id": "gaji_terakhir_ya",
+      "label": "Gaji Terakhir - Ya",
+      "type": "checkbox",
+      "page": 0,
+      "rect": {
+        "x": 248.93,
+        "y": 700.7078857421875,
+        "width": 28.62,
+        "height": 11.72
+      },
+      "required": false,
+      "section": "Word",
+      "placeholder": "Gaji Terakhir - Ya",
+      "font_size": 8.0,
+      "align": "left",
+      "line_height": 1.08,
+      "clear": true,
+      "clear_padding": 0.25,
+      "layout": {
+        "kind": "docx_cell",
+        "row_label": "Gaji Terakhir",
+        "column_label": "Ya"
+      }
+    },
+    {
+      "id": "gaji_terakhir_tidak",
+      "label": "Gaji Terakhir - Tidak",
+      "type": "checkbox",
+      "page": 0,
+      "rect": {
+        "x": 279.55,
+        "y": 700.7078857421875,
+        "width": 28.61,
+        "height": 11.72
+      },
+      "required": false,
+      "section": "Word",
+      "placeholder": "Gaji Terakhir - Tidak",
+      "font_size": 8.0,
+      "align": "left",
+      "line_height": 1.08,
+      "clear": true,
+      "clear_padding": 0.25,
+      "layout": {
+        "kind": "docx_cell",
+        "row_label": "Gaji Terakhir",
+        "column_label": "Tidak"
+      }
+    },
+    {
+      "id": "gaji_terakhir_tanggal_serah_terima",
+      "label": "Gaji Terakhir - Tanggal Serah Terima",
+      "type": "text",
+      "page": 0,
+      "rect": {
+        "x": 310.16,
+        "y": 700.7078857421875,
+        "width": 79.68,
+        "height": 11.72
+      },
+      "required": false,
+      "section": "Word",
+      "placeholder": "Gaji Terakhir - Tanggal Serah Terima",
+      "font_size": 8.0,
+      "align": "left",
+      "line_height": 1.08,
+      "clear": true,
+      "clear_padding": 0.25,
+      "layout": {
+        "kind": "docx_cell",
+        "row_label": "Gaji Terakhir",
+        "column_label": "Tanggal Serah Terima"
+      }
+    },
+    {
+      "id": "gaji_terakhir_keterangan",
+      "label": "Gaji Terakhir - Keterangan",
+      "type": "text",
+      "page": 0,
+      "rect": {
+        "x": 453.1,
+        "y": 700.7078857421875,
+        "width": 100.06,
+        "height": 11.72
+      },
+      "required": false,
+      "section": "Word",
+      "placeholder": "Gaji Terakhir - Keterangan",
+      "font_size": 8.0,
+      "align": "left",
+      "line_height": 1.08,
+      "clear": true,
+      "clear_padding": 0.25,
+      "layout": {
+        "kind": "docx_cell",
+        "row_label": "Gaji Terakhir",
+        "column_label": "Keterangan"
+      }
+    },
+    {
+      "id": "tunjangan_bonus_penghargaan_jika_ada_ya",
+      "label": "Tunjangan/Bonus/Penghargaan (jika ada) - Ya",
+      "type": "checkbox",
+      "page": 1,
+      "rect": {
+        "x": 248.93,
+        "y": 73.25389099121094,
+        "width": 28.62,
+        "height": 11.85
+      },
+      "required": false,
+      "section": "Word",
+      "placeholder": "Tunjangan/Bonus/Penghargaan (jika ada) - Ya",
+      "font_size": 8.0,
+      "align": "left",
+      "line_height": 1.08,
+      "clear": true,
+      "clear_padding": 0.25,
+      "layout": {
+        "kind": "docx_cell",
+        "row_label": "Tunjangan/Bonus/Penghargaan (jika ada)",
+        "column_label": "Ya"
+      }
+    },
+    {
+      "id": "tunjangan_bonus_penghargaan_jika_ada_tidak",
+      "label": "Tunjangan/Bonus/Penghargaan (jika ada) - Tidak",
+      "type": "checkbox",
+      "page": 1,
+      "rect": {
+        "x": 279.55,
+        "y": 73.25389099121094,
+        "width": 28.61,
+        "height": 11.85
+      },
+      "required": false,
+      "section": "Word",
+      "placeholder": "Tunjangan/Bonus/Penghargaan (jika ada) - Tidak",
+      "font_size": 8.0,
+      "align": "left",
+      "line_height": 1.08,
+      "clear": true,
+      "clear_padding": 0.25,
+      "layout": {
+        "kind": "docx_cell",
+        "row_label": "Tunjangan/Bonus/Penghargaan (jika ada)",
+        "column_label": "Tidak"
+      }
+    },
+    {
+      "id": "tunjangan_bonus_penghargaan_jika_ada_tanggal_serah_terima",
+      "label": "Tunjangan/Bonus/Penghargaan (jika ada) - Tanggal Serah Terima",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 310.16,
+        "y": 73.25389099121094,
+        "width": 79.68,
+        "height": 11.85
+      },
+      "required": false,
+      "section": "Word",
+      "placeholder": "Tunjangan/Bonus/Penghargaan (jika ada) - Tanggal Serah Terima",
+      "font_size": 8.0,
+      "align": "left",
+      "line_height": 1.08,
+      "clear": true,
+      "clear_padding": 0.25,
+      "layout": {
+        "kind": "docx_cell",
+        "row_label": "Tunjangan/Bonus/Penghargaan (jika ada)",
+        "column_label": "Tanggal Serah Terima"
+      }
+    },
+    {
+      "id": "tunjangan_bonus_penghargaan_jika_ada_keterangan",
+      "label": "Tunjangan/Bonus/Penghargaan (jika ada) - Keterangan",
+      "type": "text",
+      "page": 1,
+      "rect": {
+        "x": 453.1,
+        "y": 73.25389099121094,
+        "width": 100.06,
+        "height": 11.85
+      },
+      "required": false,
+      "section": "Word",
+      "placeholder": "Tunjangan/Bonus/Penghargaan (jika ada) - Keterangan",
+      "font_size": 8.0,
+      "align": "left",
+      "line_height": 1.08,
+      "clear": true,
+      "clear_padding": 0.25,
+      "layout": {
+        "kind": "docx_cell",
+        "row_label": "Tunjangan/Bonus/Penghargaan (jika ada)",
+        "column_label": "Keterangan"
+      }
     }
   ],
   "generator": {

@@ -40,6 +40,7 @@ function bindAdminDocuments() {
 
   elements.documentReindexButton.addEventListener("click", rebuildEmbeddings);
   elements.documentUndoButton.addEventListener("click", undoDocumentChange);
+  bindTemplateDownloadModal();
 }
 
 async function saveDocuments(files) {
@@ -651,6 +652,10 @@ function createLibraryRow(item) {
     link.addEventListener("click", (event) => {
       if (!isAdminSession()) return;
       event.preventDefault();
+      if (item.document_kind === "form") {
+        openTemplateDownloadModal(item.download_url, item.name || item.display_name);
+        return;
+      }
       downloadDocument(item.download_url, item.name || item.display_name);
     });
   } else {
@@ -670,6 +675,62 @@ function createLibraryRow(item) {
   return row;
 }
 
+function bindTemplateDownloadModal() {
+  if (!elements.templateDownloadModal) return;
+  elements.templateDownloadPdfButton?.addEventListener("click", () => {
+    const pending = state.pendingTemplateDownload;
+    closeTemplateDownloadModal();
+    if (pending) downloadDocument(pending.url, withFileExtension(pending.filename, "pdf"));
+  });
+  elements.templateDownloadWordButton?.addEventListener("click", () => {
+    const pending = state.pendingTemplateDownload;
+    closeTemplateDownloadModal();
+    if (pending) {
+      downloadDocument(
+        withDownloadFormat(pending.url, "docx"),
+        withFileExtension(pending.filename, "docx"),
+      );
+    }
+  });
+  elements.templateDownloadCancelButton?.addEventListener(
+    "click",
+    closeTemplateDownloadModal,
+  );
+  elements.templateDownloadModal.addEventListener("click", (event) => {
+    if (event.target === elements.templateDownloadModal) closeTemplateDownloadModal();
+  });
+}
+
+function openTemplateDownloadModal(url, filename = "form.pdf") {
+  if (!url) return;
+  if (!elements.templateDownloadModal) {
+    downloadDocument(url, withFileExtension(filename, "pdf"));
+    return;
+  }
+  state.pendingTemplateDownload = { url, filename };
+  elements.templateDownloadName.textContent = filename || "Form template";
+  elements.templateDownloadModal.classList.add("is-open");
+  elements.templateDownloadModal.setAttribute("aria-hidden", "false");
+  window.setTimeout(() => elements.templateDownloadWordButton?.focus(), 0);
+}
+
+function closeTemplateDownloadModal() {
+  state.pendingTemplateDownload = null;
+  elements.templateDownloadModal?.classList.remove("is-open");
+  elements.templateDownloadModal?.setAttribute("aria-hidden", "true");
+}
+
+function withDownloadFormat(url, format) {
+  const nextUrl = new URL(url, window.location.origin);
+  nextUrl.searchParams.set("format", format);
+  return nextUrl.pathname + nextUrl.search;
+}
+
+function withFileExtension(filename, extension) {
+  const safeName = String(filename || "form").replace(/\.(pdf|docx)$/i, "");
+  return `${safeName}.${extension}`;
+}
+
 async function downloadDocument(url, filename = "document") {
   try {
     const response = await fetch(url, {
@@ -678,16 +739,17 @@ async function downloadDocument(url, filename = "document") {
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const blob = await response.blob();
-    const objectUrl = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = objectUrl;
-    link.download = filename || "document";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+    const responseFilename =
+      typeof window.AppApi?.filenameFromResponse === "function"
+        ? window.AppApi.filenameFromResponse(response, filename)
+        : filename;
+    window.AppApi.downloadBlob(blob, responseFilename);
   } catch (error) {
     console.error(error);
     showDocumentStatus("Download dokumen gagal.", true);
   }
 }
+
+window.openTemplateDownloadModal = openTemplateDownloadModal;
+window.closeTemplateDownloadModal = closeTemplateDownloadModal;
+window.downloadDocument = downloadDocument;

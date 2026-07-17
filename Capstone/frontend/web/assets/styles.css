@@ -381,7 +381,7 @@ textarea:focus-visible {
 
 .form-editor-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.85fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
   align-items: start;
   min-height: 0;
@@ -422,8 +422,11 @@ textarea:focus-visible {
   max-height: 62vh;
   overflow: auto;
   padding: 14px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(244, 239, 232, 0.9));
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.94),
+    rgba(244, 239, 232, 0.9)
+  );
 }
 
 .form-preview-page {
@@ -451,6 +454,7 @@ textarea:focus-visible {
 
 .form-preview-field {
   position: absolute;
+  padding: 0;
   border: 1px solid transparent;
   background: transparent;
   pointer-events: auto;
@@ -469,8 +473,69 @@ textarea:focus-visible {
   box-shadow: 0 0 0 2px rgba(188, 24, 35, 0.12);
 }
 
+.form-preview-field.has-value {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.form-preview-field.has-value:hover,
+.form-preview-field.has-value.is-active {
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.form-preview-field[data-field-type="signature_image"].has-value {
+  background: transparent;
+}
+
 .form-preview-field.is-active {
   transform: scale(1.01);
+}
+
+.form-preview-field input,
+.form-preview-field textarea {
+  width: 100%;
+  height: 100%;
+  padding: 1px 3px;
+  border: 0;
+  background: transparent;
+  color: rgba(15, 15, 15, 0.94);
+  font: inherit;
+  line-height: inherit;
+  outline: 0;
+}
+
+.form-preview-field textarea {
+  resize: none;
+}
+
+.form-preview-field input::placeholder,
+.form-preview-field textarea::placeholder {
+  color: transparent;
+}
+
+.form-preview-field input[type="file"] {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.form-preview-field-file-label {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.68);
+  color: rgba(15, 15, 15, 0.58);
+  font:
+    600 9px/1 "Instrument Sans",
+    sans-serif;
+  pointer-events: none;
+}
+
+.form-preview-field.has-value .form-preview-field-file-label {
+  opacity: 0;
 }
 
 .form-preview-field-value {
@@ -768,10 +833,65 @@ textarea:focus-visible {
   display: none;
 }
 
-.form-draft-actions {
+.form-fill-actions {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin-top: -4px;
+}
+
+.form-output-format {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(62px, 1fr));
+  overflow: hidden;
+  border: 1px solid rgba(10, 10, 10, 0.16);
+}
+
+.form-output-format label {
+  position: relative;
+  display: grid;
+  min-height: 32px;
+  place-items: center;
+  margin: 0;
+  cursor: pointer;
+}
+
+.form-output-format label + label {
+  border-left: 1px solid rgba(10, 10, 10, 0.16);
+}
+
+.form-output-format input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.form-output-format span {
+  display: grid;
+  width: 100%;
+  min-height: 32px;
+  place-items: center;
+  padding: 0 12px;
+  color: var(--muted);
+  font:
+    500 11px/1 "JetBrains Mono",
+    monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease;
+}
+
+.form-output-format input:checked + span {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.form-output-format input:focus-visible + span {
+  outline: 2px solid var(--red);
+  outline-offset: -2px;
 }
 
 .form-draft-clear {
@@ -3733,7 +3853,9 @@ body[data-role="admin"] .admin-only {
   outline: 0;
   background: transparent;
   color: var(--paper-light);
-  font: 400 13px/1 "Instrument Sans", sans-serif;
+  font:
+    400 13px/1 "Instrument Sans",
+    sans-serif;
 }
 
 .logs-search-field input::placeholder {
@@ -4450,6 +4572,80 @@ body[data-role="admin"] .admin-only {
   flex: 0 0 auto;
 }
 
+#formFillModal .form-output-format label {
+  display: grid;
+  gap: 0;
+}
+
+#formFillModal .form-output-format input {
+  position: absolute;
+  width: auto;
+  height: auto;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+}
+
+#formFillModal .form-output-format span {
+  color: var(--muted);
+  font:
+    500 11px/1 "JetBrains Mono",
+    monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+#formFillModal .form-output-format input:checked + span {
+  color: var(--paper);
+}
+
+#formFillModal .form-preview-field {
+  position: absolute;
+  display: block;
+  gap: 0;
+  margin: 0;
+}
+
+#formFillModal .form-preview-field input,
+#formFillModal .form-preview-field textarea {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 1px 3px;
+  border: 0;
+  background: transparent;
+  color: rgba(15, 15, 15, 0.94);
+  font: inherit;
+  line-height: inherit;
+  outline: 0;
+}
+
+#formFillModal .form-preview-field textarea {
+  resize: none;
+}
+
+#formFillModal .form-preview-field input[type="file"] {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  padding: 0;
+  opacity: 0;
+}
+
+#formFillModal .form-preview-field-file-label {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.68);
+  color: rgba(15, 15, 15, 0.58);
+  font:
+    600 9px/1 "Instrument Sans",
+    sans-serif;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 .logout-modal {
   position: fixed;
   inset: 0;
@@ -4477,6 +4673,16 @@ body[data-role="admin"] .admin-only {
   .form-fill-fields {
     max-height: 42vh;
   }
+
+  .form-fill-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .form-output-format,
+  .form-draft-clear {
+    width: 100%;
+  }
 }
 
 .document-error-modal {
@@ -4490,6 +4696,24 @@ body[data-role="admin"] .admin-only {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease;
+}
+
+.template-download-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 92;
+  display: grid;
+  padding: 24px;
+  place-items: center;
+  background: rgba(10, 10, 10, 0.58);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.template-download-modal.is-open {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .logout-card {
@@ -4518,6 +4742,74 @@ body[data-role="admin"] .admin-only {
 
 .document-error-modal.is-open .document-error-card {
   transform: translateY(0);
+}
+
+.template-download-card {
+  width: min(420px, 100%);
+  padding: 30px;
+  border: 1px solid var(--ink);
+  background: var(--paper-light);
+  box-shadow: 12px 12px 0 rgba(188, 24, 35, 0.22);
+  transform: translateY(10px);
+  transition: transform 0.2s ease;
+}
+
+.template-download-modal.is-open .template-download-card {
+  transform: translateY(0);
+}
+
+.template-download-card h2 {
+  margin: 12px 0 10px;
+  font:
+    600 30px/1.05 "Instrument Sans",
+    sans-serif;
+  letter-spacing: 0;
+}
+
+.template-download-card p {
+  margin: 0 0 24px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.template-download-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.template-format-button,
+.template-format-cancel {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--ink);
+  background: transparent;
+  color: var(--ink);
+  font:
+    500 11px/1 "JetBrains Mono",
+    monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.template-format-button.is-primary {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.template-format-button:hover,
+.template-format-button:focus-visible,
+.template-format-cancel:hover,
+.template-format-cancel:focus-visible {
+  border-color: var(--red);
+  background: var(--red);
+  color: #fff;
+  outline: 0;
+}
+
+.template-format-cancel {
+  grid-column: 1 / -1;
 }
 
 .document-error-card h2 {
@@ -5284,11 +5576,7 @@ body.logout-open {
   bottom: 54px;
   left: 0;
   height: 72px;
-  background: linear-gradient(
-    180deg,
-    rgba(10, 10, 10, 0),
-    var(--ink) 88%
-  );
+  background: linear-gradient(180deg, rgba(10, 10, 10, 0), var(--ink) 88%);
   content: "";
   pointer-events: none;
 }
@@ -5334,9 +5622,13 @@ body.logout-open {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  transform: translateY(14px);
 }
 
 .logs-page-label {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
   margin-right: 6px;
   color: var(--muted);
   font:

@@ -11,7 +11,12 @@ from typing import Any
 
 import fitz
 
-from backend.api.forms_service import _form_schema_dir, _relative_form_path, _validate_schema_payload
+from backend.api.forms_service import (
+    _form_schema_dir,
+    _relative_form_path,
+    _schema_with_docx_fields,
+    _validate_schema_payload,
+)
 from backend.settings import get_env, get_float_env, get_int_env
 
 _MAX_TEXT_LINES = 80
@@ -1761,6 +1766,7 @@ def generate_schema_for_form_pdf(path: Path) -> FormSchemaGenerationResult:
             )
 
         schema = _validate_schema_payload(schema, path)
+        schema = _validate_schema_payload(_schema_with_docx_fields(schema, path), path)
         if not schema["fields"]:
             raise RuntimeError("Parser PDF tidak menemukan field form valid.")
 

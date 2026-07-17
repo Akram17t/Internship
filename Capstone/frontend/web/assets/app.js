@@ -56,6 +56,7 @@ const state = {
   isLoadingLogs: false,
   logError: "",
   pendingFormFill: null,
+  pendingTemplateDownload: null,
   typingAnimationEnabled: true,
 };
 
@@ -135,6 +136,11 @@ const elements = {
   documentErrorSummary: document.getElementById("documentErrorSummary"),
   documentErrorList: document.getElementById("documentErrorList"),
   documentErrorCloseButton: document.getElementById("documentErrorCloseButton"),
+  templateDownloadModal: document.getElementById("templateDownloadModal"),
+  templateDownloadName: document.getElementById("templateDownloadName"),
+  templateDownloadPdfButton: document.getElementById("templateDownloadPdfButton"),
+  templateDownloadWordButton: document.getElementById("templateDownloadWordButton"),
+  templateDownloadCancelButton: document.getElementById("templateDownloadCancelButton"),
   formFillModal: document.getElementById("formFillModal"),
   formFillForm: document.getElementById("formFillForm"),
   formFillCloseButton: document.getElementById("formFillCloseButton"),

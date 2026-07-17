@@ -69,8 +69,9 @@
   function serializeSchemaValues(schema, container) {
     const values = {};
     (schema?.fields || []).forEach((field) => {
+      const fieldId = CSS.escape(field.id);
       const control = container.querySelector(
-        `[data-field-id="${field.id}"] input, [data-field-id="${field.id}"] textarea`,
+        `input[data-field-id="${fieldId}"], textarea[data-field-id="${fieldId}"], [data-field-id="${fieldId}"] input, [data-field-id="${fieldId}"] textarea`,
       );
       if (!control || field.type === "signature_image") return;
       values[field.id] =
@@ -97,8 +98,9 @@
     if (schemaOrFields?.fields) {
       schemaOrFields.fields.forEach((field) => {
         if (field.type === "signature_image" || !(field.id in values)) return;
+        const fieldId = CSS.escape(field.id);
         const control = container.querySelector(
-          `[data-field-id="${field.id}"] input, [data-field-id="${field.id}"] textarea`,
+          `input[data-field-id="${fieldId}"], textarea[data-field-id="${fieldId}"], [data-field-id="${fieldId}"] input, [data-field-id="${fieldId}"] textarea`,
         );
         if (!control) return;
         if (field.type === "checkbox") {

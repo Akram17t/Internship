@@ -169,3 +169,4 @@ class AdminReindexResponse(BaseModel):
 class FormFillPayload(BaseModel):
     path: str = Field(..., min_length=1)
     values: dict[str, str | bool] = Field(default_factory=dict)
+    output_format: Literal["pdf", "docx"] = "docx"

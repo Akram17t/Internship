@@ -32,8 +32,7 @@
       "align": "left",
       "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.0,
-      "layout": {}
+      "clear_padding": 1.0
     },
     {
       "id": "nama_karyawan",
@@ -53,8 +52,7 @@
       "align": "left",
       "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.0,
-      "layout": {}
+      "clear_padding": 1.0
     },
     {
       "id": "nik",
@@ -74,8 +72,7 @@
       "align": "left",
       "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.0,
-      "layout": {}
+      "clear_padding": 1.0
     },
     {
       "id": "jabatan_terakhir",
@@ -95,8 +92,7 @@
       "align": "left",
       "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.0,
-      "layout": {}
+      "clear_padding": 1.0
     },
     {
       "id": "departemen",
@@ -116,8 +112,7 @@
       "align": "left",
       "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.0,
-      "layout": {}
+      "clear_padding": 1.0
     },
     {
       "id": "atasan_langsung",
@@ -137,8 +132,7 @@
       "align": "left",
       "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.0,
-      "layout": {}
+      "clear_padding": 1.0
     },
     {
       "id": "tanggal_mengajukan_resign",
@@ -158,8 +152,7 @@
       "align": "left",
       "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.0,
-      "layout": {}
+      "clear_padding": 1.0
     },
     {
       "id": "tanggal_terakhir_kerja",
@@ -179,8 +172,7 @@
       "align": "left",
       "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.0,
-      "layout": {}
+      "clear_padding": 1.0
     },
     {
       "id": "nama_perusahaan_baru",
@@ -200,8 +192,7 @@
       "align": "left",
       "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.0,
-      "layout": {}
+      "clear_padding": 1.0
     },
     {
       "id": "jenis_industri",
@@ -221,8 +212,7 @@
       "align": "left",
       "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.0,
-      "layout": {}
+      "clear_padding": 1.0
     },
     {
       "id": "posisi",
@@ -242,8 +232,7 @@
       "align": "left",
       "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.0,
-      "layout": {}
+      "clear_padding": 1.0
     },
     {
       "id": "tanggal_bergabung",
@@ -263,8 +252,7 @@
       "align": "left",
       "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.0,
-      "layout": {}
+      "clear_padding": 1.0
     },
     {
       "id": "kesempatan_karir_lebih_baik",
@@ -284,8 +272,7 @@
       "align": "left",
       "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.0,
-      "layout": {}
+      "clear_padding": 1.0
     },
     {
       "id": "kompensasi_benefit",
@@ -305,8 +292,7 @@
       "align": "left",
       "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.0,
-      "layout": {}
+      "clear_padding": 1.0
     },
     {
       "id": "work_life_balance",
@@ -326,8 +312,7 @@
       "align": "left",
       "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.0,
-      "layout": {}
+      "clear_padding": 1.0
     },
     {
       "id": "lingkungan_kerja",
@@ -347,8 +332,7 @@
       "align": "left",
       "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.0,
-      "layout": {}
+      "clear_padding": 1.0
     },
     {
       "id": "jarak_tempuh_ke_tempat_kerja",
@@ -368,8 +352,7 @@
       "align": "left",
       "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.0,
-      "layout": {}
+      "clear_padding": 1.0
     },
     {
       "id": "hubungan_dengan_karyawan_lain",
@@ -389,8 +372,7 @@
       "align": "left",
       "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.0,
-      "layout": {}
+      "clear_padding": 1.0
     },
     {
       "id": "alasan_kesehatan",
@@ -410,8 +392,7 @@
       "align": "left",
       "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.0,
-      "layout": {}
+      "clear_padding": 1.0
     },
     {
       "id": "lain_lain",
@@ -431,8 +412,7 @@
       "align": "left",
       "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.0,
-      "layout": {}
+      "clear_padding": 1.0
     },
     {
       "id": "textarea_37_alasan_penjelasan",
@@ -452,8 +432,7 @@
       "align": "left",
       "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.0,
-      "layout": {}
+      "clear_padding": 1.0
     },
     {
       "id": "textarea_38_4_apakah_ada_hal_yang_dapat_dilakukan_perusahaan_untuk_mempertahankan_anda",
@@ -473,8 +452,7 @@
       "align": "left",
       "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.0,
-      "layout": {}
+      "clear_padding": 1.0
     },
     {
       "id": "saya_memahami_peran_dan_tanggung_jawab_pekerjaan_saya_sangat_tidak_setuju",
@@ -1278,8 +1256,7 @@
       "align": "left",
       "line_height": 1.08,
       "clear": true,
-      "clear_padding": 1.0,
-      "layout": {}
+      "clear_padding": 1.0
     },
     {
       "id": "tanda_tangan_dibuat_oleh",
@@ -1499,7 +1476,7 @@
     }
   ],
   "generator": {
-    "source": "model",
+    "source": "heuristic",
     "quality_score": 1.0,
     "warnings": [
       "dedupe_overlap:3. Alasan Mengundurkan Diri"

@@ -15,13 +15,17 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from backend.api.forms_service import fill_schema_form  # noqa: E402
+from backend.api.forms_service import (  # noqa: E402
+    extract_docx_placeholder_fields,
+    fill_docx_template_placeholders,
+    fill_schema_form,
+)
 from backend.api.main import app  # noqa: E402
 
 
 TARGET_FORM_PATH = "Form - Perjalanan Dinas - Penyelesaian (Template).pdf"
 EXIT_INTERVIEW_FORM_PATH = "Form - Exit Interview (Template).pdf"
-OTHER_FORM_PATH = "Form - Backup Log (Template).pdf"
+OTHER_FORM_PATH = "Form - Missing Schema (Template).pdf"
 
 
 def _sample_png_bytes() -> bytes:
@@ -64,6 +68,34 @@ class FormSchemaRouteTests(unittest.TestCase):
         self.assertTrue(division_field["clear"])
         self.assertGreaterEqual(division_field["clear_padding"], 0)
 
+    def test_all_schema_fields_are_preview_positioned(self) -> None:
+        schema_dir = PROJECT_ROOT / "backend" / "form_schemas"
+        for schema_path in schema_dir.glob("*.json"):
+            with self.subTest(schema=schema_path.name):
+                payload = json.loads(schema_path.read_text(encoding="utf-8"))
+                response = self.client.get("/api/forms/schema", params={"path": payload["path"]})
+                self.assertEqual(response.status_code, 200)
+                fields = response.json()["fields"]
+                self.assertTrue(fields)
+                self.assertFalse(
+                    [
+                        field["label"]
+                        for field in fields
+                        if field.get("page") is None or not field.get("rect")
+                    ]
+                )
+
+    def test_frontend_has_no_extra_field_section(self) -> None:
+        frontend_files = [
+            PROJECT_ROOT / "frontend" / "web" / "assets" / "js" / "forms.js",
+            PROJECT_ROOT / "frontend" / "web" / "assets" / "styles.css",
+            PROJECT_ROOT / "frontend" / "web" / "index.html",
+        ]
+        combined = "\n".join(path.read_text(encoding="utf-8") for path in frontend_files)
+        self.assertNotIn("Field tambahan", combined)
+        self.assertNotIn("form-extra-fields", combined)
+        self.assertNotIn("renderExtraSchemaFields", combined)
+
     def test_schema_endpoint_404_for_form_without_schema(self) -> None:
         response = self.client.get("/api/forms/schema", params={"path": OTHER_FORM_PATH})
 
@@ -105,7 +137,10 @@ class FormSchemaRouteTests(unittest.TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers["content-type"], "application/pdf")
+        self.assertEqual(
+            response.headers["content-type"],
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
 
     def test_fill_endpoint_rejects_non_image_signature_upload(self) -> None:
         payload = {"path": TARGET_FORM_PATH, "values": self._valid_values()}
@@ -116,9 +151,9 @@ class FormSchemaRouteTests(unittest.TestCase):
         )
 
         self.assertEqual(response.status_code, 422)
-        self.assertIn("PNG atau JPEG", response.json()["detail"])
+        self.assertIn("tanda tangan belum didukung", response.json()["detail"])
 
-    def test_fill_endpoint_returns_pdf_for_schema_form(self) -> None:
+    def test_fill_endpoint_rejects_pdf_for_schema_form(self) -> None:
         values = {
             **self._valid_values(),
             "hotel": "2 malam @ Rp 500.000 x 1 kamar",
@@ -126,25 +161,53 @@ class FormSchemaRouteTests(unittest.TestCase):
             "nama_2": "Akram",
             "jabatan_2": "Staff",
         }
-        payload = {"path": TARGET_FORM_PATH, "values": values}
+        payload = {"path": TARGET_FORM_PATH, "values": values, "output_format": "pdf"}
 
         response = self.client.post(
             "/api/forms/fill",
-            data={"payload": json.dumps(payload)},
-            files={"tanda_tangan_pemohon": ("signature.png", io.BytesIO(PNG_BYTES), "image/png")},
+            json=payload,
+        )
+
+        self.assertEqual(response.status_code, 422)
+        self.assertIn("PDF terisi belum didukung", response.json()["detail"])
+
+    def test_fill_endpoint_returns_docx_for_schema_form(self) -> None:
+        try:
+            from docx import Document
+            import pdf2docx  # noqa: F401
+        except ImportError:
+            self.skipTest("DOCX converter dependencies are not installed in this interpreter.")
+
+        response = self.client.post(
+            "/api/forms/fill",
+            json={
+                "path": TARGET_FORM_PATH,
+                "values": {"divisi": "Finance", "nama": "Akram", "jabatan": "Staff"},
+                "output_format": "docx",
+            },
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers["content-type"], "application/pdf")
-        self.assertIn("attachment;", response.headers["content-disposition"])
+        self.assertEqual(
+            response.headers["content-type"],
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
+        document = Document(io.BytesIO(response.content))
+        chunks = [paragraph.text for paragraph in document.paragraphs]
+        for table in document.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    chunks.extend(paragraph.text for paragraph in cell.paragraphs)
+        text = "\n".join(chunks)
+        self.assertIn("Finance", text)
+        self.assertIn("Akram", text)
 
-        with fitz.open(stream=response.content, filetype="pdf") as doc:
-            text = doc[0].get_text()
-            self.assertIn("Finance", text)
-            self.assertIn("Akram", text)
-            self.assertGreater(len(doc[0].get_images(full=True)), 0)
+    def test_fill_endpoint_returns_docx_for_exit_interview_schema(self) -> None:
+        try:
+            from docx import Document
+        except ImportError:
+            self.skipTest("python-docx is not installed in this interpreter.")
 
-    def test_fill_endpoint_returns_pdf_for_exit_interview_schema(self) -> None:
         response = self.client.post(
             "/api/forms/fill",
             json={
@@ -185,22 +248,90 @@ class FormSchemaRouteTests(unittest.TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers["content-type"], "application/pdf")
-
-        with fitz.open(stream=response.content, filetype="pdf") as doc:
-            self.assertEqual(doc.page_count, 2)
-            first_page_text = _normalized_pdf_text(doc[0].get_text())
-            second_page_text = _normalized_pdf_text(doc[1].get_text())
-            self.assertIn("EI-001", first_page_text)
-            self.assertIn("Professional Service", first_page_text)
-            self.assertIn("Contoso", first_page_text)
-            self.assertIn("Akram", first_page_text)
-            self.assertIn("X", first_page_text)
-            self.assertIn("Pertahankan budaya tim yang suportif.", second_page_text)
-            self.assertIn("Manager", second_page_text)
+        self.assertEqual(
+            response.headers["content-type"],
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
+        document = Document(io.BytesIO(response.content))
+        chunks = [paragraph.text for paragraph in document.paragraphs]
+        for table in document.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    chunks.extend(paragraph.text for paragraph in cell.paragraphs)
+        text = _normalized_pdf_text("\n".join(chunks))
+        self.assertIn("EI-001", text)
+        self.assertIn("Professional Service", text)
+        self.assertIn("Contoso", text)
+        self.assertIn("Akram", text)
+        self.assertIn("X", text)
+        self.assertIn("Pertahankan budaya tim yang suportif.", text)
+        self.assertIn("Manager", text)
 
 
 class SchemaRenderUnitTests(unittest.TestCase):
+    def test_extract_docx_placeholders_infers_inline_table_and_signature_labels(self) -> None:
+        from docx import Document
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "template.docx"
+            document = Document()
+            document.add_paragraph("Nama: [ ] Jabatan: [ ]")
+
+            table = document.add_table(rows=2, cols=4)
+            table.cell(0, 0).text = "No"
+            table.cell(0, 1).text = "Item"
+            table.cell(0, 2).text = "Ya"
+            table.cell(0, 3).text = "Tidak"
+            table.cell(1, 1).text = "Gaji Terakhir"
+            table.cell(1, 2).text = "[ ]"
+            table.cell(1, 3).text = "[ ]"
+
+            signature = document.add_table(rows=2, cols=3)
+            signature.cell(0, 0).text = "Karyawan"
+            signature.cell(0, 1).text = "HRGA Dept. Head"
+            signature.cell(0, 2).text = "Diketahui Atasan"
+            signature.cell(1, 0).text = "Nama: [ ] Jabatan: [ ]"
+            signature.cell(1, 1).text = "Nama: [ ] Jabatan: [ ]"
+            signature.cell(1, 2).text = "Nama: [ ] Jabatan: [ ]"
+            document.save(path)
+
+            fields = extract_docx_placeholder_fields(path)
+
+        labels = [field["label"] for field in fields]
+        self.assertIn("Nama", labels)
+        self.assertIn("Jabatan", labels)
+        self.assertIn("Gaji Terakhir - Ya", labels)
+        self.assertIn("Gaji Terakhir - Tidak", labels)
+        self.assertIn("Karyawan - Nama", labels)
+        self.assertIn("HRGA Dept. Head - Jabatan", labels)
+
+    def test_fill_docx_template_replaces_placeholder_split_across_runs(self) -> None:
+        from docx import Document
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "template.docx"
+            output_path = Path(temp_dir) / "filled.docx"
+            document = Document()
+            paragraph = document.add_paragraph()
+            paragraph.add_run("Nama: ")
+            paragraph.add_run("[")
+            paragraph.add_run(" ]")
+            paragraph.add_run(" Jabatan: ")
+            paragraph.add_run("[ ]")
+            document.save(path)
+
+            content = fill_docx_template_placeholders(
+                path,
+                {"nama": "Akram", "jabatan": "Professional Service"},
+            )
+            output_path.write_bytes(content)
+            filled = Document(output_path)
+
+        text = "\n".join(paragraph.text for paragraph in filled.paragraphs)
+        self.assertIn("Akram", text)
+        self.assertIn("Professional Service", text)
+        self.assertNotIn("[ ]", text)
+
     def test_fill_schema_form_supports_textarea_checkbox_and_signature(self) -> None:
         schema = {
             "path": "test.pdf",

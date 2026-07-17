@@ -1328,7 +1328,7 @@
       "clear_padding": 1.0,
       "layout": {
         "kind": "table_cell",
-        "group_id": "ga_accessories",
+        "group_id": "ga_accessors",
         "group_label": "GA - Accessories",
         "row_label": "External Hard Drive",
         "column_label": "Done"
@@ -1355,7 +1355,7 @@
       "clear_padding": 1.0,
       "layout": {
         "kind": "table_cell",
-        "group_id": "ga_accessories",
+        "group_id": "ga_accessors",
         "group_label": "GA - Accessories",
         "row_label": "External Hard Drive",
         "column_label": "Tanggal"
@@ -1412,6 +1412,114 @@
         "group_id": "ga_accessories",
         "group_label": "GA - Accessories",
         "row_label": "Others",
+        "column_label": "Tanggal"
+      }
+    },
+    {
+      "id": "lift_building_access_done",
+      "label": "Lift Building Access - Done",
+      "type": "checkbox",
+      "page": 0,
+      "rect": {
+        "x": 311.23,
+        "y": 663.27,
+        "width": 51.48,
+        "height": 11.05
+      },
+      "required": false,
+      "section": "GA - Access Card",
+      "placeholder": null,
+      "font_size": 9.0,
+      "align": "center",
+      "line_height": 1.08,
+      "clear": true,
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "table_cell",
+        "group_id": "ga_access_card",
+        "group_label": "GA - Access Card",
+        "row_label": "Lift Building Access",
+        "column_label": "Done"
+      }
+    },
+    {
+      "id": "lift_building_access_tanggal",
+      "label": "Lift Building Access - Tanggal",
+      "type": "date",
+      "page": 0,
+      "rect": {
+        "x": 366.71,
+        "y": 663.27,
+        "width": 84.73,
+        "height": 11.05
+      },
+      "required": false,
+      "section": "GA - Access Card",
+      "placeholder": "Lift Building Access - Tanggal",
+      "font_size": 9.0,
+      "align": "left",
+      "line_height": 1.08,
+      "clear": true,
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "table_cell",
+        "group_id": "ga_access_card",
+        "group_label": "GA - Access Card",
+        "row_label": "Lift Building Access",
+        "column_label": "Tanggal"
+      }
+    },
+    {
+      "id": "office_access_card_done",
+      "label": "Office Access Card - Done",
+      "type": "checkbox",
+      "page": 0,
+      "rect": {
+        "x": 311.23,
+        "y": 678.32,
+        "width": 51.48,
+        "height": 10.91
+      },
+      "required": false,
+      "section": "GA - Access Card",
+      "placeholder": null,
+      "font_size": 9.0,
+      "align": "center",
+      "line_height": 1.08,
+      "clear": true,
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "table_cell",
+        "group_id": "ga_access_card",
+        "group_label": "GA - Access Card",
+        "row_label": "Office Access Card",
+        "column_label": "Done"
+      }
+    },
+    {
+      "id": "office_access_card_tanggal",
+      "label": "Office Access Card - Tanggal",
+      "type": "date",
+      "page": 0,
+      "rect": {
+        "x": 366.71,
+        "y": 678.32,
+        "width": 84.73,
+        "height": 10.91
+      },
+      "required": false,
+      "section": "GA - Access Card",
+      "placeholder": "Office Access Card - Tanggal",
+      "font_size": 9.0,
+      "align": "left",
+      "line_height": 1.08,
+      "clear": true,
+      "clear_padding": 1.0,
+      "layout": {
+        "kind": "table_cell",
+        "group_id": "ga_access_card",
+        "group_label": "GA - Access Card",
+        "row_label": "Office Access Card",
         "column_label": "Tanggal"
       }
     },
@@ -1654,10 +1762,8 @@
     }
   ],
   "generator": {
-    "source": "mixed",
+    "source": "model",
     "quality_score": 1.0,
-    "warnings": [
-      "model_chunk_failed:group:ga_access_card:Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kxhwf4q4f6294aqzhmvhrzez` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 5633, Requested 2585. Please try again in 1.635s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}"
-    ]
+    "warnings": []
   }
 }
