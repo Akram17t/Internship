@@ -1,71 +1,59 @@
 # Backend Topology - ICS SOP & Knowledge Assistant
 
 Topologi komponen utama aplikasi: chat RAG, semantic cache, FAQ, ingestion,
-flowchart extraction, document reindex, dan PDF form editor schema-driven.
+flowchart extraction, document reindex, dan download template form PDF/DOCX.
 
 ```mermaid
 flowchart TB
     Browser["Browser UI<br/>static vanilla JS"]
-    FrontendModules["frontend/web/assets/js<br/>chat + faq + library + forms + drafts"]
+    FrontendModules["frontend/web/assets/js<br/>chat + faq + library + auth"]
     Ollama["Ollama<br/>LLM + embedding + vision"]
     Reranker["CrossEncoder<br/>reranker"]
 
     subgraph API["FastAPI - backend/api"]
-        direction TB
         Chat["routes_public.py<br/>/query"]
+        Downloads["routes_public.py<br/>/api/documents/{path}"]
         FlowchartAPI["routes_public.py<br/>/api/flowcharts/{id}"]
-        FormSchemaAPI["routes_public.py<br/>/api/forms/schema + /api/forms/fields"]
-        FormFillAPI["routes_public.py<br/>/api/forms/fill"]
         Faq["routes_admin.py<br/>/api/admin/faq"]
         DocMgmt["routes_admin.py<br/>document upload/delete/reindex"]
     end
 
     subgraph State["State and cache"]
-        direction TB
         CacheStore["cache_store.py<br/>conversation + FAQ/admin JSON helpers"]
-        CacheDB[("app_state.db<br/>conversation_messages<br/>semantic_cache_entries")]
+        CacheDB[("app_state.db")]
         SemanticCache["semantic_cache.py<br/>exact + vector answer cache"]
-        SemanticChroma[("semantic_chroma<br/>question vectors")]
-        FlowchartCache[("cache/flowcharts<br/>vision JSON payloads")]
+        SemanticChroma[("semantic_chroma")]
+        FlowchartCache[("cache/flowcharts")]
         Faqs[("faqs.json")]
     end
 
-    subgraph FormSystem["Form system"]
-        direction TB
-        FormSvc["forms_service.py<br/>schema loader + legacy placeholder fill + schema render"]
-        FormSchemas[/"backend/form_schemas<br/>template schemas"/]
+    subgraph Forms["Template forms"]
+        FormSvc["forms_service.py<br/>PDF to DOCX sidecar"]
+        Data[/"backend/data<br/>SOP + form PDF/DOCX"/]
     end
 
     subgraph RagRuntime["researcher_crew"]
-        direction TB
         Main["main.py<br/>rewrite, cache lookup, generate"]
         Retrieve["custom_tool.py<br/>retrieve_knowledge"]
     end
 
     subgraph Prep["preprocessing"]
-        direction LR
         Loader["loader.py"] --> FlowExt["flowchart_extractor.py"] --> Chunker["chunker.py"]
         Loader --> Chunker
         Chunker --> Embed["embedding.py"] --> VStore["vectorstore.py"]
     end
 
-    Data[/"backend/data<br/>SOP + forms"/]
-    Chroma[("backend/chroma_db<br/>SOP vector indexes")]
+    Chroma[("backend/chroma_db")]
 
     Browser --> FrontendModules
-    FrontendModules -->|HTTP| API
+    FrontendModules --> API
     Chat --> CacheStore
     CacheStore --> CacheDB
     Chat --> Main
     Chat --> FlowchartAPI
-    Browser --> FormSchemaAPI
-    Browser --> FormFillAPI
+    Downloads --> FormSvc
     FlowchartAPI --> FlowchartCache
-    FormSchemaAPI --> FormSvc
-    FormFillAPI --> FormSvc
-    FormSvc --> FormSchemas
     FormSvc --> Data
-
     Main --> SemanticCache
     SemanticCache --> CacheDB
     SemanticCache --> SemanticChroma
@@ -74,32 +62,23 @@ flowchart TB
     Retrieve --> VStore
     VStore --> Chroma
     VStore --> Reranker
-
     Faq --> Main
     Faq --> Faqs
-
     DocMgmt --> Data
+    DocMgmt --> FormSvc
     DocMgmt --> Prep
     Data --> Loader
     FlowExt --> Ollama
     FlowExt --> FlowchartCache
     Embed --> Ollama
-    VStore --> Chroma
     Prep --> SemanticCache
 ```
 
 ## Alur Ringkas
 
-- **Frontend**: `frontend/web/assets/app.js` hanya bootstrap state/navigasi; logic utama dipisah ke `assets/js/chat.js`, `forms.js`, `faq.js`, `library.js`, `auth.js`, `storage.js`, `drafts.js`, dan `markdown.js`.
-- **Chat**: `/query` mengambil conversation context, rewrite follow-up bila perlu, cek semantic cache, lalu hanya menjalankan retrieval + Groq/Ollama direct jika cache miss.
-- **Semantic cache**: payload jawaban ada di `app_state.db`; embedding pertanyaan ada di `backend/cache/semantic_chroma`; cache di-reset setelah reindex.
-- **FAQ**: admin membuat FAQ lewat retrieval + Ollama direct, lalu hasil valid disimpan ke `faqs.json`.
-- **Form editor PDF**: `assets/js/forms.js` mengambil `GET /api/forms/schema` untuk template yang sudah dimigrasikan, menampilkan preview PDF di client, lalu submit `multipart/form-data` ke `POST /api/forms/fill`. `forms_service.py` merender text, textarea, checkbox, dan signature image langsung ke PDF di memory.
-- **Draft form lokal**: `assets/js/storage.js` menyimpan draft field form ke `localStorage`; `assets/js/drafts.js` menampilkan launcher draft di chat supaya user bisa melanjutkan form yang belum selesai.
-- **Form fallback lama**: jika schema belum tersedia, frontend masih bisa pakai `GET /api/forms/fields` dan `POST /api/forms/fill` dengan mode placeholder-scan sederhana.
-- **Ingestion**: dokumen di `backend/data/` dimuat, flowchart PDF diekstrak bila enabled, teks di-chunk per section, lalu vector DB SOP dibangun ulang.
-- **Flowchart**: hasil vision disimpan ke `backend/cache/flowcharts`; screenshot hanya dikirim ke chat jika `FLOWCHART_DISPLAY_ENABLED=true`.
+- **Frontend**: `app.js` bootstrap state/navigasi; logic utama ada di `chat.js`, `faq.js`, `library.js`, `auth.js`, `api.js`, dan `markdown.js`.
+- **Chat**: `/query` mengambil context percakapan, cek semantic cache, retrieval jika cache miss, lalu mengembalikan jawaban, citation, form download, dan flowchart.
+- **Form template**: form hanya diunduh sebagai template kosong. Browser membuka modal pilihan format, lalu memanggil `/api/documents/{path}` untuk PDF atau `?format=docx` untuk Word.
+- **DOCX sidecar**: saat admin insert/update PDF form, `forms_service.py` membuat file `.docx` pasangan di `backend/data`. Saat PDF form dihapus, pasangan DOCX ikut dihapus.
+- **Ingestion**: dokumen non-form di `backend/data/` dimuat, flowchart diekstrak bila enabled, teks di-chunk, lalu vector DB dibangun ulang.
 - **Reindex**: upload/update/delete SOP menandai `requires_reindex`; rebuild embeddings membangun index baru dan menghapus semantic cache lama.
-
-Penjelasan per-file detail ada di [BACKEND_FLOW.md](BACKEND_FLOW.md) dan
-alur runtime cepat ada di [SYSTEM_FLOWS.md](SYSTEM_FLOWS.md).

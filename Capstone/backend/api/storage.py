@@ -74,6 +74,8 @@ def _iter_library_items() -> list[LibraryItem]:
             continue
         if path.name.startswith("~$"):  # skip temporary office lock files
             continue
+        if path.suffix.lower() == ".docx" and _document_kind_for_path(path) == "form":
+            continue
 
         items.append(_to_library_item(path, data_dir))
 

@@ -35,43 +35,6 @@ class FlowchartScreenshotResponse(BaseModel):
     image_url: str
 
 
-class FormSchemaRect(BaseModel):
-    x: float
-    y: float
-    width: float
-    height: float
-
-
-class FormSchemaPage(BaseModel):
-    number: int
-    width: float
-    height: float
-
-
-class FormSchemaField(BaseModel):
-    id: str
-    label: str
-    type: Literal["text", "textarea", "date", "checkbox", "signature_image"]
-    page: int
-    rect: FormSchemaRect
-    required: bool = False
-    section: str = ""
-    placeholder: str | None = None
-    font_size: float | None = None
-    align: Literal["left", "center", "right"] | None = None
-    line_height: float | None = None
-    clear: bool = True
-    clear_padding: float = 1.0
-    layout: dict[str, Any] | None = None
-
-
-class FormSchemaResponse(BaseModel):
-    path: str
-    title: str
-    pages: list[FormSchemaPage] = Field(default_factory=list)
-    fields: list[FormSchemaField] = Field(default_factory=list)
-
-
 class QueryResponse(BaseModel):
     answer: str
     citations: list[CitationResponse] = Field(default_factory=list)
@@ -157,16 +120,7 @@ class AdminDocumentResponse(BaseModel):
     message: str
     requires_reindex: bool = False
     item: LibraryItem | None = None
-    schema_generated: bool = False
-    schema_path: str | None = None
-    schema_error: str | None = None
 
 
 class AdminReindexResponse(BaseModel):
     message: str
-
-
-class FormFillPayload(BaseModel):
-    path: str = Field(..., min_length=1)
-    values: dict[str, str | bool] = Field(default_factory=dict)
-    output_format: Literal["pdf", "docx"] = "docx"

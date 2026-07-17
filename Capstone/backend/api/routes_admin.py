@@ -13,8 +13,8 @@ from backend.api.auth import _admin_email, _admin_name, _admin_password, _create
 from backend.api.cache_store import _find_faq_index, _load_faqs, _save_faqs
 from backend.api.core import ASSETS_DIR, FAQ_LOCK, LIBRARY_EXTENSIONS, REINDEX_LOCK, app
 from backend.api.faq_service import PINNED_IMAGE_EXTENSIONS, PINNED_IMAGE_STEM, _build_faq_item
-from backend.api.form_schema_generator import delete_schema_for_form_pdf, generate_schema_for_form_pdf
 from backend.api.flowchart_service import clear_flowchart_cache_for_source
+from backend.api.forms_service import delete_form_docx_template, ensure_form_docx_template
 from backend.api.models import (
     ActivityLogItem,
     ActivityLogSummaryResponse,
@@ -224,6 +224,11 @@ def save_document(
     suffix = Path(filename).suffix.lower()
     if suffix not in LIBRARY_EXTENSIONS:
         raise HTTPException(status_code=400, detail="Unsupported document type.")
+    if suffix == ".docx" and _document_kind_for_path(Path(filename)) == "form":
+        raise HTTPException(
+            status_code=400,
+            detail="Upload form Word tidak didukung. Upload PDF form agar versi Word dibuat otomatis.",
+        )
 
     content = _decode_document(payload.content_base64)
 
@@ -250,34 +255,18 @@ def save_document(
     target_path.write_bytes(content)
     if suffix == ".pdf":
         clear_flowchart_cache_for_source(target_path.name)
-    schema_result = None
     if suffix == ".pdf" and _document_kind_for_path(target_path) == "form":
         logger.info(
-            "[admin-documents] Form PDF %s tersimpan, mulai generate schema otomatis",
+            "[admin-documents] Form PDF %s tersimpan, mulai buat template Word",
             target_path.name,
         )
-        schema_result = generate_schema_for_form_pdf(target_path)
-        if schema_result.generated:
-            logger.info(
-                "[admin-documents] Schema form otomatis selesai file=%s schema=%s",
-                target_path.name,
-                schema_result.schema_path,
-            )
-        else:
-            logger.warning(
-                "[admin-documents] Schema form otomatis gagal file=%s error=%s",
-                target_path.name,
-                schema_result.error,
-            )
+        ensure_form_docx_template(target_path, replace=True)
     requires_reindex = _is_embeddable_path(target_path)
     message = f"Document {action}."
     return AdminDocumentResponse(
         message=message,
         requires_reindex=requires_reindex,
         item=_to_library_item(target_path, data_dir),
-        schema_generated=bool(schema_result and schema_result.generated),
-        schema_path=schema_result.schema_path if schema_result else None,
-        schema_error=schema_result.error if schema_result else None,
     )
 
 
@@ -295,9 +284,8 @@ def delete_document(
         raise HTTPException(status_code=400, detail="Unsupported document type.")
 
     requires_reindex = _is_embeddable_path(target_path)
-    schema_deleted = None
     if target_path.suffix.lower() == ".pdf" and _document_kind_for_path(target_path) == "form":
-        schema_deleted = delete_schema_for_form_pdf(target_path)
+        delete_form_docx_template(target_path)
     target_path.unlink()
     if target_path.suffix.lower() == ".pdf":
         clear_flowchart_cache_for_source(target_path.name)
@@ -305,7 +293,6 @@ def delete_document(
     return AdminDocumentResponse(
         message=message,
         requires_reindex=requires_reindex,
-        schema_path=schema_deleted.schema_path if schema_deleted else None,
     )
 
 

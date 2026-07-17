@@ -6,6 +6,7 @@ __pycache__/
 .streamlit/secrets.toml
 backend/data/*
 !backend/data/.gitkeep
+!backend/data/Form*.docx
 backend/chroma_db/*
 !backend/chroma_db/.gitkeep
 backend/cache/*

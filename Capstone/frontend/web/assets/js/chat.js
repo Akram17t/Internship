@@ -614,25 +614,16 @@ function createFormDownloadRow(item) {
 
   const fileName = `${item.label || item.name || "form"}.pdf`;
 
-  const templateButton = document.createElement("button");
-  templateButton.type = "button";
-  templateButton.className = "form-download-action";
-  templateButton.textContent = "Template";
-  templateButton.title = "Unduh form kosong";
-  templateButton.addEventListener("click", () => {
+  const downloadButton = document.createElement("button");
+  downloadButton.type = "button";
+  downloadButton.className = "form-download-action is-primary";
+  downloadButton.textContent = "Download template";
+  downloadButton.title = "Unduh form kosong";
+  downloadButton.addEventListener("click", () => {
     if (item.download_url) window.openTemplateDownloadModal?.(item.download_url, fileName);
   });
 
-  const filledButton = document.createElement("button");
-  filledButton.type = "button";
-  filledButton.className = "form-download-action is-primary";
-  filledButton.textContent = "Isi & download";
-  filledButton.title = "Isi data lalu unduh form yang sudah terisi";
-  filledButton.addEventListener("click", () => {
-    if (item.download_url) window.FormEditor.open(item, { state, elements });
-  });
-
-  row.append(name, templateButton, filledButton);
+  row.append(name, downloadButton);
   return row;
 }
 

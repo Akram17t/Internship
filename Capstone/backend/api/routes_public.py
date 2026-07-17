@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-import json
 import logging
 import time
-from urllib.parse import quote
 
-from fastapi import Header, HTTPException, Request
+from fastapi import Header, HTTPException
 from fastapi.responses import FileResponse, Response
-from pydantic import ValidationError
 
 from backend.api.auth import _require_admin
 from backend.api.cache_store import _append_conversation_turn, _clean_conversation_id, _get_conversation_context, _load_faqs
@@ -15,15 +12,7 @@ from backend.api.core import FAQ_LOCK, FRONTEND_DIR, app
 from backend.api.faq_service import _pinned_faq_items
 from backend.api.forms_service import (
     DOCX_MIME,
-    PDF_MIME,
-    _fill_form_placeholders,
-    _resolve_form_path,
-    _unique_form_fields,
-    fill_docx_schema_form,
-    filled_pdf_to_docx,
-    get_form_schema,
-    get_word_template_docx,
-    has_schema_form,
+    get_form_docx_template,
 )
 from backend.api.flowchart_service import (
     find_flowcharts_for_citations,
@@ -34,8 +23,6 @@ from backend.api.models import (
     FAQItem,
     FlowchartScreenshotResponse,
     FormDownloadResponse,
-    FormFillPayload,
-    FormSchemaResponse,
     PublicConfigResponse,
     QueryRequest,
     QueryResponse,
@@ -110,25 +97,6 @@ def _record_chat_activity(
         )
     except Exception as log_error:
         logger.warning("[activity-log] gagal menyimpan log chat: %s", log_error)
-
-
-def _filled_form_filename(
-    path: str,
-    values: dict[str, str | bool],
-    output_format: str = "pdf",
-) -> str:
-    resolved_path = _resolve_form_path(path)
-    first_value = next(
-        (
-            str(value).strip()
-            for value in values.values()
-            if isinstance(value, str) and value.strip()
-        ),
-        "",
-    )
-    suffix = f" - {first_value}" if first_value else ""
-    extension = "docx" if output_format == "docx" else "pdf"
-    return f"{resolved_path.stem}{suffix}.{extension}"
 
 
 @app.get("/health")
@@ -293,134 +261,18 @@ def download_document(
     if output_format == "docx":
         if document_kind != "form" or resolved_path.suffix.lower() != ".pdf":
             raise HTTPException(status_code=400, detail="Dokumen ini tidak bisa diunduh sebagai Word.")
-        content = get_word_template_docx(resolved_path)
-        filename = f"{resolved_path.stem}.docx"
-        return Response(
-            content=content,
+        docx_path = get_form_docx_template(resolved_path)
+        return FileResponse(
+            path=docx_path,
+            filename=docx_path.name,
             media_type=DOCX_MIME,
-            headers={
-                "Cache-Control": "no-store",
-                "Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}",
-            },
+            headers={"Cache-Control": "no-store"},
         )
 
     return FileResponse(
         path=resolved_path,
         filename=resolved_path.name,
         headers={"Cache-Control": "no-store"},
-    )
-
-
-@app.get("/api/forms/fields")
-def form_fields(path: str) -> dict[str, object]:
-    # Tampilkan field input sederhana yang terdeteksi di template form.
-    resolved_path = _resolve_form_path(path)
-    return {"fields": _unique_form_fields(resolved_path)}
-
-
-@app.get("/api/forms/schema", response_model=FormSchemaResponse)
-def form_schema(path: str) -> FormSchemaResponse:
-    return FormSchemaResponse(**get_form_schema(path))
-
-
-@app.post("/api/forms/fill")
-async def fill_form(request: Request) -> Response:
-    # Isi template form di memory lalu kembalikan file sesuai format pilihan.
-    content_type = request.headers.get("content-type", "").lower()
-    if "multipart/form-data" in content_type:
-        form = await request.form()
-        raw_payload = form.get("payload")
-        if raw_payload is None:
-            raise HTTPException(status_code=422, detail="Payload form tidak ditemukan.")
-
-        try:
-            payload = FormFillPayload.model_validate(json.loads(str(raw_payload)))
-        except (ValidationError, json.JSONDecodeError) as error:
-            raise HTTPException(status_code=422, detail="Payload form tidak valid.") from error
-
-        resolved_path = _resolve_form_path(payload.path)
-        signature_files: dict[str, dict[str, object]] = {}
-        for key, value in form.multi_items():
-            if key == "payload" or not hasattr(value, "filename"):
-                continue
-            content = await value.read()
-            signature_files[key] = {
-                "filename": value.filename or "",
-                "content_type": value.content_type or "",
-                "content": content,
-            }
-            await value.close()
-        if has_schema_form(resolved_path):
-            if payload.output_format != "docx":
-                raise HTTPException(
-                    status_code=422,
-                    detail="PDF terisi belum didukung untuk form schema. Gunakan format Word.",
-                )
-            content = fill_docx_schema_form(resolved_path, payload.values, signature_files)
-            filename = _filled_form_filename(payload.path, payload.values, "docx")
-            return Response(
-                content=content,
-                media_type=DOCX_MIME,
-                headers={
-                    "Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"
-                },
-            )
-        else:
-            pdf_content = _fill_form_placeholders(
-                resolved_path,
-                {
-                    key: str(value).strip()
-                    for key, value in payload.values.items()
-                    if isinstance(value, str)
-                },
-            )
-    else:
-        try:
-            payload = FormFillPayload.model_validate(await request.json())
-        except (ValidationError, json.JSONDecodeError) as error:
-            raise HTTPException(status_code=422, detail="Payload form tidak valid.") from error
-
-        resolved_path = _resolve_form_path(payload.path)
-        if has_schema_form(resolved_path):
-            if payload.output_format != "docx":
-                raise HTTPException(
-                    status_code=422,
-                    detail="PDF terisi belum didukung untuk form schema. Gunakan format Word.",
-                )
-            content = fill_docx_schema_form(resolved_path, payload.values, {})
-            media_type = DOCX_MIME
-            filename = _filled_form_filename(payload.path, payload.values, "docx")
-            return Response(
-                content=content,
-                media_type=media_type,
-                headers={
-                    "Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"
-                },
-            )
-        else:
-            pdf_content = _fill_form_placeholders(
-                resolved_path,
-                {
-                    key: str(value).strip()
-                    for key, value in payload.values.items()
-                    if isinstance(value, str)
-                },
-            )
-    output_format = payload.output_format
-    if output_format == "docx":
-        content = filled_pdf_to_docx(pdf_content)
-        media_type = DOCX_MIME
-    else:
-        content = pdf_content
-        media_type = PDF_MIME
-
-    filename = _filled_form_filename(payload.path, payload.values, output_format)
-    return Response(
-        content=content,
-        media_type=media_type,
-        headers={
-            "Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"
-        },
     )
 
 

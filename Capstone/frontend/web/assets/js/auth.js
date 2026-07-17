@@ -22,16 +22,6 @@ function bindAuth() {
   elements.logoutModal.addEventListener("click", (event) => {
     if (event.target === elements.logoutModal) closeLogoutModal();
   });
-  elements.formFillCloseButton.addEventListener("click", window.FormEditor.close);
-  elements.formFillForm.addEventListener("keydown", window.FormEditor.handleKeydown);
-  elements.formFillForm.addEventListener("submit", window.FormEditor.submit);
-  elements.formFillClearDraftButton.addEventListener(
-    "click",
-    window.FormEditor.clearDraft,
-  );
-  elements.formFillModal.addEventListener("click", (event) => {
-    if (event.target === elements.formFillModal) window.FormEditor.close();
-  });
   elements.documentErrorCloseButton.addEventListener(
     "click",
     closeDocumentErrorModal,
@@ -51,15 +41,11 @@ function bindAuth() {
     if (elements.templateDownloadModal?.classList.contains("is-open")) {
       window.closeTemplateDownloadModal?.();
     }
-    if (elements.formFillModal.classList.contains("is-open")) {
-      window.FormEditor.close();
-    }
   });
   document.addEventListener("click", (event) => {
     if (elements.accountPanel.contains(event.target)) return;
     closeAccountPopover();
   });
-  window.addEventListener("resize", window.FormEditor.handleResize);
 }
 
 function toggleAccountPopover() {

@@ -16,7 +16,7 @@ Architecture and design docs, including a topology diagram, are in [docs/ARCHITE
 
 1. Create a virtual environment and install dependencies from `requirements.txt`.
 2. Copy `.env.example` to `.env` and adjust values if needed.
-3. Put SOP/knowledge PDF or DOCX files into `backend/data/`; PDF forms should use filenames starting with `Form`.
+3. Put SOP/knowledge PDF or DOCX files into `backend/data/`; form templates should be PDF files with filenames starting with `Form`. The backend creates matching DOCX templates automatically.
 4. Run ingestion:
 
 ```bash
@@ -53,7 +53,7 @@ clean.bat
 - `Chat`: main conversational interface connected to `POST /query`
 - `FAQ`: curated operational starter questions
 - `Library`: admin document/form list with download links from `backend/data`
-- `PDF Form Editor`: schema-driven form preview/fill flow with local browser drafts
+- Form templates: direct download only, with a PDF or Word format picker
 
 ## Frontend Scripts
 
@@ -61,8 +61,6 @@ The frontend is still plain browser JavaScript without a bundler. `frontend/web/
 is now the bootstrap/glue file, while feature logic lives in small global modules:
 
 - `assets/js/chat.js`: chat submit/rendering, citations, flowcharts, and form links
-- `assets/js/forms.js`: PDF form editor, live preview overlay, schema/legacy submit flow
-- `assets/js/storage.js` and `assets/js/drafts.js`: local form drafts and floating draft launcher
 - `assets/js/faq.js`, `assets/js/library.js`, `assets/js/auth.js`, `assets/js/api.js`, `assets/js/markdown.js`: FAQ, document admin, auth bindings, API helpers, and markdown rendering
 
 ## Structure

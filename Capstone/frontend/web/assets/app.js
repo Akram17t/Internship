@@ -3,8 +3,6 @@ const AUTH_STORAGE_KEY = "ics-hr-ai-auth-v1";
 const CONVERSATION_STORAGE_KEY = "ics-hr-ai-conversation-v1";
 const REINDEX_STORAGE_KEY = "ics-hr-ai-reindex-required-v1";
 const MOBILE_QUERY = "(max-width: 640px)";
-const PDFJS_WORKER_URL =
-  "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 
 const initialMessages = [];
 
@@ -55,16 +53,11 @@ const state = {
   logPageSize: 10,
   isLoadingLogs: false,
   logError: "",
-  pendingFormFill: null,
   pendingTemplateDownload: null,
   typingAnimationEnabled: true,
 };
 
 let publicConfigPromise = null;
-
-if (window.pdfjsLib?.GlobalWorkerOptions) {
-  window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
-}
 
 const elements = {
   body: document.body,
@@ -103,11 +96,6 @@ const elements = {
   logsFallbackError: document.getElementById("logsFallbackError"),
   filterButton: document.getElementById("filterButton"),
   chatLink: document.getElementById("chatLink"),
-  formDraftMenu: document.getElementById("formDraftMenu"),
-  formDraftButton: document.getElementById("formDraftButton"),
-  formDraftCount: document.getElementById("formDraftCount"),
-  formDraftPopover: document.getElementById("formDraftPopover"),
-  formDraftList: document.getElementById("formDraftList"),
   menuToggle: document.getElementById("menuToggle"),
   pageBackdrop: document.getElementById("pageBackdrop"),
   accountPanel: document.querySelector(".account-panel"),
@@ -141,15 +129,6 @@ const elements = {
   templateDownloadPdfButton: document.getElementById("templateDownloadPdfButton"),
   templateDownloadWordButton: document.getElementById("templateDownloadWordButton"),
   templateDownloadCancelButton: document.getElementById("templateDownloadCancelButton"),
-  formFillModal: document.getElementById("formFillModal"),
-  formFillForm: document.getElementById("formFillForm"),
-  formFillCloseButton: document.getElementById("formFillCloseButton"),
-  formFillTitle: document.getElementById("formFillTitle"),
-  formFillSubtitle: document.getElementById("formFillSubtitle"),
-  formFillStatus: document.getElementById("formFillStatus"),
-  formFillPreview: document.getElementById("formFillPreview"),
-  formFillFields: document.getElementById("formFillFields"),
-  formFillClearDraftButton: document.getElementById("formFillClearDraftButton"),
   adminDocumentPanel: document.getElementById("adminDocumentPanel"),
   adminDocumentForm: document.getElementById("adminDocumentForm"),
   documentFileInput: document.getElementById("documentFileInput"),
@@ -175,7 +154,6 @@ function init() {
   bindAuth();
   bindAdminDocuments();
   bindAdminLogs();
-  window.FormDraftLauncher.init({ state, elements });
   syncAuth();
   syncReindexState();
   updateComposer();
