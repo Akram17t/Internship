@@ -68,10 +68,10 @@ class AnswerFinalizationTests(unittest.TestCase):
             ["Form - Perjalanan Dinas (Template).pdf"],
         )
 
-    def test_rewrite_keeps_original_when_ai_rewrites_standalone_question(self) -> None:
+    def test_rewrite_keeps_original_when_ai_says_keep(self) -> None:
         with patch(
             "researcher_crew.main._ollama_generate",
-            return_value="REWRITE: HRIS itu apa sih?",
+            return_value="KEEP",
         ) as generate:
             rewritten = crew_main._rewrite_query(
                 "HRIS tuh apa sih?",
@@ -81,24 +81,28 @@ class AnswerFinalizationTests(unittest.TestCase):
         self.assertEqual(rewritten, "HRIS tuh apa sih?")
         generate.assert_called_once()
 
-    def test_rewrite_prompt_emphasizes_keep_for_standalone_travel_allowance_question(self) -> None:
+    def test_rewrite_prompt_handles_recent_case_reference(self) -> None:
         with patch(
             "researcher_crew.main._ollama_generate",
-            return_value="KEEP",
+            return_value=(
+                "REWRITE: Kalau perjalanan dinas ke Bali selama 11 hari, "
+                "uang makan dan uang sakunya dihitung per hari atau gimana?"
+            ),
         ) as generate:
             rewritten = crew_main._rewrite_query(
-                "Tolong sebutin nominal uang saku dan uang makan selama perjalanan dinas",
-                "Percakapan membahas perjalanan dinas dalam negeri.",
+                "Kalau kasus barusan, uang makan dan uang sakunya itu dihitung per hari atau gimana?",
+                "Percakapan membahas perjalanan dinas ke Bali selama 11 hari.",
             )
 
         prompt = generate.call_args.args[0]
-        self.assertIn("JANGAN PERNAH mengganti, mempersempit", prompt)
-        self.assertIn("Riwayat hanya boleh dipakai untuk mengisi subjek yang hilang", prompt)
-        self.assertIn("Tolong sebutin nominal uang saku dan uang makan selama perjalanan dinas", prompt)
-        self.assertIn("Jawaban: KEEP", prompt)
+        self.assertIn("kasus barusan", prompt)
+        self.assertIn(
+            "Kalau kasus barusan, uang makan dan uang sakunya itu dihitung per hari atau gimana?",
+            prompt,
+        )
         self.assertEqual(
             rewritten,
-            "Tolong sebutin nominal uang saku dan uang makan selama perjalanan dinas",
+            "Kalau perjalanan dinas ke Bali selama 11 hari, uang makan dan uang sakunya dihitung per hari atau gimana?",
         )
         generate.assert_called_once()
 
@@ -145,9 +149,7 @@ class AnswerFinalizationTests(unittest.TestCase):
 
         self.assertEqual(rewritten, "HRIS tuh apa sih?")
 
-    def test_rewrite_rejects_topic_swap_when_subject_already_stated(self) -> None:
-        # 'itu' hanya partikel pengisi di sini; subjek 'resign' sudah eksplisit.
-        # Rewrite yang mengganti 'resign' jadi 'perjalanan dinas' harus ditolak.
+    def test_rewrite_accepts_ai_rewrite_without_extra_guard(self) -> None:
         with patch(
             "researcher_crew.main._ollama_generate",
             return_value=(
@@ -162,36 +164,11 @@ class AnswerFinalizationTests(unittest.TestCase):
 
         self.assertEqual(
             rewritten,
-            "Kalau gue mau resign, alur yang harus dijalani itu gimana?",
+            "Kalau gue mau perjalanan dinas, alur yang harus dijalani gimana?",
         )
         generate.assert_called_once()
 
-    def test_rewrite_is_safe_allows_pure_dereference(self) -> None:
-        # De-referensi yang benar hanya menambah subjek, tidak membuang kata konten.
-        self.assertTrue(
-            crew_main._rewrite_is_safe(
-                "Form apa yang dipakai untuk itu?",
-                "Form apa yang dipakai untuk resign?",
-            )
-        )
-
-    def test_rewrite_is_safe_rejects_dropped_content_word(self) -> None:
-        self.assertFalse(
-            crew_main._rewrite_is_safe(
-                "Kalau gue mau resign, alur yang harus dijalani itu gimana?",
-                "Kalau gue mau perjalanan dinas, alur yang harus dijalani gimana?",
-            )
-        )
-
-    def test_rewrite_is_safe_rejects_scope_injection_for_standalone_question(self) -> None:
-        self.assertFalse(
-            crew_main._rewrite_is_safe(
-                "Dalam manajemen insiden, tugas dan tanggung jawab tiap role itu seperti apa?",
-                "Dalam manajemen insiden, tugas dan tanggung jawab tiap role dalam administrasi karyawan itu seperti apa?",
-            )
-        )
-
-    def test_rewrite_keeps_standalone_question_when_ai_adds_unrelated_context(self) -> None:
+    def test_rewrite_accepts_ai_context_addition(self) -> None:
         with patch(
             "researcher_crew.main._ollama_generate",
             return_value=(
@@ -209,7 +186,8 @@ class AnswerFinalizationTests(unittest.TestCase):
         self.assertEqual(
             rewritten,
             "Apakah ada data perusahaan yang benar-benar nggak boleh dibagikan? "
-            "Jelasin juga batasan sharing data itu sampai mana",
+            "Jelasin juga batasan sharing data itu sampai mana "
+            "dalam konteks administrasi karyawan baru",
         )
 
     def test_strips_trailing_unsupported_sentence_from_supported_answer(self) -> None:

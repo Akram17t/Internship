@@ -255,122 +255,76 @@ def _ollama_generate(
         return _post_ollama_generate(payload)
 
 
-def _is_referential_token(token: str) -> bool:
-    # 'itu'/'tersebut' dan klitik '-nya' (formnya, alurnya) bersifat merujuk.
-    return token.endswith("nya") or token in {
-        "itu",
-        "ini",
-        "tersebut",
-        "tadi",
-        "sebelumnya",
-        "barusan",
-        "tadinya",
-        "begitu",
-    }
+_CONTEXT_REFERENCE_PATTERN = re.compile(
+    r"\b(?:itu|ini|tersebut|tadi|barusan|sebelumnya|tadinya|begitu)\b"
+    r"|\b\w+nya\b",
+    flags=re.IGNORECASE,
+)
 
 
-def _rewrite_may_add_context(original: str) -> bool:
-    """Tentukan apakah rewrite boleh menambah subjek dari percakapan.
-
-    Kita sengaja konservatif: penambahan konteks hanya diizinkan untuk bentuk
-    follow-up yang memang terlihat belum mandiri, misalnya "Form apa buat itu?"
-    atau "Kalau luar negeri gimana?".
-    """
-    normalized = " ".join(re.findall(r"\w+", original.casefold()))
-    original_tokens = re.findall(r"\w+", original.casefold())
-    non_referential_tokens = [
-        token for token in original_tokens if not _is_referential_token(token)
-    ]
-
-    if not non_referential_tokens:
-        return True
-
-    has_referential_token = any(_is_referential_token(token) for token in original_tokens)
-    if has_referential_token and len(non_referential_tokens) <= 5:
-        return True
-
-    if re.match(r"^(?:kalau|terus|lalu|habis|setelah|sesudah|dan)\b", normalized):
-        return len(non_referential_tokens) <= 6
-
-    return False
-
-
-def _rewrite_is_safe(original: str, rewritten: str) -> bool:
-    """Tolak hasil rewrite yang menyisipkan isi baru, bukan sekadar merujuk ulang.
-
-    Rewrite hanya boleh mengganti kata rujukan dengan topik aslinya, jadi
-    tidak boleh menambah angka baru dan panjangnya harus tetap masuk akal.
-    Selain itu, rewrite yang benar hanya MENAMBAH subjek yang dirujuk; ia tidak
-    boleh MEMBUANG kata konten asli. Jika kata konten asli hilang (mis. 'resign'
-    diganti 'perjalanan dinas'), itu penggantian topik dan harus ditolak.
-    """
-    new_digits = set(re.findall(r"\d+", rewritten)) - set(re.findall(r"\d+", original))
-    if new_digits:
-        return False
-    if len(rewritten.split()) > 2 * len(original.split()) + 6:
-        return False
-
-    original_tokens = set(re.findall(r"\w+", original.casefold()))
-    rewritten_tokens = set(re.findall(r"\w+", rewritten.casefold()))
-    for token in re.findall(r"\w+", original.casefold()):
-        if _is_referential_token(token):
-            continue
-        if token not in rewritten_tokens:
-            return False
-
-    added_tokens = {
-        token
-        for token in rewritten_tokens - original_tokens
-        if not _is_referential_token(token)
-    }
-    if added_tokens and not _rewrite_may_add_context(original):
-        return False
-    return True
+def _has_context_reference(question: str) -> bool:
+    return bool(_CONTEXT_REFERENCE_PATTERN.search(question))
 
 
 def _rewrite_query(question: str, conversation_context: str = "") -> str:
     """Ubah pertanyaan follow-up menjadi query mandiri dengan bantuan LLM.
 
-    AI tetap memeriksa rujukan eksplisit maupun implisit. Output KEEP tidak
-    pernah dipakai sebagai pertanyaan baru; kode langsung mempertahankan input
-    asli agar model tidak sekadar memoles gaya bahasa atau tanda baca.
+    Rewrite dibuat sederhana: AI memutuskan KEEP atau REWRITE, lalu hasil
+    REWRITE langsung dipakai sebagai query retrieval.
     """
     if not conversation_context.strip():
         return question
 
+    if _has_context_reference(question):
+        prompt = (
+            "Pertanyaan terakhir mengandung rujukan ke percakapan sebelumnya. "
+            "Tulis ulang menjadi satu pertanyaan mandiri yang tetap memakai "
+            "bahasa user.\n\n"
+            "Balas hanya dengan format:\n"
+            "REWRITE: <pertanyaan mandiri>\n\n"
+            "Jangan menjawab pertanyaan user. Jangan menambah fakta yang tidak "
+            "ada di percakapan; cukup isi rujukan seperti 'itu', 'tadi', "
+            "'kasus tadi', 'barusan', 'durasinya', atau 'totalnya'.\n\n"
+            "Contoh 1:\n"
+            "Percakapan: membahas perjalanan dinas Manager ke luar negeri selama 3 hari.\n"
+            "Pertanyaan: Dari kasus tadi, uang makan dan uang sakunya itu dihitung per hari atau langsung total?\n"
+            "Jawaban: REWRITE: Untuk perjalanan dinas Manager ke luar negeri selama 3 hari, uang makan dan uang sakunya dihitung per hari atau langsung total?\n\n"
+            "Contoh 2:\n"
+            "Percakapan: membahas perjalanan dinas Manager ke luar negeri selama 3 hari dengan total USD 345.\n"
+            "Pertanyaan: Kalau durasinya berubah jadi 5 hari, total yang diterima jadi berapa?\n"
+            "Jawaban: REWRITE: Kalau durasi perjalanan dinas Manager ke luar negeri berubah jadi 5 hari, total uang makan dan uang saku yang diterima jadi berapa?\n\n"
+            f"Percakapan sebelumnya:\n{conversation_context}\n\n"
+            f"Pertanyaan terakhir:\n{question}\n\n"
+            "Jawaban:"
+        )
+        try:
+            rewritten = _ollama_generate(prompt, num_predict=140, temperature=0.0)
+        except OllamaGenerationError:
+            return question
+
+        decision = rewritten.strip().strip('"').strip()
+        rewrite_match = re.match(
+            r"^\s*REWRITE\s*:\s*(?P<question>.+?)\s*$",
+            decision,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        if rewrite_match:
+            rewritten_question = rewrite_match.group("question").strip().strip('"').strip()
+            return rewritten_question or question
+        return decision or question
+
     prompt = (
-        "Anda menentukan apakah pertanyaan terakhir bergantung pada percakapan "
-        "sebelumnya. Periksa rujukan eksplisit dan implisit.\n\n"
-        "Rujukan eksplisit contohnya: 'itu', 'tersebut', 'tadi', 'sebelumnya', "
-        "'barusan', 'formnya', atau 'alurnya'.\n"
-        "Rujukan implisit contohnya: 'Kalau luar negeri gimana?', 'Kalau gagal?', "
-        "atau 'Terus setelah disetujui?' ketika subjeknya hanya dapat diketahui "
-        "dari percakapan sebelumnya.\n"
-        "PENTING: kata seperti 'itu' atau akhiran '-nya' HANYA dihitung rujukan "
-        "bila kalimat itu tidak menyebut subjek konkretnya sendiri. 'itu' sering "
-        "dipakai sebagai partikel pengisi (mis. 'alur yang harus dijalani itu "
-        "gimana') dan bukan rujukan bila subjeknya sudah ada di kalimat.\n\n"
-        "Tugas utama Anda BUKAN memperbaiki bahasa. Tugas Anda hanya menentukan "
-        "apakah pertanyaan terakhir perlu dibuat mandiri karena benar-benar "
-        "bergantung pada percakapan sebelumnya.\n\n"
-        "Aturan keputusan:\n"
-        "1. Jika pertanyaan SUDAH mandiri dan topiknya jelas, balas persis: KEEP\n"
-        "2. Jika pertanyaan sudah menyebut subjek/topiknya sendiri, pertanyaan itu "
-        "SUDAH mandiri: balas KEEP. JANGAN PERNAH mengganti, mempersempit, "
-        "memperluas, atau menambahkan detail dari percakapan sebelumnya ke "
-        "pertanyaan yang sudah mandiri.\n"
-        "3. Jika pertanyaan mandiri tapi percakapan sebelumnya membahas versi yang "
-        "lebih spesifik, tetap balas KEEP. Riwayat hanya boleh dipakai untuk "
-        "mengisi subjek yang hilang, bukan menambah batasan, kategori, lokasi, "
-        "jabatan, durasi, kondisi, atau konteks baru.\n"
-        "4. REWRITE hanya boleh dilakukan jika tanpa riwayat percakapan pertanyaan "
-        "terakhir tidak jelas subjeknya.\n"
-        "5. Jika pertanyaan bergantung pada percakapan, balas: REWRITE: <pertanyaan mandiri>\n"
-        "6. Saat REWRITE, ganti atau tambahkan HANYA subjek yang dirujuk. Pertahankan "
-        "semua kata, gaya bahasa, maksud, angka, dan tanda baca lainnya.\n"
-        "7. Jangan mengubah sinonim, bahasa informal, ejaan, atau susunan kalimat "
-        "jika pertanyaan sudah mandiri.\n"
-        "8. Jangan menjawab pertanyaan dan jangan beri penjelasan.\n\n"
+        "Tentukan apakah pertanyaan terakhir perlu ditulis ulang agar bisa "
+        "dipahami tanpa membaca percakapan sebelumnya.\n\n"
+        "Balas hanya salah satu format berikut:\n"
+        "- KEEP\n"
+        "- REWRITE: <pertanyaan mandiri>\n\n"
+        "Gunakan REWRITE kalau pertanyaan terakhir merujuk ke konteks sebelumnya, "
+        "misalnya memakai kata/frasa seperti 'itu', 'tadi', 'barusan', "
+        "'kasus barusan', 'case tadi', 'yang tadi', 'formnya', 'alurnya', "
+        "atau pertanyaan lanjutan seperti 'kalau luar negeri gimana?'.\n"
+        "Gunakan KEEP kalau pertanyaan terakhir sudah jelas tanpa konteks "
+        "percakapan. Jangan menjawab pertanyaan user.\n\n"
         "Contoh 1 (rujukan eksplisit):\n"
         "Percakapan: membahas prosedur resign.\n"
         "Pertanyaan: Form apa aja yang harus diisi buat itu?\n"
@@ -379,21 +333,13 @@ def _rewrite_query(question: str, conversation_context: str = "") -> str:
         "Percakapan: membahas perjalanan dinas dalam negeri.\n"
         "Pertanyaan: Kalau luar negeri gimana?\n"
         "Jawaban: REWRITE: Kalau perjalanan dinas luar negeri gimana?\n\n"
-        "Contoh 3 (mandiri, jangan diubah):\n"
+        "Contoh 3 (kasus barusan):\n"
+        "Percakapan: membahas perjalanan dinas ke Bali selama 11 hari.\n"
+        "Pertanyaan: Kalau kasus barusan, uang makan dan uang sakunya itu dihitung per hari atau gimana?\n"
+        "Jawaban: REWRITE: Kalau perjalanan dinas ke Bali selama 11 hari, uang makan dan uang sakunya dihitung per hari atau gimana?\n\n"
+        "Contoh 4 (mandiri, jangan diubah):\n"
         "Percakapan: membahas prosedur resign.\n"
         "Pertanyaan: HRIS tuh apa sih?\n"
-        "Jawaban: KEEP\n\n"
-        "Contoh 4 (mandiri walaupun topiknya berbeda dari percakapan):\n"
-        "Percakapan: membahas prosedur resign.\n"
-        "Pertanyaan: Apakah ada ketentuan lain ketika perjalanan dinas berlangsung lama?\n"
-        "Jawaban: KEEP\n\n"
-        "Contoh 5 (sudah menyebut subjek sendiri walau ada 'itu', topik beda dari percakapan):\n"
-        "Percakapan: membahas perjalanan dinas.\n"
-        "Pertanyaan: Kalau gue mau resign, alur yang harus dijalani itu gimana?\n"
-        "Jawaban: KEEP\n\n"
-        "Contoh 6 (mandiri, jangan tambahkan scope dari percakapan):\n"
-        "Percakapan: membahas perjalanan dinas dalam negeri.\n"
-        "Pertanyaan: Tolong sebutin nominal uang saku dan uang makan selama perjalanan dinas\n"
         "Jawaban: KEEP\n\n"
         f"Percakapan sebelumnya:\n{conversation_context}\n\n"
         f"Pertanyaan terakhir:\n{question}\n\n"
@@ -415,9 +361,7 @@ def _rewrite_query(question: str, conversation_context: str = "") -> str:
     if not rewrite_match:
         return question
     rewritten_question = rewrite_match.group("question").strip().strip('"').strip()
-    if not rewritten_question or not _rewrite_is_safe(question, rewritten_question):
-        return question
-    return rewritten_question
+    return rewritten_question or question
 
 
 def _direct_answer_prompt(question: str, evidence: str, available_forms: str) -> str:
