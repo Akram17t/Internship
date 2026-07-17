@@ -538,12 +538,6 @@ function formatSelectedFiles(files) {
 }
 
 async function loadLibrary() {
-  if (!isAdminSession()) {
-    state.documents = [];
-    renderLibrary();
-    return;
-  }
-
   try {
     const response = await fetch("/api/library", {
       headers: adminAuthHeaders(),
@@ -650,13 +644,10 @@ function createLibraryRow(item) {
   if (item.download_url) {
     link.href = item.download_url;
     link.addEventListener("click", (event) => {
-      if (!isAdminSession()) return;
       event.preventDefault();
-      if (item.document_kind === "form") {
-        openTemplateDownloadModal(item.download_url, item.name || item.display_name);
-        return;
-      }
-      downloadDocument(item.download_url, item.name || item.display_name);
+      openTemplateDownloadModal(item.download_url, item.name || item.display_name, {
+        formats: downloadFormatsForDocument(item),
+      });
     });
   } else {
     link.href = "#chat";
@@ -675,22 +666,17 @@ function createLibraryRow(item) {
   return row;
 }
 
+let templateDownloadModalBound = false;
+
 function bindTemplateDownloadModal() {
   if (!elements.templateDownloadModal) return;
+  if (templateDownloadModalBound) return;
+  templateDownloadModalBound = true;
   elements.templateDownloadPdfButton?.addEventListener("click", () => {
-    const pending = state.pendingTemplateDownload;
-    closeTemplateDownloadModal();
-    if (pending) downloadDocument(pending.url, withFileExtension(pending.filename, "pdf"));
+    downloadPendingTemplateFormat("pdf");
   });
   elements.templateDownloadWordButton?.addEventListener("click", () => {
-    const pending = state.pendingTemplateDownload;
-    closeTemplateDownloadModal();
-    if (pending) {
-      downloadDocument(
-        withDownloadFormat(pending.url, "docx"),
-        withFileExtension(pending.filename, "docx"),
-      );
-    }
+    downloadPendingTemplateFormat("docx");
   });
   elements.templateDownloadCancelButton?.addEventListener(
     "click",
@@ -701,17 +687,28 @@ function bindTemplateDownloadModal() {
   });
 }
 
-function openTemplateDownloadModal(url, filename = "form.pdf") {
+function openTemplateDownloadModal(url, filename = "form.pdf", options = {}) {
   if (!url) return;
+  bindTemplateDownloadModal();
+  const formats =
+    options.formats ||
+    templateDownloadFormats(url, filename, ["pdf", "docx"]);
   if (!elements.templateDownloadModal) {
-    downloadDocument(url, withFileExtension(filename, "pdf"));
+    const fallbackFormat = firstAvailableDownloadFormat(formats);
+    if (fallbackFormat) downloadDocument(fallbackFormat.url, fallbackFormat.filename);
     return;
   }
-  state.pendingTemplateDownload = { url, filename };
+  state.pendingTemplateDownload = { url, filename, formats };
+  syncTemplateDownloadFormatButton(elements.templateDownloadPdfButton, formats.pdf);
+  syncTemplateDownloadFormatButton(elements.templateDownloadWordButton, formats.docx);
   elements.templateDownloadName.textContent = filename || "Form template";
   elements.templateDownloadModal.classList.add("is-open");
   elements.templateDownloadModal.setAttribute("aria-hidden", "false");
-  window.setTimeout(() => elements.templateDownloadWordButton?.focus(), 0);
+  window.setTimeout(() => {
+    const firstButton =
+      elements.templateDownloadModal?.querySelector(".template-format-button:not([hidden])");
+    firstButton?.focus();
+  }, 0);
 }
 
 function closeTemplateDownloadModal() {
@@ -727,8 +724,78 @@ function withDownloadFormat(url, format) {
 }
 
 function withFileExtension(filename, extension) {
-  const safeName = String(filename || "form").replace(/\.(pdf|docx)$/i, "");
+  const safeName = String(filename || "form").replace(/\.(pdf|docx|txt)$/i, "");
   return `${safeName}.${extension}`;
+}
+
+function templateDownloadFormats(url, filename, availableFormats) {
+  const formats = {};
+  if (availableFormats.includes("pdf")) {
+    formats.pdf = {
+      label: "PDF",
+      url,
+      filename: withFileExtension(filename, "pdf"),
+    };
+  }
+  if (availableFormats.includes("docx")) {
+    formats.docx = {
+      label: "Word",
+      url: withDownloadFormat(url, "docx"),
+      filename: withFileExtension(filename, "docx"),
+    };
+  }
+  if (availableFormats.includes("txt")) {
+    formats.pdf = {
+      label: "TXT",
+      url,
+      filename: withFileExtension(filename, "txt"),
+    };
+  }
+  return formats;
+}
+
+function downloadFormatsForDocument(item) {
+  const type = String(item.doc_type || "").toLowerCase();
+  const filename = item.name || item.display_name || "document";
+  if (item.document_kind === "form") {
+    return templateDownloadFormats(item.download_url, filename, ["pdf", "docx"]);
+  }
+  if (type === "pdf") return templateDownloadFormats(item.download_url, filename, ["pdf"]);
+  if (type === "doc" || type === "docx") {
+    return {
+      docx: {
+        label: "Word",
+        url: item.download_url,
+        filename: withFileExtension(filename, "docx"),
+      },
+    };
+  }
+  if (type === "txt") return templateDownloadFormats(item.download_url, filename, ["txt"]);
+  return {
+    pdf: {
+      label: "Download",
+      url: item.download_url,
+      filename,
+    },
+  };
+}
+
+function syncTemplateDownloadFormatButton(button, format) {
+  if (!button) return;
+  button.hidden = !format;
+  if (!format) return;
+  button.textContent = format.label;
+}
+
+function firstAvailableDownloadFormat(formats) {
+  return formats.docx || formats.pdf || null;
+}
+
+function downloadPendingTemplateFormat(format) {
+  const pending = state.pendingTemplateDownload;
+  const selectedFormat = pending?.formats?.[format];
+  closeTemplateDownloadModal();
+  if (selectedFormat) downloadDocument(selectedFormat.url, selectedFormat.filename);
 }
 
 async function downloadDocument(url, filename = "document") {

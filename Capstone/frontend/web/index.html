@@ -122,6 +122,7 @@
             </div>
             <div class="chat-thread" id="chatThread" aria-live="polite"></div>
             <form class="composer" id="chatForm">
+              <p class="empty-chat-prompt">What are you thinking about?</p>
               <div class="composer-control">
                 <label class="sr-only" for="chatInput">Type your message</label>
                 <textarea
@@ -388,7 +389,10 @@
                     <h3>Recent questions</h3>
                   </div>
                   <div class="logs-list-actions">
-                    <div class="logs-date-range" aria-label="Activity date range">
+                    <div
+                      class="logs-date-range"
+                      aria-label="Activity date range"
+                    >
                       <label class="logs-date-field">
                         <span>Start</span>
                         <input id="logsStartDate" type="date" />
@@ -406,7 +410,10 @@
                       aria-label="Refresh activity"
                       title="Refresh activity"
                     >
-                      <span class="material-symbols-outlined" aria-hidden="true">
+                      <span
+                        class="material-symbols-outlined"
+                        aria-hidden="true"
+                      >
                         refresh
                       </span>
                     </button>
@@ -420,7 +427,6 @@
           </section>
         </div>
       </main>
-
     </div>
 
     <template id="messageTemplate">
@@ -600,7 +606,7 @@
       aria-labelledby="templateDownloadTitle"
     >
       <div class="template-download-card">
-        <span class="auth-kicker">Download Template</span>
+        <span class="auth-kicker">Download Dokumen</span>
         <h2 id="templateDownloadTitle">Pilih format</h2>
         <p id="templateDownloadName">Form template</p>
         <div class="template-download-actions">

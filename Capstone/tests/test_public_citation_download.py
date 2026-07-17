@@ -35,16 +35,31 @@ class PublicCitationDownloadTests(unittest.TestCase):
         self.assertIn("application/pdf", response.headers["content-type"])
         self.assertEqual(response.content, b"%PDF-1.4\n% citation fixture\n")
 
-    def test_guest_still_cannot_download_admin_document_endpoint(self) -> None:
+    def test_guest_can_download_library_document_endpoint(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_dir:
             data_dir = Path(temporary_dir)
-            source = data_dir / "SOP Admin Only.pdf"
-            source.write_bytes(b"%PDF-1.4\n% admin fixture\n")
+            source = data_dir / "SOP Guest Download.pdf"
+            source.write_bytes(b"%PDF-1.4\n% library fixture\n")
 
             with patch.dict(os.environ, {"DATA_DIR": str(data_dir)}):
                 response = self.client.get(f"/api/documents/{quote(source.name, safe='')}")
 
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("application/pdf", response.headers["content-type"])
+        self.assertEqual(response.content, b"%PDF-1.4\n% library fixture\n")
+
+    def test_library_pdf_cannot_be_downloaded_as_word(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            data_dir = Path(temporary_dir)
+            source = data_dir / "SOP Guest Download.pdf"
+            source.write_bytes(b"%PDF-1.4\n% library fixture\n")
+
+            with patch.dict(os.environ, {"DATA_DIR": str(data_dir)}):
+                response = self.client.get(
+                    f"/api/documents/{quote(source.name, safe='')}?format=docx",
+                )
+
+        self.assertEqual(response.status_code, 400)
 
     def test_form_template_is_not_public_through_citation_endpoint(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_dir:

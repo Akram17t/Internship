@@ -3,10 +3,9 @@ from __future__ import annotations
 import logging
 import time
 
-from fastapi import Header, HTTPException
+from fastapi import HTTPException
 from fastapi.responses import FileResponse, Response
 
-from backend.api.auth import _require_admin
 from backend.api.cache_store import _append_conversation_turn, _clean_conversation_id, _get_conversation_context, _load_faqs
 from backend.api.core import FAQ_LOCK, FRONTEND_DIR, app
 from backend.api.faq_service import _pinned_faq_items
@@ -247,16 +246,13 @@ def download_citation_document(document_path: str) -> FileResponse:
 def download_document(
     document_path: str,
     format: str = "pdf",
-    authorization: str = Header(default=""),
 ) -> Response:
-    # Unduh dokumen tersimpan, dengan file non-form dibatasi untuk admin.
+    # Unduh dokumen tersimpan untuk library publik.
     resolved_path = _resolve_document_path(document_path)
 
     if not resolved_path.exists() or not resolved_path.is_file():
         raise HTTPException(status_code=404, detail="Document not found.")
     document_kind = _document_kind_for_path(resolved_path)
-    if document_kind != "form":
-        _require_admin(authorization)
     output_format = format.strip().lower()
     if output_format == "docx":
         if document_kind != "form" or resolved_path.suffix.lower() != ".pdf":

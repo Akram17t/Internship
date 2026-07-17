@@ -194,6 +194,18 @@ class FormTemplateDownloadTests(unittest.TestCase):
         self.assertIn("SOP - Visible.docx", names)
         self.assertNotIn("Form - Library Test.docx", names)
 
+    def test_guest_can_list_library_documents(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            data_dir = Path(temporary_dir)
+            (data_dir / "SOP - Guest Visible.pdf").write_bytes(b"%PDF-1.4\n")
+
+            with patch.dict(os.environ, {"DATA_DIR": str(data_dir)}):
+                response = self.client.get("/api/library")
+
+        self.assertEqual(response.status_code, 200)
+        names = [item["name"] for item in response.json()]
+        self.assertIn("SOP - Guest Visible.pdf", names)
+
 
 class FormfillRemovalStaticTests(unittest.TestCase):
     def test_frontend_has_no_formfill_ui_references(self) -> None:
@@ -223,7 +235,8 @@ class FormfillRemovalStaticTests(unittest.TestCase):
                 self.assertNotIn(forbidden, combined)
 
         self.assertIn("Download template", combined)
-        self.assertIn("withDownloadFormat(pending.url, \"docx\")", combined)
+        self.assertIn("templateDownloadFormats(url, filename, [\"pdf\", \"docx\"])", combined)
+        self.assertIn("withDownloadFormat(url, \"docx\")", combined)
 
 
 if __name__ == "__main__":

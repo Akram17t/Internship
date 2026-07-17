@@ -172,7 +172,7 @@ async function submitQuestion(rawQuestion) {
       let detail = `HTTP ${response.status}`;
       try {
         const errorPayload = await response.json();
-        detail = errorPayload.detail || detail;
+        detail = formatApiError(errorPayload.detail, detail);
       } catch (_) {
         // Keep the generic HTTP status when the server did not return JSON.
       }
@@ -217,9 +217,13 @@ async function submitQuestion(rawQuestion) {
     streamMessage.content = fullText;
   } catch (error) {
     if (error.name === "AbortError") return;
+    const errorMessage = formatApiError(
+      error?.message || error,
+      "Pastikan FastAPI, layanan AI, dan database embedding sedang berjalan.",
+    );
     replaceLoading({
       role: "assistant",
-      content: `Aku belum bisa menyelesaikan jawaban ini. ${error.message || "Pastikan FastAPI, layanan AI, dan database embedding sedang berjalan."}`,
+      content: `Aku belum bisa menyelesaikan jawaban ini. ${errorMessage}`,
       citations: [],
       flowcharts: [],
       answer_source: "fallback",
@@ -482,6 +486,13 @@ function bindChatAutoScroll() {
 function scrollChatToBottom(behavior = "auto", { force = false } = {}) {
   bindChatAutoScroll();
   if (!force && !state.stickToBottom) return;
+  if (!state.messages.length) {
+    document.scrollingElement?.scrollTo({
+      top: 0,
+      behavior: "auto",
+    });
+    return;
+  }
 
   const scrollToLatest = () => {
     if (!force && !state.stickToBottom) return;
@@ -613,6 +624,7 @@ function createFormDownloadRow(item) {
   name.append(icon, text);
 
   const fileName = `${item.label || item.name || "form"}.pdf`;
+  const downloadUrl = formDownloadUrl(item);
 
   const downloadButton = document.createElement("button");
   downloadButton.type = "button";
@@ -620,11 +632,38 @@ function createFormDownloadRow(item) {
   downloadButton.textContent = "Download template";
   downloadButton.title = "Unduh form kosong";
   downloadButton.addEventListener("click", () => {
-    if (item.download_url) window.openTemplateDownloadModal?.(item.download_url, fileName);
+    openTemplateDownload(downloadUrl, fileName);
   });
 
   row.append(name, downloadButton);
   return row;
+}
+
+function formDownloadUrl(item) {
+  if (item?.download_url) return item.download_url;
+  const filename = item?.name || item?.label || item?.display_name || "";
+  if (!filename) return "";
+  return `/api/documents/${encodeURIComponent(filename)}`;
+}
+
+function openTemplateDownload(url, filename) {
+  if (!url) {
+    window.openDocumentErrorModal?.("Link download form tidak tersedia.", [], "Download gagal");
+    return;
+  }
+  if (typeof window.openTemplateDownloadModal === "function") {
+    try {
+      window.openTemplateDownloadModal(url, filename);
+      return;
+    } catch (error) {
+      console.error(error);
+    }
+  }
+  if (typeof window.downloadDocument === "function") {
+    window.downloadDocument(url, filename);
+    return;
+  }
+  window.location.href = url;
 }
 
 function normalizeFormDownloads(downloads = []) {

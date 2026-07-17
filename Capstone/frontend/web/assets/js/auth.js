@@ -221,24 +221,22 @@ function syncAuth() {
     "aria-label",
     isAdmin ? "Logout admin" : "Login admin",
   );
-  if (elements.policyNavLink) elements.policyNavLink.hidden = !isAdmin;
+  if (elements.policyNavLink) elements.policyNavLink.hidden = false;
   if (elements.logsNavLink) elements.logsNavLink.hidden = !isAdmin;
-  if (!isAdmin && (state.activeScreen === "policy" || state.activeScreen === "logs")) {
+  if (!isAdmin && state.activeScreen === "logs") {
     navigateTo("chat");
   }
   if (!isAdmin) resetFaqForm();
   clearDocumentStatus();
   syncReindexState();
   updateFaqControls();
+  void loadLibrary();
   if (isAdmin) {
-    void loadLibrary();
     void loadActivityLogs();
   } else {
-    state.documents = [];
     state.activityLogs = [];
     state.activityLogSummary = null;
     state.logError = "";
-    renderLibrary();
     renderActivityLogs();
   }
 }

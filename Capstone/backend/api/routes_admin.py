@@ -163,9 +163,8 @@ def delete_faq(
 
 
 @app.get("/api/library", response_model=list[LibraryItem])
-def get_library(authorization: str = Header(default="")) -> list[LibraryItem]:
-    # Kembalikan daftar library dokumen admin.
-    _require_admin(authorization)
+def get_library() -> list[LibraryItem]:
+    # Kembalikan daftar library dokumen yang bisa dilihat guest dan admin.
     return _iter_library_items()
 
 

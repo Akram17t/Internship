@@ -286,7 +286,9 @@ function setupLogReadMore(panel, answer) {
   button.className = "log-read-more";
   button.type = "button";
   button.textContent = "Read more";
-  button.addEventListener("click", () => {
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
     const expanded = message.classList.toggle("is-answer-expanded");
     content.classList.toggle("is-collapsed", !expanded);
     button.textContent = expanded ? "Show less" : "Read more";

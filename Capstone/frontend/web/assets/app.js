@@ -12,7 +12,7 @@ const screens = {
   policy: "Document Library",
   logs: "Activity Logs",
 };
-const adminScreens = new Set(["policy", "logs"]);
+const adminScreens = new Set(["logs"]);
 
 const loadingStageLabels = [
   "Memahami pertanyaan...",
