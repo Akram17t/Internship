@@ -13,6 +13,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from backend.preprocessing.chunker import chunk_documents  # noqa: E402
 from backend.preprocessing.flowchart_extractor import (  # noqa: E402
     _clean_flowchart_text,
+    _groq_reasoning_effort,
     detect_flowchart_candidates,
 )
 
@@ -35,6 +36,18 @@ Hubungan dan arah alur:
         self.assertNotIn("<think>", content)
         self.assertNotIn("```", content)
         self.assertTrue(content.startswith("Tahapan yang terbaca:"))
+
+    def test_groq_vision_reasoning_effort_defaults_to_supported_value(self) -> None:
+        with unittest.mock.patch.dict("os.environ", {}, clear=True):
+            self.assertEqual(_groq_reasoning_effort(), "default")
+
+    def test_groq_vision_reasoning_effort_rejects_text_model_values(self) -> None:
+        with unittest.mock.patch.dict(
+            "os.environ",
+            {"FLOWCHART_GROQ_REASONING_EFFORT": "low"},
+        ):
+            with self.assertRaisesRegex(RuntimeError, "none or default"):
+                _groq_reasoning_effort()
 
     def test_detector_supports_diagram_on_following_page(self) -> None:
         candidates = detect_flowchart_candidates(

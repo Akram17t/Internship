@@ -24,7 +24,7 @@ FLOWCHART_HEADING_PATTERN = re.compile(
 )
 _FLOWCHART_TIMING_SECONDS = 0.0
 _FLOWCHART_DOCUMENT_COUNT = 0
-VALID_GROQ_REASONING_EFFORTS = {"low", "medium", "high"}
+VALID_GROQ_VISION_REASONING_EFFORTS = {"none", "default"}
 
 FLOWCHART_PROMPT = """\
 Baca flowchart pada gambar, lalu tulis ulang menjadi plain text dengan format persis seperti ini:
@@ -233,10 +233,10 @@ def _chat_message_content(completion: Any) -> str:
 
 
 def _groq_reasoning_effort() -> str:
-    effort = get_env("FLOWCHART_GROQ_REASONING_EFFORT", "low").lower()
-    if effort not in VALID_GROQ_REASONING_EFFORTS:
+    effort = get_env("FLOWCHART_GROQ_REASONING_EFFORT", "default").lower()
+    if effort not in VALID_GROQ_VISION_REASONING_EFFORTS:
         raise RuntimeError(
-            "FLOWCHART_GROQ_REASONING_EFFORT must be low, medium, or high in .env."
+            "FLOWCHART_GROQ_REASONING_EFFORT must be none or default in .env."
         )
     return effort
 
