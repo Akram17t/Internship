@@ -1,6 +1,6 @@
 function formatMessage(content, citations = [], formDownloads = []) {
   const wrapper = document.createElement("div");
-  const lines = String(content).split(/\r?\n/);
+  const lines = normalizeStandaloneCitationLines(String(content).split(/\r?\n/));
   const citationMap = buildCitationMap(citations);
   let list = null;
   let listType = null;
@@ -61,6 +61,10 @@ function formatMessage(content, citations = [], formDownloads = []) {
 
     const ordered = value.match(/^(\d+)[.)]\s+(.*)$/);
     if (ordered) {
+      if (isCitationOnlyText(ordered[2])) {
+        appendCitationToPreviousBlock(wrapper, ordered[2], citationMap);
+        continue;
+      }
       appendListItem("ol", ordered[2].trim(), Number(ordered[1]) || 1);
       continue;
     }
@@ -80,6 +84,49 @@ function formatMessage(content, citations = [], formDownloads = []) {
   return wrapper;
 }
 
+function normalizeStandaloneCitationLines(lines) {
+  const normalized = [];
+  lines.forEach((line) => {
+    const marker = standaloneCitationMarker(line);
+    if (!marker || !normalized.length) {
+      normalized.push(line);
+      return;
+    }
+
+    let targetIndex = normalized.length - 1;
+    while (targetIndex >= 0 && !String(normalized[targetIndex]).trim()) {
+      targetIndex -= 1;
+    }
+    if (targetIndex < 0) {
+      normalized.push(line);
+      return;
+    }
+    if (!normalized[targetIndex].includes(marker)) {
+      normalized[targetIndex] = `${String(normalized[targetIndex]).trimEnd()} ${marker}`;
+    }
+  });
+  return normalized;
+}
+
+function standaloneCitationMarker(line) {
+  const match = String(line || "").match(/^\s*(?:[-*â€¢]\s*)?((?:\[\d+\]\s*)+)\s*$/);
+  return match ? match[1].trim().replace(/\s+/g, " ") : "";
+}
+
+function isCitationOnlyText(text) {
+  return Boolean(standaloneCitationMarker(text));
+}
+
+function appendCitationToPreviousBlock(wrapper, text, citationMap) {
+  const marker = standaloneCitationMarker(text);
+  const target = wrapper.querySelector(
+    "p:last-child, li:last-child, td:last-child, th:last-child",
+  );
+  if (!marker || !target || target.textContent.includes(marker)) return;
+  target.append(document.createTextNode(" "));
+  appendFormattedText(target, marker, citationMap);
+}
+
 function getMarkdownTableRange(lines, start) {
   if (!isMarkdownTableRow(lines[start])) return null;
   if (!isMarkdownTableSeparator(lines[start + 1] || "")) return null;
@@ -93,9 +140,11 @@ function getMarkdownTableRange(lines, start) {
 }
 
 function isMarkdownTableRow(line) {
-  const value = String(line || "").trim();
+  const value = stripMarkdownTableCitationSuffix(line);
   return (
-    value.startsWith("|") && value.endsWith("|") && value.split("|").length > 3
+    value.startsWith("|") &&
+    (value.endsWith("|") || value.split("|").length > 3) &&
+    value.split("|").length > 3
   );
 }
 
@@ -108,12 +157,29 @@ function isMarkdownTableSeparator(line) {
 }
 
 function splitMarkdownTableRow(line) {
-  return String(line || "")
+  const suffix = markdownTableCitationSuffix(line);
+  const cells = stripMarkdownTableCitationSuffix(line)
     .trim()
     .replace(/^\|/, "")
     .replace(/\|$/, "")
     .split("|")
     .map((cell) => cell.trim());
+  if (suffix && cells.length) {
+    cells[cells.length - 1] = `${cells[cells.length - 1]} ${suffix}`.trim();
+  }
+  return cells;
+}
+
+function markdownTableCitationSuffix(line) {
+  const match = String(line || "").match(/\|\s*((?:\[\d+\]\s*)+)$/);
+  return match ? match[1].trim().replace(/\s+/g, " ") : "";
+}
+
+function stripMarkdownTableCitationSuffix(line) {
+  return String(line || "")
+    .trim()
+    .replace(/\s+(?:\[\d+\]\s*)+$/, "")
+    .trim();
 }
 
 function createMarkdownTable(lines, citationMap, formDownloads = []) {

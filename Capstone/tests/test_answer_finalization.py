@@ -30,6 +30,21 @@ class AnswerFinalizationTests(unittest.TestCase):
         self.assertEqual(answer, "Jawaban didukung sumber [1].")
         self.assertEqual(citations, [{"id": 1, "source": "SOP.pdf"}])
 
+    def test_finalize_answer_citations_merges_citation_only_bullets(self) -> None:
+        answer, _ = crew_main._finalize_answer_citations(
+            "- Karyawan menulis surat pengunduran diri.\n"
+            "- [1]\n"
+            "\n"
+            "2. Persetujuan Atasan\n"
+            "- Jika disetujui, proses berlanjut.\n"
+            "- [1]",
+            [{"id": 1, "source": "SOP.pdf"}],
+        )
+
+        self.assertIn("- Karyawan menulis surat pengunduran diri. [1]", answer)
+        self.assertIn("- Jika disetujui, proses berlanjut. [1]", answer)
+        self.assertNotIn("- [1]", answer)
+
     def test_faq_prompt_requests_compact_but_informative_answer(self) -> None:
         with patch(
             "researcher_crew.main._generate_with_model",

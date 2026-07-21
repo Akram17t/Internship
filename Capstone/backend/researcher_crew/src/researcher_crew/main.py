@@ -48,7 +48,9 @@ ANSWER_TASK_RULES = (
     "Aturan sitasi:\n"
     "- Pertahankan marker sitasi angka seperti [1] dan [2] di jawaban visible.\n"
     "- Letakkan citation di akhir paragraf, bullet, atau baris tabel yang penting.\n"
+    "- Jangan pernah menaruh citation sebagai bullet/baris sendiri seperti '- [1]'; tempelkan ke kalimat sebelumnya.\n"
     "- Jika membuat tabel, pastikan minimal kalimat pengantar atau heading tabel memiliki marker citation yang mendukung isi tabel.\n"
+    "- Jika membuat tabel markdown, setiap baris harus diawali dan diakhiri karakter |, termasuk baris terakhir.\n"
     "- Jangan tulis nama file/source/section sebagai bagian jawaban visible kecuali user memang bertanya sumbernya.\n"
     "- Hindari citation bertumpuk seperti [1] [2] [3]; pecah kalimat/bullet jika perlu.\n"
     "- Jangan pakai marker generik seperti [n].\n"
@@ -354,6 +356,7 @@ def _normalize_visible_citation_style(answer: str) -> str:
 
     answer = re.sub(r"【\s*(\d+)\s*】", r"[\1]", answer)
     answer = re.sub(r"\[\s*(\d+)\s*\]", r"[\1]", answer)
+    answer = _merge_standalone_citation_lines(answer)
     # Model kadang menumpuk marker di akhir kalimat: "[1] [2] [3]".
     # UI sudah merender detail citation, jadi cukup pertahankan marker pertama.
     answer = re.sub(
@@ -367,6 +370,32 @@ def _normalize_visible_citation_style(answer: str) -> str:
         answer,
     )
     return answer.strip()
+
+
+def _merge_standalone_citation_lines(answer: str) -> str:
+    """Pindahkan baris citation-only ke baris konten sebelumnya."""
+    lines = str(answer).splitlines()
+    merged: list[str] = []
+    standalone_pattern = re.compile(r"^\s*(?:[-*â€¢]\s*)?((?:\[\d+\]\s*)+)\s*$")
+
+    for line in lines:
+        match = standalone_pattern.match(line)
+        if not match or not merged:
+            merged.append(line)
+            continue
+
+        marker = " ".join(match.group(1).split())
+        target_index = len(merged) - 1
+        while target_index >= 0 and not merged[target_index].strip():
+            target_index -= 1
+        if target_index < 0:
+            merged.append(line)
+            continue
+        if marker in merged[target_index]:
+            continue
+        merged[target_index] = f"{merged[target_index].rstrip()} {marker}"
+
+    return "\n".join(merged)
 
 
 def _finalize_answer_citations(

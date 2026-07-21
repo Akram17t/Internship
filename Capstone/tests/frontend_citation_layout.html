@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../frontend/web/assets/styles.css" />
+    <style>
+      body {
+        margin: 0;
+        padding: 24px;
+        background: #f7f3e9;
+      }
+    </style>
+  </head>
+  <body data-status="pending">
+    <main class="message is-assistant">
+      <div class="message-content">
+        <div id="bubble" class="message-bubble"></div>
+      </div>
+    </main>
+    <pre id="result"></pre>
+    <script>
+      function createCitationChip(citation, index, isInline = false) {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "citation-chip citation-chip--pdf";
+        if (isInline) chip.classList.add("is-inline");
+        const icon = document.createElement("span");
+        icon.className = "material-symbols-outlined citation-chip-icon";
+        icon.textContent = "picture_as_pdf";
+        chip.append(icon);
+        return chip;
+      }
+    </script>
+    <script src="../frontend/web/assets/js/markdown.js"></script>
+    <script>
+      const answer = `Proses Resign (Pengunduran Diri) - Alur Lengkap
+
+1. Pengajuan Surat Pengunduran Diri
+- Karyawan menulis surat pengunduran diri tertulis.
+- [1]
+
+| Destinasi | Jabatan | Uang Makan | Uang Saku |
+| --- | --- | --- | --- |
+| Dalam Negeri | Staff | Rp 100.000 | Rp 100.000 |
+| Luar Negeri | Director - VP | USD 35 | USD 100 | [1]
+
+Uang saku dan uang makan adalah tunjangan harian. [1]`;
+
+      document.querySelector("#bubble").appendChild(
+        formatMessage(answer, [
+          {
+            id: 1,
+            source: "SOP - Perjalanan Dinas.pdf",
+            page: 6,
+            section: "4.3",
+            download_url: "/api/citations/SOP%20-%20Perjalanan%20Dinas.pdf",
+          },
+        ]),
+      );
+
+      const isolatedCitationItems = Array.from(document.querySelectorAll("li")).filter((item) => {
+        const cloned = item.cloneNode(true);
+        cloned.querySelectorAll(".citation-chip").forEach((chip) => chip.remove());
+        return !cloned.textContent.trim();
+      });
+      const inlineChips = Array.from(document.querySelectorAll(".citation-chip.is-inline"));
+      const oversizedInlineChips = inlineChips.filter((chip) => {
+        const box = chip.getBoundingClientRect();
+        return box.height > 20 || box.width > 20;
+      });
+      const result = {
+        isolatedCitationItems: isolatedCitationItems.length,
+        tables: document.querySelectorAll(".message-table").length,
+        tableRows: document.querySelectorAll(".message-table tbody tr").length,
+        inlineChips: inlineChips.length,
+        oversizedInlineChips: oversizedInlineChips.length,
+      };
+      const pass =
+        result.isolatedCitationItems === 0 &&
+        result.tables === 1 &&
+        result.tableRows === 2 &&
+        result.inlineChips >= 3 &&
+        result.oversizedInlineChips === 0;
+      document.body.dataset.status = pass ? "pass" : "fail";
+      document.querySelector("#result").textContent = JSON.stringify(result, null, 2);
+    </script>
+  </body>
+</html>

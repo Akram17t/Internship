@@ -57,12 +57,19 @@ textarea:focus-visible {
 }
 
 .material-symbols-outlined {
+  display: inline-block;
+  max-width: 1em;
+  overflow: hidden;
+  font-family: "Material Symbols Outlined";
   font-size: 21px;
   font-variation-settings:
     "FILL" 0,
     "wght" 300,
     "GRAD" 0,
     "opsz" 24;
+  line-height: 1;
+  text-transform: none;
+  white-space: nowrap;
 }
 
 .sr-only {
@@ -922,10 +929,12 @@ body[data-role="admin"] .account-action:hover {
 
 .citation-chip.is-inline {
   min-width: 0;
-  height: 22px;
-  margin: 0 3px;
-  padding: 0 5px;
-  transform: translateY(4px);
+  width: 18px;
+  height: 18px;
+  margin: 0 2px;
+  padding: 0;
+  vertical-align: -0.18em;
+  transform: none;
 }
 
 .citation-chip:hover,
@@ -939,7 +948,7 @@ body[data-role="admin"] .account-action:hover {
 
 .citation-chip.is-inline:hover,
 .citation-chip.is-inline:focus-visible {
-  transform: translateY(2px);
+  transform: none;
 }
 
 .citation-chip-icon {
@@ -949,7 +958,7 @@ body[data-role="admin"] .account-action:hover {
 }
 
 .citation-chip.is-inline .citation-chip-icon {
-  font-size: 15px;
+  font-size: 13px;
 }
 
 .citation-chip--doc .citation-chip-icon {
