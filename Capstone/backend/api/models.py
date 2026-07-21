@@ -81,6 +81,17 @@ class AdminLoginResponse(BaseModel):
     expires_at: str
 
 
+class AdminCreatePayload(BaseModel):
+    email: str = Field(..., min_length=3)
+    password: str = Field(..., min_length=1)
+    name: str = Field(default="Admin", min_length=1)
+
+
+class AdminAccountResponse(BaseModel):
+    email: str
+    name: str
+
+
 class LibraryItem(BaseModel):
     name: str
     relative_path: str

@@ -32,7 +32,7 @@ CONVERSATION_TTL = timedelta(days=1)
 CONVERSATION_LOCK = threading.Lock()
 FAQ_LOCK = threading.Lock()
 REINDEX_LOCK = threading.Lock()
-ADMIN_CONFIG_LOCK = threading.Lock()
+ADMIN_CONFIG_LOCK = threading.RLock()
 
 if ASSETS_DIR.exists():
     app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")

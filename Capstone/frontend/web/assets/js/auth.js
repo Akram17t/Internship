@@ -12,10 +12,19 @@ function bindAuth() {
     }
     openAuthModal();
   });
+  elements.newAdminButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    closeAccountPopover();
+    openNewAdminModal();
+  });
 
   elements.authCloseButton.addEventListener("click", closeAuthModal);
   elements.authModal.addEventListener("click", (event) => {
     if (event.target === elements.authModal) closeAuthModal();
+  });
+  elements.newAdminCloseButton.addEventListener("click", closeNewAdminModal);
+  elements.newAdminModal.addEventListener("click", (event) => {
+    if (event.target === elements.newAdminModal) closeNewAdminModal();
   });
   elements.logoutCancelButton.addEventListener("click", closeLogoutModal);
   elements.logoutConfirmButton.addEventListener("click", logoutAdmin);
@@ -30,10 +39,14 @@ function bindAuth() {
     if (event.target === elements.documentErrorModal) closeDocumentErrorModal();
   });
   elements.authForm.addEventListener("submit", handleAdminLogin);
+  elements.newAdminForm.addEventListener("submit", handleNewAdminSubmit);
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
     closeAccountPopover();
     if (elements.authModal.classList.contains("is-open")) closeAuthModal();
+    if (elements.newAdminModal.classList.contains("is-open")) {
+      closeNewAdminModal();
+    }
     if (elements.logoutModal.classList.contains("is-open")) closeLogoutModal();
     if (elements.documentErrorModal.classList.contains("is-open")) {
       closeDocumentErrorModal();
@@ -81,6 +94,26 @@ function closeAuthModal() {
   elements.authModal.setAttribute("aria-hidden", "true");
   elements.body.classList.remove("auth-open");
   clearAuthError();
+}
+
+function openNewAdminModal() {
+  if (!isAdminSession()) {
+    openAuthModal();
+    return;
+  }
+  clearNewAdminStatus();
+  elements.newAdminForm.reset();
+  elements.newAdminModal.classList.add("is-open");
+  elements.newAdminModal.setAttribute("aria-hidden", "false");
+  elements.body.classList.add("new-admin-open");
+  window.setTimeout(() => elements.newAdminName.focus(), 0);
+}
+
+function closeNewAdminModal() {
+  elements.newAdminModal.classList.remove("is-open");
+  elements.newAdminModal.setAttribute("aria-hidden", "true");
+  elements.body.classList.remove("new-admin-open");
+  clearNewAdminStatus();
 }
 
 function openLogoutModal() {
@@ -171,6 +204,41 @@ async function handleAdminLogin(event) {
   closeMobileNav();
 }
 
+async function handleNewAdminSubmit(event) {
+  event.preventDefault();
+  if (!isAdminSession()) {
+    showNewAdminStatus("Sesi admin tidak valid. Login ulang dulu.", true);
+    return;
+  }
+
+  const payload = {
+    name: elements.newAdminName.value.trim() || "Admin",
+    email: elements.newAdminEmail.value.trim().toLowerCase(),
+    password: elements.newAdminPassword.value,
+  };
+
+  try {
+    const response = await fetch("/api/admin/admins", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${state.session.token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    const data = await readJsonResponse(response);
+    if (!response.ok) {
+      throw new Error(formatApiError(data.detail, "Admin baru belum tersimpan."));
+    }
+
+    elements.newAdminForm.reset();
+    showNewAdminStatus(`Admin ${data.email || payload.email} tersimpan.`, false);
+  } catch (error) {
+    showNewAdminStatus(error.message || "Admin baru belum tersimpan.", true);
+    elements.newAdminPassword.select();
+  }
+}
+
 function logoutAdmin() {
   state.session = {
     role: "guest",
@@ -215,6 +283,7 @@ function syncAuth() {
   elements.accountPopoverHint.textContent = isAdmin
     ? "Klik ikon kanan untuk logout."
     : "Klik ikon kanan untuk login admin.";
+  elements.newAdminButton.hidden = !isAdmin;
   elements.accountActionIcon.textContent = isAdmin ? "logout" : "login";
   elements.accountActionText.textContent = isAdmin ? "Logout" : "Admin login";
   elements.accountActionButton.setAttribute(
@@ -249,4 +318,16 @@ function showAuthError(message) {
 function clearAuthError() {
   elements.authError.textContent = "";
   elements.authError.hidden = true;
+}
+
+function showNewAdminStatus(message, isError) {
+  elements.newAdminStatus.textContent = message;
+  elements.newAdminStatus.hidden = false;
+  elements.newAdminStatus.classList.toggle("is-success", !isError);
+}
+
+function clearNewAdminStatus() {
+  elements.newAdminStatus.textContent = "";
+  elements.newAdminStatus.hidden = true;
+  elements.newAdminStatus.classList.remove("is-success");
 }

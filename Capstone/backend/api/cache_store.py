@@ -21,12 +21,10 @@ from backend.api.storage import _citation_download_url
 from backend.settings import get_env
 
 
-def _new_admin_config_template() -> dict[str, str]:
+def _new_admin_config_template() -> dict[str, object]:
     # Buat template config admin yang sengaja kosong.
     return {
-        "email": "",
-        "password": "",
-        "name": "Admin",
+        "admins": [],
         "session_secret": secrets.token_hex(32),
     }
 
@@ -50,7 +48,7 @@ def _get_admin_file() -> Path:
     return _get_cache_dir() / "admin.json"
 
 
-def _save_admin_config(config: dict[str, str]) -> None:
+def _save_admin_config(config: dict[str, object]) -> None:
     # Simpan JSON config admin ke disk.
     cache_dir = _get_cache_dir()
     cache_dir.mkdir(parents=True, exist_ok=True)
@@ -60,7 +58,49 @@ def _save_admin_config(config: dict[str, str]) -> None:
     )
 
 
-def _load_admin_config() -> dict[str, str]:
+def _normalize_admin_record(item: object) -> dict[str, str] | None:
+    # Rapikan satu record admin dan abaikan record yang tidak lengkap.
+    if not isinstance(item, dict):
+        return None
+
+    email = str(item.get("email") or "").strip().lower()
+    password = str(item.get("password") or "")
+    if not email or not password:
+        return None
+
+    return {
+        "email": email,
+        "password": password,
+        "name": str(item.get("name") or "Admin").strip() or "Admin",
+    }
+
+
+def _normalize_admins(data: dict[str, object]) -> list[dict[str, str]]:
+    # Dukung format baru admins[] dan migrasi format lama email/password tunggal.
+    raw_admins = data.get("admins")
+    admins = raw_admins if isinstance(raw_admins, list) else []
+
+    if not admins and (data.get("email") or data.get("password")):
+        admins = [
+            {
+                "email": data.get("email"),
+                "password": data.get("password"),
+                "name": data.get("name"),
+            }
+        ]
+
+    normalized: list[dict[str, str]] = []
+    seen_emails: set[str] = set()
+    for raw_admin in admins:
+        admin = _normalize_admin_record(raw_admin)
+        if admin is None or admin["email"] in seen_emails:
+            continue
+        normalized.append(admin)
+        seen_emails.add(admin["email"])
+    return normalized
+
+
+def _load_admin_config() -> dict[str, object]:
     # Muat config admin dari disk dan isi default aman yang masih kurang.
     with ADMIN_CONFIG_LOCK:
         path = _get_admin_file()
@@ -82,14 +122,45 @@ def _load_admin_config() -> dict[str, str]:
             session_secret = secrets.token_hex(32)
 
         config = {
-            "email": str(data.get("email") or "").strip().lower(),
-            "password": str(data.get("password") or ""),
-            "name": str(data.get("name") or "Admin").strip() or "Admin",
+            "admins": _normalize_admins(data),
             "session_secret": session_secret,
         }
         if data != config:
             _save_admin_config(config)
         return config
+
+
+def _add_admin_config(email: str, password: str, name: str) -> dict[str, str]:
+    # Tambahkan admin baru ke admin.json dan cegah email duplikat.
+    clean_email = email.strip().lower()
+    clean_password = password
+    clean_name = name.strip() or "Admin"
+    if not clean_email or not clean_password:
+        raise HTTPException(status_code=422, detail="Email dan password admin wajib diisi.")
+
+    with ADMIN_CONFIG_LOCK:
+        config = _load_admin_config()
+        admins = list(config.get("admins") if isinstance(config.get("admins"), list) else [])
+        if any(
+            isinstance(admin, dict)
+            and str(admin.get("email") or "").strip().lower() == clean_email
+            for admin in admins
+        ):
+            raise HTTPException(status_code=409, detail="Email admin sudah terdaftar.")
+
+        admin = {
+            "email": clean_email,
+            "password": clean_password,
+            "name": clean_name,
+        }
+        admins.append(admin)
+        _save_admin_config(
+            {
+                "admins": admins,
+                "session_secret": str(config.get("session_secret") or secrets.token_hex(32)),
+            }
+        )
+        return admin
 
 
 def _clean_conversation_id(value: str | None) -> str:

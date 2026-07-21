@@ -101,6 +101,15 @@
             <h1 id="screenTitle">Active Session</h1>
           </div>
           <div class="topbar-actions">
+            <button
+              class="new-admin-button"
+              id="newAdminButton"
+              type="button"
+              hidden
+            >
+              <span class="material-symbols-outlined">person_add</span>
+              <span class="new-admin-label">New admin</span>
+            </button>
             <button class="new-chat-button" id="newChatButton" type="button">
               <span class="material-symbols-outlined">add_comment</span>
               <span class="new-chat-label">New chat</span>
@@ -599,6 +608,65 @@
             Logout
           </button>
         </div>
+      </div>
+    </div>
+
+    <div
+      class="new-admin-modal"
+      id="newAdminModal"
+      aria-hidden="true"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="newAdminTitle"
+    >
+      <div class="auth-card">
+        <button
+          class="auth-close material-symbols-outlined"
+          id="newAdminCloseButton"
+          type="button"
+          aria-label="Close new admin"
+        >
+          close
+        </button>
+        <span class="auth-kicker">Admin Access</span>
+        <h2 id="newAdminTitle">Tambah admin baru</h2>
+        <form class="auth-form" id="newAdminForm">
+          <label>
+            <span>Nama</span>
+            <input
+              id="newAdminName"
+              type="text"
+              autocomplete="name"
+              placeholder="Admin HR"
+              required
+            />
+          </label>
+          <label>
+            <span>Email</span>
+            <input
+              id="newAdminEmail"
+              type="email"
+              autocomplete="username"
+              placeholder="admin@icscompute.com"
+              required
+            />
+          </label>
+          <label>
+            <span>Password</span>
+            <input
+              id="newAdminPassword"
+              type="password"
+              autocomplete="new-password"
+              placeholder="Set password"
+              required
+            />
+          </label>
+          <p class="auth-error" id="newAdminStatus" role="alert" hidden></p>
+          <button class="auth-submit" type="submit">
+            <span class="material-symbols-outlined">person_add</span>
+            Simpan admin
+          </button>
+        </form>
       </div>
     </div>
 

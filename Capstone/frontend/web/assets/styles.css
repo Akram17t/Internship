@@ -507,6 +507,7 @@ body[data-role="admin"] .account-action:hover {
   gap: 14px;
 }
 
+.new-admin-button,
 .new-chat-button {
   display: flex;
   min-width: 128px;
@@ -517,15 +518,33 @@ body[data-role="admin"] .account-action:hover {
   padding: 0 20px;
   border: 1px solid var(--ink);
   border-radius: 100px;
-  background: var(--ink);
-  color: var(--paper);
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   transition:
     background 0.18s ease,
-    border-color 0.18s ease;
+    border-color 0.18s ease,
+    color 0.18s ease;
 }
 
+.new-admin-button {
+  min-width: 132px;
+  border: 1px solid var(--red);
+  background: var(--red);
+  color: var(--paper);
+}
+
+.new-admin-button:hover {
+  border-color: var(--deep-red);
+  background: var(--deep-red);
+}
+
+.new-chat-button {
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.new-admin-button .material-symbols-outlined,
 .new-chat-button .material-symbols-outlined {
   font-size: 17px;
 }
@@ -3842,7 +3861,8 @@ body[data-role="admin"] .admin-only {
   display: none;
 }
 
-.auth-modal {
+.auth-modal,
+.new-admin-modal {
   position: fixed;
   inset: 0;
   z-index: 80;
@@ -3856,6 +3876,7 @@ body[data-role="admin"] .admin-only {
 }
 
 .auth-modal.is-open,
+.new-admin-modal.is-open,
 .logout-modal.is-open,
 .document-error-modal.is-open {
   opacity: 1;
@@ -3873,7 +3894,8 @@ body[data-role="admin"] .admin-only {
   transition: transform 0.2s ease;
 }
 
-.auth-modal.is-open .auth-card {
+.auth-modal.is-open .auth-card,
+.new-admin-modal.is-open .auth-card {
   transform: translateY(0);
 }
 
@@ -3955,6 +3977,10 @@ body[data-role="admin"] .admin-only {
   color: var(--red);
   font-size: 13px;
   line-height: 18px;
+}
+
+.auth-error.is-success {
+  color: #237044;
 }
 
 .auth-submit {
@@ -4484,11 +4510,13 @@ body.logout-open {
   .topbar-actions {
     gap: 12px;
   }
+  .new-admin-button,
   .new-chat-button {
     width: 40px;
     min-width: 40px;
     padding: 0;
   }
+  .new-admin-label,
   .new-chat-label {
     display: none;
   }

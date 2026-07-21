@@ -9,8 +9,8 @@ from urllib.parse import unquote
 
 from fastapi import Header, HTTPException, Query
 
-from backend.api.auth import _admin_email, _admin_name, _admin_password, _create_admin_token, _require_admin
-from backend.api.cache_store import _find_faq_index, _load_faqs, _save_faqs
+from backend.api.auth import _create_admin_token, _find_admin, _has_configured_admin, _require_admin
+from backend.api.cache_store import _add_admin_config, _find_faq_index, _load_faqs, _save_faqs
 from backend.api.core import ASSETS_DIR, FAQ_LOCK, LIBRARY_EXTENSIONS, REINDEX_LOCK, app
 from backend.api.faq_service import PINNED_IMAGE_EXTENSIONS, PINNED_IMAGE_STEM, _build_faq_item
 from backend.api.flowchart_service import clear_flowchart_cache_for_source
@@ -19,6 +19,8 @@ from backend.api.models import (
     ActivityLogItem,
     ActivityLogSessionItem,
     ActivityLogSummaryResponse,
+    AdminAccountResponse,
+    AdminCreatePayload,
     AdminDocumentPayload,
     AdminDocumentResponse,
     AdminFAQPayload,
@@ -70,27 +72,40 @@ def _activity_date_range(
 @app.post("/api/admin/login", response_model=AdminLoginResponse)
 def login_admin(payload: AdminLoginPayload) -> AdminLoginResponse:
     # Autentikasi admin lalu buat token sesi.
-    if not _admin_email() or not _admin_password():
+    if not _has_configured_admin():
         raise HTTPException(
             status_code=503,
-            detail="Admin belum dikonfigurasi. Isi email dan password di backend/cache/admin.json.",
+            detail="Admin belum dikonfigurasi. Tambahkan admin di backend/cache/admin.json.",
         )
 
     email = payload.email.strip().lower()
     password = payload.password
-    if (
-        not hmac.compare_digest(email, _admin_email())
-        or not hmac.compare_digest(password, _admin_password())
-    ):
+    admin = _find_admin(email)
+    if admin is None or not hmac.compare_digest(str(admin.get("password") or ""), password):
         raise HTTPException(status_code=401, detail="Email atau password admin salah.")
 
     token, expires_at = _create_admin_token(email)
     return AdminLoginResponse(
         email=email,
-        name=_admin_name(),
+        name=admin.get("name") or "Admin",
         token=token,
         expires_at=expires_at.isoformat(timespec="seconds"),
     )
+
+
+@app.post("/api/admin/admins", response_model=AdminAccountResponse)
+def create_admin_account(
+    payload: AdminCreatePayload,
+    authorization: str = Header(default=""),
+) -> AdminAccountResponse:
+    # Tambahkan akun admin baru dari sesi admin yang sudah login.
+    _require_admin(authorization)
+    admin = _add_admin_config(
+        email=payload.email,
+        password=payload.password,
+        name=payload.name,
+    )
+    return AdminAccountResponse(email=admin["email"], name=admin["name"])
 
 
 @app.post("/api/admin/faq-image", response_model=AdminDocumentResponse)

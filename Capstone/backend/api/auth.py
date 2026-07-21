@@ -14,24 +14,31 @@ from backend.api.cache_store import _load_admin_config
 from backend.api.core import ADMIN_SESSION_TTL
 
 
-def _admin_email() -> str:
-    # Ambil email admin yang terkonfigurasi.
-    return _load_admin_config()["email"].strip().lower()
+def _admin_records() -> list[dict[str, str]]:
+    # Ambil daftar admin yang sudah terkonfigurasi.
+    raw_admins = _load_admin_config().get("admins", [])
+    if not isinstance(raw_admins, list):
+        return []
+    return [admin for admin in raw_admins if isinstance(admin, dict)]
 
 
-def _admin_name() -> str:
-    # Ambil nama tampilan admin yang terkonfigurasi.
-    return _load_admin_config()["name"].strip() or "Admin"
+def _find_admin(email: str) -> dict[str, str] | None:
+    # Cari admin berdasarkan email ter-normalisasi.
+    clean_email = email.strip().lower()
+    for admin in _admin_records():
+        if str(admin.get("email") or "").strip().lower() == clean_email:
+            return admin
+    return None
 
 
-def _admin_password() -> str:
-    # Ambil password admin yang terkonfigurasi.
-    return _load_admin_config()["password"]
+def _has_configured_admin() -> bool:
+    # Pastikan minimal ada satu admin lengkap yang bisa login.
+    return any(admin.get("email") and admin.get("password") for admin in _admin_records())
 
 
 def _admin_session_secret() -> str:
     # Ambil secret penanda tangan token sesi admin.
-    return _load_admin_config()["session_secret"]
+    return str(_load_admin_config()["session_secret"])
 
 
 def _base64url_encode(value: bytes) -> str:
@@ -85,7 +92,7 @@ def _verify_admin_token(authorization: str) -> str:
 
     email = str(data.get("email", "")).strip().lower()
     expires_at = int(data.get("exp", 0))
-    if email != _admin_email() or expires_at <= int(time.time()):
+    if _find_admin(email) is None or expires_at <= int(time.time()):
         raise HTTPException(status_code=401, detail="Admin session expired.")
     return email
 
