@@ -23,43 +23,16 @@ from backend.api.flowchart_service import (  # noqa: E402
 
 
 class FlowchartServiceTests(unittest.TestCase):
-    def _write_payload(
-        self,
-        directory: Path,
-        *,
-        graph_issues: list[str] | None = None,
-    ) -> None:
+    def _write_payload(self, directory: Path) -> None:
         payload = {
             "status": "success",
             "source": "SOP Test.pdf",
             "image_page": 4,
-            "model": "qwen3.5:9b",
-            "graph_issues": graph_issues or [],
+            "model": "qwen/qwen3.6-27b",
             "result": {
                 "title": "Alur Test",
-                "confidence": 0.95,
-                "nodes": [
-                    {
-                        "id": "n1",
-                        "type": "start",
-                        "text": "Mulai",
-                        "confidence": 1,
-                    },
-                    {
-                        "id": "n2",
-                        "type": "end",
-                        "text": "Selesai",
-                        "confidence": 1,
-                    },
-                ],
-                "edges": [
-                    {
-                        "from": "n1",
-                        "to": "n2",
-                        "label": "",
-                        "confidence": 1,
-                    }
-                ],
+                "confidence": 1.0,
+                "text": "Tahapan yang terbaca:\n1. [Start] Mulai\n2. [End] Selesai",
             },
         }
         (directory / "diagram-id.json").write_text(
@@ -86,7 +59,7 @@ class FlowchartServiceTests(unittest.TestCase):
                         }
                     ],
                     cache_dir=cache_dir,
-                    model_name="qwen3.5:9b",
+                    model_name="qwen/qwen3.6-27b",
                     display_enabled=True,
                 )
 
@@ -113,7 +86,7 @@ class FlowchartServiceTests(unittest.TestCase):
                         }
                     ],
                     cache_dir=cache_dir,
-                    model_name="qwen3.5:9b",
+                    model_name="qwen/qwen3.6-27b",
                     display_enabled=True,
                 )
 
@@ -170,14 +143,25 @@ class FlowchartServiceTests(unittest.TestCase):
         self.assertTrue(image[0].startswith(b"\x89PNG"))
         self.assertEqual(image[1], "image/png")
 
-    def test_ignores_payload_with_graph_anomaly(self) -> None:
+    def test_ignores_legacy_payload_without_plain_text(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_dir:
             root = Path(temporary_dir)
             cache_dir = root
             data_dir = root / "data"
             data_dir.mkdir()
             (data_dir / "SOP Test.pdf").write_bytes(b"%PDF-1.4\n")
-            self._write_payload(cache_dir, graph_issues=["Node end terputus"])
+            (cache_dir / "diagram-id.json").write_text(
+                json.dumps(
+                    {
+                        "status": "success",
+                        "source": "SOP Test.pdf",
+                        "image_page": 4,
+                        "model": "qwen/qwen3.6-27b",
+                        "result": {"title": "Alur", "confidence": 0.9},
+                    }
+                ),
+                encoding="utf-8",
+            )
 
             with patch.dict(os.environ, {"DATA_DIR": str(data_dir)}):
                 diagrams = find_flowcharts_for_citations(
@@ -189,7 +173,7 @@ class FlowchartServiceTests(unittest.TestCase):
                         }
                     ],
                     cache_dir=cache_dir,
-                    model_name="qwen3.5:9b",
+                    model_name="qwen/qwen3.6-27b",
                     display_enabled=True,
                 )
 
@@ -220,7 +204,7 @@ class FlowchartServiceTests(unittest.TestCase):
                         }
                     ],
                     cache_dir=cache_dir,
-                    model_name="qwen3.5:9b",
+                    model_name="qwen/qwen3.6-27b",
                     display_enabled=True,
                 )
 
@@ -236,9 +220,8 @@ class FlowchartServiceTests(unittest.TestCase):
                         "status": "success",
                         "source": "SOP Lain.pdf",
                         "image_page": 1,
-                        "model": "qwen3.5:9b",
-                        "graph_issues": [],
-                        "result": {"title": "Alur", "confidence": 0.9, "nodes": [1], "edges": [1]},
+                        "model": "qwen/qwen3.6-27b",
+                        "result": {"title": "Alur", "confidence": 1.0, "text": "Tahapan"},
                     }
                 ),
                 encoding="utf-8",
@@ -260,9 +243,8 @@ class FlowchartServiceTests(unittest.TestCase):
                         "status": "success",
                         "source": "SOP Aktif.pdf",
                         "image_page": 1,
-                        "model": "qwen3.5:9b",
-                        "graph_issues": [],
-                        "result": {"title": "Alur", "confidence": 0.9, "nodes": [1], "edges": [1]},
+                        "model": "qwen/qwen3.6-27b",
+                        "result": {"title": "Alur", "confidence": 1.0, "text": "Tahapan"},
                     }
                 ),
                 encoding="utf-8",
@@ -283,9 +265,8 @@ class FlowchartServiceTests(unittest.TestCase):
                 "status": "success",
                 "source": "SOP Aktif.pdf",
                 "image_page": 4,
-                "model": "qwen3.5:9b",
-                "graph_issues": [],
-                "result": {"title": "Alur", "confidence": 0.9, "nodes": [1], "edges": [1]},
+                "model": "qwen/qwen3.6-27b",
+                "result": {"title": "Alur", "confidence": 1.0, "text": "Tahapan"},
             }
             older.write_text(json.dumps(payload), encoding="utf-8")
             newer.write_text(json.dumps(payload), encoding="utf-8")

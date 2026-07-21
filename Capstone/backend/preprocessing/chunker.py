@@ -398,8 +398,6 @@ def chunk_documents(documents: list[Document]) -> list[Document]:
         for document in prepared_documents
         if document.metadata.get("content_type") == "flowchart"
         and document.page_content.strip()
-        and document.metadata.get("anomaly")
-        not in {"flowchart_low_confidence", "flowchart_incomplete_graph"}
     ]
     flowchart_keys = {
         (

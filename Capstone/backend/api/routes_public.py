@@ -115,7 +115,7 @@ def public_config() -> PublicConfigResponse:
 @app.post("/query", response_model=QueryResponse)
 def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
     # Jawab query chat dengan citation dan form pilihan AI.
-    from researcher_crew.main import OllamaGenerationError, run_knowledge_crew
+    from researcher_crew.main import ModelGenerationError, run_knowledge_crew
 
     request_started = time.perf_counter()
     conversation_id = _clean_conversation_id(payload.conversation_id)
@@ -139,7 +139,7 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
             available_forms=_available_form_catalog(available_forms),
             trace_id=f"chat:{conversation_id}",
         )
-    except OllamaGenerationError as error:
+    except ModelGenerationError as error:
         logger.exception("[chat:%s] Request gagal", conversation_id)
         _record_chat_activity(
             status="error",

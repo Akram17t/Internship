@@ -8,14 +8,14 @@ Architecture and design docs, including a topology diagram, are in [docs/ARCHITE
 
 - FastAPI for REST backend and frontend hosting
 - Vanilla HTML, CSS, and JavaScript for the web UI
-- Direct Groq/Ollama LLM calls for chat and FAQ generation
+- Direct Groq LLM calls for chat, FAQ generation, and flowchart vision extraction
+- Nscale OpenAI-compatible API for hosted embeddings
 - ChromaDB for local vector storage
-- Ollama for local embedding and optional local LLM fallback
 
 ## Quick Start
 
 1. Create a virtual environment and install dependencies from `requirements.txt`.
-2. Copy `.env.example` to `.env` and adjust values if needed.
+2. Copy `.env.example` to `.env`, then set `GROQ_API_KEY` and `NSCALE_SERVICE_TOKEN`.
 3. Put SOP/knowledge PDF or DOCX files into `backend/data/`; form templates should be PDF files with filenames starting with `Form`. The backend creates matching DOCX templates automatically.
 4. Run ingestion:
 

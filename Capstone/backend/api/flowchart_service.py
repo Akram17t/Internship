@@ -7,7 +7,7 @@ from typing import Any
 
 import fitz
 
-from backend.settings import get_env, get_float_env
+from backend.settings import get_env
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -118,7 +118,7 @@ def _flowchart_from_payload(
     result = payload.get("result")
     if not isinstance(result, dict):
         return None
-    if payload.get("graph_issues"):
+    if not str(result.get("text") or "").strip():
         return None
 
     page_index = payload.get("image_page")
@@ -153,8 +153,7 @@ def find_flowcharts_for_citations(
     }:
         return []
 
-    expected_model = model_name or get_env("FLOWCHART_VISION_MODEL", "qwen3.5:9b")
-    minimum_confidence = get_float_env("FLOWCHART_MIN_CONFIDENCE", 0.6)
+    expected_model = model_name or get_env("FLOWCHART_MODEL", "qwen/qwen3.6-27b")
     payloads = _load_cache_payloads(cache_dir or _flowchart_cache_dir())
     existing_sources = _existing_source_names()
     flowcharts: list[dict[str, Any]] = []
@@ -180,7 +179,7 @@ def find_flowcharts_for_citations(
                 continue
 
             flowchart = _flowchart_from_payload(path, payload, section=section)
-            if flowchart is None or flowchart["confidence"] < minimum_confidence:
+            if flowchart is None:
                 continue
             if flowchart["id"] not in used_ids:
                 flowcharts.append(flowchart)

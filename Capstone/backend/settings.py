@@ -16,7 +16,7 @@ def load_capstone_env() -> None:
     global _ENV_LOADED
     if _ENV_LOADED:
         return
-    load_dotenv(ENV_FILE)
+    load_dotenv(ENV_FILE, encoding="utf-8-sig")
     _ENV_LOADED = True
 
 

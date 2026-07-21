@@ -32,7 +32,7 @@ class AnswerFinalizationTests(unittest.TestCase):
 
     def test_faq_prompt_requests_compact_but_informative_answer(self) -> None:
         with patch(
-            "researcher_crew.main._ollama_generate",
+            "researcher_crew.main._generate_with_model",
             return_value="Jawaban FAQ yang padat dan bersumber [1].",
         ) as generate:
             answer = crew_main._generate_faq_answer(
@@ -70,7 +70,7 @@ class AnswerFinalizationTests(unittest.TestCase):
 
     def test_rewrite_keeps_original_when_ai_says_keep(self) -> None:
         with patch(
-            "researcher_crew.main._ollama_generate",
+            "researcher_crew.main._generate_with_model",
             return_value="KEEP",
         ) as generate:
             rewritten = crew_main._rewrite_query(
@@ -83,7 +83,7 @@ class AnswerFinalizationTests(unittest.TestCase):
 
     def test_rewrite_prompt_handles_recent_case_reference(self) -> None:
         with patch(
-            "researcher_crew.main._ollama_generate",
+            "researcher_crew.main._generate_with_model",
             return_value=(
                 "REWRITE: Kalau perjalanan dinas ke Bali selama 11 hari, "
                 "uang makan dan uang sakunya dihitung per hari atau gimana?"
@@ -108,7 +108,7 @@ class AnswerFinalizationTests(unittest.TestCase):
 
     def test_rewrite_uses_llm_for_explicit_context_reference(self) -> None:
         with patch(
-            "researcher_crew.main._ollama_generate",
+            "researcher_crew.main._generate_with_model",
             return_value="REWRITE: Form apa yang dipakai untuk perjalanan dinas?",
         ) as generate:
             rewritten = crew_main._rewrite_query(
@@ -124,7 +124,7 @@ class AnswerFinalizationTests(unittest.TestCase):
 
     def test_rewrite_ignores_forced_reference_reasoning_without_rewrite_line(self) -> None:
         with patch(
-            "researcher_crew.main._ollama_generate",
+            "researcher_crew.main._generate_with_model",
             return_value=(
                 "Okay, let's see. The user is asking about the previous case. "
                 "I need to make this standalone."
@@ -142,7 +142,7 @@ class AnswerFinalizationTests(unittest.TestCase):
 
     def test_rewrite_extracts_rewrite_line_after_extra_text(self) -> None:
         with patch(
-            "researcher_crew.main._ollama_generate",
+            "researcher_crew.main._generate_with_model",
             return_value=(
                 "Saya akan membuat pertanyaan mandiri.\n"
                 "REWRITE: Untuk perjalanan dinas Manager ke luar negeri selama 3 hari, "
@@ -162,7 +162,7 @@ class AnswerFinalizationTests(unittest.TestCase):
 
     def test_rewrite_supports_implicit_context_reference(self) -> None:
         with patch(
-            "researcher_crew.main._ollama_generate",
+            "researcher_crew.main._generate_with_model",
             return_value="REWRITE: Kalau perjalanan dinas luar negeri gimana?",
         ):
             rewritten = crew_main._rewrite_query(
@@ -177,7 +177,7 @@ class AnswerFinalizationTests(unittest.TestCase):
 
     def test_rewrite_rejects_unstructured_ai_rephrasing(self) -> None:
         with patch(
-            "researcher_crew.main._ollama_generate",
+            "researcher_crew.main._generate_with_model",
             return_value="HRIS itu apa sih?",
         ):
             rewritten = crew_main._rewrite_query(
@@ -189,7 +189,7 @@ class AnswerFinalizationTests(unittest.TestCase):
 
     def test_rewrite_accepts_ai_rewrite_without_extra_guard(self) -> None:
         with patch(
-            "researcher_crew.main._ollama_generate",
+            "researcher_crew.main._generate_with_model",
             return_value=(
                 "REWRITE: Kalau gue mau perjalanan dinas, "
                 "alur yang harus dijalani gimana?"
@@ -208,7 +208,7 @@ class AnswerFinalizationTests(unittest.TestCase):
 
     def test_rewrite_accepts_ai_context_addition(self) -> None:
         with patch(
-            "researcher_crew.main._ollama_generate",
+            "researcher_crew.main._generate_with_model",
             return_value=(
                 "REWRITE: Apakah ada data perusahaan yang benar-benar nggak boleh "
                 "dibagikan? Jelasin juga batasan sharing data itu sampai mana "

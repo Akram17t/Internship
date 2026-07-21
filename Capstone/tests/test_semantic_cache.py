@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import unittest
 from unittest.mock import Mock, patch
@@ -56,8 +56,8 @@ class SemanticCacheTests(unittest.TestCase):
             ],
             "selected_forms": [],
             "active_index": "indexes/current",
-            "model_name": "ollama/qwen3:8b",
-            "embed_model_name": "qwen3-embedding:4b",
+            "model_name": "openai/gpt-oss-20b",
+            "embed_model_name": "Qwen/Qwen3-Embedding-8B",
             "hit_count": 0,
             "last_hit_at": None,
         }
@@ -78,8 +78,8 @@ class SemanticCacheTests(unittest.TestCase):
             patch("backend.semantic_cache._get_cache_store", return_value=store),
             patch("backend.semantic_cache.get_semantic_cache_entry", return_value=stale_entry),
             patch("backend.semantic_cache.get_active_index_name", return_value="indexes/current"),
-            patch("backend.semantic_cache._model_name", return_value="ollama/qwen3:8b"),
-            patch("backend.semantic_cache._embed_model_name", return_value="qwen3-embedding:4b"),
+            patch("backend.semantic_cache._model_name", return_value="openai/gpt-oss-20b"),
+            patch("backend.semantic_cache._embed_model_name", return_value="Qwen/Qwen3-Embedding-8B"),
             patch("backend.semantic_cache._threshold", return_value=0.92),
         ):
             self.assertIsNone(lookup_semantic_cache("pertanyaan"))
@@ -89,15 +89,15 @@ class SemanticCacheTests(unittest.TestCase):
             [(Document(page_content="cached", metadata={"entry_id": "entry-1"}), 0.98)]
         )
         stale_entry = self._valid_entry()
-        stale_entry["model_name"] = "ollama/old-model"
+        stale_entry["model_name"] = "groq/old-model"
 
         with (
             patch("backend.semantic_cache.get_semantic_cache_entry_by_question", return_value=None),
             patch("backend.semantic_cache._get_cache_store", return_value=store),
             patch("backend.semantic_cache.get_semantic_cache_entry", return_value=stale_entry),
             patch("backend.semantic_cache.get_active_index_name", return_value="indexes/current"),
-            patch("backend.semantic_cache._model_name", return_value="ollama/qwen3:8b"),
-            patch("backend.semantic_cache._embed_model_name", return_value="qwen3-embedding:4b"),
+            patch("backend.semantic_cache._model_name", return_value="openai/gpt-oss-20b"),
+            patch("backend.semantic_cache._embed_model_name", return_value="Qwen/Qwen3-Embedding-8B"),
             patch("backend.semantic_cache._threshold", return_value=0.92),
         ):
             self.assertIsNone(lookup_semantic_cache("pertanyaan"))
@@ -114,8 +114,8 @@ class SemanticCacheTests(unittest.TestCase):
             patch("backend.semantic_cache._get_cache_store", return_value=store),
             patch("backend.semantic_cache.get_semantic_cache_entry", return_value=entry),
             patch("backend.semantic_cache.get_active_index_name", return_value="indexes/current"),
-            patch("backend.semantic_cache._model_name", return_value="ollama/qwen3:8b"),
-            patch("backend.semantic_cache._embed_model_name", return_value="qwen3-embedding:4b"),
+            patch("backend.semantic_cache._model_name", return_value="openai/gpt-oss-20b"),
+            patch("backend.semantic_cache._embed_model_name", return_value="Qwen/Qwen3-Embedding-8B"),
             patch("backend.semantic_cache._threshold", return_value=0.92),
         ):
             self.assertIsNone(lookup_semantic_cache("pertanyaan"))
@@ -131,8 +131,8 @@ class SemanticCacheTests(unittest.TestCase):
             patch("backend.semantic_cache._get_cache_store", return_value=store),
             patch("backend.semantic_cache.get_semantic_cache_entry", return_value=self._valid_entry()),
             patch("backend.semantic_cache.get_active_index_name", return_value="indexes/current"),
-            patch("backend.semantic_cache._model_name", return_value="ollama/qwen3:8b"),
-            patch("backend.semantic_cache._embed_model_name", return_value="qwen3-embedding:4b"),
+            patch("backend.semantic_cache._model_name", return_value="openai/gpt-oss-20b"),
+            patch("backend.semantic_cache._embed_model_name", return_value="Qwen/Qwen3-Embedding-8B"),
             patch("backend.semantic_cache._threshold", return_value=0.92),
             patch("backend.semantic_cache.mark_semantic_cache_hit", mark_hit),
         ):
@@ -152,8 +152,8 @@ class SemanticCacheTests(unittest.TestCase):
                 {
                     "$and": [
                         {"active_index": "indexes/current"},
-                        {"model_name": "ollama/qwen3:8b"},
-                        {"embed_model_name": "qwen3-embedding:4b"},
+                        {"model_name": "openai/gpt-oss-20b"},
+                        {"embed_model_name": "Qwen/Qwen3-Embedding-8B"},
                     ]
                 }
             ],
@@ -171,8 +171,8 @@ class SemanticCacheTests(unittest.TestCase):
             ),
             patch("backend.semantic_cache._get_cache_store", cache_store),
             patch("backend.semantic_cache.get_active_index_name", return_value="indexes/current"),
-            patch("backend.semantic_cache._model_name", return_value="ollama/qwen3:8b"),
-            patch("backend.semantic_cache._embed_model_name", return_value="qwen3-embedding:4b"),
+            patch("backend.semantic_cache._model_name", return_value="openai/gpt-oss-20b"),
+            patch("backend.semantic_cache._embed_model_name", return_value="Qwen/Qwen3-Embedding-8B"),
             patch("backend.semantic_cache.mark_semantic_cache_hit", mark_hit),
         ):
             hit = lookup_semantic_cache("HRIS tuh apa sih?")
@@ -202,8 +202,8 @@ class SemanticCacheTests(unittest.TestCase):
             patch("backend.semantic_cache._get_cache_store", return_value=store),
             patch("backend.semantic_cache.insert_semantic_cache_entry", insert_entry),
             patch("backend.semantic_cache.get_active_index_name", return_value="indexes/current"),
-            patch("backend.semantic_cache._model_name", return_value="ollama/qwen3:8b"),
-            patch("backend.semantic_cache._embed_model_name", return_value="qwen3-embedding:4b"),
+            patch("backend.semantic_cache._model_name", return_value="openai/gpt-oss-20b"),
+            patch("backend.semantic_cache._embed_model_name", return_value="Qwen/Qwen3-Embedding-8B"),
         ):
             entry_id = store_semantic_cache(
                 "Seberapa besar uang saku dan uang makan?",

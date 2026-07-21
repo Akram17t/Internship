@@ -64,11 +64,6 @@ class FormTemplateDownloadTests(unittest.TestCase):
         )
         self.assertEqual(response.content, b"docx fixture")
 
-    def test_formfill_endpoints_are_removed(self) -> None:
-        self.assertEqual(self.client.get("/api/forms/fields", params={"path": "x"}).status_code, 404)
-        self.assertEqual(self.client.get("/api/forms/schema", params={"path": "x"}).status_code, 404)
-        self.assertEqual(self.client.post("/api/forms/fill", json={}).status_code, 404)
-
     def test_admin_insert_form_pdf_creates_docx_sidecar(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_dir:
             data_dir = Path(temporary_dir)
@@ -207,8 +202,8 @@ class FormTemplateDownloadTests(unittest.TestCase):
         self.assertIn("SOP - Guest Visible.pdf", names)
 
 
-class FormfillRemovalStaticTests(unittest.TestCase):
-    def test_frontend_has_no_formfill_ui_references(self) -> None:
+class RemovedFormEditorStaticTests(unittest.TestCase):
+    def test_frontend_has_no_removed_form_editor_references(self) -> None:
         frontend_files = [
             PROJECT_ROOT / "frontend" / "web" / "index.html",
             PROJECT_ROOT / "frontend" / "web" / "assets" / "app.js",

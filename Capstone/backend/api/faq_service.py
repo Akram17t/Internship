@@ -19,12 +19,12 @@ def _is_unusable_faq_answer(answer: str, citations: list[CitationResponse]) -> b
 
 def _build_faq_item(payload: AdminFAQPayload, faq_id: str | None = None) -> FAQItem:
     # Buat dan validasi satu entri FAQ dari pertanyaan.
-    from researcher_crew.main import OllamaGenerationError, run_faq_crew
+    from researcher_crew.main import ModelGenerationError, run_faq_crew
 
     question = payload.question.strip()
     try:
         answer, raw_citations = run_faq_crew(question)
-    except OllamaGenerationError as error:
+    except ModelGenerationError as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
     citations = [
         CitationResponse(

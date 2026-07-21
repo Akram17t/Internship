@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import os
@@ -75,15 +75,15 @@ class CacheDbTests(unittest.TestCase):
             citations=[{"id": 1, "source": "SOP Test.pdf", "page": 1}],
             selected_forms=[],
             active_index="indexes/current",
-            model_name="ollama/qwen3:8b",
-            embed_model_name="qwen3-embedding:4b",
+            model_name="openai/gpt-oss-20b",
+            embed_model_name="Qwen/Qwen3-Embedding-8B",
         )
 
         entry = get_semantic_cache_entry_by_question(
             "hris TUH apa sih???",
             active_index="indexes/current",
-            model_name="ollama/qwen3:8b",
-            embed_model_name="qwen3-embedding:4b",
+            model_name="openai/gpt-oss-20b",
+            embed_model_name="Qwen/Qwen3-Embedding-8B",
         )
 
         self.assertIsNotNone(entry)

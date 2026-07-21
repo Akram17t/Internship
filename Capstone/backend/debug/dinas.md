@@ -212,14 +212,14 @@ Luar Negeri Director - VP USD 35 USD 100 USD 90
 - page: 6
 - page_end: None
 - section: 4.8 Ketentuan Lain
-- anomaly: orphan_policy_line_relocated
+- anomaly: None
 - content_type: None
 - extraction_method: None
 - flowchart_confidence: None
 - source: SOP - Perjalanan Dinas.pdf
 ```text
 4.8 Ketentuan Lain
-•
+• Perjalanan dinas lebih dari 9 (sembilan) hari kerja berturut-turut dianggap penugasan
 sementara dan diatur dalam Internal Memo tersendiri serta persetujuan Director.
 • Perjalanan luar negeri: penetapan uang makan dan uang saku mengacu pada kurs TT counter
 jual pada hari pemberian.
@@ -228,7 +228,6 @@ jual pada hari pemberian.
 Perusahaan.
 • Karyawan memaksimalkan waktu kedatangan H-1 sebelum dan kepulangan H+1 setelah
 kegiatan bisnis, dengan persetujuan atasan langsung, CFO, dan Director.
-Perjalanan dinas lebih dari 12 (dua belas) hari kerja berturut-turut dianggap penugasan
 ```
 
 # Chunk 12
@@ -338,13 +337,11 @@ Nomor Form Nama Form
 - section: 9. ALUR PROSES
 - anomaly: None
 - content_type: flowchart
-- extraction_method: ollama_vision
-- flowchart_confidence: 0.92
+- extraction_method: groq_vision
+- flowchart_confidence: 1.0
 - source: SOP - Perjalanan Dinas.pdf
 ```text
 9. ALUR PROSES
-Alur Proses Perjalanan Dinas
-
 Tahapan yang terbaca:
 1. [Start] Mulai
 2. [Process] Mengisi Form Permohonan Perjalanan Dinas

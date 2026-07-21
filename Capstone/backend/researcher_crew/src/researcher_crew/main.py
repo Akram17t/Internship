@@ -5,8 +5,6 @@ import sys
 import json
 import logging
 import time
-import urllib.error
-import urllib.request
 from pathlib import Path
 from typing import Any
 
@@ -20,7 +18,7 @@ from backend.answer_policy import (
     strip_trailing_unsupported_answer,
     unsupported_answer_text,
 )
-from backend.settings import get_int_env, get_required_env, load_capstone_env
+from backend.settings import get_env, get_int_env, get_required_env, load_capstone_env
 from backend.semantic_cache import lookup_semantic_cache, store_semantic_cache
 
 from researcher_crew.tools import retrieve_knowledge
@@ -71,7 +69,7 @@ ANSWER_TASK_RULES = (
 )
 
 
-class OllamaGenerationError(RuntimeError):
+class ModelGenerationError(RuntimeError):
     """Muncul saat stack LLM gagal menyelesaikan proses generasi."""
 
 
@@ -115,77 +113,31 @@ def _configured_model() -> str:
     return get_required_env("MODEL")
 
 
-def _ollama_model_name() -> str:
-    # Ambil nama model Ollama tanpa prefix provider.
-    return _configured_model().removeprefix("ollama/")
-
-
 def _groq_model_name() -> str:
     # Groq SDK memakai nama model tanpa prefix LiteLLM provider.
     return _configured_model().removeprefix("groq/")
 
 
-def _ollama_base_url() -> str:
-    # Ambil base URL Ollama yang sudah dirapikan.
-    return get_required_env("OLLAMA_BASE_URL").rstrip("/")
+def _groq_reasoning_effort() -> str:
+    effort = get_env("GROQ_REASONING_EFFORT", "low").lower()
+    if effort not in {"low", "medium", "high"}:
+        raise ModelGenerationError(
+            "GROQ_REASONING_EFFORT must be low, medium, or high in .env."
+        )
+    return effort
 
 
-def _read_ollama_error(error: urllib.error.HTTPError) -> str:
-    # Ambil pesan error paling jelas dari respons HTTP Ollama.
-    try:
-        raw_body = error.read().decode("utf-8", errors="replace")
-    except Exception:
-        raw_body = ""
-
-    if not raw_body:
-        return f"Ollama returned HTTP {error.code}."
-
-    try:
-        payload = json.loads(raw_body)
-    except json.JSONDecodeError:
-        return raw_body.strip()
-
-    return str(payload.get("error") or payload.get("detail") or raw_body).strip()
-
-
-def _post_ollama_generate(payload: dict[str, object]) -> str:
-    # Kirim request generate mentah ke Ollama dan ambil teks hasilnya.
-    request = urllib.request.Request(
-        f"{_ollama_base_url()}/api/generate",
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-
-    try:
-        with urllib.request.urlopen(
-            request,
-            timeout=get_int_env("OLLAMA_TIMEOUT_SECONDS", 240),
-        ) as response:
-            body = json.loads(response.read().decode("utf-8"))
-    except urllib.error.HTTPError as error:
-        detail = _read_ollama_error(error)
-        raise OllamaGenerationError(
-            f"Ollama gagal membuat jawaban: {detail}"
-        ) from error
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as error:
-        raise OllamaGenerationError(
-            f"Ollama belum bisa dihubungi atau responsnya tidak valid: {error}"
-        ) from error
-
-    return _strip_thinking_blocks(str(body.get("response", "")))
-
-
-def _groq_generate(
+def _generate_with_model(
     prompt: str,
     *,
     num_predict: int,
     temperature: float,
+    seed: int | None = None,
 ) -> str:
     try:
         from groq import Groq
     except ImportError as error:
-        raise OllamaGenerationError(
+        raise ModelGenerationError(
             "Dependency Groq belum terpasang. Jalankan pip install -r requirements.txt."
         ) from error
 
@@ -194,65 +146,27 @@ def _groq_generate(
             api_key=get_required_env("GROQ_API_KEY"),
             timeout=get_int_env("GROQ_TIMEOUT_SECONDS", 240),
         )
-        completion = client.chat.completions.create(
-            model=_groq_model_name(),
-            messages=[{"role": "user", "content": prompt}],
-            temperature=temperature,
-            max_completion_tokens=num_predict,
-            top_p=0.95,
-            reasoning_effort="default",
-            stream=False,
-            stop=None,
-        )
+        request_payload: dict[str, Any] = {
+            "model": _groq_model_name(),
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": temperature,
+            "max_completion_tokens": num_predict,
+            "top_p": 0.95,
+            "reasoning_effort": _groq_reasoning_effort(),
+            "stream": False,
+            "stop": None,
+        }
+        if seed is not None:
+            request_payload["seed"] = seed
+        completion = client.chat.completions.create(**request_payload)
     except Exception as error:
-        raise OllamaGenerationError(f"Groq gagal membuat jawaban: {error}") from error
+        raise ModelGenerationError(f"Groq gagal membuat jawaban: {error}") from error
 
     choices: Any = getattr(completion, "choices", None)
     if not choices:
         return ""
     message = getattr(choices[0], "message", None)
     return _strip_thinking_blocks(str(getattr(message, "content", "") or ""))
-
-
-def _ollama_generate(
-    prompt: str,
-    *,
-    num_predict: int,
-    temperature: float = 0.1,
-    seed: int | None = None,
-) -> str:
-    """Kirim prompt ke provider aktif, tetap mempertahankan nama lama untuk test."""
-    if _configured_model().startswith("groq/"):
-        return _groq_generate(
-            prompt,
-            num_predict=num_predict,
-            temperature=temperature,
-        )
-
-    options: dict[str, object] = {
-        "temperature": temperature,
-        "num_ctx": get_int_env("OLLAMA_NUM_CTX", 4096),
-        "num_predict": num_predict,
-    }
-    if seed is not None:
-        options["seed"] = seed
-
-    payload: dict[str, object] = {
-        "model": _ollama_model_name(),
-        "prompt": prompt,
-        "stream": False,
-        # Simpan seluruh jatah token untuk output, bukan token <think> tersembunyi.
-        "think": False,
-        "options": options,
-    }
-    try:
-        return _post_ollama_generate(payload)
-    except OllamaGenerationError as error:
-        # Model non-thinking seperti gemma3 bisa menolak flag `think`; coba ulang sekali.
-        if "think" not in str(error).lower():
-            raise
-        payload.pop("think", None)
-        return _post_ollama_generate(payload)
 
 
 _CONTEXT_REFERENCE_PATTERN = re.compile(
@@ -311,8 +225,8 @@ def _rewrite_query(question: str, conversation_context: str = "") -> str:
             "Jawaban:"
         )
         try:
-            rewritten = _ollama_generate(prompt, num_predict=140, temperature=0.0)
-        except OllamaGenerationError:
+            rewritten = _generate_with_model(prompt, num_predict=140, temperature=0.0)
+        except ModelGenerationError:
             return question
 
         return _extract_rewrite_decision(rewritten) or question
@@ -350,8 +264,8 @@ def _rewrite_query(question: str, conversation_context: str = "") -> str:
         "Keputusan:"
     )
     try:
-        rewritten = _ollama_generate(prompt, num_predict=120, temperature=0.0)
-    except OllamaGenerationError:
+        rewritten = _generate_with_model(prompt, num_predict=120, temperature=0.0)
+    except ModelGenerationError:
         return question
 
     decision = rewritten.strip().strip('"').strip()
@@ -373,9 +287,9 @@ def _direct_answer_prompt(question: str, evidence: str, available_forms: str) ->
 
 def _generate_answer(question: str, evidence: str, available_forms: str) -> str:
     # Generate jawaban akhir langsung lewat provider aktif.
-    return _ollama_generate(
+    return _generate_with_model(
         _direct_answer_prompt(question, evidence, available_forms),
-        num_predict=get_int_env("OLLAMA_NUM_PREDICT", 1100),
+        num_predict=get_int_env("MODEL_NUM_PREDICT", 1100),
         temperature=0.05,
     )
 
@@ -509,14 +423,14 @@ def _generate_faq_answer(question: str, evidence: str) -> str:
         f"Evidence:\n{evidence}\n\n"
         "Jawaban FAQ:"
     )
-    answer = _ollama_generate(
+    answer = _generate_with_model(
         prompt,
         num_predict=max(get_int_env("FAQ_NUM_PREDICT", 180), 384),
         temperature=0.1,
         seed=11,
     )
     if not answer:
-        raise OllamaGenerationError("Ollama mengembalikan jawaban FAQ kosong.")
+        raise ModelGenerationError("Groq mengembalikan jawaban FAQ kosong.")
     return answer
 
 
