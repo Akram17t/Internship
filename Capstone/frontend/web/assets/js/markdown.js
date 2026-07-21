@@ -69,8 +69,12 @@ function formatMessage(content, citations = [], formDownloads = []) {
       continue;
     }
 
-    const bullet = value.match(/^[-*•]\s+(.*)$/);
+    const bullet = value.match(/^[-*\u2022]\s+(.*)$/);
     if (bullet) {
+      if (isCitationOnlyText(bullet[1])) {
+        appendCitationToPreviousBlock(wrapper, bullet[1], citationMap);
+        continue;
+      }
       appendListItem("ul", bullet[1].trim());
       continue;
     }
@@ -109,7 +113,7 @@ function normalizeStandaloneCitationLines(lines) {
 }
 
 function standaloneCitationMarker(line) {
-  const match = String(line || "").match(/^\s*(?:[-*â€¢]\s*)?((?:\[\d+\]\s*)+)\s*$/);
+  const match = String(line || "").match(/^\s*(?:[-*\u2022]\s*)?((?:\[\d+\]\s*)+)\s*$/);
   return match ? match[1].trim().replace(/\s+/g, " ") : "";
 }
 

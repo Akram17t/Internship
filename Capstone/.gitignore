@@ -1,4 +1,6 @@
 .env
+.env.production
+!.env.production.example
 .venv/
 __pycache__/
 *.pyc

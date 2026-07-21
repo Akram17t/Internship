@@ -37,13 +37,27 @@ class AnswerFinalizationTests(unittest.TestCase):
             "\n"
             "2. Persetujuan Atasan\n"
             "- Jika disetujui, proses berlanjut.\n"
-            "- [1]",
+            "• [1]",
             [{"id": 1, "source": "SOP.pdf"}],
         )
 
         self.assertIn("- Karyawan menulis surat pengunduran diri. [1]", answer)
         self.assertIn("- Jika disetujui, proses berlanjut. [1]", answer)
         self.assertNotIn("- [1]", answer)
+        self.assertNotIn("• [1]", answer)
+
+    def test_direct_answer_prompt_reinforces_form_selection_boundaries(self) -> None:
+        prompt = crew_main._direct_answer_prompt(
+            "Bagaimana alur permohonan hak akses?",
+            "[1] Karyawan mengajukan permohonan hak akses dan ACL diperbarui.",
+            '[{"name": "Form - Exit Clearance (Template).pdf"}, '
+            '{"name": "Form - System Access Control List (Template).pdf"}]',
+        )
+
+        self.assertIn("System Access Control List", prompt)
+        self.assertIn("Exit Clearance hanya untuk resign/offboarding", prompt)
+        self.assertIn("Jangan pilih Exit Clearance hanya karena", prompt)
+        self.assertIn("tidak boleh ada baris yang isinya hanya citation", prompt)
 
     def test_faq_prompt_requests_compact_but_informative_answer(self) -> None:
         with patch(
@@ -81,6 +95,32 @@ class AnswerFinalizationTests(unittest.TestCase):
         self.assertEqual(
             selected_forms,
             ["Form - Perjalanan Dinas (Template).pdf"],
+        )
+
+    def test_form_selection_removes_visible_used_form_heading(self) -> None:
+        answer = (
+            "Alur exit clearance dijalankan pada hari terakhir bekerja [1].\n\n"
+            "**Form yang digunakan**\n\n"
+            'FORM_SELECTION: ["Form - Exit Clearance (Template).pdf"]'
+        )
+
+        cleaned, selected_forms = crew_main._split_form_selection(answer)
+
+        self.assertEqual(
+            cleaned,
+            "Alur exit clearance dijalankan pada hari terakhir bekerja [1].",
+        )
+        self.assertEqual(selected_forms, ["Form - Exit Clearance (Template).pdf"])
+
+    def test_cached_answer_visible_form_heading_can_be_stripped(self) -> None:
+        cleaned = crew_main._strip_visible_form_download_copy(
+            "Alur exit clearance dijalankan pada hari terakhir bekerja [1].\n\n"
+            "Form yang digunakan"
+        )
+
+        self.assertEqual(
+            cleaned,
+            "Alur exit clearance dijalankan pada hari terakhir bekerja [1].",
         )
 
     def test_rewrite_keeps_original_when_ai_says_keep(self) -> None:

@@ -43,6 +43,59 @@ clean.bat
 - `run.bat` uses `backend\researcher_crew\.venv`, checks the required imports, reads `CHROMA_DIR` and `DATA_DIR` from `.env`, runs ingestion only when no valid vector index exists, then starts FastAPI and opens the web frontend in your browser.
 - `clean.bat` stops the server, removes `__pycache__`, `.pytest_cache`, and `*.pyc`, and clears the `CHROMA_DIR` vector index (keeping `.gitkeep`) so the next `run.bat` re-ingests documents.
 
+## Docker Deployment
+
+For a single-container VPS deployment, use the provided Dockerfile and
+`docker-compose.yml`. Runtime data is stored in the named Docker volume
+`app_storage`, mounted at `/app/storage` inside the container.
+
+1. Copy the production env template and fill in the API keys:
+
+```bash
+cp .env.production.example .env.production
+```
+
+2. Confirm the production storage paths stay on `/app/storage`:
+
+```env
+APP_STATE_DB=/app/storage/app_state.db
+DATA_DIR=/app/storage/data
+CHROMA_DIR=/app/storage/chroma_db
+SEMANTIC_CACHE_DIR=/app/storage/semantic_chroma
+```
+
+3. Build and start the app:
+
+```bash
+docker compose build
+docker compose up -d
+```
+
+4. Add source documents to the `DATA_DIR` volume path, then run ingestion:
+
+```bash
+docker compose run --rm app python -m backend.preprocessing.ingest
+```
+
+5. Inspect logs when needed:
+
+```bash
+docker compose logs app
+```
+
+The container starts FastAPI with the production command:
+
+```bash
+python -m uvicorn backend.api.main:app --host 0.0.0.0 --port 8000 --no-access-log
+```
+
+Important persistent data in `app_storage`:
+
+- `app_state.db`: admin accounts, sessions state, activity logs, and app state
+- `data/`: uploaded/source documents
+- `chroma_db/`: vector database index
+- `semantic_chroma/`: semantic answer cache
+
 ## Frontend Config
 
 - `TYPING_ANIMATION_ENABLED=true` keeps the assistant typing reveal enabled.

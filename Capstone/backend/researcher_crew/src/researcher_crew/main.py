@@ -49,6 +49,7 @@ ANSWER_TASK_RULES = (
     "- Pertahankan marker sitasi angka seperti [1] dan [2] di jawaban visible.\n"
     "- Letakkan citation di akhir paragraf, bullet, atau baris tabel yang penting.\n"
     "- Jangan pernah menaruh citation sebagai bullet/baris sendiri seperti '- [1]'; tempelkan ke kalimat sebelumnya.\n"
+    "- Sebelum final, cek ulang: tidak boleh ada baris yang isinya hanya citation seperti '[1]', '- [1]', '* [1]', atau '1. [1]'.\n"
     "- Jika membuat tabel, pastikan minimal kalimat pengantar atau heading tabel memiliki marker citation yang mendukung isi tabel.\n"
     "- Jika membuat tabel markdown, setiap baris harus diawali dan diakhiri karakter |, termasuk baris terakhir.\n"
     "- Jangan tulis nama file/source/section sebagai bagian jawaban visible kecuali user memang bertanya sumbernya.\n"
@@ -59,6 +60,7 @@ ANSWER_TASK_RULES = (
     "- Jika jawaban membutuhkan downloadable form, pilih hanya dari available downloadable forms.\n"
     "- Jangan invent nama form.\n"
     "- Jangan menulis filename PDF atau section download form di jawaban visible; app akan render form terpisah.\n"
+    "- Jangan membuat heading/kalimat visible seperti 'Form yang digunakan', 'Form terkait', atau 'Form yang bisa diunduh'; cukup isi FORM_SELECTION.\n"
     "- Jika evidence menjawab pertanyaan, di akhir jawaban tambahkan tepat satu baris machine-readable:\n"
     "FORM_SELECTION: [\"exact form filename.pdf\"]\n"
     "- Jika tidak perlu form, tulis tepat:\n"
@@ -310,14 +312,14 @@ def _split_form_selection(answer: str) -> tuple[str, list[str]]:
     )
     downloadable_form_section_pattern = re.compile(
         r"(?:^|\n)\s*(?:\*\*)?(?:form|formulir)\s+"
-        r"(?:terkait|yang\s+(?:bisa|dapat)\s+(?:diunduh|didownload)|downloadable)"
+        r"(?:terkait|yang\s+(?:digunakan|dipakai)|yang\s+(?:bisa|dapat)\s+(?:diunduh|didownload)|downloadable)"
         r"(?:\*\*)?\s*:?\s*(?:\n\s*)+"
         r"(?:(?:[-*•]|\d+[\.)])\s+.*(?:\n|$))+",
         flags=re.IGNORECASE,
     )
     downloadable_form_intro_pattern = re.compile(
         r"^\s*(?:selain itu,\s*)?(?:ada\s*)?(?:form|formulir)\s+"
-        r"(?:terkait\s+)?(?:yang\s+)?(?:tersedia|dapat|bisa|downloadable).*(?::)?\s*$",
+        r"(?:terkait\s+)?(?:yang\s+)?(?:digunakan|dipakai|tersedia|dapat|bisa|downloadable).*(?::)?\s*$",
         flags=re.IGNORECASE | re.MULTILINE,
     )
     # Hanya baris yang menyebut nama file form (diawali "Form" dan berakhiran .pdf)
@@ -346,9 +348,22 @@ def _split_form_selection(answer: str) -> tuple[str, list[str]]:
     if selected_forms:
         cleaned_answer = downloadable_form_section_pattern.sub("\n", cleaned_answer)
         cleaned_answer = downloadable_form_intro_pattern.sub("", cleaned_answer)
+        cleaned_answer = _strip_visible_form_download_copy(cleaned_answer)
         cleaned_answer = downloadable_form_line_pattern.sub("", cleaned_answer).strip()
     cleaned_answer = re.sub(r"\n{3,}", "\n\n", cleaned_answer).strip()
     return cleaned_answer, selected_forms
+
+
+def _strip_visible_form_download_copy(answer: str) -> str:
+    """Buang heading form visible karena form dirender sebagai blok terpisah."""
+    pattern = re.compile(
+        r"^\s*(?:#{1,6}\s*)?(?:\*\*)?(?:form|formulir)\s+"
+        r"(?:(?:yang\s+)?(?:digunakan|dipakai|terkait)|(?:yang\s+)?(?:bisa|dapat)\s+(?:diunduh|didownload)|downloadable)"
+        r"(?:\*\*)?\s*:?\s*$",
+        flags=re.IGNORECASE | re.MULTILINE,
+    )
+    cleaned = pattern.sub("", str(answer))
+    return re.sub(r"\n{3,}", "\n\n", cleaned).strip()
 
 
 def _normalize_visible_citation_style(answer: str) -> str:
@@ -376,7 +391,7 @@ def _merge_standalone_citation_lines(answer: str) -> str:
     """Pindahkan baris citation-only ke baris konten sebelumnya."""
     lines = str(answer).splitlines()
     merged: list[str] = []
-    standalone_pattern = re.compile(r"^\s*(?:[-*â€¢]\s*)?((?:\[\d+\]\s*)+)\s*$")
+    standalone_pattern = re.compile(r"^\s*(?:[-*\u2022]\s*)?((?:\[\d+\]\s*)+)\s*$")
 
     for line in lines:
         match = standalone_pattern.match(line)
@@ -499,6 +514,8 @@ def run_knowledge_crew(
             _strip_thinking_blocks(cache_hit.answer),
             cache_hit.citations,
         )
+        if cache_hit.selected_forms:
+            cached_answer = _strip_visible_form_download_copy(cached_answer)
         return cached_answer, cached_citations, cache_hit.selected_forms, "cache"
 
     evidence, citations = retrieve_knowledge(standalone_question)
