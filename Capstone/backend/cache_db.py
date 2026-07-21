@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import secrets
 import sqlite3
 import threading
 from contextlib import closing
@@ -20,8 +21,12 @@ from backend.settings import get_env, load_capstone_env
 
 load_capstone_env()
 
-SCHEMA_VERSION = "2"
+SCHEMA_VERSION = "3"
 MIGRATION_KEY = "conversations_json_migrated"
+ADMIN_SESSION_SECRET_KEY = "admin_session_secret"
+DEFAULT_ADMIN_EMAIL = "admin@gmail.com"
+DEFAULT_ADMIN_PASSWORD = "admin123"
+DEFAULT_ADMIN_NAME = "admin"
 ACTIVITY_LOG_RETENTION = timedelta(days=30)
 MAX_ACTIVITY_LOG_LIMIT = 250
 STATE_DB_LOCK = threading.RLock()
@@ -113,6 +118,16 @@ def _init_schema(connection: sqlite3.Connection) -> None:
             ON activity_logs (event_type, created_at DESC, id DESC);
         CREATE INDEX IF NOT EXISTS idx_activity_logs_created
             ON activity_logs (created_at DESC, id DESC);
+
+        CREATE TABLE IF NOT EXISTS admin_accounts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT NOT NULL UNIQUE,
+            password TEXT NOT NULL,
+            name TEXT NOT NULL DEFAULT 'Admin',
+            created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_admin_accounts_email
+            ON admin_accounts (email);
         """
     )
     semantic_columns = {
@@ -232,6 +247,33 @@ def _migrate_legacy_conversations(
     return inserted
 
 
+def _ensure_admin_session_secret(connection: sqlite3.Connection) -> str:
+    current_secret = _get_meta(connection, ADMIN_SESSION_SECRET_KEY)
+    if current_secret:
+        return current_secret
+
+    next_secret = secrets.token_hex(32)
+    _set_meta(connection, ADMIN_SESSION_SECRET_KEY, next_secret)
+    return next_secret
+
+
+def _ensure_default_admin(connection: sqlite3.Connection) -> None:
+    existing_count = int(
+        connection.execute("SELECT COUNT(*) AS count FROM admin_accounts").fetchone()["count"]
+    )
+    if existing_count:
+        return
+
+    now = datetime.now().isoformat(timespec="seconds")
+    connection.execute(
+        """
+        INSERT OR IGNORE INTO admin_accounts(email, password, name, created_at)
+        VALUES (?, ?, ?, ?)
+        """,
+        (DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD, DEFAULT_ADMIN_NAME, now),
+    )
+
+
 def init_state_db(
     *,
     db_path: Path | None = None,
@@ -243,9 +285,78 @@ def init_state_db(
             if _get_meta(connection, MIGRATION_KEY) != "1":
                 _migrate_legacy_conversations(connection, legacy_conversations_path)
                 _set_meta(connection, MIGRATION_KEY, "1")
+            _ensure_admin_session_secret(connection)
+            _ensure_default_admin(connection)
             _cleanup_activity_logs(connection)
             _cleanup_conversations(connection)
             connection.commit()
+
+
+def _admin_account_from_row(row: sqlite3.Row) -> dict[str, str]:
+    return {
+        "email": str(row["email"]),
+        "password": str(row["password"]),
+        "name": str(row["name"]) or "Admin",
+    }
+
+
+def list_admin_accounts() -> list[dict[str, str]]:
+    with STATE_DB_LOCK:
+        init_state_db()
+        with closing(_connect()) as connection:
+            rows = connection.execute(
+                """
+                SELECT email, password, name
+                FROM admin_accounts
+                ORDER BY id ASC
+                """
+            ).fetchall()
+    return [_admin_account_from_row(row) for row in rows]
+
+
+def get_admin_session_secret() -> str:
+    with STATE_DB_LOCK:
+        init_state_db()
+        with closing(_connect()) as connection:
+            secret = _ensure_admin_session_secret(connection)
+            connection.commit()
+            return secret
+
+
+def load_admin_config() -> dict[str, object]:
+    return {
+        "admins": list_admin_accounts(),
+        "session_secret": get_admin_session_secret(),
+    }
+
+
+def add_admin_account(*, email: str, password: str, name: str) -> dict[str, str]:
+    clean_email = email.strip().lower()
+    clean_password = password
+    clean_name = name.strip() or "Admin"
+    if not clean_email or not clean_password:
+        raise ValueError("missing_credentials")
+
+    with STATE_DB_LOCK:
+        init_state_db()
+        now = datetime.now().isoformat(timespec="seconds")
+        with closing(_connect()) as connection:
+            try:
+                connection.execute(
+                    """
+                    INSERT INTO admin_accounts(email, password, name, created_at)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (clean_email, clean_password, clean_name, now),
+                )
+            except sqlite3.IntegrityError as error:
+                raise ValueError("duplicate_email") from error
+            connection.commit()
+    return {
+        "email": clean_email,
+        "password": clean_password,
+        "name": clean_name,
+    }
 
 
 def _cleanup_conversations(connection: sqlite3.Connection, now: datetime | None = None) -> None:
@@ -905,8 +1016,12 @@ def state_counts() -> dict[str, int]:
             activity_rows = int(
                 connection.execute("SELECT COUNT(*) AS count FROM activity_logs").fetchone()["count"]
             )
+            admin_rows = int(
+                connection.execute("SELECT COUNT(*) AS count FROM admin_accounts").fetchone()["count"]
+            )
     return {
         "conversation_messages": conversation_rows,
         "semantic_cache_entries": semantic_rows,
         "activity_logs": activity_rows,
+        "admin_accounts": admin_rows,
     }

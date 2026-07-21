@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import json
 import os
+import sqlite3
 import sys
 import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -14,6 +15,12 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from backend.api.main import app  # noqa: E402
+from backend.cache_db import (  # noqa: E402
+    add_admin_account,
+    get_state_db_path,
+    init_state_db,
+    list_admin_accounts,
+)
 
 
 class AdminAuthTests(unittest.TestCase):
@@ -23,56 +30,68 @@ class AdminAuthTests(unittest.TestCase):
 
     def setUp(self) -> None:
         self.temp_dir = tempfile.TemporaryDirectory()
-        self.cache_dir = Path(self.temp_dir.name) / "cache"
+        self.root = Path(self.temp_dir.name)
+        self.cache_dir = self.root / "cache"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
-        self.old_cache_dir = os.environ.get("CONVERSATION_CACHE_DIR")
+        self.old_env = {
+            "APP_STATE_DB": os.environ.get("APP_STATE_DB"),
+            "CONVERSATION_CACHE_DIR": os.environ.get("CONVERSATION_CACHE_DIR"),
+        }
+        os.environ["APP_STATE_DB"] = str(self.root / "app_state.db")
         os.environ["CONVERSATION_CACHE_DIR"] = str(self.cache_dir)
 
     def tearDown(self) -> None:
-        if self.old_cache_dir is None:
-            os.environ.pop("CONVERSATION_CACHE_DIR", None)
-        else:
-            os.environ["CONVERSATION_CACHE_DIR"] = self.old_cache_dir
+        for key, value in self.old_env.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
         self.temp_dir.cleanup()
 
-    def write_admin_config(self, payload: dict[str, object]) -> None:
-        (self.cache_dir / "admin.json").write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
+    def seed_admin(self, *, email: str, password: str, name: str) -> None:
+        add_admin_account(email=email, password=password, name=name)
 
-    def test_legacy_admin_json_migrates_and_login_still_works(self) -> None:
-        self.write_admin_config(
-            {
-                "email": "Owner@Example.com",
-                "password": "owner-pass",
-                "name": "Owner",
-                "session_secret": "test-secret",
-            }
-        )
-
+    def test_fresh_database_seeds_default_admin_and_login_works(self) -> None:
         response = self.client.post(
             "/api/admin/login",
-            json={"email": "owner@example.com", "password": "owner-pass"},
+            json={"email": "admin@gmail.com", "password": "admin123"},
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["name"], "Owner")
-        stored = json.loads((self.cache_dir / "admin.json").read_text(encoding="utf-8"))
-        self.assertEqual(stored["admins"][0]["email"], "owner@example.com")
-        self.assertNotIn("email", stored)
-        self.assertNotIn("password", stored)
+        self.assertEqual(response.json()["name"], "admin")
+        stored = list_admin_accounts()
+        self.assertEqual(stored[0]["email"], "admin@gmail.com")
+
+    def test_default_admin_seed_does_not_overwrite_existing_admin(self) -> None:
+        init_state_db()
+        with closing(sqlite3.connect(get_state_db_path())) as connection:
+            connection.execute(
+                """
+                UPDATE admin_accounts
+                SET password = ?, name = ?
+                WHERE email = ?
+                """,
+                ("custom-pass", "Custom Admin", "admin@gmail.com"),
+            )
+            connection.commit()
+
+        init_state_db()
+        old_password_response = self.client.post(
+            "/api/admin/login",
+            json={"email": "admin@gmail.com", "password": "admin123"},
+        )
+        custom_password_response = self.client.post(
+            "/api/admin/login",
+            json={"email": "admin@gmail.com", "password": "custom-pass"},
+        )
+
+        self.assertEqual(old_password_response.status_code, 401)
+        self.assertEqual(custom_password_response.status_code, 200)
+        self.assertEqual(custom_password_response.json()["name"], "Custom Admin")
 
     def test_login_accepts_any_configured_admin(self) -> None:
-        self.write_admin_config(
-            {
-                "admins": [
-                    {"email": "owner@example.com", "password": "owner-pass", "name": "Owner"},
-                    {"email": "hr@example.com", "password": "hr-pass", "name": "HR Admin"},
-                ],
-                "session_secret": "test-secret",
-            }
-        )
+        self.seed_admin(email="owner@example.com", password="owner-pass", name="Owner")
+        self.seed_admin(email="hr@example.com", password="hr-pass", name="HR Admin")
 
         response = self.client.post(
             "/api/admin/login",
@@ -84,14 +103,7 @@ class AdminAuthTests(unittest.TestCase):
         self.assertEqual(response.json()["name"], "HR Admin")
 
     def test_logged_in_admin_can_create_new_admin(self) -> None:
-        self.write_admin_config(
-            {
-                "admins": [
-                    {"email": "owner@example.com", "password": "owner-pass", "name": "Owner"},
-                ],
-                "session_secret": "test-secret",
-            }
-        )
+        self.seed_admin(email="owner@example.com", password="owner-pass", name="Owner")
         login = self.client.post(
             "/api/admin/login",
             json={"email": "owner@example.com", "password": "owner-pass"},
@@ -107,25 +119,18 @@ class AdminAuthTests(unittest.TestCase):
                 "password": "hr-pass",
             },
         )
-        login_new_admin = self.client.post(
+        new_admin_login_response = self.client.post(
             "/api/admin/login",
             json={"email": "hr@example.com", "password": "hr-pass"},
         )
 
         self.assertEqual(create_response.status_code, 200)
         self.assertEqual(create_response.json(), {"email": "hr@example.com", "name": "HR Admin"})
-        self.assertEqual(login_new_admin.status_code, 200)
-        self.assertEqual(login_new_admin.json()["name"], "HR Admin")
+        self.assertEqual(new_admin_login_response.status_code, 200)
+        self.assertEqual(new_admin_login_response.json()["name"], "HR Admin")
 
     def test_create_admin_rejects_duplicate_email(self) -> None:
-        self.write_admin_config(
-            {
-                "admins": [
-                    {"email": "owner@example.com", "password": "owner-pass", "name": "Owner"},
-                ],
-                "session_secret": "test-secret",
-            }
-        )
+        self.seed_admin(email="owner@example.com", password="owner-pass", name="Owner")
         login = self.client.post(
             "/api/admin/login",
             json={"email": "owner@example.com", "password": "owner-pass"},

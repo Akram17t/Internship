@@ -71,7 +71,8 @@ def main() -> int:
         counts = state_counts()
         print(
             "conversation_messages={conversation_messages} "
-            "semantic_cache_entries={semantic_cache_entries}".format(**counts)
+            "semantic_cache_entries={semantic_cache_entries} "
+            "admin_accounts={admin_accounts}".format(**counts)
         )
         return 0
 

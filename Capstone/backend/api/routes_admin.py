@@ -75,7 +75,7 @@ def login_admin(payload: AdminLoginPayload) -> AdminLoginResponse:
     if not _has_configured_admin():
         raise HTTPException(
             status_code=503,
-            detail="Admin belum dikonfigurasi. Tambahkan admin di backend/cache/admin.json.",
+            detail="Admin belum dikonfigurasi. Tambahkan admin ke database aplikasi.",
         )
 
     email = payload.email.strip().lower()

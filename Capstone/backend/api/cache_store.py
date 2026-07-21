@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import json
-import secrets
 import uuid
 from pathlib import Path
 
 from fastapi import HTTPException
 
 from backend.cache_db import (
+    add_admin_account,
     append_conversation_turn,
     get_conversation_context,
+    load_admin_config,
 )
 from backend.api.core import (
     ADMIN_CONFIG_LOCK,
@@ -21,16 +22,8 @@ from backend.api.storage import _citation_download_url
 from backend.settings import get_env
 
 
-def _new_admin_config_template() -> dict[str, object]:
-    # Buat template config admin yang sengaja kosong.
-    return {
-        "admins": [],
-        "session_secret": secrets.token_hex(32),
-    }
-
-
 def _get_cache_dir() -> Path:
-    # Tentukan folder cache lokal untuk FAQ/admin JSON dan legacy conversation import.
+    # Tentukan folder cache lokal untuk FAQ JSON dan legacy import.
     raw_dir = get_env("CONVERSATION_CACHE_DIR", "backend/cache")
     path = Path(raw_dir)
     if not path.is_absolute():
@@ -43,124 +36,26 @@ def _get_faq_file() -> Path:
     return _get_cache_dir() / "faqs.json"
 
 
-def _get_admin_file() -> Path:
-    # Kembalikan path file config admin.
-    return _get_cache_dir() / "admin.json"
-
-
-def _save_admin_config(config: dict[str, object]) -> None:
-    # Simpan JSON config admin ke disk.
-    cache_dir = _get_cache_dir()
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    _get_admin_file().write_text(
-        json.dumps(config, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
-
-
-def _normalize_admin_record(item: object) -> dict[str, str] | None:
-    # Rapikan satu record admin dan abaikan record yang tidak lengkap.
-    if not isinstance(item, dict):
-        return None
-
-    email = str(item.get("email") or "").strip().lower()
-    password = str(item.get("password") or "")
-    if not email or not password:
-        return None
-
-    return {
-        "email": email,
-        "password": password,
-        "name": str(item.get("name") or "Admin").strip() or "Admin",
-    }
-
-
-def _normalize_admins(data: dict[str, object]) -> list[dict[str, str]]:
-    # Dukung format baru admins[] dan migrasi format lama email/password tunggal.
-    raw_admins = data.get("admins")
-    admins = raw_admins if isinstance(raw_admins, list) else []
-
-    if not admins and (data.get("email") or data.get("password")):
-        admins = [
-            {
-                "email": data.get("email"),
-                "password": data.get("password"),
-                "name": data.get("name"),
-            }
-        ]
-
-    normalized: list[dict[str, str]] = []
-    seen_emails: set[str] = set()
-    for raw_admin in admins:
-        admin = _normalize_admin_record(raw_admin)
-        if admin is None or admin["email"] in seen_emails:
-            continue
-        normalized.append(admin)
-        seen_emails.add(admin["email"])
-    return normalized
-
-
 def _load_admin_config() -> dict[str, object]:
-    # Muat config admin dari disk dan isi default aman yang masih kurang.
+    # Muat config admin dari app_state DB.
     with ADMIN_CONFIG_LOCK:
-        path = _get_admin_file()
-        if not path.exists():
-            config = _new_admin_config_template()
-            _save_admin_config(config)
-            return config
-
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            data = {}
-
-        if not isinstance(data, dict):
-            data = {}
-
-        session_secret = str(data.get("session_secret") or "").strip()
-        if not session_secret:
-            session_secret = secrets.token_hex(32)
-
-        config = {
-            "admins": _normalize_admins(data),
-            "session_secret": session_secret,
-        }
-        if data != config:
-            _save_admin_config(config)
-        return config
+        return load_admin_config()
 
 
 def _add_admin_config(email: str, password: str, name: str) -> dict[str, str]:
-    # Tambahkan admin baru ke admin.json dan cegah email duplikat.
-    clean_email = email.strip().lower()
-    clean_password = password
-    clean_name = name.strip() or "Admin"
-    if not clean_email or not clean_password:
-        raise HTTPException(status_code=422, detail="Email dan password admin wajib diisi.")
-
+    # Tambahkan admin baru ke app_state DB dan cegah email duplikat.
     with ADMIN_CONFIG_LOCK:
-        config = _load_admin_config()
-        admins = list(config.get("admins") if isinstance(config.get("admins"), list) else [])
-        if any(
-            isinstance(admin, dict)
-            and str(admin.get("email") or "").strip().lower() == clean_email
-            for admin in admins
-        ):
+        try:
+            return add_admin_account(email=email, password=password, name=name)
+        except ValueError as error:
+            if str(error) == "duplicate_email":
+                raise HTTPException(status_code=409, detail="Email admin sudah terdaftar.") from error
+            if str(error) == "missing_credentials":
+                raise HTTPException(
+                    status_code=422,
+                    detail="Email dan password admin wajib diisi.",
+                ) from error
             raise HTTPException(status_code=409, detail="Email admin sudah terdaftar.")
-
-        admin = {
-            "email": clean_email,
-            "password": clean_password,
-            "name": clean_name,
-        }
-        admins.append(admin)
-        _save_admin_config(
-            {
-                "admins": admins,
-                "session_secret": str(config.get("session_secret") or secrets.token_hex(32)),
-            }
-        )
-        return admin
 
 
 def _clean_conversation_id(value: str | None) -> str:
