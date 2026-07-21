@@ -209,7 +209,7 @@ function renderActivitySummary() {
   setLogMetric(elements.logsTotalChat, summary.total_chat);
   setLogMetric(elements.logsTotalSessions, summary.total_sessions);
   setLogMetric(elements.logsAverageChat, summary.average_chat_per_session);
-  setLogMetric(elements.logsFallbackError, summary.fallback_or_error);
+  setLogMetric(elements.logsRangeDays, getSelectedLogRangeDays());
 }
 
 function setLogMetric(element, value) {
@@ -252,7 +252,6 @@ function createLogSessionRow(item, index) {
   dot.className = "material-symbols-outlined logs-session-marker";
   dot.textContent = "chat_bubble";
   dot.setAttribute("aria-hidden", "true");
-  if (item.latest_status === "error") row.dataset.status = "error";
   const title = document.createElement("span");
   title.className = "log-question";
   title.textContent = item.first_question || item.latest_question || "Chat session";
@@ -260,11 +259,9 @@ function createLogSessionRow(item, index) {
 
   const meta = document.createElement("small");
   meta.className = "logs-session-meta";
-  meta.textContent = `${shortSessionId(item.conversation_id)} · ${formatLogNumber(
-    item.question_count,
-  )} ${Number(item.question_count) === 1 ? "question" : "questions"} · ${
-    formatLogNumber(item.fallback_or_error)
-  } fallback/error`;
+  meta.textContent = `${formatLogNumber(item.question_count)} ${
+    Number(item.question_count) === 1 ? "question" : "questions"
+  } · Last activity ${formatLogTimeParts(item.last_at).date}`;
   detail.append(topLine, meta);
 
   const timestamp = createLogTimestamp(item.last_at);
@@ -306,7 +303,7 @@ function createLogSessionDeleteButton(item) {
 function createLogRow(item, index) {
   const row = document.createElement("article");
   row.className = "log-row";
-  row.dataset.status = item.status || "success";
+  row.dataset.status = "success";
   row.style.setProperty("--row-index", String(Math.min(index, 8)));
 
   const toggle = document.createElement("button");
@@ -447,11 +444,9 @@ function createLogConversationPanel(item) {
   panelInner.className = "log-row-panel-inner";
 
   const answer =
-    item.status === "error"
-      ? item.details?.error || "The response could not be generated."
-      : item.details?.answer ||
-        item.details?.answer_preview ||
-        "Full answer is not available for this older log.";
+    item.details?.answer ||
+    item.details?.answer_preview ||
+    "No answer recorded.";
   panelInner.appendChild(createLogMessage("Answer", answer, "assistant"));
   panel.appendChild(panelInner);
   window.requestAnimationFrame(() => setupLogReadMore(panel, answer));
@@ -649,21 +644,28 @@ function renderActiveSessionFilter() {
   elements.logsSessionFilter.hidden = !sessionId;
   if (elements.logsActiveSessionLabel) {
     elements.logsActiveSessionLabel.textContent = sessionId
-      ? `Session ${shortSessionId(sessionId)}`
+      ? "Filtered session"
       : "Session";
   }
 }
 
-function shortSessionId(value) {
-  const sessionId = String(value || "").trim();
-  return sessionId ? sessionId.slice(0, 8) : "-";
-}
 
 function toDateInputValue(date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function getSelectedLogRangeDays() {
+  const range = state.logDateRange || {};
+  const start = new Date(range.start || "");
+  const end = new Date(range.end || "");
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return 0;
+  }
+  const dayMs = 24 * 60 * 60 * 1000;
+  return Math.max(1, Math.round((end - start) / dayMs) + 1);
 }
 
 function formatLogNumber(value) {

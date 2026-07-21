@@ -100,7 +100,7 @@ const elements = {
   logsTotalChat: document.getElementById("logsTotalChat"),
   logsTotalSessions: document.getElementById("logsTotalSessions"),
   logsAverageChat: document.getElementById("logsAverageChat"),
-  logsFallbackError: document.getElementById("logsFallbackError"),
+  logsRangeDays: document.getElementById("logsRangeDays"),
   filterButton: document.getElementById("filterButton"),
   chatLink: document.getElementById("chatLink"),
   menuToggle: document.getElementById("menuToggle"),

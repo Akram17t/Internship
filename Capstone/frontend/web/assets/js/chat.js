@@ -238,7 +238,7 @@ async function submitQuestion(rawQuestion) {
     state.activeRequestStartedAt = null;
     updateComposer();
     persistMessages();
-    renderMessages("smooth");
+    renderMessages("smooth", { forceScroll: true });
     refreshActivityLogsIfVisible();
   }
 }
@@ -305,9 +305,6 @@ function animateAssistantReveal(message, fullText) {
     const paint = () => {
       message.content = fullText.slice(0, shown);
       if (bubble) bubble.textContent = message.content;
-      if (state.stickToBottom) {
-        elements.chatThread.scrollTop = elements.chatThread.scrollHeight;
-      }
     };
 
     const finish = () => {
@@ -355,7 +352,7 @@ function setLoadingStage(index) {
   if (!loadingMessage) return;
   loadingMessage.loading_text =
     loadingStageLabels[index] || loadingStageLabels.at(-1);
-  renderMessages("smooth");
+  renderMessages("none");
 }
 
 function beginLoadingStages() {
@@ -374,7 +371,7 @@ function beginLoadingStages() {
   );
 }
 
-function renderMessages(scrollBehavior = "auto") {
+function renderMessages(scrollBehavior = "auto", options = {}) {
   elements.chatThread.innerHTML = "";
   elements.chatScreen.classList.toggle("is-empty", state.messages.length === 0);
   state.messages.forEach((message) => {
@@ -425,7 +422,9 @@ function renderMessages(scrollBehavior = "auto") {
     }
     elements.chatThread.appendChild(fragment);
   });
-  scrollChatToBottom(scrollBehavior);
+  if (scrollBehavior !== "none") {
+    scrollChatToBottom(scrollBehavior, { force: options.forceScroll === true });
+  }
 }
 
 function renderFlowchartScreenshots(container, flowcharts) {
