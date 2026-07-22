@@ -49,6 +49,7 @@ ANSWER_TASK_RULES = (
     "- Pertahankan marker sitasi angka seperti [1] dan [2] di jawaban visible.\n"
     "- Letakkan citation di akhir paragraf, bullet, atau baris tabel yang penting.\n"
     "- Jangan pernah menaruh citation sebagai bullet/baris sendiri seperti '- [1]'; tempelkan ke kalimat sebelumnya.\n"
+    "- Jika satu langkah punya beberapa bullet, citation cukup ditempel di bullet berisi klaim utama; jangan buat bullet baru hanya untuk citation.\n"
     "- Sebelum final, cek ulang: tidak boleh ada baris yang isinya hanya citation seperti '[1]', '- [1]', '* [1]', atau '1. [1]'.\n"
     "- Jika membuat tabel, pastikan minimal kalimat pengantar atau heading tabel memiliki marker citation yang mendukung isi tabel.\n"
     "- Jika membuat tabel markdown, setiap baris harus diawali dan diakhiri karakter |, termasuk baris terakhir.\n"
@@ -59,6 +60,8 @@ ANSWER_TASK_RULES = (
     "Aturan pemilihan form:\n"
     "- Jika jawaban membutuhkan downloadable form, pilih hanya dari available downloadable forms.\n"
     "- Jangan invent nama form.\n"
+    "- Untuk permohonan/perubahan hak akses sistem, pilih System Access Control List jika tersedia.\n"
+    "- Exit Clearance hanya untuk resign/offboarding; Jangan pilih Exit Clearance hanya karena evidence menyebut akses dicabut.\n"
     "- Jangan menulis filename PDF atau section download form di jawaban visible; app akan render form terpisah.\n"
     "- Jangan membuat heading/kalimat visible seperti 'Form yang digunakan', 'Form terkait', atau 'Form yang bisa diunduh'; cukup isi FORM_SELECTION.\n"
     "- Jika evidence menjawab pertanyaan, di akhir jawaban tambahkan tepat satu baris machine-readable:\n"
@@ -430,6 +433,7 @@ def _finalize_answer_citations(
         return match.group(0) if citation_id in valid_ids else f"[{first_id}]"
 
     answer = re.sub(r"\[(\d+)\]", replace_invalid, answer)
+    answer = _normalize_visible_citation_style(answer)
     used_ids = {int(value) for value in re.findall(r"\[(\d+)\]", answer)}
     if not used_ids:
         answer = f"{answer} [{first_id}]"
