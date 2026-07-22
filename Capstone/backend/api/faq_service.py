@@ -56,7 +56,7 @@ def _build_faq_item(payload: AdminFAQPayload, faq_id: str | None = None) -> FAQI
 
 
 # FAQ pinned statis yang selalu tampil paling atas.
-# Item ini tidak disimpan di faqs.json dan tidak bisa diedit/dihapus biasa.
+# Item ini tidak disimpan sebagai FAQ DB biasa dan tidak bisa diedit/dihapus biasa.
 # Hanya gambarnya yang bisa diganti lewat POST /api/admin/faq-image.
 PINNED_IMAGE_STEM = "organogram"
 PINNED_IMAGE_EXTENSIONS = {".webp", ".png", ".jpg", ".jpeg"}

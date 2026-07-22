@@ -112,7 +112,7 @@ flowchart TD
   H -->|Tidak| I[422 no source]
   H -->|Ya| J[Generate FAQ]
   J --> K[Validasi usable answer]
-  K --> L[Simpan ke faqs.json]
+  K --> L[Simpan ke SQLite faq_items]
 ```
 
 ## Index Lokasi Cepat

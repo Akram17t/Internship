@@ -72,7 +72,8 @@ def main() -> int:
         print(
             "conversation_messages={conversation_messages} "
             "semantic_cache_entries={semantic_cache_entries} "
-            "admin_accounts={admin_accounts}".format(**counts)
+            "admin_accounts={admin_accounts} "
+            "faq_items={faq_items}".format(**counts)
         )
         return 0
 

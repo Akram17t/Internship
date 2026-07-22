@@ -5,6 +5,7 @@ import re
 import secrets
 import sqlite3
 import threading
+import uuid
 from contextlib import closing
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -21,7 +22,7 @@ from backend.settings import get_env, load_capstone_env
 
 load_capstone_env()
 
-SCHEMA_VERSION = "3"
+SCHEMA_VERSION = "4"
 MIGRATION_KEY = "conversations_json_migrated"
 ADMIN_SESSION_SECRET_KEY = "admin_session_secret"
 DEFAULT_ADMIN_EMAIL = "admin@gmail.com"
@@ -128,6 +129,22 @@ def _init_schema(connection: sqlite3.Connection) -> None:
         );
         CREATE INDEX IF NOT EXISTS idx_admin_accounts_email
             ON admin_accounts (email);
+
+        CREATE TABLE IF NOT EXISTS faq_items (
+            id TEXT PRIMARY KEY,
+            question TEXT NOT NULL,
+            answer TEXT NOT NULL,
+            source TEXT NOT NULL DEFAULT '',
+            source_url TEXT NOT NULL DEFAULT '',
+            suggested_query TEXT NOT NULL DEFAULT '',
+            citations_json TEXT NOT NULL DEFAULT '[]',
+            image_url TEXT NOT NULL DEFAULT '',
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_faq_items_order
+            ON faq_items (sort_order, created_at, id);
         """
     )
     semantic_columns = {
@@ -245,6 +262,73 @@ def _migrate_legacy_conversations(
             inserted += 1
 
     return inserted
+
+
+def _normalize_faq_payload(
+    raw_item: dict[str, object],
+    *,
+    sort_order: int = 0,
+    now: str | None = None,
+) -> dict[str, Any] | None:
+    question = str(raw_item.get("question") or "").strip()
+    answer = str(raw_item.get("answer") or "").strip()
+    if not question or not answer:
+        return None
+
+    citations = raw_item.get("citations")
+    if not isinstance(citations, list):
+        citations = []
+    citations = [dict(item) for item in citations if isinstance(item, dict)]
+
+    source = str(raw_item.get("source") or "").strip()
+    source_url = str(raw_item.get("source_url") or "").strip()
+    if citations and not source:
+        source = str(citations[0].get("source") or "").strip()
+    if citations and not source_url:
+        source_url = str(citations[0].get("download_url") or "").strip()
+
+    timestamp = now or datetime.now().isoformat(timespec="seconds")
+    updated_at = _parse_timestamp(raw_item.get("updated_at")) or timestamp
+    created_at = _parse_timestamp(raw_item.get("created_at")) or updated_at
+
+    return {
+        "id": str(raw_item.get("id") or uuid.uuid4().hex).strip() or uuid.uuid4().hex,
+        "question": question,
+        "answer": answer,
+        "source": source,
+        "source_url": source_url,
+        "suggested_query": str(raw_item.get("suggested_query") or "").strip() or question,
+        "citations": citations,
+        "image_url": str(raw_item.get("image_url") or "").strip(),
+        "sort_order": int(raw_item.get("sort_order") or sort_order),
+        "created_at": created_at,
+        "updated_at": updated_at,
+    }
+
+
+def _insert_faq_payload(connection: sqlite3.Connection, item: dict[str, Any]) -> None:
+    connection.execute(
+        """
+        INSERT OR REPLACE INTO faq_items(
+            id, question, answer, source, source_url, suggested_query,
+            citations_json, image_url, sort_order, created_at, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            str(item["id"]),
+            str(item["question"]),
+            str(item["answer"]),
+            str(item.get("source") or ""),
+            str(item.get("source_url") or ""),
+            str(item.get("suggested_query") or item["question"]),
+            json.dumps(item.get("citations") or [], ensure_ascii=False),
+            str(item.get("image_url") or ""),
+            int(item.get("sort_order") or 0),
+            str(item["created_at"]),
+            str(item["updated_at"]),
+        ),
+    )
 
 
 def _ensure_admin_session_secret(connection: sqlite3.Connection) -> str:
@@ -867,6 +951,55 @@ def replace_conversations(conversations: dict[str, list[dict[str, object]]]) -> 
             connection.commit()
 
 
+def _faq_item_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    try:
+        citations = json.loads(str(row["citations_json"]))
+    except json.JSONDecodeError:
+        citations = []
+    return {
+        "id": str(row["id"]),
+        "question": str(row["question"]),
+        "answer": str(row["answer"]),
+        "source": str(row["source"]),
+        "source_url": str(row["source_url"]),
+        "suggested_query": str(row["suggested_query"]),
+        "citations": citations if isinstance(citations, list) else [],
+        "image_url": str(row["image_url"]),
+        "updated_at": str(row["updated_at"]),
+    }
+
+
+def list_faq_items() -> list[dict[str, Any]]:
+    with STATE_DB_LOCK:
+        init_state_db()
+        with closing(_connect()) as connection:
+            rows = connection.execute(
+                """
+                SELECT *
+                FROM faq_items
+                ORDER BY sort_order ASC, created_at ASC, id ASC
+                """
+            ).fetchall()
+    return [_faq_item_from_row(row) for row in rows]
+
+
+def replace_faq_items(items: list[dict[str, object]]) -> None:
+    with STATE_DB_LOCK:
+        init_state_db()
+        now = datetime.now().isoformat(timespec="seconds")
+        with closing(_connect()) as connection:
+            connection.execute("DELETE FROM faq_items")
+            for index, raw_item in enumerate(items):
+                if not isinstance(raw_item, dict):
+                    continue
+                item = _normalize_faq_payload(raw_item, sort_order=index, now=now)
+                if item is None:
+                    continue
+                item["sort_order"] = index
+                _insert_faq_payload(connection, item)
+            connection.commit()
+
+
 def insert_semantic_cache_entry(
     *,
     entry_id: str,
@@ -1019,9 +1152,13 @@ def state_counts() -> dict[str, int]:
             admin_rows = int(
                 connection.execute("SELECT COUNT(*) AS count FROM admin_accounts").fetchone()["count"]
             )
+            faq_rows = int(
+                connection.execute("SELECT COUNT(*) AS count FROM faq_items").fetchone()["count"]
+            )
     return {
         "conversation_messages": conversation_rows,
         "semantic_cache_entries": semantic_rows,
         "activity_logs": activity_rows,
         "admin_accounts": admin_rows,
+        "faq_items": faq_rows,
     }

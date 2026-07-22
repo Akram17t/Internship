@@ -12,6 +12,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from backend.api.core import MAX_CONVERSATION_MESSAGES
+from backend.api.cache_store import _load_faqs, _save_faqs
+from backend.api.models import CitationResponse, FAQItem
 from backend.cache_db import (
     append_conversation_turn,
     get_conversation_context,
@@ -20,10 +22,13 @@ from backend.cache_db import (
     init_state_db,
     insert_activity_log,
     insert_semantic_cache_entry,
+    list_faq_items,
     list_activity_log_sessions,
     list_activity_logs,
     load_conversations,
     replace_conversations,
+    replace_faq_items,
+    state_counts,
     summarize_activity_logs,
 )
 
@@ -66,6 +71,58 @@ class CacheDbTests(unittest.TestCase):
         conversations = load_conversations()
         self.assertIn("conv-1", conversations)
         self.assertEqual(len(conversations["conv-1"]), 2)
+
+    def test_faq_helpers_store_items_in_state_database(self) -> None:
+        faq = FAQItem(
+            id="faq-resign",
+            question="Bagaimana prosedur resign?",
+            answer="Karyawan menyerahkan surat resign ke atasan. [1]",
+            suggested_query="Bagaimana prosedur resign?",
+            citations=[
+                CitationResponse(
+                    id=1,
+                    source="SOP - Terminasi Hubungan Kerja.pdf",
+                    page=3,
+                )
+            ],
+            updated_at=datetime.now().isoformat(timespec="seconds"),
+        )
+
+        _save_faqs([faq])
+
+        loaded = _load_faqs()
+        self.assertEqual(len(loaded), 1)
+        self.assertEqual(loaded[0].id, "faq-resign")
+        self.assertEqual(loaded[0].citations[0].source, "SOP - Terminasi Hubungan Kerja.pdf")
+        self.assertEqual(state_counts()["faq_items"], 1)
+
+    def test_replace_faq_items_overwrites_database_rows(self) -> None:
+        replace_faq_items(
+            [
+                {
+                    "id": "faq-one",
+                    "question": "Pertanyaan satu?",
+                    "answer": "Jawaban satu. [1]",
+                    "suggested_query": "Pertanyaan satu?",
+                    "citations": [{"id": 1, "source": "SOP A.pdf"}],
+                }
+            ]
+        )
+        replace_faq_items(
+            [
+                {
+                    "id": "faq-two",
+                    "question": "Pertanyaan dua?",
+                    "answer": "Jawaban dua. [1]",
+                    "suggested_query": "Pertanyaan dua?",
+                    "citations": [{"id": 1, "source": "SOP B.pdf"}],
+                }
+            ]
+        )
+
+        items = list_faq_items()
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["id"], "faq-two")
 
     def test_semantic_cache_exact_lookup_ignores_case_and_punctuation(self) -> None:
         insert_semantic_cache_entry(

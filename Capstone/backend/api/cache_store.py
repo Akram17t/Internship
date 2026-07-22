@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import json
 import uuid
-from pathlib import Path
 
 from fastapi import HTTPException
 
@@ -10,30 +8,16 @@ from backend.cache_db import (
     add_admin_account,
     append_conversation_turn,
     get_conversation_context,
+    list_faq_items,
     load_admin_config,
+    replace_faq_items,
 )
 from backend.api.core import (
     ADMIN_CONFIG_LOCK,
     CONVERSATION_LOCK,
-    ROOT_DIR,
 )
 from backend.api.models import CitationResponse, FAQItem
 from backend.api.storage import _citation_download_url
-from backend.settings import get_env
-
-
-def _get_cache_dir() -> Path:
-    # Tentukan folder cache lokal untuk FAQ JSON dan legacy import.
-    raw_dir = get_env("CONVERSATION_CACHE_DIR", "backend/cache")
-    path = Path(raw_dir)
-    if not path.is_absolute():
-        path = ROOT_DIR / path
-    return path
-
-
-def _get_faq_file() -> Path:
-    # Kembalikan path file cache FAQ.
-    return _get_cache_dir() / "faqs.json"
 
 
 def _load_admin_config() -> dict[str, object]:
@@ -158,38 +142,25 @@ def _normalize_faq_item(item: dict[str, object]) -> FAQItem | None:
 
 
 def _load_faqs() -> list[FAQItem]:
-    # Muat item FAQ dari cache JSON lokal.
-    path = _get_faq_file()
-    if not path.exists():
-        return []
-
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return []
-
-    if not isinstance(data, list):
-        return []
-
+    # Muat item FAQ dari app_state DB.
     return [
         item
-        for item in (_normalize_faq_item(raw_item) for raw_item in data if isinstance(raw_item, dict))
+        for item in (
+            _normalize_faq_item(raw_item)
+            for raw_item in list_faq_items()
+            if isinstance(raw_item, dict)
+        )
         if item is not None
     ]
 
 
 def _save_faqs(items: list[FAQItem]) -> None:
-    # Simpan item FAQ ke cache JSON lokal.
-    cache_dir = _get_cache_dir()
-    cache_dir.mkdir(parents=True, exist_ok=True)
+    # Simpan item FAQ ke app_state DB.
     payload = [
         item.model_dump() if hasattr(item, "model_dump") else item.dict()
         for item in items
     ]
-    _get_faq_file().write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    replace_faq_items(payload)
 
 
 def _find_faq_index(items: list[FAQItem], faq_id: str) -> int:
