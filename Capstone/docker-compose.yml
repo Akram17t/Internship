@@ -11,7 +11,7 @@ services:
       CHROMA_DIR: /app/storage/chroma_db
       SEMANTIC_CACHE_DIR: /app/storage/semantic_chroma
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
       - app_storage:/app/storage
     restart: unless-stopped

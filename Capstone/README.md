@@ -83,6 +83,26 @@ docker compose run --rm app python -m backend.preprocessing.ingest
 docker compose logs app
 ```
 
+6. On EC2 or a VPS, put Nginx in front of the app so the public URL can use
+   port 80 while Docker stays bound to localhost:
+
+```bash
+sudo dnf install -y nginx
+sudo systemctl enable --now nginx
+sudo cp deploy/nginx/hr-agent.conf /etc/nginx/conf.d/hr-agent.conf
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+Then open:
+
+```text
+http://PUBLIC_SERVER_IP
+```
+
+For this setup, expose `HTTP 80` in the cloud firewall/security group. Keep
+`SSH 22` limited to your IP, and keep Docker port `8000` closed to the public.
+
 The container starts FastAPI with the production command:
 
 ```bash
