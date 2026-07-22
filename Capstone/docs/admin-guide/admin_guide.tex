@@ -1,0 +1,278 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[a4paper,margin=1.8cm]{geometry}
+\usepackage{fontspec}
+\usepackage{graphicx}
+\usepackage[export]{adjustbox}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{needspace}
+
+\setmainfont{Arial}
+\definecolor{icsred}{HTML}{C91624}
+\definecolor{icsblack}{HTML}{111111}
+\definecolor{icsgray}{HTML}{5F5A55}
+\definecolor{icslight}{HTML}{F4F1EA}
+\definecolor{icsnote}{HTML}{E9E9E9}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=icsred,
+  urlcolor=icsred
+}
+
+\pagestyle{fancy}
+\setlength{\headheight}{14pt}
+\fancyhf{}
+\lhead{\textcolor{icsgray}{Panduan Admin HR Assistant}}
+\rhead{\textcolor{icsgray}{ICS Compute}}
+\cfoot{\textcolor{icsgray}{\thepage}}
+\renewcommand{\headrulewidth}{0.3pt}
+
+\titleformat{\section}
+  {\Large\bfseries\color{icsblack}}
+  {\thesection}{0.75em}{}
+\titleformat{\subsection}
+  {\normalsize\bfseries\color{icsblack}}
+  {\thesubsection}{0.75em}{}
+\titlespacing*{\section}{0pt}{1.1em}{0.55em}
+\titlespacing*{\subsection}{0pt}{0.9em}{0.35em}
+
+\setlist[itemize]{leftmargin=1.2em,itemsep=0.2em,topsep=0.25em}
+\setlist[enumerate]{leftmargin=1.4em,itemsep=0.2em,topsep=0.25em}
+\captionsetup{font=small,labelfont=bf}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.3em}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcolumntype{B}[1]{>{\bfseries\raggedright\arraybackslash}p{#1}}
+
+\newcommand{\screenshot}[3][0.72\linewidth]{
+  \begin{figure}[H]
+    \centering
+    \includegraphics[max width=#1,max height=0.46\textheight,keepaspectratio]{assets/#2}
+    \caption{#3}
+  \end{figure}
+}
+
+\newcommand{\notebox}[1]{
+  \vspace{0.25em}
+  \noindent
+  \colorbox{icsnote}{
+    \parbox{\dimexpr\linewidth-2\fboxsep-10pt}{
+      \small
+      \textbf{Catatan:} #1
+    }
+  }
+  \vspace{0.35em}
+}
+
+\begin{document}
+
+\begin{titlepage}
+  \centering
+  \vspace*{2.2cm}
+  {\Huge\bfseries How To Use Admin\par}
+  \vspace{0.4cm}
+  {\Huge\bfseries \textcolor{icsred}{HR Assistant}\par}
+  \vspace{0.9cm}
+  {\Large ICS Compute\par}
+  \vfill
+  \begin{tabular}{>{\bfseries}rl}
+    Versi & 1.0 \\
+    Tanggal & 22 Juli 2026 \\
+    Akses & Internal HR / Admin \\
+  \end{tabular}
+  \vfill
+  {\large Dokumen panduan operasional admin\par}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\Needspace{18\baselineskip}
+\section{Login Admin}
+
+Gunakan akses admin untuk membuka fitur pengelolaan FAQ, dokumen, akun admin, dan logs.
+
+\begin{center}
+\renewcommand{\arraystretch}{1.18}
+\begin{tabularx}{0.78\linewidth}{@{}B{3.6cm}Y@{}}
+\toprule
+Email default & \texttt{admin@gmail.com} \\
+Password default & \texttt{admin123} \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\begin{enumerate}
+  \item Klik tombol login pada panel akun di kiri bawah.
+  \item Masukkan email dan password admin.
+  \item Klik \textbf{Login admin}.
+\end{enumerate}
+
+\screenshot[0.48\linewidth]{01-login-admin.png}{Form login admin.}
+
+Setelah login berhasil, tombol \textbf{New admin}, menu \textbf{Logs}, dan panel admin pada FAQ/Docs akan muncul.
+
+\screenshot[0.76\linewidth]{02-admin-mode.png}{Tampilan setelah login sebagai admin.}
+
+\Needspace{16\baselineskip}
+\section{Menambahkan Admin Baru}
+
+Admin dapat menambahkan akun admin lain melalui tombol \textbf{New admin}.
+
+\begin{enumerate}
+  \item Klik \textbf{New admin} di kanan atas.
+  \item Isi \textbf{Nama}, \textbf{Email}, dan \textbf{Password}.
+  \item Klik \textbf{Simpan admin}.
+\end{enumerate}
+
+\screenshot[0.48\linewidth]{03-new-admin.png}{Form tambah admin baru.}
+
+\notebox{Gunakan email yang berbeda untuk setiap admin. Jika email sudah terdaftar, sistem akan menolak pembuatan akun.}
+
+\Needspace{16\baselineskip}
+\section{Chat dan Tombol Stop}
+
+Admin tetap dapat menggunakan chat seperti user biasa. Saat chatbot sedang memproses jawaban, tombol kirim berubah menjadi tombol \textbf{Stop}.
+
+\begin{enumerate}
+  \item Tulis pertanyaan pada kolom chat.
+  \item Klik tombol kirim.
+  \item Jika ingin menghentikan proses, klik tombol \textbf{Stop}.
+\end{enumerate}
+
+\screenshot[0.76\linewidth]{04-chat-stop.png}{Chat sedang memproses jawaban dan dapat dihentikan dengan tombol Stop.}
+
+\Needspace{18\baselineskip}
+\section{FAQ}
+
+Fitur FAQ dipakai untuk membuat daftar pertanyaan umum berdasarkan dokumen yang sudah masuk knowledge base.
+
+\Needspace{14\baselineskip}
+\subsection{Generate FAQ}
+
+\begin{enumerate}
+  \item Buka menu \textbf{FAQ}.
+  \item Isi pertanyaan pada kolom \textbf{Question}.
+  \item Klik \textbf{Generate FAQ}.
+\end{enumerate}
+
+\screenshot[0.76\linewidth]{05-faq-generate.png}{Panel admin untuk generate FAQ.}
+
+\Needspace{14\baselineskip}
+\subsection{Update dan Delete FAQ}
+
+FAQ yang sudah dibuat dapat diperbarui atau dihapus dari daftar.
+
+\begin{itemize}
+  \item Klik \textbf{Update} untuk mengubah pertanyaan dan generate ulang jawabannya.
+  \item Klik \textbf{Delete} untuk menghapus FAQ.
+\end{itemize}
+
+\screenshot[0.55\linewidth]{07-faq-update-delete.png}{Tombol Update dan Delete pada item FAQ.}
+
+Saat update, pertanyaan akan masuk kembali ke form dan tombol berubah menjadi \textbf{Regenerate FAQ}.
+
+\screenshot[0.52\linewidth]{08-faq-regenerate.png}{Mode regenerate FAQ.}
+
+\Needspace{15\baselineskip}
+\subsection{FAQ Khusus Organogram}
+
+FAQ organogram adalah item khusus untuk menampilkan struktur organisasi. Admin hanya dapat mengganti gambarnya.
+
+\begin{enumerate}
+  \item Buka FAQ organogram.
+  \item Klik \textbf{Ganti gambar}.
+  \item Pilih gambar baru dengan format \texttt{webp}, \texttt{png}, \texttt{jpg}, atau \texttt{jpeg}.
+\end{enumerate}
+
+\screenshot[0.72\linewidth]{06-faq-organogram-image.png}{FAQ khusus organogram dengan tombol Ganti gambar.}
+
+\Needspace{18\baselineskip}
+\section{Document Library}
+
+Menu \textbf{Docs} dipakai untuk mengelola dokumen SOP dan Form yang tersedia di aplikasi.
+
+\screenshot[0.76\linewidth]{09-document-management.png}{Panel admin untuk mengelola dokumen.}
+
+\Needspace{12\baselineskip}
+\subsection{Upload / Insert Dokumen}
+
+\begin{enumerate}
+  \item Klik \textbf{Choose files}.
+  \item Pilih satu atau beberapa file \texttt{pdf}, \texttt{docx}, atau \texttt{txt}.
+  \item Klik \textbf{Insert files}.
+\end{enumerate}
+
+\Needspace{12\baselineskip}
+\subsection{Update dan Delete Dokumen}
+
+Setiap baris dokumen memiliki tombol \textbf{Download}, \textbf{Update}, dan \textbf{Delete}.
+
+\screenshot[0.52\linewidth]{10-document-row-actions.png}{Aksi pada baris dokumen.}
+
+\Needspace{14\baselineskip}
+\subsection{Aturan SOP dan Form}
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.22}
+\begin{tabularx}{0.92\linewidth}{@{}B{3.5cm}Y@{}}
+\toprule
+Kategori & Ketentuan \\
+\midrule
+SOP / Knowledge document & Dipakai sebagai sumber jawaban chatbot. Setelah insert, update, atau delete, wajib klik \textbf{Rebuild embeddings}. \\
+Form & Dipakai sebagai file download. Tidak perlu \textbf{Rebuild embeddings}. \\
+Nama Form & File form wajib diawali kata \texttt{Form}, contoh: \texttt{Form Exit Clearance.pdf}. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\notebox{Jika file Form tidak diawali \texttt{Form}, sistem dapat menganggapnya sebagai dokumen SOP. Hal ini berisiko membuat form ikut terbaca sebagai sumber jawaban chatbot.}
+
+\Needspace{12\baselineskip}
+\subsection{Rebuild Embeddings}
+
+Klik \textbf{Rebuild embeddings} setelah perubahan pada SOP/knowledge document agar chatbot memakai sumber terbaru.
+
+\screenshot[0.52\linewidth]{11-rebuild-embeddings.png}{Tombol Rebuild embeddings aktif setelah SOP diperbarui.}
+
+\Needspace{18\baselineskip}
+\section{Logs}
+
+Menu \textbf{Logs} digunakan untuk memantau penggunaan chatbot.
+
+\begin{itemize}
+  \item Tab \textbf{Questions} menampilkan daftar pertanyaan terbaru.
+  \item Klik satu pertanyaan untuk melihat jawaban yang diberikan chatbot.
+  \item Filter tanggal tersedia melalui field \textbf{Start} dan \textbf{End}.
+\end{itemize}
+
+\screenshot[0.68\linewidth]{12-logs-questions-detail.png}{Log pertanyaan dan detail jawaban chatbot.}
+
+Tab \textbf{Sessions} mengelompokkan chat berdasarkan sesi percakapan, sehingga admin dapat melihat aktivitas per sesi.
+
+\screenshot[0.68\linewidth]{13-logs-sessions.png}{Log berdasarkan sesi percakapan.}
+
+\Needspace{12\baselineskip}
+\section{Checklist Admin}
+
+\begin{itemize}
+  \item Login menggunakan akun admin sebelum mengelola data.
+  \item Tambahkan admin baru jika akses perlu dibagi ke pengelola lain.
+  \item Setelah mengubah SOP, selalu klik \textbf{Rebuild embeddings}.
+  \item Untuk Form, pastikan nama file diawali \texttt{Form}.
+  \item Gunakan Logs untuk melihat pertanyaan user, sesi chat, dan jawaban chatbot.
+\end{itemize}
+
+\end{document}
