@@ -15,6 +15,7 @@
 \usepackage{array}
 \usepackage{booktabs}
 \usepackage{needspace}
+\usepackage{amssymb}
 
 \setmainfont{Arial}
 \definecolor{icsred}{HTML}{C91624}
@@ -53,6 +54,8 @@
 \setlength{\parskip}{0.3em}
 \newcolumntype{Y}{>{\raggedright\arraybackslash}X}
 \newcolumntype{B}[1]{>{\bfseries\raggedright\arraybackslash}p{#1}}
+\newcommand{\checkbox}{\textcolor{icsred}{\checkmark}}
+\newcommand{\checkline}[1]{\checkbox & #1 \\[0.5em]}
 
 \newcommand{\screenshot}[3][0.72\linewidth]{
   \begin{figure}[H]
@@ -97,6 +100,20 @@
 \tableofcontents
 \newpage
 
+\Needspace{10\baselineskip}
+\section{Akses Aplikasi}
+
+Buka HR Assistant melalui URL berikut:
+
+\begin{center}
+\texttt{http://ec2-98-81-149-80.compute-1.amazonaws.com/}
+\end{center}
+
+\begin{itemize}
+  \item Akses aplikasi harus menggunakan WiFi kantor.
+  \item Gunakan awalan \texttt{http://}, bukan \texttt{https://}.
+\end{itemize}
+
 \Needspace{18\baselineskip}
 \section{Login Admin}
 
@@ -119,6 +136,8 @@ Password default & \texttt{admin123} \\
 \end{enumerate}
 
 \screenshot[0.48\linewidth]{01-login-admin.png}{Form login admin.}
+
+\notebox{Jika login gagal, pastikan email dan password sudah benar. Perhatikan juga huruf besar/kecil dan spasi yang tidak sengaja ikut terisi.}
 
 Setelah login berhasil, tombol \textbf{New admin}, menu \textbf{Logs}, dan panel admin pada FAQ/Docs akan muncul.
 
@@ -151,6 +170,8 @@ Admin tetap dapat menggunakan chat seperti user biasa. Saat chatbot sedang mempr
 \end{enumerate}
 
 \screenshot[0.76\linewidth]{04-chat-stop.png}{Chat sedang memproses jawaban dan dapat dihentikan dengan tombol Stop.}
+
+\notebox{Chatbot menjawab berdasarkan SOP/knowledge document yang sudah masuk embeddings. Jika informasi belum ada di dokumen, chatbot dapat memberikan jawaban fallback atau meminta eskalasi ke HR.}
 
 \Needspace{18\baselineskip}
 \section{FAQ}
@@ -245,6 +266,15 @@ Nama Form & File form wajib diawali kata \texttt{Form}, contoh: \texttt{Form Exi
 
 Klik \textbf{Rebuild embeddings} setelah perubahan pada SOP/knowledge document agar chatbot memakai sumber terbaru.
 
+\begin{enumerate}
+  \item Upload, update, atau delete dokumen SOP.
+  \item Klik \textbf{Rebuild embeddings}.
+  \item Tunggu proses selesai.
+  \item Tes pertanyaan terkait SOP tersebut melalui chat.
+\end{enumerate}
+
+\notebox{Jika jawaban chatbot belum berubah setelah SOP di-update, lakukan \textbf{Rebuild embeddings} terlebih dahulu. Jika Form ikut muncul sebagai SOP, pastikan nama file diawali \texttt{Form}.}
+
 \screenshot[0.52\linewidth]{11-rebuild-embeddings.png}{Tombol Rebuild embeddings aktif setelah SOP diperbarui.}
 
 \Needspace{18\baselineskip}
@@ -260,19 +290,33 @@ Menu \textbf{Logs} digunakan untuk memantau penggunaan chatbot.
 
 \screenshot[0.68\linewidth]{12-logs-questions-detail.png}{Log pertanyaan dan detail jawaban chatbot.}
 
-Tab \textbf{Sessions} mengelompokkan chat berdasarkan sesi percakapan, sehingga admin dapat melihat aktivitas per sesi.
+Tab \textbf{Sessions} mengelompokkan chat berdasarkan sesi percakapan. Admin dapat membuka satu sesi untuk melihat pertanyaan dan jawaban dalam sesi tersebut, atau menghapus log sesi melalui tombol delete.
 
 \screenshot[0.68\linewidth]{13-logs-sessions.png}{Log berdasarkan sesi percakapan.}
+
+Saat satu sesi dibuka, filter \textbf{Filtered session} akan aktif. Klik \textbf{Clear} untuk kembali melihat semua pertanyaan.
+
+\screenshot[0.72\linewidth]{14-logs-session-filter.png}{Log sesi terpilih dengan tombol Clear dan detail jawaban.}
 
 \Needspace{12\baselineskip}
 \section{Checklist Admin}
 
-\begin{itemize}
-  \item Login menggunakan akun admin sebelum mengelola data.
-  \item Tambahkan admin baru jika akses perlu dibagi ke pengelola lain.
-  \item Setelah mengubah SOP, selalu klik \textbf{Rebuild embeddings}.
-  \item Untuk Form, pastikan nama file diawali \texttt{Form}.
-  \item Gunakan Logs untuk melihat pertanyaan user, sesi chat, dan jawaban chatbot.
-\end{itemize}
+\begin{center}
+\setlength{\fboxsep}{0.7em}
+\fcolorbox{icsgray}{icsnote}{
+  \begin{minipage}{0.84\linewidth}
+    \textbf{Checklist Operasional Admin}
+    \vspace{0.4em}
+
+    \begin{tabularx}{\linewidth}{@{}p{0.8cm}Y@{}}
+      \checkline{Login menggunakan akun admin sebelum mengelola data.}
+      \checkline{Tambahkan admin baru jika akses perlu dibagi ke pengelola lain.}
+      \checkline{Setelah mengubah SOP, klik \textbf{Rebuild embeddings}.}
+      \checkline{Untuk Form, pastikan nama file diawali \texttt{Form}.}
+      \checkline{Cek Logs untuk melihat pertanyaan user, sesi chat, dan jawaban chatbot.}
+    \end{tabularx}
+  \end{minipage}
+}
+\end{center}
 
 \end{document}
