@@ -13,3 +13,4 @@ backend/chroma_db/*
 !backend/chroma_db/.gitkeep
 backend/cache/*
 !backend/cache/.gitkeep
+backend/debug/chunks.md

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from time import perf_counter
+
+from langchain_core.documents import Document
 
 from backend.api.flowchart_service import prune_stale_flowchart_cache
 from backend.settings import get_env, load_capstone_env
@@ -27,6 +30,46 @@ def get_data_dir() -> Path:
     if not path.is_absolute():
         path = ROOT_DIR / path
     return path
+
+
+def get_chunk_debug_path() -> Path:
+    # Dump final chunks yang sama dengan input embedding.
+    # Lokal: backend/data -> backend/debug/chunks.md.
+    # Docker: /app/storage/data -> /app/storage/debug/chunks.md.
+    return get_data_dir().parent / "debug" / "chunks.md"
+
+
+def _format_chunk_debug(chunks: list[Document]) -> str:
+    lines = [
+        "# Ingest Chunk Debug",
+        "",
+        f"Chunks created: {len(chunks)}",
+        "",
+    ]
+    for index, chunk in enumerate(chunks, start=1):
+        metadata = dict(chunk.metadata)
+        lines.extend(
+            [
+                f"## Chunk {index}",
+                "",
+                "```json",
+                json.dumps(metadata, ensure_ascii=False, indent=2, sort_keys=True),
+                "```",
+                "",
+                "```text",
+                chunk.page_content,
+                "```",
+                "",
+            ]
+        )
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def write_chunk_debug(chunks: list[Document]) -> Path:
+    output_path = get_chunk_debug_path()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(_format_chunk_debug(chunks), encoding="utf-8")
+    return output_path
 
 
 def main() -> None:
@@ -63,6 +106,9 @@ def main() -> None:
     chunks = chunk_documents(documents)
     chunk_seconds = perf_counter() - stage_started_at
     print(f"[2/3] Created {len(chunks)} chunks in {chunk_seconds:.2f}s.")
+    chunk_debug_path = write_chunk_debug(chunks)
+    if chunk_debug_path is not None:
+        print(f"[debug] Chunk debug written to {chunk_debug_path}.")
 
     print("[3/3] Rebuilding vector database...")
     stage_started_at = perf_counter()

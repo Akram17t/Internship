@@ -77,6 +77,11 @@ docker compose up -d
 docker compose run --rm app python -m backend.preprocessing.ingest
 ```
 
+Ingestion also writes the exact chunks sent to embeddings into
+`debug/chunks.md` next to the configured `DATA_DIR`. Locally this is
+`backend/debug/chunks.md`; in Docker deployment this is
+`/app/storage/debug/chunks.md`.
+
 5. Inspect logs when needed:
 
 ```bash
