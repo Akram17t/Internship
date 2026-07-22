@@ -60,8 +60,6 @@ ANSWER_TASK_RULES = (
     "Aturan pemilihan form:\n"
     "- Jika jawaban membutuhkan downloadable form, pilih hanya dari available downloadable forms.\n"
     "- Jangan invent nama form.\n"
-    "- Untuk permohonan/perubahan hak akses sistem, pilih System Access Control List jika tersedia.\n"
-    "- Exit Clearance hanya untuk resign/offboarding; Jangan pilih Exit Clearance hanya karena evidence menyebut akses dicabut.\n"
     "- Jangan menulis filename PDF atau section download form di jawaban visible; app akan render form terpisah.\n"
     "- Jangan membuat heading/kalimat visible seperti 'Form yang digunakan', 'Form terkait', atau 'Form yang bisa diunduh'; cukup isi FORM_SELECTION.\n"
     "- Jika evidence menjawab pertanyaan, di akhir jawaban tambahkan tepat satu baris machine-readable:\n"
