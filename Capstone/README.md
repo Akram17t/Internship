@@ -93,6 +93,13 @@ To rebuild and validate the complete deployment on EC2:
 bash deploy/update-ec2.sh
 ```
 
+If the EC2 9Router database has no Kiro account, connect it directly with the
+AWS Builder ID device flow:
+
+```bash
+bash deploy/connect-kiro-ec2.sh
+```
+
 4. Add source documents to the `DATA_DIR` volume path, then run ingestion:
 
 ```bash
