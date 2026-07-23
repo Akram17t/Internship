@@ -78,6 +78,7 @@ class AnswerFinalizationTests(unittest.TestCase):
 
     def test_generate_with_model_uses_router9_kiro_openai_compatible_payload(self) -> None:
         captured: dict[str, object] = {}
+        captured_client: dict[str, object] = {}
 
         class FakeCompletions:
             def create(self, **payload: object) -> object:
@@ -89,14 +90,19 @@ class AnswerFinalizationTests(unittest.TestCase):
         fake_client = types.SimpleNamespace(
             chat=types.SimpleNamespace(completions=FakeCompletions())
         )
-        fake_openai = types.SimpleNamespace(OpenAI=lambda **_: fake_client)
+
+        def fake_openai_client(**kwargs: object) -> object:
+            captured_client.update(kwargs)
+            return fake_client
+
+        fake_openai = types.SimpleNamespace(OpenAI=fake_openai_client)
 
         with (
             patch.dict(
                 "os.environ",
                 {
-                    "MODEL": "kiro/auto",
-                    "CHAT_BASE_URL": "http://localhost:20128/v1",
+                    "MODEL": "kr/claude-sonnet-4.5",
+                    "CHAT_BASE_URL": "http://9router:20128/v1",
                     "CHAT_API_KEY": "test-key",
                     "CHAT_TIMEOUT_SECONDS": "240",
                 },
@@ -109,10 +115,21 @@ class AnswerFinalizationTests(unittest.TestCase):
                 num_predict=64,
                 temperature=0.0,
                 seed=11,
+                system_prompt="Kamu adalah HR Agent perusahaan.",
             )
 
         self.assertEqual(answer, "Jawaban dari Kiro [1].")
-        self.assertEqual(captured["model"], "kiro/auto")
+        self.assertEqual(captured_client["api_key"], "test-key")
+        self.assertEqual(captured_client["base_url"], "http://9router:20128/v1")
+        self.assertEqual(captured_client["timeout"], 240)
+        self.assertEqual(captured["model"], "kr/claude-sonnet-4.5")
+        self.assertEqual(
+            captured["messages"],
+            [
+                {"role": "system", "content": "Kamu adalah HR Agent perusahaan."},
+                {"role": "user", "content": "Halo"},
+            ],
+        )
         self.assertEqual(captured["max_tokens"], 64)
         self.assertNotIn("reasoning_effort", captured)
         self.assertNotIn("seed", captured)

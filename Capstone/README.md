@@ -59,8 +59,12 @@ cp .env.production.example .env.production
    internal 9Router service URL on the Compose network:
 
 ```env
+MODEL=kr/claude-sonnet-4.5
 CHAT_BASE_URL=http://9router:20128/v1
+CHAT_API_KEY=<key-from-9router-dashboard>
+FLOWCHART_MODEL=kr/claude-sonnet-4.5
 FLOWCHART_BASE_URL=http://9router:20128/v1
+FLOWCHART_API_KEY=<key-from-9router-dashboard>
 APP_STATE_DB=/app/storage/app_state.db
 DATA_DIR=/app/storage/data
 CHROMA_DIR=/app/storage/chroma_db
@@ -73,13 +77,21 @@ The Compose file runs 9Router as a sibling service and binds its dashboard/API
 to `127.0.0.1:20128` on the host. Keep EC2 port `20128` closed publicly; use an
 SSH tunnel for dashboard access. If migrating from a manually started `9router`
 container, copy its existing `JWT_SECRET` and `API_KEY_SECRET` into
-`.env.production` before removing the old container.
+`.env.production` before removing the old container. The current deployment
+keeps `.env.production` in version control, so rotate its credentials whenever
+repository access changes.
 
 3. Build and start the app:
 
 ```bash
 docker compose build
 docker compose up -d
+```
+
+To rebuild and validate the complete deployment on EC2:
+
+```bash
+bash deploy/update-ec2.sh
 ```
 
 4. Add source documents to the `DATA_DIR` volume path, then run ingestion:

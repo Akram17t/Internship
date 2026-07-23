@@ -1,5 +1,5 @@
 .env
-.env.production
+!.env.production
 !.env.production.example
 .venv/
 __pycache__/

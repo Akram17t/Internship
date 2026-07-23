@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import sys
+import types
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from langchain_core.documents import Document
 
@@ -14,6 +16,7 @@ from backend.preprocessing.chunker import chunk_documents  # noqa: E402
 from backend.preprocessing.flowchart_extractor import (  # noqa: E402
     _clean_flowchart_text,
     _flowchart_max_tokens_field,
+    _send_flowchart_vision_text,
     detect_flowchart_candidates,
 )
 
@@ -48,6 +51,57 @@ Hubungan dan arah alur:
         ):
             with self.assertRaisesRegex(RuntimeError, "max_tokens or max_completion_tokens"):
                 _flowchart_max_tokens_field()
+
+    def test_flowchart_vision_uses_router9_key_and_model(self) -> None:
+        captured: dict[str, object] = {}
+        captured_client: dict[str, object] = {}
+
+        class FakeCompletions:
+            def create(self, **payload: object) -> object:
+                captured.update(payload)
+                message = types.SimpleNamespace(
+                    content=(
+                        "Tahapan yang terbaca:\n1. [Start] Mulai\n\n"
+                        "Hubungan dan arah alur:\n- Mulai -> Selesai"
+                    )
+                )
+                return types.SimpleNamespace(
+                    choices=[types.SimpleNamespace(message=message)]
+                )
+
+        fake_client = types.SimpleNamespace(
+            chat=types.SimpleNamespace(completions=FakeCompletions())
+        )
+
+        def fake_openai_client(**kwargs: object) -> object:
+            captured_client.update(kwargs)
+            return fake_client
+
+        with (
+            patch.dict(
+                "os.environ",
+                {
+                    "FLOWCHART_BASE_URL": "http://9router:20128/v1",
+                    "FLOWCHART_API_KEY": "test-key",
+                    "FLOWCHART_TIMEOUT_SECONDS": "240",
+                },
+                clear=True,
+            ),
+            patch.dict(
+                sys.modules,
+                {"openai": types.SimpleNamespace(OpenAI=fake_openai_client)},
+            ),
+        ):
+            result = _send_flowchart_vision_text(
+                b"\x89PNG\r\n\x1a\n",
+                "kr/claude-sonnet-4.5",
+                "Baca flowchart ini.",
+            )
+
+        self.assertEqual(captured_client["api_key"], "test-key")
+        self.assertEqual(captured_client["base_url"], "http://9router:20128/v1")
+        self.assertEqual(captured["model"], "kr/claude-sonnet-4.5")
+        self.assertIn("Tahapan yang terbaca:", result)
 
     def test_detector_supports_diagram_on_following_page(self) -> None:
         candidates = detect_flowchart_candidates(

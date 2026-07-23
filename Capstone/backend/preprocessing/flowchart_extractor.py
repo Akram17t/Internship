@@ -326,7 +326,10 @@ def extract_flowchart_documents(pdf_path: Path) -> list[Document]:
         return []
 
     started_at = perf_counter()
-    model_name = get_env("FLOWCHART_MODEL", get_env("MODEL", "kiro/auto"))
+    model_name = get_env(
+        "FLOWCHART_MODEL",
+        get_env("MODEL", "kr/claude-sonnet-4.5"),
+    )
     pdf_bytes = pdf_path.read_bytes()
     flowchart_documents: list[Document] = []
 

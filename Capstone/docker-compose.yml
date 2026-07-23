@@ -10,7 +10,7 @@ services:
       HOSTNAME: 0.0.0.0
       BASE_URL: http://9router:20128
       NEXT_PUBLIC_BASE_URL: http://127.0.0.1:20128
-      REQUIRE_API_KEY: "false"
+      REQUIRE_API_KEY: "true"
     ports:
       - "127.0.0.1:20128:20128"
     volumes:
