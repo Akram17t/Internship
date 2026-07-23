@@ -11,7 +11,7 @@ docker compose up -d 9router 9router-loopback app
 echo "Starting Kiro AWS Builder ID device login..."
 echo
 
-docker compose exec -T 9router node - <<'NODE'
+docker compose exec -T --user node 9router node - <<'NODE'
 const crypto = require("node:crypto");
 const Database = require("better-sqlite3");
 
