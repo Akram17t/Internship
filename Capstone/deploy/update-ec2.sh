@@ -10,7 +10,7 @@ show_failure_logs() {
   status=$?
   echo
   echo "Deployment gagal. Log terakhir:"
-  docker compose logs --tail=150 --no-color app 9router || true
+  docker compose logs --tail=150 --no-color app 9router 9router-loopback || true
   exit "$status"
 }
 trap show_failure_logs ERR
@@ -66,18 +66,20 @@ else:
 base_url = os.environ["CHAT_BASE_URL"].rstrip("/")
 api_key = os.environ.get("CHAT_API_KEY", "").strip()
 model = os.environ["MODEL"].strip()
-flowchart_api_key = os.environ.get("FLOWCHART_API_KEY", "").strip()
 
-if not api_key:
-    raise RuntimeError("CHAT_API_KEY is empty")
-if not flowchart_api_key:
-    raise RuntimeError("FLOWCHART_API_KEY is empty")
+for attempt in range(30):
+    try:
+        _, models_response = read_json(
+            f"{base_url}/models",
+            api_key=api_key,
+            timeout=10,
+        )
+        break
+    except Exception:
+        if attempt == 29:
+            raise
+        time.sleep(2)
 
-_, models_response = read_json(
-    f"{base_url}/models",
-    api_key=api_key,
-    timeout=30,
-)
 model_ids = {
     item.get("id")
     for item in models_response.get("data", [])
@@ -110,6 +112,7 @@ if status != 200 or not str(content).strip():
     raise RuntimeError(f"9Router returned an empty completion: {completion}")
 
 print("9Router health: OK")
+print("9Router loopback proxy: OK")
 print(f"Model available: {model}")
 print(f"Chat completion: {str(content).strip()}")
 PY

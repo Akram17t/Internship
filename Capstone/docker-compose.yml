@@ -10,11 +10,22 @@ services:
       HOSTNAME: 0.0.0.0
       BASE_URL: http://9router:20128
       NEXT_PUBLIC_BASE_URL: http://127.0.0.1:20128
-      REQUIRE_API_KEY: "true"
+      REQUIRE_API_KEY: "false"
     ports:
       - "127.0.0.1:20128:20128"
     volumes:
       - /home/ec2-user/.9router:/app/data
+    restart: unless-stopped
+
+  9router-loopback:
+    image: alpine/socat:latest
+    container_name: 9router-loopback
+    network_mode: "service:9router"
+    depends_on:
+      - 9router
+    command:
+      - TCP-LISTEN:20129,fork,reuseaddr,bind=0.0.0.0
+      - TCP:127.0.0.1:20128
     restart: unless-stopped
 
   app:
@@ -23,6 +34,7 @@ services:
       dockerfile: Dockerfile
     depends_on:
       - 9router
+      - 9router-loopback
     env_file:
       - .env.production
     environment:

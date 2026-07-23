@@ -60,11 +60,11 @@ cp .env.production.example .env.production
 
 ```env
 MODEL=kr/claude-sonnet-4.5
-CHAT_BASE_URL=http://9router:20128/v1
-CHAT_API_KEY=<key-from-9router-dashboard>
+CHAT_BASE_URL=http://9router:20129/v1
+CHAT_API_KEY=
 FLOWCHART_MODEL=kr/claude-sonnet-4.5
-FLOWCHART_BASE_URL=http://9router:20128/v1
-FLOWCHART_API_KEY=<key-from-9router-dashboard>
+FLOWCHART_BASE_URL=http://9router:20129/v1
+FLOWCHART_API_KEY=
 APP_STATE_DB=/app/storage/app_state.db
 DATA_DIR=/app/storage/data
 CHROMA_DIR=/app/storage/chroma_db
@@ -73,13 +73,12 @@ JWT_SECRET=<fixed-random-secret>
 API_KEY_SECRET=<fixed-random-secret>
 ```
 
-The Compose file runs 9Router as a sibling service and binds its dashboard/API
-to `127.0.0.1:20128` on the host. Keep EC2 port `20128` closed publicly; use an
-SSH tunnel for dashboard access. If migrating from a manually started `9router`
-container, copy its existing `JWT_SECRET` and `API_KEY_SECRET` into
-`.env.production` before removing the old container. The current deployment
-keeps `.env.production` in version control, so rotate its credentials whenever
-repository access changes.
+The Compose file runs 9Router plus an internal loopback proxy. Capstone calls
+port `20129`, which forwards to 9Router through `127.0.0.1` inside the router
+network namespace, so no API key is needed for app-to-router traffic. Only the
+dashboard/API port `20128` is bound to EC2 localhost. Keep it closed publicly
+and use an SSH tunnel for dashboard access. The existing `/home/ec2-user/.9router`
+data directory remains mounted so the Kiro connection survives rebuilds.
 
 3. Build and start the app:
 
