@@ -1,8 +1,28 @@
 services:
+  9router:
+    image: decolua/9router:latest
+    container_name: 9router
+    env_file:
+      - .env.production
+    environment:
+      DATA_DIR: /app/data
+      PORT: "20128"
+      HOSTNAME: 0.0.0.0
+      BASE_URL: http://9router:20128
+      NEXT_PUBLIC_BASE_URL: http://127.0.0.1:20128
+      REQUIRE_API_KEY: "false"
+    ports:
+      - "127.0.0.1:20128:20128"
+    volumes:
+      - /home/ec2-user/.9router:/app/data
+    restart: unless-stopped
+
   app:
     build:
       context: .
       dockerfile: Dockerfile
+    depends_on:
+      - 9router
     env_file:
       - .env.production
     environment:
@@ -13,8 +33,6 @@ services:
       SEMANTIC_CACHE_DIR: /app/storage/semantic_chroma
     ports:
       - "127.0.0.1:8000:8000"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     volumes:
       - app_storage:/app/storage
     restart: unless-stopped

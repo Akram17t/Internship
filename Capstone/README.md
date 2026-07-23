@@ -56,19 +56,24 @@ cp .env.production.example .env.production
 ```
 
 2. Confirm the production storage paths stay on `/app/storage`, and keep the
-   9Router URL reachable from inside Docker:
+   internal 9Router service URL on the Compose network:
 
 ```env
-CHAT_BASE_URL=http://host.docker.internal:20128/v1
-FLOWCHART_BASE_URL=http://host.docker.internal:20128/v1
+CHAT_BASE_URL=http://9router:20128/v1
+FLOWCHART_BASE_URL=http://9router:20128/v1
 APP_STATE_DB=/app/storage/app_state.db
 DATA_DIR=/app/storage/data
 CHROMA_DIR=/app/storage/chroma_db
 SEMANTIC_CACHE_DIR=/app/storage/semantic_chroma
+JWT_SECRET=<fixed-random-secret>
+API_KEY_SECRET=<fixed-random-secret>
 ```
 
-If 9Router runs on another server or container network, replace those two URLs
-with that reachable `/v1` endpoint.
+The Compose file runs 9Router as a sibling service and binds its dashboard/API
+to `127.0.0.1:20128` on the host. Keep EC2 port `20128` closed publicly; use an
+SSH tunnel for dashboard access. If migrating from a manually started `9router`
+container, copy its existing `JWT_SECRET` and `API_KEY_SECRET` into
+`.env.production` before removing the old container.
 
 3. Build and start the app:
 
