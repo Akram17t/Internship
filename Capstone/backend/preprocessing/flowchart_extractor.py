@@ -13,7 +13,7 @@ from typing import Any
 import fitz
 from langchain_core.documents import Document
 
-from backend.settings import get_env, get_float_env, get_int_env, get_required_env
+from backend.settings import get_env, get_float_env, get_int_env
 
 
 LOGGER = logging.getLogger(__name__)
@@ -24,7 +24,6 @@ FLOWCHART_HEADING_PATTERN = re.compile(
 )
 _FLOWCHART_TIMING_SECONDS = 0.0
 _FLOWCHART_DOCUMENT_COUNT = 0
-VALID_GROQ_VISION_REASONING_EFFORTS = {"none", "default"}
 
 FLOWCHART_PROMPT = """\
 Baca flowchart pada gambar, lalu tulis ulang menjadi plain text dengan format persis seperti ini:
@@ -232,25 +231,43 @@ def _chat_message_content(completion: Any) -> str:
     return str(getattr(message, "content", "") or "")
 
 
-def _groq_reasoning_effort() -> str:
-    effort = get_env("FLOWCHART_GROQ_REASONING_EFFORT", "default").lower()
-    if effort not in VALID_GROQ_VISION_REASONING_EFFORTS:
+def _flowchart_base_url() -> str:
+    return get_env("FLOWCHART_BASE_URL", get_env("CHAT_BASE_URL", "http://localhost:20128/v1")).rstrip("/")
+
+
+def _flowchart_api_key() -> str:
+    for env_name in (
+        "FLOWCHART_API_KEY",
+        "CHAT_API_KEY",
+        "OPENAI_API_KEY",
+        "ROUTER9_API_KEY",
+        "NINE_ROUTER_API_KEY",
+    ):
+        value = get_env(env_name, "")
+        if value:
+            return value
+    return "9router-local"
+
+
+def _flowchart_max_tokens_field() -> str:
+    field_name = get_env("FLOWCHART_MAX_TOKENS_FIELD", "max_tokens")
+    if field_name not in {"max_tokens", "max_completion_tokens"}:
         raise RuntimeError(
-            "FLOWCHART_GROQ_REASONING_EFFORT must be none or default in .env."
+            "FLOWCHART_MAX_TOKENS_FIELD must be max_tokens or max_completion_tokens in .env."
         )
-    return effort
+    return field_name
 
 
-def _send_groq_vision_text(
+def _send_flowchart_vision_text(
     image_bytes: bytes,
     model_name: str,
     prompt: str,
 ) -> str:
     try:
-        from groq import Groq
+        from openai import OpenAI
     except ImportError as error:
         raise RuntimeError(
-            "Dependency Groq belum terpasang. Jalankan pip install -r requirements.txt."
+            "Dependency OpenAI belum terpasang. Jalankan pip install -r requirements.txt."
         ) from error
 
     data_url = (
@@ -267,9 +284,10 @@ def _send_groq_vision_text(
         "'Hubungan dan arah alur:'. Do not write any other sentence."
     )
     try:
-        client = Groq(
-            api_key=get_required_env("GROQ_API_KEY"),
-            timeout=get_int_env("FLOWCHART_GROQ_TIMEOUT_SECONDS", 240),
+        client = OpenAI(
+            api_key=_flowchart_api_key(),
+            base_url=_flowchart_base_url(),
+            timeout=get_int_env("FLOWCHART_TIMEOUT_SECONDS", 240),
         )
         request_payload: dict[str, Any] = {
             "model": model_name,
@@ -284,25 +302,22 @@ def _send_groq_vision_text(
                 },
             ],
             "temperature": 0,
-            "max_completion_tokens": get_int_env("FLOWCHART_MAX_COMPLETION_TOKENS", 2048),
+            _flowchart_max_tokens_field(): get_int_env("FLOWCHART_MAX_COMPLETION_TOKENS", 2048),
             "top_p": 0.95,
-            "reasoning_effort": _groq_reasoning_effort(),
-            "reasoning_format": "hidden",
             "stream": False,
-            "stop": None,
         }
         completion = client.chat.completions.create(**request_payload)
     except Exception as error:
-        raise RuntimeError(f"Groq vision request failed: {error}") from error
+        raise RuntimeError(f"Flowchart vision request failed: {error}") from error
 
     content = _chat_message_content(completion)
     if not content.strip():
-        raise RuntimeError("Groq vision returned an empty response")
+        raise RuntimeError("Flowchart vision returned an empty response")
     return _clean_flowchart_text(content)
 
 
-def _call_groq_vision(image_bytes: bytes, model_name: str) -> str:
-    return _send_groq_vision_text(image_bytes, model_name, FLOWCHART_PROMPT)
+def _call_flowchart_vision(image_bytes: bytes, model_name: str) -> str:
+    return _send_flowchart_vision_text(image_bytes, model_name, FLOWCHART_PROMPT)
 
 
 def extract_flowchart_documents(pdf_path: Path) -> list[Document]:
@@ -311,7 +326,7 @@ def extract_flowchart_documents(pdf_path: Path) -> list[Document]:
         return []
 
     started_at = perf_counter()
-    model_name = get_env("FLOWCHART_MODEL", "qwen/qwen3.6-27b")
+    model_name = get_env("FLOWCHART_MODEL", get_env("MODEL", "kiro/auto"))
     pdf_bytes = pdf_path.read_bytes()
     flowchart_documents: list[Document] = []
 
@@ -342,9 +357,9 @@ def extract_flowchart_documents(pdf_path: Path) -> list[Document]:
                     cache_status = "hit"
                 else:
                     image_bytes = pdf.extract_image(xref)["image"]
-                    flowchart_text = _call_groq_vision(image_bytes, model_name)
+                    flowchart_text = _call_flowchart_vision(image_bytes, model_name)
                     if not flowchart_text.strip():
-                        raise RuntimeError("Groq vision returned empty flowchart text")
+                        raise RuntimeError("Flowchart vision returned empty flowchart text")
                     result = {
                         "title": "Alur Proses",
                         "confidence": 1.0,
@@ -383,7 +398,7 @@ def extract_flowchart_documents(pdf_path: Path) -> list[Document]:
                 "page": candidate.image_page,
                 "section": candidate.section,
                 "content_type": "flowchart",
-                "extraction_method": "groq_vision",
+                "extraction_method": "openai_compatible_vision",
                 "flowchart_model": model_name,
                 "flowchart_cache": cache_status,
                 "flowchart_image_area_ratio": round(image_area_ratio, 4),

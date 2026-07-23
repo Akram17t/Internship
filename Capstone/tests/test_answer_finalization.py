@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import types
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -74,6 +75,67 @@ class AnswerFinalizationTests(unittest.TestCase):
         self.assertIn("80-150 kata", prompt)
         self.assertIn("semua detail material", prompt)
         self.assertEqual(answer, "Jawaban FAQ yang padat dan bersumber [1].")
+
+    def test_generate_with_model_uses_router9_kiro_openai_compatible_payload(self) -> None:
+        captured: dict[str, object] = {}
+
+        class FakeCompletions:
+            def create(self, **payload: object) -> object:
+                captured.update(payload)
+                message = types.SimpleNamespace(content="Jawaban dari Kiro [1].")
+                choice = types.SimpleNamespace(message=message)
+                return types.SimpleNamespace(choices=[choice])
+
+        fake_client = types.SimpleNamespace(
+            chat=types.SimpleNamespace(completions=FakeCompletions())
+        )
+        fake_openai = types.SimpleNamespace(OpenAI=lambda **_: fake_client)
+
+        with (
+            patch.dict(
+                "os.environ",
+                {
+                    "MODEL": "kiro/auto",
+                    "CHAT_BASE_URL": "http://localhost:20128/v1",
+                    "CHAT_API_KEY": "test-key",
+                    "CHAT_TIMEOUT_SECONDS": "240",
+                },
+                clear=True,
+            ),
+            patch.dict(sys.modules, {"openai": fake_openai}),
+        ):
+            answer = crew_main._generate_with_model(
+                "Halo",
+                num_predict=64,
+                temperature=0.0,
+                seed=11,
+            )
+
+        self.assertEqual(answer, "Jawaban dari Kiro [1].")
+        self.assertEqual(captured["model"], "kiro/auto")
+        self.assertEqual(captured["max_tokens"], 64)
+        self.assertNotIn("reasoning_effort", captured)
+        self.assertNotIn("seed", captured)
+
+    def test_generate_answer_sends_role_prompt_as_system_message(self) -> None:
+        with patch(
+            "researcher_crew.main._generate_with_model",
+            return_value="Jawaban bersumber [1].",
+        ) as generate:
+            answer = crew_main._generate_answer(
+                "Bagaimana alur permohonan hak akses?",
+                "[1] Karyawan mengajukan permohonan hak akses.",
+                '[{"name": "Form - System Access Control List (Template).pdf"}]',
+            )
+
+        user_prompt = generate.call_args.args[0]
+        self.assertEqual(answer, "Jawaban bersumber [1].")
+        self.assertEqual(generate.call_args.kwargs["system_prompt"], crew_main.ANSWER_ROLE_PROMPT)
+        self.assertNotIn(crew_main.ANSWER_ROLE_PROMPT, user_prompt)
+        self.assertIn("Pertanyaan terbaru:", user_prompt)
+        self.assertIn("Retrieved evidence:", user_prompt)
+        self.assertIn("Available downloadable forms:", user_prompt)
+        self.assertIn(crew_main.ANSWER_TASK_RULES, user_prompt)
 
     def test_form_selection_with_markdown_label_is_removed(self) -> None:
         answer = "Jawaban bersumber [1].\n\n**FORM_SELECTION:** []"

@@ -27,7 +27,7 @@ if not defined API_PORT (
   goto :fail
 )
 
-"%PYTHON%" -X utf8 -c "import dotenv, fastapi, groq, openai, yaml, langchain_chroma, langchain_community, langchain_text_splitters, pypdf, docx2txt, pdf2docx" >nul 2>&1
+"%PYTHON%" -X utf8 -c "import dotenv, fastapi, openai, yaml, langchain_chroma, langchain_community, langchain_text_splitters, pypdf, docx2txt, pdf2docx" >nul 2>&1
 if errorlevel 1 (
   echo Missing Python dependencies in backend\researcher_crew\.venv.
   echo Run:

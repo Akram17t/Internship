@@ -337,7 +337,7 @@ Nomor Form Nama Form
 - section: 9. ALUR PROSES
 - anomaly: None
 - content_type: flowchart
-- extraction_method: groq_vision
+- extraction_method: openai_compatible_vision
 - flowchart_confidence: 1.0
 - source: SOP - Perjalanan Dinas.pdf
 ```text

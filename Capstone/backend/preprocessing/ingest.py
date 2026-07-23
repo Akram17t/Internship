@@ -14,7 +14,7 @@ from backend.preprocessing.flowchart_extractor import (
     reset_flowchart_timing,
 )
 from backend.preprocessing.loader import load_documents
-from backend.preprocessing.vectorstore import get_chroma_dir, rebuild_vectorstore
+from backend.preprocessing.vectorstore import clear_vectorstore, get_chroma_dir, rebuild_vectorstore
 
 load_capstone_env()
 
@@ -72,7 +72,11 @@ def write_chunk_debug(chunks: list[Document]) -> Path:
     return output_path
 
 
-def main() -> None:
+def _is_empty_source_error(error: ValueError) -> bool:
+    return str(error).startswith("No supported documents found in:")
+
+
+def main() -> str:
     # Muat dokumen, pecah jadi chunk, lalu bangun ulang vector DB.
     total_started_at = perf_counter()
 
@@ -80,7 +84,15 @@ def main() -> None:
     stage_started_at = perf_counter()
     reset_flowchart_timing()
     data_dir = get_data_dir()
-    documents = load_documents(data_dir)
+    try:
+        documents = load_documents(data_dir)
+    except FileNotFoundError:
+        data_dir.mkdir(parents=True, exist_ok=True)
+        documents = []
+    except ValueError as error:
+        if not _is_empty_source_error(error):
+            raise
+        documents = []
     removed_flowcharts = prune_stale_flowchart_cache(
         {path.name for path in data_dir.rglob("*.pdf") if path.is_file()}
     )
@@ -110,6 +122,28 @@ def main() -> None:
     if chunk_debug_path is not None:
         print(f"[debug] Chunk debug written to {chunk_debug_path}.")
 
+    if not chunks:
+        print("[3/3] No source chunks found. Clearing vector database...")
+        stage_started_at = perf_counter()
+        removed_vectors = clear_vectorstore()
+        from backend.semantic_cache import reset_semantic_cache
+
+        reset_semantic_cache()
+        vector_seconds = perf_counter() - stage_started_at
+        total_seconds = perf_counter() - total_started_at
+        print(
+            "[3/3] Vector database cleared "
+            f"in {vector_seconds:.2f}s ({removed_vectors} files/directories removed)."
+        )
+        print(
+            "Preprocessing completed "
+            f"in {total_seconds:.2f}s "
+            f"(load={load_seconds:.2f}s, flowchart={flowchart_seconds:.2f}s, "
+            f"chunk={chunk_seconds:.2f}s, "
+            f"vector={vector_seconds:.2f}s)."
+        )
+        return "cleared"
+
     print("[3/3] Rebuilding vector database...")
     stage_started_at = perf_counter()
     rebuild_vectorstore(chunks)
@@ -130,6 +164,7 @@ def main() -> None:
         f"chunk={chunk_seconds:.2f}s, "
         f"vector={vector_seconds:.2f}s)."
     )
+    return "rebuilt"
 
 
 if __name__ == "__main__":

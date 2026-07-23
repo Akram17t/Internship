@@ -8,14 +8,14 @@ Architecture and design docs, including a topology diagram, are in [docs/ARCHITE
 
 - FastAPI for REST backend and frontend hosting
 - Vanilla HTML, CSS, and JavaScript for the web UI
-- Direct Groq LLM calls for chat, FAQ generation, and flowchart vision extraction
+- OpenAI-compatible chat, FAQ, and flowchart vision generation, defaulting to 9Router with Kiro for chat
 - Nscale OpenAI-compatible API for hosted embeddings
 - ChromaDB for local vector storage
 
 ## Quick Start
 
 1. Create a virtual environment and install dependencies from `requirements.txt`.
-2. Copy `.env.example` to `.env`, then set `GROQ_API_KEY` and `NSCALE_SERVICE_TOKEN`.
+2. Copy `.env.example` to `.env`, run 9Router locally or set another OpenAI-compatible `CHAT_BASE_URL`, then set `CHAT_API_KEY` if your endpoint requires it and `NSCALE_SERVICE_TOKEN`.
 3. Put SOP/knowledge PDF or DOCX files into `backend/data/`; form templates should be PDF files with filenames starting with `Form`. The backend creates matching DOCX templates automatically.
 4. Run ingestion:
 
@@ -55,14 +55,20 @@ For a single-container VPS deployment, use the provided Dockerfile and
 cp .env.production.example .env.production
 ```
 
-2. Confirm the production storage paths stay on `/app/storage`:
+2. Confirm the production storage paths stay on `/app/storage`, and keep the
+   9Router URL reachable from inside Docker:
 
 ```env
+CHAT_BASE_URL=http://host.docker.internal:20128/v1
+FLOWCHART_BASE_URL=http://host.docker.internal:20128/v1
 APP_STATE_DB=/app/storage/app_state.db
 DATA_DIR=/app/storage/data
 CHROMA_DIR=/app/storage/chroma_db
 SEMANTIC_CACHE_DIR=/app/storage/semantic_chroma
 ```
+
+If 9Router runs on another server or container network, replace those two URLs
+with that reachable `/v1` endpoint.
 
 3. Build and start the app:
 

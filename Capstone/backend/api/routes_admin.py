@@ -379,7 +379,7 @@ def reindex_documents(authorization: str = Header(default="")) -> AdminReindexRe
     try:
         from backend.preprocessing.ingest import main as rebuild_knowledge_base
 
-        rebuild_knowledge_base()
+        reindex_result = rebuild_knowledge_base()
     except Exception as error:
         raise HTTPException(
             status_code=500,
@@ -388,4 +388,6 @@ def reindex_documents(authorization: str = Header(default="")) -> AdminReindexRe
     finally:
         REINDEX_LOCK.release()
 
+    if reindex_result == "cleared":
+        return AdminReindexResponse(message="No source documents found. Embeddings cleared.")
     return AdminReindexResponse(message="Embeddings rebuilt.")

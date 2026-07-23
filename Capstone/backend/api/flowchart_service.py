@@ -153,7 +153,7 @@ def find_flowcharts_for_citations(
     }:
         return []
 
-    expected_model = model_name or get_env("FLOWCHART_MODEL", "qwen/qwen3.6-27b")
+    expected_model = model_name or get_env("FLOWCHART_MODEL", get_env("MODEL", "kiro/auto"))
     payloads = _load_cache_payloads(cache_dir or _flowchart_cache_dir())
     existing_sources = _existing_source_names()
     flowcharts: list[dict[str, Any]] = []

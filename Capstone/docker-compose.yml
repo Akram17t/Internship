@@ -12,6 +12,8 @@ services:
       SEMANTIC_CACHE_DIR: /app/storage/semantic_chroma
     ports:
       - "127.0.0.1:8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - app_storage:/app/storage
     restart: unless-stopped

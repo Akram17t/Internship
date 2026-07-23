@@ -89,7 +89,7 @@ class SemanticCacheTests(unittest.TestCase):
             [(Document(page_content="cached", metadata={"entry_id": "entry-1"}), 0.98)]
         )
         stale_entry = self._valid_entry()
-        stale_entry["model_name"] = "groq/old-model"
+        stale_entry["model_name"] = "provider/old-model"
 
         with (
             patch("backend.semantic_cache.get_semantic_cache_entry_by_question", return_value=None),

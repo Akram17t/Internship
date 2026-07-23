@@ -13,7 +13,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from backend.preprocessing.chunker import chunk_documents  # noqa: E402
 from backend.preprocessing.flowchart_extractor import (  # noqa: E402
     _clean_flowchart_text,
-    _groq_reasoning_effort,
+    _flowchart_max_tokens_field,
     detect_flowchart_candidates,
 )
 
@@ -37,17 +37,17 @@ Hubungan dan arah alur:
         self.assertNotIn("```", content)
         self.assertTrue(content.startswith("Tahapan yang terbaca:"))
 
-    def test_groq_vision_reasoning_effort_defaults_to_supported_value(self) -> None:
+    def test_flowchart_max_tokens_field_defaults_to_openai_compatible_field(self) -> None:
         with unittest.mock.patch.dict("os.environ", {}, clear=True):
-            self.assertEqual(_groq_reasoning_effort(), "default")
+            self.assertEqual(_flowchart_max_tokens_field(), "max_tokens")
 
-    def test_groq_vision_reasoning_effort_rejects_text_model_values(self) -> None:
+    def test_flowchart_max_tokens_field_rejects_unknown_field(self) -> None:
         with unittest.mock.patch.dict(
             "os.environ",
-            {"FLOWCHART_GROQ_REASONING_EFFORT": "low"},
+            {"FLOWCHART_MAX_TOKENS_FIELD": "tokens"},
         ):
-            with self.assertRaisesRegex(RuntimeError, "none or default"):
-                _groq_reasoning_effort()
+            with self.assertRaisesRegex(RuntimeError, "max_tokens or max_completion_tokens"):
+                _flowchart_max_tokens_field()
 
     def test_detector_supports_diagram_on_following_page(self) -> None:
         candidates = detect_flowchart_candidates(
@@ -97,7 +97,7 @@ Hubungan dan arah alur:
                 "document_kind": "sop",
                 "section": "8. ALUR PROSES",
                 "content_type": "flowchart",
-                "extraction_method": "groq_vision",
+                "extraction_method": "openai_compatible_vision",
             },
         )
 

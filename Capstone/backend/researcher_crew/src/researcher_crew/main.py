@@ -100,7 +100,7 @@ def _strip_generated_sources_section(answer: str) -> str:
 
 
 def _strip_thinking_blocks(text: str) -> str:
-    # Qwen reasoning models via Groq can emit <think>...</think>; never show it.
+    # Some reasoning-capable providers can emit <think>...</think>; never show it.
     value = re.sub(
         r"^\s*<think\b[^>]*>.*?</think>\s*",
         "",
@@ -120,18 +120,60 @@ def _configured_model() -> str:
     return get_required_env("MODEL")
 
 
-def _groq_model_name() -> str:
-    # Groq SDK memakai nama model tanpa prefix LiteLLM provider.
-    return _configured_model().removeprefix("groq/")
+def _chat_base_url() -> str:
+    explicit_base_url = get_env(
+        "CHAT_BASE_URL",
+        get_env("OPENAI_BASE_URL", get_env("MODEL_BASE_URL", "")),
+    )
+    if explicit_base_url:
+        return explicit_base_url.rstrip("/")
+    return "http://localhost:20128/v1"
 
 
-def _groq_reasoning_effort() -> str:
-    effort = get_env("GROQ_REASONING_EFFORT", "low").lower()
+def _chat_api_key() -> str:
+    for env_name in (
+        "CHAT_API_KEY",
+        "OPENAI_API_KEY",
+        "ROUTER9_API_KEY",
+        "NINE_ROUTER_API_KEY",
+    ):
+        value = get_env(env_name, "")
+        if value:
+            return value
+    return "9router-local"
+
+
+def _chat_max_tokens_field(base_url: str) -> str:
+    field_name = get_env("CHAT_MAX_TOKENS_FIELD", "max_tokens")
+    if field_name not in {"max_tokens", "max_completion_tokens"}:
+        raise ModelGenerationError(
+            "CHAT_MAX_TOKENS_FIELD must be max_tokens or max_completion_tokens in .env."
+        )
+    return field_name
+
+
+def _chat_timeout_seconds() -> int:
+    return get_int_env("CHAT_TIMEOUT_SECONDS", 240)
+
+
+def _chat_reasoning_effort() -> str | None:
+    effort = get_env("CHAT_REASONING_EFFORT", "").lower()
+    if not effort:
+        return None
     if effort not in {"low", "medium", "high"}:
         raise ModelGenerationError(
-            "GROQ_REASONING_EFFORT must be low, medium, or high in .env."
+            "CHAT_REASONING_EFFORT must be low, medium, or high in .env."
         )
     return effort
+
+
+def _chat_seed_enabled() -> bool:
+    return get_env("CHAT_SEED_ENABLED", "false").lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
 
 
 def _generate_with_model(
@@ -140,34 +182,44 @@ def _generate_with_model(
     num_predict: int,
     temperature: float,
     seed: int | None = None,
+    system_prompt: str = "",
 ) -> str:
     try:
-        from groq import Groq
+        from openai import OpenAI
     except ImportError as error:
         raise ModelGenerationError(
-            "Dependency Groq belum terpasang. Jalankan pip install -r requirements.txt."
+            "Dependency OpenAI belum terpasang. Jalankan pip install -r requirements.txt."
         ) from error
 
     try:
-        client = Groq(
-            api_key=get_required_env("GROQ_API_KEY"),
-            timeout=get_int_env("GROQ_TIMEOUT_SECONDS", 240),
+        base_url = _chat_base_url()
+        client = OpenAI(
+            api_key=_chat_api_key(),
+            base_url=base_url,
+            timeout=_chat_timeout_seconds(),
         )
+        messages: list[dict[str, str]] = []
+        if system_prompt.strip():
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
         request_payload: dict[str, Any] = {
-            "model": _groq_model_name(),
-            "messages": [{"role": "user", "content": prompt}],
+            "model": _configured_model(),
+            "messages": messages,
             "temperature": temperature,
-            "max_completion_tokens": num_predict,
+            _chat_max_tokens_field(base_url): num_predict,
             "top_p": 0.95,
-            "reasoning_effort": _groq_reasoning_effort(),
             "stream": False,
-            "stop": None,
         }
-        if seed is not None:
+        reasoning_effort = _chat_reasoning_effort()
+        if reasoning_effort is not None:
+            request_payload["reasoning_effort"] = reasoning_effort
+        if seed is not None and _chat_seed_enabled():
             request_payload["seed"] = seed
         completion = client.chat.completions.create(**request_payload)
     except Exception as error:
-        raise ModelGenerationError(f"Groq gagal membuat jawaban: {error}") from error
+        raise ModelGenerationError(
+            f"OpenAI-compatible chat provider gagal membuat jawaban: {error}"
+        ) from error
 
     choices: Any = getattr(completion, "choices", None)
     if not choices:
@@ -281,9 +333,8 @@ def _rewrite_query(question: str, conversation_context: str = "") -> str:
     return _extract_rewrite_decision(decision) or question
 
 
-def _direct_answer_prompt(question: str, evidence: str, available_forms: str) -> str:
+def _direct_answer_user_prompt(question: str, evidence: str, available_forms: str) -> str:
     return (
-        f"{ANSWER_ROLE_PROMPT}\n\n"
         f"Pertanyaan terbaru:\n{question}\n\n"
         f"Retrieved evidence:\n{evidence}\n\n"
         f"Available downloadable forms:\n{available_forms or '[]'}\n\n"
@@ -292,12 +343,17 @@ def _direct_answer_prompt(question: str, evidence: str, available_forms: str) ->
     )
 
 
+def _direct_answer_prompt(question: str, evidence: str, available_forms: str) -> str:
+    return f"{ANSWER_ROLE_PROMPT}\n\n{_direct_answer_user_prompt(question, evidence, available_forms)}"
+
+
 def _generate_answer(question: str, evidence: str, available_forms: str) -> str:
     # Generate jawaban akhir langsung lewat provider aktif.
     return _generate_with_model(
-        _direct_answer_prompt(question, evidence, available_forms),
+        _direct_answer_user_prompt(question, evidence, available_forms),
         num_predict=get_int_env("MODEL_NUM_PREDICT", 1100),
         temperature=0.05,
+        system_prompt=ANSWER_ROLE_PROMPT,
     )
 
 
@@ -478,7 +534,7 @@ def _generate_faq_answer(question: str, evidence: str) -> str:
         seed=11,
     )
     if not answer:
-        raise ModelGenerationError("Groq mengembalikan jawaban FAQ kosong.")
+        raise ModelGenerationError("Chat provider mengembalikan jawaban FAQ kosong.")
     return answer
 
 

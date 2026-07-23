@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import shutil
 import uuid
 from functools import lru_cache
 from pathlib import Path
@@ -59,6 +60,38 @@ def get_active_index_name() -> str:
         if active_name:
             return active_name
     return get_chroma_dir().name
+
+
+def clear_vectorstore() -> int:
+    """Remove active and versioned Chroma indexes from the configured Chroma dir."""
+    base_dir = _get_chroma_base_dir().resolve()
+    if base_dir.anchor == str(base_dir):
+        raise RuntimeError(f"Refusing to clear unsafe CHROMA_DIR: {base_dir}")
+
+    removed = 0
+    active_file = base_dir / ACTIVE_INDEX_FILE
+    if active_file.exists():
+        active_file.unlink()
+        removed += 1
+
+    if not base_dir.exists():
+        return removed
+
+    for child in base_dir.iterdir():
+        resolved_child = child.resolve()
+        try:
+            resolved_child.relative_to(base_dir)
+        except ValueError as error:
+            raise RuntimeError(f"Refusing to clear path outside CHROMA_DIR: {resolved_child}") from error
+
+        if child.is_dir():
+            shutil.rmtree(child)
+            removed += 1
+        elif child.is_file():
+            child.unlink()
+            removed += 1
+
+    return removed
 
 
 def get_vectorstore() -> Chroma:
@@ -125,9 +158,12 @@ def _rerank_documents(
 
 def hybrid_search(query: str, k: int = 4) -> list[Document]:
     """Retrieve semantically relevant chunks, rerank, and drop off-topic matches."""
-    vectorstore = get_vectorstore()
     fetch_k = get_int_env("RERANK_CANDIDATES", max(k + 2, 6))
-    vector_results = vectorstore.similarity_search(query, k=fetch_k)
+    try:
+        vectorstore = get_vectorstore()
+        vector_results = vectorstore.similarity_search(query, k=fetch_k)
+    except Exception:
+        return []
     ranked = _rerank_documents(query, vector_results)
 
     # Jika skor rerank terbaik di bawah ambang, anggap query tidak punya sumber

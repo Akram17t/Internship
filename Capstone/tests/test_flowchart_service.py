@@ -28,7 +28,7 @@ class FlowchartServiceTests(unittest.TestCase):
             "status": "success",
             "source": "SOP Test.pdf",
             "image_page": 4,
-            "model": "qwen/qwen3.6-27b",
+            "model": "kiro/auto",
             "result": {
                 "title": "Alur Test",
                 "confidence": 1.0,
@@ -59,7 +59,7 @@ class FlowchartServiceTests(unittest.TestCase):
                         }
                     ],
                     cache_dir=cache_dir,
-                    model_name="qwen/qwen3.6-27b",
+                    model_name="kiro/auto",
                     display_enabled=True,
                 )
 
@@ -86,7 +86,7 @@ class FlowchartServiceTests(unittest.TestCase):
                         }
                     ],
                     cache_dir=cache_dir,
-                    model_name="qwen/qwen3.6-27b",
+                    model_name="kiro/auto",
                     display_enabled=True,
                 )
 
@@ -156,7 +156,7 @@ class FlowchartServiceTests(unittest.TestCase):
                         "status": "success",
                         "source": "SOP Test.pdf",
                         "image_page": 4,
-                        "model": "qwen/qwen3.6-27b",
+                        "model": "kiro/auto",
                         "result": {"title": "Alur", "confidence": 0.9},
                     }
                 ),
@@ -173,7 +173,7 @@ class FlowchartServiceTests(unittest.TestCase):
                         }
                     ],
                     cache_dir=cache_dir,
-                    model_name="qwen/qwen3.6-27b",
+                    model_name="kiro/auto",
                     display_enabled=True,
                 )
 
@@ -204,7 +204,7 @@ class FlowchartServiceTests(unittest.TestCase):
                         }
                     ],
                     cache_dir=cache_dir,
-                    model_name="qwen/qwen3.6-27b",
+                    model_name="kiro/auto",
                     display_enabled=True,
                 )
 
@@ -220,7 +220,7 @@ class FlowchartServiceTests(unittest.TestCase):
                         "status": "success",
                         "source": "SOP Lain.pdf",
                         "image_page": 1,
-                        "model": "qwen/qwen3.6-27b",
+                        "model": "kiro/auto",
                         "result": {"title": "Alur", "confidence": 1.0, "text": "Tahapan"},
                     }
                 ),
@@ -243,7 +243,7 @@ class FlowchartServiceTests(unittest.TestCase):
                         "status": "success",
                         "source": "SOP Aktif.pdf",
                         "image_page": 1,
-                        "model": "qwen/qwen3.6-27b",
+                        "model": "kiro/auto",
                         "result": {"title": "Alur", "confidence": 1.0, "text": "Tahapan"},
                     }
                 ),
@@ -265,7 +265,7 @@ class FlowchartServiceTests(unittest.TestCase):
                 "status": "success",
                 "source": "SOP Aktif.pdf",
                 "image_page": 4,
-                "model": "qwen/qwen3.6-27b",
+                "model": "kiro/auto",
                 "result": {"title": "Alur", "confidence": 1.0, "text": "Tahapan"},
             }
             older.write_text(json.dumps(payload), encoding="utf-8")
