@@ -11,8 +11,8 @@ from fastapi import Header, HTTPException, Query
 
 from backend.api.auth import _create_admin_token, _find_admin, _has_configured_admin, _require_admin
 from backend.api.cache_store import _add_admin_config, _find_faq_index, _load_faqs, _save_faqs
-from backend.api.core import ASSETS_DIR, FAQ_LOCK, LIBRARY_EXTENSIONS, REINDEX_LOCK, app
-from backend.api.faq_service import PINNED_IMAGE_EXTENSIONS, PINNED_IMAGE_STEM, _build_faq_item
+from backend.api.core import FAQ_LOCK, LIBRARY_EXTENSIONS, REINDEX_LOCK, app
+from backend.api.faq_service import PINNED_IMAGE_EXTENSIONS, _build_faq_item, replace_pinned_image
 from backend.api.flowchart_service import clear_flowchart_cache_for_source
 from backend.api.forms_service import delete_form_docx_template, ensure_form_docx_template
 from backend.api.models import (
@@ -123,17 +123,7 @@ def upload_pinned_faq_image(
         )
 
     content = _decode_document(payload.content_base64)
-    ASSETS_DIR.mkdir(parents=True, exist_ok=True)
-
-    # Simpan hanya satu gambar organogram: hapus varian ekstensi lain dulu.
-    for other_extension in PINNED_IMAGE_EXTENSIONS:
-        if other_extension == extension:
-            continue
-        stale = ASSETS_DIR / f"{PINNED_IMAGE_STEM}{other_extension}"
-        if stale.exists():
-            stale.unlink()
-
-    (ASSETS_DIR / f"{PINNED_IMAGE_STEM}{extension}").write_bytes(content)
+    replace_pinned_image(content, extension)
     return AdminDocumentResponse(message="Gambar FAQ diperbarui.")
 
 

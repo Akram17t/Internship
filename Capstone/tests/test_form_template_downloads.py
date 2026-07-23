@@ -201,6 +201,45 @@ class FormTemplateDownloadTests(unittest.TestCase):
         names = [item["name"] for item in response.json()]
         self.assertIn("SOP - Guest Visible.pdf", names)
 
+    def test_admin_organogram_upload_uses_persistent_faq_assets_dir(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+            data_dir = root / "data"
+            faq_assets_dir = root / "faq_assets"
+            data_dir.mkdir()
+            image_bytes = b"\x89PNG\r\n\x1a\norganogram"
+
+            with (
+                patch.dict(
+                    os.environ,
+                    {
+                        "DATA_DIR": str(data_dir),
+                        "FAQ_ASSETS_DIR": str(faq_assets_dir),
+                    },
+                ),
+                patch("backend.api.routes_admin._require_admin", side_effect=_auth_ok),
+            ):
+                response = self.client.post(
+                    "/api/admin/faq-image",
+                    headers={"Authorization": "Bearer test"},
+                    json={
+                        "filename": "new-organogram.png",
+                        "content_base64": _b64(image_bytes),
+                    },
+                )
+                faq_response = self.client.get("/api/faq")
+                image_response = self.client.get("/api/faq-image/organogram.png")
+
+            uploaded_path = faq_assets_dir / "organogram.png"
+            uploaded_bytes = uploaded_path.read_bytes()
+
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(uploaded_bytes, image_bytes)
+            self.assertEqual(faq_response.status_code, 200)
+            self.assertIn("/api/faq-image/organogram.png", faq_response.json()[0]["image_url"])
+            self.assertEqual(image_response.status_code, 200)
+            self.assertEqual(image_response.content, image_bytes)
+
 
 class RemovedFormEditorStaticTests(unittest.TestCase):
     def test_frontend_has_no_removed_form_editor_references(self) -> None:

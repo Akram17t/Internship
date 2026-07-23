@@ -8,6 +8,7 @@ services:
     environment:
       APP_STATE_DB: /app/storage/app_state.db
       DATA_DIR: /app/storage/data
+      FAQ_ASSETS_DIR: /app/storage/faq_assets
       CHROMA_DIR: /app/storage/chroma_db
       SEMANTIC_CACHE_DIR: /app/storage/semantic_chroma
     ports:
