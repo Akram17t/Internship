@@ -602,6 +602,83 @@ def insert_activity_log(
             return int(cursor.lastrowid)
 
 
+def get_activity_log(log_id: int, *, event_type: str | None = None) -> dict[str, Any] | None:
+    with STATE_DB_LOCK:
+        init_state_db()
+        filters = ["id = ?"]
+        params: list[object] = [log_id]
+        if event_type in {"chat", "document"}:
+            filters.append("event_type = ?")
+            params.append(event_type)
+        with closing(_connect()) as connection:
+            row = connection.execute(
+                f"SELECT * FROM activity_logs WHERE {' AND '.join(filters)}",
+                params,
+            ).fetchone()
+            connection.commit()
+    return _activity_log_from_row(row) if row is not None else None
+
+
+def update_activity_log_feedback(
+    *,
+    log_id: int,
+    feedback_token: str,
+    conversation_id: str,
+    rating: str,
+    reason: str,
+) -> dict[str, Any] | None:
+    clean_conversation_id = conversation_id.strip()
+    clean_reason = reason.strip()
+    clean_token = feedback_token.strip()
+    if rating != "thumbs_down" or not clean_token or not clean_conversation_id:
+        return None
+
+    with STATE_DB_LOCK:
+        init_state_db()
+        now = datetime.now().isoformat(timespec="seconds")
+        with closing(_connect()) as connection:
+            row = connection.execute(
+                """
+                SELECT *
+                FROM activity_logs
+                WHERE id = ? AND event_type = 'chat'
+                """,
+                (log_id,),
+            ).fetchone()
+            if row is None:
+                connection.commit()
+                return None
+
+            details = _activity_log_details(row)
+            expected_token = str(details.get("feedback_token") or "").strip()
+            expected_conversation_id = str(details.get("conversation_id") or "").strip()
+            if (
+                not expected_token
+                or not secrets.compare_digest(expected_token, clean_token)
+                or expected_conversation_id != clean_conversation_id
+            ):
+                connection.commit()
+                return None
+
+            feedback = {
+                "rating": rating,
+                "reason": clean_reason,
+                "created_at": now,
+            }
+            details["feedback"] = feedback
+            connection.execute(
+                """
+                UPDATE activity_logs
+                SET details_json = ?
+                WHERE id = ?
+                """,
+                (json.dumps(details, ensure_ascii=False), log_id),
+            )
+            connection.commit()
+
+    return get_activity_log(log_id, event_type="chat")
+
+
 def delete_activity_log(log_id: int, *, event_type: str | None = None) -> bool:
     with STATE_DB_LOCK:
         init_state_db()
@@ -663,6 +740,9 @@ def delete_activity_logs_for_conversation(
 
 def _activity_log_from_row(row: sqlite3.Row) -> dict[str, Any]:
     details = _activity_log_details(row)
+    if isinstance(details, dict):
+        details = dict(details)
+        details.pop("feedback_token", None)
     return {
         "id": int(row["id"]),
         "event_type": str(row["event_type"]),
@@ -692,12 +772,21 @@ def _activity_log_is_fallback_or_error(row: sqlite3.Row) -> bool:
     return row["status"] == "error" or answer_source == "fallback"
 
 
+def _activity_log_has_negative_feedback(row: sqlite3.Row) -> bool:
+    details = _activity_log_details(row)
+    feedback = details.get("feedback")
+    if not isinstance(feedback, dict):
+        return False
+    return str(feedback.get("rating") or "").strip() == "thumbs_down"
+
+
 def list_activity_logs(
     *,
     event_type: str | None = None,
     start_at: str | None = None,
     end_at: str | None = None,
     conversation_id: str | None = None,
+    negative_feedback_only: bool = False,
     limit: int = 100,
     offset: int = 0,
 ) -> list[dict[str, Any]]:
@@ -720,7 +809,7 @@ def list_activity_logs(
         where_clause = f"WHERE {' AND '.join(filters)}" if filters else ""
         with closing(_connect()) as connection:
             _cleanup_activity_logs(connection)
-            if selected_conversation_id:
+            if selected_conversation_id or negative_feedback_only:
                 rows = connection.execute(
                     f"""
                     SELECT *
@@ -742,11 +831,17 @@ def list_activity_logs(
                     (*params, bounded_limit, bounded_offset),
                 ).fetchall()
             connection.commit()
-    if selected_conversation_id:
+    if selected_conversation_id or negative_feedback_only:
         rows = [
             row
             for row in rows
-            if _activity_log_conversation_id(row) == selected_conversation_id
+            if (
+                (
+                    not selected_conversation_id
+                    or _activity_log_conversation_id(row) == selected_conversation_id
+                )
+                and (not negative_feedback_only or _activity_log_has_negative_feedback(row))
+            )
         ][bounded_offset : bounded_offset + bounded_limit]
     return [_activity_log_from_row(row) for row in rows]
 
@@ -793,21 +888,27 @@ def summarize_activity_logs(
 
     sessions: set[str] = set()
     fallback_or_error = 0
+    negative_feedback = 0
     for row in rows:
         row_conversation_id = _activity_log_conversation_id(row)
         if row_conversation_id:
             sessions.add(row_conversation_id)
         if _activity_log_is_fallback_or_error(row):
             fallback_or_error += 1
+        if _activity_log_has_negative_feedback(row):
+            negative_feedback += 1
 
     total = len(rows)
     session_count = len(sessions)
     average = round(total / session_count, 2) if session_count else 0
+    feedback_rate = round((negative_feedback / total) * 100, 2) if total else 0
     return {
         "total_chat": total,
         "total_sessions": session_count,
         "average_chat_per_session": average,
         "fallback_or_error": fallback_or_error,
+        "negative_feedback": negative_feedback,
+        "negative_feedback_rate": feedback_rate,
     }
 
 

@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import sys
 import threading
+from contextlib import asynccontextmanager
 from datetime import timedelta
 from pathlib import Path
+from typing import AsyncIterator
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -16,7 +18,18 @@ CREW_SRC_DIR = ROOT_DIR / "backend" / "researcher_crew" / "src"
 if str(CREW_SRC_DIR) not in sys.path:
     sys.path.insert(0, str(CREW_SRC_DIR))
 
-app = FastAPI(title="ICS Knowledge Assistant API", version="1.0.0")
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    try:
+        yield
+    finally:
+        from backend.observability import shutdown
+
+        shutdown()
+
+
+app = FastAPI(title="ICS Knowledge Assistant API", version="1.0.0", lifespan=lifespan)
 FRONTEND_DIR = ROOT_DIR / "frontend" / "web"
 ASSETS_DIR = FRONTEND_DIR / "assets"
 EMBEDDABLE_EXTENSIONS = {".pdf", ".docx", ".txt"}

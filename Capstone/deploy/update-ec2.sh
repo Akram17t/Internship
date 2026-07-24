@@ -22,6 +22,10 @@ echo "Building and recreating Capstone services..."
 docker compose up -d --build --force-recreate
 docker compose ps
 
+echo "Active app model/router configuration:"
+docker compose exec -T app env \
+  | grep -E '^(MODEL|CHAT_BASE_URL|FLOWCHART_MODEL|FLOWCHART_BASE_URL|OPENAI_COMPAT_NO_AUTH_BASE_URLS)='
+
 echo "Checking 9Router and Kiro completion from the app container..."
 docker compose exec -T app python - <<'PY'
 import json

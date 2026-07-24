@@ -42,6 +42,21 @@ class QueryResponse(BaseModel):
     flowcharts: list[FlowchartScreenshotResponse] = Field(default_factory=list)
     conversation_id: str
     answer_source: Literal["model", "cache", "fallback"] = "model"
+    feedback_id: int | None = None
+    feedback_token: str | None = None
+
+
+class FeedbackPayload(BaseModel):
+    feedback_id: int = Field(..., ge=1)
+    feedback_token: str = Field(..., min_length=16, max_length=256)
+    conversation_id: str = Field(..., min_length=1, max_length=128)
+    rating: Literal["thumbs_down"]
+    reason: str = Field(..., min_length=5, max_length=500)
+
+
+class FeedbackResponse(BaseModel):
+    message: str
+    feedback: dict[str, Any]
 
 
 class PublicConfigResponse(BaseModel):
@@ -119,6 +134,8 @@ class ActivityLogSummaryResponse(BaseModel):
     total_sessions: int = 0
     average_chat_per_session: float = 0
     fallback_or_error: int = 0
+    negative_feedback: int = 0
+    negative_feedback_rate: float = 0
 
 
 class ActivityLogSessionItem(BaseModel):

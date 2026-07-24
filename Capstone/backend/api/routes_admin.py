@@ -185,12 +185,15 @@ def get_activity_logs(
     start_date: str | None = None,
     end_date: str | None = None,
     conversation_id: str | None = None,
+    feedback: str | None = None,
     limit: Annotated[int, Query(ge=1, le=250)] = 100,
     offset: Annotated[int, Query(ge=0)] = 0,
     authorization: str = Header(default=""),
 ) -> list[ActivityLogItem]:
     # Kembalikan activity log chat untuk dashboard pemakaian chatbot.
     _require_admin(authorization)
+    if feedback not in {None, "", "all", "negative"}:
+        raise HTTPException(status_code=422, detail="Filter feedback tidak valid.")
     start_at, end_at = _activity_date_range(start_date, end_date)
     return [
         ActivityLogItem(**item)
@@ -199,6 +202,7 @@ def get_activity_logs(
             start_at=start_at,
             end_at=end_at,
             conversation_id=conversation_id,
+            negative_feedback_only=feedback == "negative",
             limit=limit,
             offset=offset,
         )

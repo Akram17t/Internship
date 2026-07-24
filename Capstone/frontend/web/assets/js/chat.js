@@ -1,5 +1,6 @@
 function bindChat() {
   elements.newChatButton.addEventListener("click", resetChat);
+  bindFeedbackModal();
 
   elements.chatForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -202,6 +203,9 @@ async function submitQuestion(rawQuestion) {
         : [],
       flowcharts: Array.isArray(payload.flowcharts) ? payload.flowcharts : [],
       answer_source: normalizeAnswerSource(payload.answer_source),
+      feedback_id: payload.feedback_id || null,
+      feedback_token: payload.feedback_token || "",
+      feedback: payload.feedback || null,
       duration_ms: Math.round(performance.now() - startedAt),
       timestamp: "Just now",
     };
@@ -420,10 +424,113 @@ function renderMessages(scrollBehavior = "auto", options = {}) {
       duration.textContent = formatDuration(message.duration_ms);
       meta.append(" • ", duration);
     }
+    if (isAssistant && !message.loading && !message.streaming) {
+      appendFeedbackAction(meta, message);
+    }
     elements.chatThread.appendChild(fragment);
   });
   if (scrollBehavior !== "none") {
     scrollChatToBottom(scrollBehavior, { force: options.forceScroll === true });
+  }
+}
+
+function bindFeedbackModal() {
+  elements.feedbackForm?.addEventListener("submit", submitFeedback);
+  elements.feedbackCloseButton?.addEventListener("click", closeFeedbackModal);
+  elements.feedbackCancelButton?.addEventListener("click", closeFeedbackModal);
+  elements.feedbackModal?.addEventListener("click", (event) => {
+    if (event.target === elements.feedbackModal) closeFeedbackModal();
+  });
+}
+
+function appendFeedbackAction(meta, message) {
+  if (!message.feedback_id || !message.feedback_token) return;
+  if (message.feedback?.rating === "thumbs_down") {
+    return;
+  }
+
+  const button = document.createElement("button");
+  button.className = "message-feedback-button material-symbols-outlined";
+  button.type = "button";
+  button.title = "Report unsatisfying answer";
+  button.setAttribute("aria-label", "Report unsatisfying answer");
+  button.textContent = "thumb_down";
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    openFeedbackModal(message);
+  });
+  meta.append(" | ", button);
+}
+
+function openFeedbackModal(message) {
+  if (!elements.feedbackModal || !elements.feedbackReason) return;
+  state.pendingFeedbackMessage = message;
+  elements.feedbackReason.value = "";
+  setFeedbackStatus("");
+  elements.feedbackSubmitButton.disabled = false;
+  elements.feedbackModal.classList.add("is-open");
+  elements.feedbackModal.setAttribute("aria-hidden", "false");
+  window.setTimeout(() => elements.feedbackReason.focus(), 0);
+}
+
+function closeFeedbackModal() {
+  if (!elements.feedbackModal || state.isSubmittingFeedback) return;
+  state.pendingFeedbackMessage = null;
+  elements.feedbackModal.classList.remove("is-open");
+  elements.feedbackModal.setAttribute("aria-hidden", "true");
+  setFeedbackStatus("");
+}
+
+function setFeedbackStatus(message, isSuccess = false) {
+  if (!elements.feedbackStatus) return;
+  elements.feedbackStatus.hidden = !message;
+  elements.feedbackStatus.textContent = message || "";
+  elements.feedbackStatus.classList.toggle("is-success", isSuccess);
+}
+
+async function submitFeedback(event) {
+  event.preventDefault();
+  const message = state.pendingFeedbackMessage;
+  if (!message?.feedback_id || !message.feedback_token) return;
+  const reason = String(elements.feedbackReason?.value || "").trim();
+  if (reason.length < 5) {
+    setFeedbackStatus("Tulis alasan minimal 5 karakter.");
+    return;
+  }
+
+  state.isSubmittingFeedback = true;
+  elements.feedbackSubmitButton.disabled = true;
+  setFeedbackStatus("");
+  try {
+    const response = await fetch("/api/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        feedback_id: message.feedback_id,
+        feedback_token: message.feedback_token,
+        conversation_id: state.conversationId,
+        rating: "thumbs_down",
+        reason,
+      }),
+    });
+    const payload = await readJsonResponse(response);
+    if (!response.ok) {
+      throw new Error(formatApiError(payload.detail, "Feedback gagal dikirim."));
+    }
+    message.feedback = payload.feedback || {
+      rating: "thumbs_down",
+      reason,
+    };
+    persistMessages();
+    state.isSubmittingFeedback = false;
+    closeFeedbackModal();
+    renderMessages("none");
+    refreshActivityLogsIfVisible();
+  } catch (error) {
+    setFeedbackStatus(error.message || "Feedback gagal dikirim.");
+  } finally {
+    state.isSubmittingFeedback = false;
+    elements.feedbackSubmitButton.disabled = false;
   }
 }
 

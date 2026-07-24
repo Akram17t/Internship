@@ -20,6 +20,18 @@ from backend.answer_policy import (
 )
 from backend.settings import get_env, get_int_env, get_required_env, load_capstone_env
 from backend.semantic_cache import lookup_semantic_cache, store_semantic_cache
+from backend.openai_compat import (
+    openai_client_kwargs,
+    openai_request_kwargs,
+    resolve_openai_compatible_api_key,
+)
+from backend.observability import (
+    base_url_host,
+    openai_client_class,
+    openai_observation_kwargs,
+    span,
+    update_observation,
+)
 
 from researcher_crew.tools import retrieve_knowledge
 
@@ -130,17 +142,16 @@ def _chat_base_url() -> str:
     return "http://localhost:20128/v1"
 
 
-def _chat_api_key() -> str:
-    for env_name in (
-        "CHAT_API_KEY",
-        "OPENAI_API_KEY",
-        "ROUTER9_API_KEY",
-        "NINE_ROUTER_API_KEY",
-    ):
-        value = get_env(env_name, "")
-        if value:
-            return value
-    return "9router-local"
+def _chat_api_key(base_url: str) -> str:
+    return resolve_openai_compatible_api_key(
+        base_url=base_url,
+        primary_env="CHAT_API_KEY",
+        fallback_envs=(
+            "OPENAI_API_KEY",
+            "ROUTER9_API_KEY",
+            "NINE_ROUTER_API_KEY",
+        ),
+    )
 
 
 def _chat_max_tokens_field(base_url: str) -> str:
@@ -183,9 +194,15 @@ def _generate_with_model(
     temperature: float,
     seed: int | None = None,
     system_prompt: str = "",
+    generation_name: str = "chat-completion",
+    trace_metadata: dict[str, object] | None = None,
+    trace_generation: bool = True,
 ) -> str:
     try:
-        from openai import OpenAI
+        if trace_generation:
+            OpenAI = openai_client_class()
+        else:
+            from openai import OpenAI
     except ImportError as error:
         raise ModelGenerationError(
             "Dependency OpenAI belum terpasang. Jalankan pip install -r requirements.txt."
@@ -193,10 +210,13 @@ def _generate_with_model(
 
     try:
         base_url = _chat_base_url()
+        api_key = _chat_api_key(base_url)
         client = OpenAI(
-            api_key=_chat_api_key(),
-            base_url=base_url,
-            timeout=_chat_timeout_seconds(),
+            **openai_client_kwargs(
+                api_key=api_key,
+                base_url=base_url,
+                timeout=_chat_timeout_seconds(),
+            )
         )
         messages: list[dict[str, str]] = []
         if system_prompt.strip():
@@ -215,6 +235,19 @@ def _generate_with_model(
             request_payload["reasoning_effort"] = reasoning_effort
         if seed is not None and _chat_seed_enabled():
             request_payload["seed"] = seed
+        request_payload.update(openai_request_kwargs(api_key=api_key, base_url=base_url))
+        if trace_generation:
+            request_payload.update(
+                openai_observation_kwargs(
+                    generation_name,
+                    metadata={
+                        "operation": generation_name,
+                        "model": _configured_model(),
+                        "base_url_host": base_url_host(base_url),
+                        **(trace_metadata or {}),
+                    },
+                )
+            )
         completion = client.chat.completions.create(**request_payload)
     except Exception as error:
         raise ModelGenerationError(
@@ -284,7 +317,14 @@ def _rewrite_query(question: str, conversation_context: str = "") -> str:
             "Jawaban:"
         )
         try:
-            rewritten = _generate_with_model(prompt, num_predict=140, temperature=0.0)
+            rewritten = _generate_with_model(
+                prompt,
+                num_predict=140,
+                temperature=0.0,
+                generation_name="rewrite-query-generation",
+                trace_metadata={"has_context_reference": True},
+                trace_generation=False,
+            )
         except ModelGenerationError:
             return question
 
@@ -323,7 +363,14 @@ def _rewrite_query(question: str, conversation_context: str = "") -> str:
         "Keputusan:"
     )
     try:
-        rewritten = _generate_with_model(prompt, num_predict=120, temperature=0.0)
+        rewritten = _generate_with_model(
+            prompt,
+            num_predict=120,
+            temperature=0.0,
+            generation_name="rewrite-query-generation",
+            trace_metadata={"has_context_reference": False},
+            trace_generation=False,
+        )
     except ModelGenerationError:
         return question
 
@@ -354,6 +401,11 @@ def _generate_answer(question: str, evidence: str, available_forms: str) -> str:
         num_predict=get_int_env("MODEL_NUM_PREDICT", 1100),
         temperature=0.05,
         system_prompt=ANSWER_ROLE_PROMPT,
+        generation_name="generate-response",
+        trace_metadata={
+            "evidence_chars": len(evidence),
+            "available_forms_chars": len(available_forms),
+        },
     )
 
 
@@ -532,6 +584,8 @@ def _generate_faq_answer(question: str, evidence: str) -> str:
         num_predict=max(get_int_env("FAQ_NUM_PREDICT", 180), 384),
         temperature=0.1,
         seed=11,
+        generation_name="generate-faq-answer",
+        trace_metadata={"evidence_chars": len(evidence)},
     )
     if not answer:
         raise ModelGenerationError("Chat provider mengembalikan jawaban FAQ kosong.")
@@ -552,8 +606,21 @@ def run_knowledge_crew(
     # Query mandiri ini dipakai untuk retrieval dan generation.
     # Context lama sengaja tidak dikirim ke generation agar topik lama tidak bocor.
     rewrite_started = time.perf_counter()
-    standalone_question = _rewrite_query(question, conversation_context)
-    rewrite_seconds = time.perf_counter() - rewrite_started
+    with span(
+        "rewrite-query",
+        input=question,
+        metadata={"conversation_context_chars": len(conversation_context)},
+    ) as rewrite_span:
+        standalone_question = _rewrite_query(question, conversation_context)
+        rewrite_seconds = time.perf_counter() - rewrite_started
+        update_observation(
+            rewrite_span,
+            output=standalone_question,
+            metadata={
+                "changed": standalone_question != question,
+                "duration_seconds": round(rewrite_seconds, 3),
+            },
+        )
     if standalone_question != question:
         logger.info(
             '[%s] rewrite | changed (%.2fs) | "%s" -> "%s"',
@@ -570,15 +637,42 @@ def run_knowledge_crew(
         logger.info(
             "[%s] total   | %.2fs (dari cache)", trace_label, time.perf_counter() - started_at
         )
-        cached_answer, cached_citations = _finalize_answer_citations(
-            _strip_thinking_blocks(cache_hit.answer),
-            cache_hit.citations,
-        )
-        if cache_hit.selected_forms:
-            cached_answer = _strip_visible_form_download_copy(cached_answer)
+        with span(
+            "finalize-response",
+            input=cache_hit.answer,
+            metadata={"answer_source": "cache"},
+        ) as finalize_span:
+            cached_answer, cached_citations = _finalize_answer_citations(
+                _strip_thinking_blocks(cache_hit.answer),
+                cache_hit.citations,
+            )
+            if cache_hit.selected_forms:
+                cached_answer = _strip_visible_form_download_copy(cached_answer)
+            update_observation(
+                finalize_span,
+                output=cached_answer,
+                metadata={
+                    "citation_count": len(cached_citations),
+                    "selected_form_count": len(cache_hit.selected_forms),
+                },
+            )
         return cached_answer, cached_citations, cache_hit.selected_forms, "cache"
 
-    evidence, citations = retrieve_knowledge(standalone_question)
+    with span(
+        "retrieve-context",
+        input=standalone_question,
+        metadata={"top_k": get_int_env("TOP_K", 4)},
+        as_type="retriever",
+    ) as retrieval_span:
+        evidence, citations = retrieve_knowledge(standalone_question)
+        update_observation(
+            retrieval_span,
+            output={"citation_count": len(citations), "evidence_chars": len(evidence)},
+            metadata={
+                "citation_count": len(citations),
+                "evidence_chars": len(evidence),
+            },
+        )
     if not citations:
         logger.info(
             "[%s] total   | %.2fs (tanpa sumber)", trace_label, time.perf_counter() - started_at
@@ -591,14 +685,32 @@ def run_knowledge_crew(
     )
     logger.info("[%s] crew    | %.2fs", trace_label, time.perf_counter() - crew_started)
 
-    answer, selected_forms = _split_form_selection(answer)
-    answer = _strip_trailing_unsupported_answer(answer)
-    if is_unsupported_answer(answer):
-        logger.info(
-            "[%s] total   | %.2fs (tanpa sumber)", trace_label, time.perf_counter() - started_at
+    with span(
+        "finalize-response",
+        input=answer,
+        metadata={"answer_source": "model"},
+    ) as finalize_span:
+        answer, selected_forms = _split_form_selection(answer)
+        answer = _strip_trailing_unsupported_answer(answer)
+        if is_unsupported_answer(answer):
+            logger.info(
+                "[%s] total   | %.2fs (tanpa sumber)", trace_label, time.perf_counter() - started_at
+            )
+            update_observation(
+                finalize_span,
+                output=unsupported_answer_text(),
+                metadata={"answer_source": "fallback"},
+            )
+            return unsupported_answer_text(), [], [], "fallback"
+        answer, citations = _finalize_answer_citations(answer, citations)
+        update_observation(
+            finalize_span,
+            output=answer,
+            metadata={
+                "citation_count": len(citations),
+                "selected_form_count": len(selected_forms),
+            },
         )
-        return unsupported_answer_text(), [], [], "fallback"
-    answer, citations = _finalize_answer_citations(answer, citations)
     store_semantic_cache(
         standalone_question,
         answer,

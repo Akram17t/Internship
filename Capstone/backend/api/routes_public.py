@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import secrets
 import time
 
 from fastapi import HTTPException
@@ -20,6 +21,8 @@ from backend.api.flowchart_service import (
 from backend.api.models import (
     CitationResponse,
     FAQItem,
+    FeedbackPayload,
+    FeedbackResponse,
     FlowchartScreenshotResponse,
     FormDownloadResponse,
     PublicConfigResponse,
@@ -37,7 +40,14 @@ from backend.api.storage import (
     _resolve_document_path,
     _selected_form_downloads,
 )
-from backend.cache_db import insert_activity_log
+from backend.cache_db import insert_activity_log, update_activity_log_feedback
+from backend.observability import (
+    current_trace_id,
+    environment_name,
+    score_user_thumbs_down,
+    trace_context,
+    update_observation,
+)
 from backend.settings import get_bool_env
 
 logger = logging.getLogger("uvicorn.error")
@@ -64,7 +74,9 @@ def _record_chat_activity(
     form_downloads: list[FormDownloadResponse] | None = None,
     flowcharts: list[FlowchartScreenshotResponse] | None = None,
     error: object = "",
-) -> None:
+    feedback_token: str = "",
+    trace_id: str = "",
+) -> int | None:
     citation_items = citations or []
     source_names = []
     for citation in citation_items:
@@ -84,10 +96,14 @@ def _record_chat_activity(
         "flowchart_count": len(flowcharts or []),
         "response_time_seconds": round(response_time_seconds, 3),
     }
+    if feedback_token:
+        details["feedback_token"] = feedback_token
+    if trace_id:
+        details["trace_id"] = trace_id
     if error:
         details["error"] = _truncate(error)
     try:
-        insert_activity_log(
+        return insert_activity_log(
             event_type="chat",
             action="query",
             status=status,
@@ -96,6 +112,7 @@ def _record_chat_activity(
         )
     except Exception as log_error:
         logger.warning("[activity-log] gagal menyimpan log chat: %s", log_error)
+        return None
 
 
 @app.get("/health")
@@ -132,76 +149,164 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
         conversation_id,
         len(available_forms),
     )
-    try:
-        answer, raw_citations, selected_form_names, answer_source = run_knowledge_crew(
-            payload.question,
-            conversation_context,
-            available_forms=_available_form_catalog(available_forms),
-            trace_id=f"chat:{conversation_id}",
+    trace_metadata: dict[str, object] = {
+        "route": "/query",
+        "feature": "chat",
+        "environment": environment_name(),
+        "conversation_context_chars": len(conversation_context),
+        "available_form_count": len(available_forms),
+    }
+    with trace_context(
+        name="chat-query",
+        session_id=conversation_id,
+        input=payload.question,
+        metadata=trace_metadata,
+        tags=["capstone", "rag", "chat", environment_name()],
+    ) as trace:
+        try:
+            answer, raw_citations, selected_form_names, answer_source = run_knowledge_crew(
+                payload.question,
+                conversation_context,
+                available_forms=_available_form_catalog(available_forms),
+                trace_id=f"chat:{conversation_id}",
+            )
+        except ModelGenerationError as error:
+            logger.exception("[chat:%s] Request gagal", conversation_id)
+            _record_chat_activity(
+                status="error",
+                conversation_id=conversation_id,
+                question=payload.question,
+                response_time_seconds=time.perf_counter() - request_started,
+                error=error,
+            )
+            update_observation(
+                trace,
+                metadata={
+                    **trace_metadata,
+                    "status": "error",
+                    "response_time_seconds": round(time.perf_counter() - request_started, 3),
+                },
+                error=error,
+            )
+            raise HTTPException(status_code=502, detail=str(error)) from error
+        except Exception as error:
+            logger.exception("[chat:%s] Request gagal", conversation_id)
+            _record_chat_activity(
+                status="error",
+                conversation_id=conversation_id,
+                question=payload.question,
+                response_time_seconds=time.perf_counter() - request_started,
+                error=error,
+            )
+            update_observation(
+                trace,
+                metadata={
+                    **trace_metadata,
+                    "status": "error",
+                    "response_time_seconds": round(time.perf_counter() - request_started, 3),
+                },
+                error=error,
+            )
+            raise
+        _append_conversation_turn(conversation_id, payload.question, answer)
+        logger.debug("[chat:%s] Riwayat percakapan tersimpan", conversation_id)
+        citations = [
+            CitationResponse(
+                **citation,
+                download_url=_citation_download_url(str(citation["source"])),
+            )
+            for citation in raw_citations
+        ]
+        form_downloads: list[FormDownloadResponse] = []
+        if _answer_has_supported_form_context(answer):
+            form_downloads = _selected_form_downloads(selected_form_names, available_forms)
+        flowcharts = [
+            FlowchartScreenshotResponse(**flowchart)
+            for flowchart in find_flowcharts_for_citations(raw_citations)
+        ]
+        response_time_seconds = time.perf_counter() - request_started
+        logger.debug(
+            "[chat:%s] Request selesai dalam %.2fs, citation=%s, form=%s, flowchart=%s",
+            conversation_id,
+            response_time_seconds,
+            len(citations),
+            len(form_downloads),
+            len(flowcharts),
         )
-    except ModelGenerationError as error:
-        logger.exception("[chat:%s] Request gagal", conversation_id)
-        _record_chat_activity(
-            status="error",
+        feedback_token = secrets.token_urlsafe(32)
+        activity_log_id = _record_chat_activity(
+            status="success",
             conversation_id=conversation_id,
             question=payload.question,
-            response_time_seconds=time.perf_counter() - request_started,
-            error=error,
+            answer=answer,
+            answer_source=answer_source,
+            citations=citations,
+            form_downloads=form_downloads,
+            flowcharts=flowcharts,
+            response_time_seconds=response_time_seconds,
+            feedback_token=feedback_token,
+            trace_id=current_trace_id(),
         )
-        raise HTTPException(status_code=502, detail=str(error)) from error
-    except Exception as error:
-        logger.exception("[chat:%s] Request gagal", conversation_id)
-        _record_chat_activity(
-            status="error",
+        try:
+            from backend.preprocessing.vectorstore import get_active_index_name
+
+            active_index = get_active_index_name()
+        except Exception:
+            active_index = ""
+        update_observation(
+            trace,
+            output=answer,
+            metadata={
+                **trace_metadata,
+                "status": "success",
+                "answer_source": answer_source,
+                "citation_count": len(citations),
+                "selected_form_count": len(form_downloads),
+                "flowchart_count": len(flowcharts),
+                "active_index": active_index,
+                "response_time_seconds": round(response_time_seconds, 3),
+            },
+        )
+        return QueryResponse(
+            answer=answer,
+            citations=citations,
+            form_downloads=form_downloads,
+            flowcharts=flowcharts,
             conversation_id=conversation_id,
-            question=payload.question,
-            response_time_seconds=time.perf_counter() - request_started,
-            error=error,
+            answer_source=answer_source,
+            feedback_id=activity_log_id,
+            feedback_token=feedback_token if activity_log_id is not None else None,
         )
-        raise
-    _append_conversation_turn(conversation_id, payload.question, answer)
-    logger.debug("[chat:%s] Riwayat percakapan tersimpan", conversation_id)
-    citations = [
-        CitationResponse(
-            **citation,
-            download_url=_citation_download_url(str(citation["source"])),
-        )
-        for citation in raw_citations
-    ]
-    form_downloads: list[FormDownloadResponse] = []
-    if _answer_has_supported_form_context(answer):
-        form_downloads = _selected_form_downloads(selected_form_names, available_forms)
-    flowcharts = [
-        FlowchartScreenshotResponse(**flowchart)
-        for flowchart in find_flowcharts_for_citations(raw_citations)
-    ]
-    logger.debug(
-        "[chat:%s] Request selesai dalam %.2fs, citation=%s, form=%s, flowchart=%s",
-        conversation_id,
-        time.perf_counter() - request_started,
-        len(citations),
-        len(form_downloads),
-        len(flowcharts),
+
+
+@app.post("/api/feedback", response_model=FeedbackResponse)
+def submit_chat_feedback(payload: FeedbackPayload) -> FeedbackResponse:
+    # Simpan feedback negatif user untuk log lokal dan Langfuse score.
+    clean_reason = payload.reason.strip()
+    clean_conversation_id = payload.conversation_id.strip()
+    if len(clean_reason) < 5:
+        raise HTTPException(status_code=422, detail="Reason must be at least 5 characters.")
+    updated_log = update_activity_log_feedback(
+        log_id=payload.feedback_id,
+        feedback_token=payload.feedback_token,
+        conversation_id=clean_conversation_id,
+        rating=payload.rating,
+        reason=clean_reason,
     )
-    _record_chat_activity(
-        status="success",
-        conversation_id=conversation_id,
-        question=payload.question,
-        answer=answer,
-        answer_source=answer_source,
-        citations=citations,
-        form_downloads=form_downloads,
-        flowcharts=flowcharts,
-        response_time_seconds=time.perf_counter() - request_started,
+    if updated_log is None:
+        raise HTTPException(status_code=404, detail="Feedback target not found.")
+
+    details = updated_log.get("details") or {}
+    feedback = details.get("feedback") if isinstance(details, dict) else {}
+    if not isinstance(feedback, dict):
+        feedback = {}
+    score_user_thumbs_down(
+        trace_id=str(details.get("trace_id") or ""),
+        feedback_id=payload.feedback_id,
+        reason=clean_reason,
+        conversation_id=clean_conversation_id,
     )
-    return QueryResponse(
-        answer=answer,
-        citations=citations,
-        form_downloads=form_downloads,
-        flowcharts=flowcharts,
-        conversation_id=conversation_id,
-        answer_source=answer_source,
-    )
+    return FeedbackResponse(message="Feedback recorded.", feedback=feedback)
 
 
 @app.get("/api/flowcharts/{flowchart_id}")

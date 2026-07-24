@@ -132,6 +132,39 @@ class AdminLogsTests(unittest.TestCase):
         self.assertEqual(len(payload), 1)
         self.assertEqual(payload[0]["summary"], "today chat")
 
+    def test_logs_endpoint_filters_negative_feedback_without_exposing_token(self) -> None:
+        insert_activity_log(
+            event_type="chat",
+            action="query",
+            status="success",
+            summary="Feedback chat",
+            details={
+                "conversation_id": "conv-a",
+                "feedback_token": "token-feedback-123456",
+                "feedback": {
+                    "rating": "thumbs_down",
+                    "reason": "Kurang lengkap.",
+                },
+            },
+        )
+        insert_activity_log(
+            event_type="chat",
+            action="query",
+            status="success",
+            summary="Normal chat",
+            details={"conversation_id": "conv-a"},
+        )
+
+        with patch("backend.api.routes_admin._require_admin", return_value=None):
+            response = self.client.get("/api/admin/logs?feedback=negative")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(len(payload), 1)
+        self.assertEqual(payload[0]["summary"], "Feedback chat")
+        self.assertNotIn("feedback_token", payload[0]["details"])
+        self.assertEqual(payload[0]["details"]["feedback"]["rating"], "thumbs_down")
+
     def test_logs_summary_counts_chat_activity(self) -> None:
         insert_activity_log(
             event_type="chat",
@@ -164,6 +197,117 @@ class AdminLogsTests(unittest.TestCase):
         self.assertEqual(payload["total_sessions"], 2)
         self.assertEqual(payload["average_chat_per_session"], 1.5)
         self.assertEqual(payload["fallback_or_error"], 2)
+        self.assertEqual(payload["negative_feedback"], 0)
+        self.assertEqual(payload["negative_feedback_rate"], 0)
+
+    def test_feedback_endpoint_updates_chat_log_and_scores_langfuse(self) -> None:
+        log_id = insert_activity_log(
+            event_type="chat",
+            action="query",
+            status="success",
+            summary="Question with bad answer",
+            details={
+                "conversation_id": "conv-feedback",
+                "feedback_token": "token-feedback-123456",
+                "trace_id": "0" * 32,
+            },
+        )
+
+        with patch("backend.api.routes_public.score_user_thumbs_down", return_value=True) as score:
+            response = self.client.post(
+                "/api/feedback",
+                json={
+                    "feedback_id": log_id,
+                    "feedback_token": "token-feedback-123456",
+                    "conversation_id": "conv-feedback",
+                    "rating": "thumbs_down",
+                    "reason": "Jawabannya kurang lengkap.",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        logs = list_activity_logs(event_type="chat")
+        self.assertEqual(len(logs), 1)
+        self.assertNotIn("feedback_token", logs[0]["details"])
+        feedback = logs[0]["details"]["feedback"]
+        self.assertEqual(feedback["rating"], "thumbs_down")
+        self.assertEqual(feedback["reason"], "Jawabannya kurang lengkap.")
+        score.assert_called_once_with(
+            trace_id="0" * 32,
+            feedback_id=log_id,
+            reason="Jawabannya kurang lengkap.",
+            conversation_id="conv-feedback",
+        )
+
+    def test_feedback_endpoint_rejects_wrong_token_without_new_log(self) -> None:
+        log_id = insert_activity_log(
+            event_type="chat",
+            action="query",
+            status="success",
+            summary="Question",
+            details={
+                "conversation_id": "conv-feedback",
+                "feedback_token": "token-feedback-123456",
+            },
+        )
+
+        response = self.client.post(
+            "/api/feedback",
+            json={
+                "feedback_id": log_id,
+                "feedback_token": "wrong-token-123456",
+                "conversation_id": "conv-feedback",
+                "rating": "thumbs_down",
+                "reason": "Jawaban salah.",
+            },
+        )
+
+        self.assertEqual(response.status_code, 404)
+        logs = list_activity_logs(event_type="chat")
+        self.assertEqual(len(logs), 1)
+        self.assertNotIn("feedback_token", logs[0]["details"])
+        self.assertNotIn("feedback", logs[0]["details"])
+
+    def test_feedback_endpoint_validates_reason_length(self) -> None:
+        response = self.client.post(
+            "/api/feedback",
+            json={
+                "feedback_id": 1,
+                "feedback_token": "token-feedback-123456",
+                "conversation_id": "conv-feedback",
+                "rating": "thumbs_down",
+                "reason": "bad",
+            },
+        )
+
+        self.assertEqual(response.status_code, 422)
+
+    def test_logs_summary_counts_negative_feedback(self) -> None:
+        insert_activity_log(
+            event_type="chat",
+            action="query",
+            status="success",
+            summary="Chat 1",
+            details={
+                "conversation_id": "conv-a",
+                "feedback": {"rating": "thumbs_down", "reason": "Kurang pas."},
+            },
+        )
+        insert_activity_log(
+            event_type="chat",
+            action="query",
+            status="success",
+            summary="Chat 2",
+            details={"conversation_id": "conv-a"},
+        )
+
+        with patch("backend.api.routes_admin._require_admin", return_value=None):
+            response = self.client.get("/api/admin/logs/summary")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["negative_feedback"], 1)
+        self.assertEqual(payload["negative_feedback_rate"], 50)
 
     def test_logs_endpoint_filters_by_conversation_id(self) -> None:
         insert_activity_log(

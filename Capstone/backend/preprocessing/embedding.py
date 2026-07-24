@@ -35,9 +35,10 @@ class NscaleEmbeddings(Embeddings):
         self.client = client
 
     def _embed_batch(self, texts: Sequence[str]) -> list[list[float]]:
+        batch = list(texts)
         response = self.client.embeddings.create(
             model=self.model,
-            input=list(texts),
+            input=batch,
             encoding_format="float",
         )
         return [list(item.embedding) for item in response.data]

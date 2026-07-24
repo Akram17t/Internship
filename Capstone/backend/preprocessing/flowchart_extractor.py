@@ -13,6 +13,12 @@ from typing import Any
 import fitz
 from langchain_core.documents import Document
 
+from backend.openai_compat import (
+    openai_client_kwargs,
+    openai_request_kwargs,
+    resolve_openai_compatible_api_key,
+)
+from backend.observability import openai_client_class, openai_observation_kwargs
 from backend.settings import get_env, get_float_env, get_int_env
 
 
@@ -235,18 +241,17 @@ def _flowchart_base_url() -> str:
     return get_env("FLOWCHART_BASE_URL", get_env("CHAT_BASE_URL", "http://localhost:20128/v1")).rstrip("/")
 
 
-def _flowchart_api_key() -> str:
-    for env_name in (
-        "FLOWCHART_API_KEY",
-        "CHAT_API_KEY",
-        "OPENAI_API_KEY",
-        "ROUTER9_API_KEY",
-        "NINE_ROUTER_API_KEY",
-    ):
-        value = get_env(env_name, "")
-        if value:
-            return value
-    return "9router-local"
+def _flowchart_api_key(base_url: str) -> str:
+    return resolve_openai_compatible_api_key(
+        base_url=base_url,
+        primary_env="FLOWCHART_API_KEY",
+        fallback_envs=(
+            "CHAT_API_KEY",
+            "OPENAI_API_KEY",
+            "ROUTER9_API_KEY",
+            "NINE_ROUTER_API_KEY",
+        ),
+    )
 
 
 def _flowchart_max_tokens_field() -> str:
@@ -264,7 +269,7 @@ def _send_flowchart_vision_text(
     prompt: str,
 ) -> str:
     try:
-        from openai import OpenAI
+        OpenAI = openai_client_class()
     except ImportError as error:
         raise RuntimeError(
             "Dependency OpenAI belum terpasang. Jalankan pip install -r requirements.txt."
@@ -284,10 +289,14 @@ def _send_flowchart_vision_text(
         "'Hubungan dan arah alur:'. Do not write any other sentence."
     )
     try:
+        base_url = _flowchart_base_url()
+        api_key = _flowchart_api_key(base_url)
         client = OpenAI(
-            api_key=_flowchart_api_key(),
-            base_url=_flowchart_base_url(),
-            timeout=get_int_env("FLOWCHART_TIMEOUT_SECONDS", 240),
+            **openai_client_kwargs(
+                api_key=api_key,
+                base_url=base_url,
+                timeout=get_int_env("FLOWCHART_TIMEOUT_SECONDS", 240),
+            )
         )
         request_payload: dict[str, Any] = {
             "model": model_name,
@@ -306,6 +315,19 @@ def _send_flowchart_vision_text(
             "top_p": 0.95,
             "stream": False,
         }
+        request_payload.update(openai_request_kwargs(api_key=api_key, base_url=base_url))
+        request_payload.update(
+            openai_observation_kwargs(
+                "extract-flowchart-vision",
+                metadata={
+                    "operation": "extract-flowchart-vision",
+                    "model": model_name,
+                    "image_media_type": _image_media_type(image_bytes),
+                    "image_bytes": len(image_bytes),
+                    "prompt_version": FLOWCHART_PROMPT_VERSION,
+                },
+            )
+        )
         completion = client.chat.completions.create(**request_payload)
     except Exception as error:
         raise RuntimeError(f"Flowchart vision request failed: {error}") from error

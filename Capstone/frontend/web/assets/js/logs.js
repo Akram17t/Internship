@@ -24,6 +24,13 @@ function bindAdminLogs() {
       renderActivityLogs();
     });
   });
+  elements.logsFeedbackSummaryCard?.addEventListener("click", () => {
+    state.activeLogsTab = "questions";
+    state.logsFeedbackFilter =
+      state.logsFeedbackFilter === "negative" ? "all" : "negative";
+    resetLogPage();
+    void loadActivityLogs();
+  });
   elements.logsClearSessionButton?.addEventListener("click", () => {
     if (!state.selectedLogSessionId) return;
     state.selectedLogSessionId = "";
@@ -61,7 +68,8 @@ async function loadActivityLogs() {
   state.isLoadingLogs = true;
   state.logError = "";
   renderActivityLogs();
-  const params = buildLogQueryParams();
+  const params = buildLogQueryParams({ includeFeedbackFilter: true });
+  const summaryParams = buildLogQueryParams();
   const sessionsParams = buildLogQueryParams({ includeSession: false });
 
   try {
@@ -70,7 +78,7 @@ async function loadActivityLogs() {
         cache: "no-store",
         headers: adminAuthHeaders(),
       }),
-      fetch(`/api/admin/logs/summary?${params.toString()}`, {
+      fetch(`/api/admin/logs/summary?${summaryParams.toString()}`, {
         cache: "no-store",
         headers: adminAuthHeaders(),
       }),
@@ -118,6 +126,9 @@ function buildLogQueryParams(options = {}) {
   if (range.end) params.set("end_date", range.end);
   if (includeSession && state.selectedLogSessionId) {
     params.set("conversation_id", state.selectedLogSessionId);
+  }
+  if (options.includeFeedbackFilter === true && state.logsFeedbackFilter === "negative") {
+    params.set("feedback", "negative");
   }
   return params;
 }
@@ -171,7 +182,9 @@ function renderActivityLogs() {
 
   if (!visibleItems.length) {
     elements.logsStatus.textContent =
-      "No chatbot activity in the selected date range.";
+      state.logsFeedbackFilter === "negative"
+        ? "No feedback in the selected date range."
+        : "No chatbot activity in the selected date range.";
     elements.logsList.appendChild(createLogsEmptyState());
     return;
   }
@@ -184,7 +197,8 @@ function renderActivityLogs() {
 }
 
 function filterActivityLogs(items) {
-  return items;
+  if (state.logsFeedbackFilter !== "negative") return items;
+  return items.filter((item) => hasNegativeFeedback(item));
 }
 
 function renderActivityLogSessions() {
@@ -209,7 +223,7 @@ function renderActivitySummary() {
   setLogMetric(elements.logsTotalChat, summary.total_chat);
   setLogMetric(elements.logsTotalSessions, summary.total_sessions);
   setLogMetric(elements.logsAverageChat, summary.average_chat_per_session);
-  setLogMetric(elements.logsRangeDays, getSelectedLogRangeDays());
+  setLogMetric(elements.logsNegativeFeedback, summary.negative_feedback);
 }
 
 function setLogMetric(element, value) {
@@ -303,6 +317,7 @@ function createLogSessionDeleteButton(item) {
 function createLogRow(item, index) {
   const row = document.createElement("article");
   row.className = "log-row";
+  row.classList.toggle("has-feedback", hasNegativeFeedback(item));
   row.dataset.status = "success";
   row.style.setProperty("--row-index", String(Math.min(index, 8)));
 
@@ -323,6 +338,12 @@ function createLogRow(item, index) {
   question.textContent = item.details?.question || item.summary || "Chat question";
   questionLine.append(statusDot, question);
   detail.append(questionLine);
+  if (hasNegativeFeedback(item)) {
+    const feedbackBadge = document.createElement("small");
+    feedbackBadge.className = "log-feedback-badge";
+    feedbackBadge.textContent = "Feedback";
+    detail.appendChild(feedbackBadge);
+  }
 
   const timestamp = createLogTimestamp(item.created_at);
 
@@ -447,10 +468,35 @@ function createLogConversationPanel(item) {
     item.details?.answer ||
     item.details?.answer_preview ||
     "No answer recorded.";
+  if (hasNegativeFeedback(item)) {
+    panelInner.appendChild(createLogFeedbackDetail(item.details.feedback));
+  }
   panelInner.appendChild(createLogMessage("Answer", answer, "assistant"));
   panel.appendChild(panelInner);
   window.requestAnimationFrame(() => setupLogReadMore(panel, answer));
   return panel;
+}
+
+function hasNegativeFeedback(item) {
+  return item?.details?.feedback?.rating === "thumbs_down";
+}
+
+function createLogFeedbackDetail(feedback) {
+  const detail = document.createElement("section");
+  detail.className = "log-feedback-detail";
+  const heading = document.createElement("span");
+  heading.className = "log-message-label";
+  heading.textContent = "Feedback";
+  const reason = document.createElement("p");
+  reason.className = "log-message-content";
+  reason.textContent = feedback?.reason || "No reason recorded.";
+  const timestamp = document.createElement("small");
+  timestamp.className = "log-feedback-time";
+  timestamp.textContent = feedback?.created_at
+    ? `Submitted ${formatLogTimeParts(feedback.created_at).date}`
+    : "Submitted by user";
+  detail.append(heading, reason, timestamp);
+  return detail;
 }
 
 function createLogMessage(label, text, type) {
@@ -636,6 +682,15 @@ function syncLogTabs() {
     button.classList.toggle("is-active", isActive);
     button.setAttribute("aria-selected", String(isActive));
   });
+  const isFeedbackActive = state.logsFeedbackFilter === "negative";
+  elements.logsFeedbackSummaryCard?.classList.toggle("is-filtering", isFeedbackActive);
+  elements.logsFeedbackSummaryCard?.setAttribute("aria-pressed", String(isFeedbackActive));
+  elements.logsActivityPanel?.classList.toggle("is-feedback-mode", isFeedbackActive);
+  if (elements.logsActivityTitle) {
+    elements.logsActivityTitle.textContent = isFeedbackActive
+      ? "Feedback questions"
+      : "Recent questions";
+  }
 }
 
 function renderActiveSessionFilter() {
@@ -657,35 +712,38 @@ function toDateInputValue(date) {
   return `${year}-${month}-${day}`;
 }
 
-function getSelectedLogRangeDays() {
-  const range = state.logDateRange || {};
-  const start = new Date(range.start || "");
-  const end = new Date(range.end || "");
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-    return 0;
-  }
-  const dayMs = 24 * 60 * 60 * 1000;
-  return Math.max(1, Math.round((end - start) / dayMs) + 1);
-}
-
 function formatLogNumber(value) {
   const number = Number(value || 0);
   if (!Number.isFinite(number)) return "0";
   return number.toLocaleString("en-US", { maximumFractionDigits: 2 });
 }
 
+const LOG_TIME_ZONE = "Asia/Jakarta";
+
+function parseLogTimestamp(value) {
+  if (!value) return null;
+  const rawValue = String(value).trim();
+  if (!rawValue) return null;
+  const hasExplicitTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(rawValue);
+  const normalizedValue = hasExplicitTimezone ? rawValue : `${rawValue}Z`;
+  const date = new Date(normalizedValue);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 function formatLogTimeParts(value) {
-  const date = new Date(value || "");
-  if (Number.isNaN(date.getTime())) return { date: "-", time: "" };
+  const date = parseLogTimestamp(value);
+  if (!date) return { date: "-", time: "" };
   return {
     date: date.toLocaleDateString("en-US", {
       day: "2-digit",
       month: "short",
       year: "numeric",
+      timeZone: LOG_TIME_ZONE,
     }),
     time: date.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: LOG_TIME_ZONE,
     }),
   };
 }

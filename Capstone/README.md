@@ -62,6 +62,7 @@ cp .env.production.example .env.production
 MODEL=kr/claude-sonnet-4.5
 CHAT_BASE_URL=http://9router:20129/v1
 CHAT_API_KEY=
+OPENAI_COMPAT_NO_AUTH_BASE_URLS=http://9router:20129/v1
 FLOWCHART_MODEL=kr/claude-sonnet-4.5
 FLOWCHART_BASE_URL=http://9router:20129/v1
 FLOWCHART_API_KEY=
@@ -79,6 +80,10 @@ network namespace, so no API key is needed for app-to-router traffic. Only the
 dashboard/API port `20128` is bound to EC2 localhost. Keep it closed publicly
 and use an SSH tunnel for dashboard access. The existing `/home/ec2-user/.9router`
 data directory remains mounted so the Kiro connection survives rebuilds.
+Keep `CHAT_API_KEY` and `FLOWCHART_API_KEY` blank for this internal 9Router
+setup. The app treats `localhost:20128`, `localhost:20129`, `9router:20128`,
+and `9router:20129` as no-auth 9Router endpoints and will not fall back to a
+global `OPENAI_API_KEY` for them.
 
 3. Build and start the app:
 
@@ -154,6 +159,25 @@ Important persistent data in `app_storage`:
 
 - `TYPING_ANIMATION_ENABLED=true` keeps the assistant typing reveal enabled.
 - Set `TYPING_ANIMATION_ENABLED=false` to show full answers immediately.
+
+## Langfuse Observability
+
+The backend can send RAG traces to Langfuse Cloud. Set these values in the
+local `.env` file only:
+
+```env
+LANGFUSE_TRACING_ENABLED=true
+LANGFUSE_PUBLIC_KEY=<project-public-key>
+LANGFUSE_SECRET_KEY=<project-secret-key>
+LANGFUSE_BASE_URL=https://jp.cloud.langfuse.com
+LANGFUSE_TRACING_ENVIRONMENT=development
+LANGFUSE_TRACE_IO_MODE=masked
+```
+
+Each `/query` request creates one `chat-query` trace, grouped by conversation
+session. The trace includes rewrite, cache, retrieval, generation, semantic
+cache store, and response finalization observations. `masked` mode redacts
+common secrets, contact details, and large image data before export.
 
 ## Frontend Pages
 

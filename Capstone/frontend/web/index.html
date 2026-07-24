@@ -348,6 +348,25 @@
                     without crowding the dashboard.
                   </p>
                 </div>
+                <div class="logs-heading-actions">
+                  <a
+                    class="logs-langfuse-link"
+                    href="https://jp.cloud.langfuse.com/project/cmrybz11e000mad0inuqlrvee/dashboards/langfuse-home-dashboard"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <span class="material-symbols-outlined" aria-hidden="true">
+                      analytics
+                    </span>
+                    <span>
+                      <small>Observability</small>
+                      Langfuse
+                    </span>
+                    <span class="material-symbols-outlined" aria-hidden="true">
+                      open_in_new
+                    </span>
+                  </a>
+                </div>
               </div>
               <div class="logs-summary-grid" id="logsSummaryGrid">
                 <article class="logs-summary-card is-primary">
@@ -380,16 +399,21 @@
                   <strong id="logsAverageChat">0</strong>
                   <small>Questions per session</small>
                 </article>
-                <article class="logs-summary-card">
+                <button
+                  class="logs-summary-card logs-feedback-card"
+                  id="logsFeedbackSummaryCard"
+                  type="button"
+                  aria-pressed="false"
+                >
                   <div class="logs-summary-topline">
-                    <span>Selected Range</span>
+                    <span>Feedback</span>
                     <span class="material-symbols-outlined" aria-hidden="true">
-                      date_range
+                      thumb_down
                     </span>
                   </div>
-                  <strong id="logsRangeDays">0</strong>
-                  <small>Days included in the view</small>
-                </article>
+                  <strong id="logsNegativeFeedback">0</strong>
+                  <small>Unsatisfied responses</small>
+                </button>
               </div>
               <section class="logs-activity-panel">
                 <header class="logs-list-toolbar">
@@ -581,6 +605,57 @@
             <span class="material-symbols-outlined">admin_panel_settings</span>
             Login admin
           </button>
+        </form>
+      </div>
+    </div>
+
+    <div
+      class="feedback-modal"
+      id="feedbackModal"
+      aria-hidden="true"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="feedbackTitle"
+    >
+      <div class="auth-card feedback-card">
+        <button
+          class="auth-close material-symbols-outlined"
+          id="feedbackCloseButton"
+          type="button"
+          aria-label="Close feedback"
+        >
+          close
+        </button>
+        <span class="auth-kicker">Response Feedback</span>
+        <h2 id="feedbackTitle">What failed?</h2>
+        <form class="auth-form feedback-form" id="feedbackForm">
+          <label>
+            <textarea
+              id="feedbackReason"
+              rows="5"
+              maxlength="500"
+              placeholder="Tell us what was missing."
+              required
+            ></textarea>
+          </label>
+          <p class="auth-error" id="feedbackStatus" role="alert" hidden></p>
+          <div class="feedback-actions">
+            <button
+              class="template-format-cancel"
+              id="feedbackCancelButton"
+              type="button"
+            >
+              Cancel
+            </button>
+            <button
+              class="template-format-button feedback-submit"
+              id="feedbackSubmitButton"
+              type="submit"
+            >
+              <span class="material-symbols-outlined">thumb_down</span>
+              Submit
+            </button>
+          </div>
         </form>
       </div>
     </div>
