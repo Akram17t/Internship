@@ -125,7 +125,7 @@ async function loadActivityLogs() {
 }
 
 function buildLogQueryParams(options = {}) {
-  const params = new URLSearchParams({ limit: "100" });
+  const params = new URLSearchParams({ limit: "1000" });
   const range = state.logDateRange || {};
   if (range.start) params.set("start_date", range.start);
   if (range.end) params.set("end_date", range.end);
@@ -834,25 +834,47 @@ function parseLogTimestamp(value) {
   const rawValue = String(value).trim();
   if (!rawValue) return null;
   const hasExplicitTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(rawValue);
-  const normalizedValue = hasExplicitTimezone ? rawValue : `${rawValue}Z`;
-  const date = new Date(normalizedValue);
-  return Number.isNaN(date.getTime()) ? null : date;
+  if (hasExplicitTimezone) {
+    const date = new Date(rawValue);
+    return Number.isNaN(date.getTime()) ? null : { date, timeZone: LOG_TIME_ZONE };
+  }
+
+  const match = rawValue.match(
+    /^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2})(?::(\d{2}))?)?/,
+  );
+  if (match) {
+    const [, year, month, day, hour = "00", minute = "00", second = "00"] = match;
+    const date = new Date(
+      Date.UTC(
+        Number(year),
+        Number(month) - 1,
+        Number(day),
+        Number(hour),
+        Number(minute),
+        Number(second),
+      ),
+    );
+    return Number.isNaN(date.getTime()) ? null : { date, timeZone: "UTC" };
+  }
+
+  const date = new Date(rawValue);
+  return Number.isNaN(date.getTime()) ? null : { date, timeZone: undefined };
 }
 
 function formatLogTimeParts(value) {
-  const date = parseLogTimestamp(value);
-  if (!date) return { date: "-", time: "" };
+  const parsed = parseLogTimestamp(value);
+  if (!parsed) return { date: "-", time: "" };
   return {
-    date: date.toLocaleDateString("en-US", {
+    date: parsed.date.toLocaleDateString("en-US", {
       day: "2-digit",
       month: "short",
       year: "numeric",
-      timeZone: LOG_TIME_ZONE,
+      timeZone: parsed.timeZone,
     }),
-    time: date.toLocaleTimeString("en-US", {
+    time: parsed.date.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
-      timeZone: LOG_TIME_ZONE,
+      timeZone: parsed.timeZone,
     }),
   };
 }

@@ -29,7 +29,7 @@ DEFAULT_ADMIN_EMAIL = "admin@gmail.com"
 DEFAULT_ADMIN_PASSWORD = "admin123"
 DEFAULT_ADMIN_NAME = "admin"
 ACTIVITY_LOG_RETENTION = timedelta(days=30)
-MAX_ACTIVITY_LOG_LIMIT = 250
+MAX_ACTIVITY_LOG_LIMIT = 1000
 STATE_DB_LOCK = threading.RLock()
 
 
@@ -787,7 +787,7 @@ def list_activity_logs(
     end_at: str | None = None,
     conversation_id: str | None = None,
     negative_feedback_only: bool = False,
-    limit: int = 100,
+    limit: int = MAX_ACTIVITY_LOG_LIMIT,
     offset: int = 0,
 ) -> list[dict[str, Any]]:
     with STATE_DB_LOCK:

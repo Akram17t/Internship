@@ -98,6 +98,17 @@ class AdminLogsTests(unittest.TestCase):
         self.assertEqual(payload[0]["event_type"], "chat")
         self.assertEqual(payload[0]["details"]["answer_source"], "cache")
 
+    def test_logs_endpoint_accepts_one_thousand_item_limit(self) -> None:
+        with patch("backend.api.routes_admin._require_admin", return_value=None):
+            response = self.client.get("/api/admin/logs?limit=1000")
+
+        self.assertEqual(response.status_code, 200)
+
+        with patch("backend.api.routes_admin._require_admin", return_value=None):
+            response = self.client.get("/api/admin/logs?limit=1001")
+
+        self.assertEqual(response.status_code, 422)
+
     def test_logs_endpoint_filters_by_date_range(self) -> None:
         init_state_db()
         today = datetime.now().date()

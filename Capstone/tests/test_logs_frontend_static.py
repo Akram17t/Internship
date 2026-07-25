@@ -76,6 +76,23 @@ class LogsFrontendStaticTests(unittest.TestCase):
         self.assertNotIn("createLogSessionQuestion", logs_js)
         self.assertNotIn("logs-session-toggle", logs_js + styles)
 
+    def test_logs_fetches_up_to_one_thousand_questions(self) -> None:
+        logs_js = (FRONTEND_ROOT / "assets" / "js" / "logs.js").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn('new URLSearchParams({ limit: "1000" })', logs_js)
+        self.assertNotIn('new URLSearchParams({ limit: "100" })', logs_js)
+
+    def test_naive_log_timestamps_are_not_forced_to_utc(self) -> None:
+        logs_js = (FRONTEND_ROOT / "assets" / "js" / "logs.js").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn('return Number.isNaN(date.getTime()) ? null : { date, timeZone: "UTC" };', logs_js)
+        self.assertIn("timeZone: parsed.timeZone", logs_js)
+        self.assertNotIn("`${rawValue}Z`", logs_js)
+
 
 if __name__ == "__main__":
     unittest.main()
