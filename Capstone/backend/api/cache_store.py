@@ -78,6 +78,7 @@ def _normalize_citation(raw_item: object, index: int) -> CitationResponse | None
         id=int(raw_item.get("id") or index + 1),
         source=source,
         page=raw_item.get("page") if isinstance(raw_item.get("page"), int) else None,
+        page_end=raw_item.get("page_end") if isinstance(raw_item.get("page_end"), int) else None,
         section=str(raw_item.get("section", "")).strip() or None,
         chunk_id=raw_item.get("chunk_id") if isinstance(raw_item.get("chunk_id"), int) else None,
         download_url=str(raw_item.get("download_url", "")).strip() or _citation_download_url(source),

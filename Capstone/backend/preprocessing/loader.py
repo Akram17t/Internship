@@ -13,7 +13,8 @@ SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".txt"}
 
 def classify_document_kind(path: Path) -> str:
     # Klasifikasikan file sumber sebagai form, SOP, atau dokumen umum.
-    # Semua dokumen kini PDF, jadi jenis ditentukan dari awalan nama file.
+    if any(part.lower() == "forms" for part in path.parts):
+        return "form"
     name = path.stem.lower()
     if name.startswith("form"):
         return "form"

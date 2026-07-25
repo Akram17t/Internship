@@ -33,8 +33,8 @@ app = FastAPI(title="ICS Knowledge Assistant API", version="1.0.0", lifespan=lif
 FRONTEND_DIR = ROOT_DIR / "frontend" / "web"
 ASSETS_DIR = FRONTEND_DIR / "assets"
 EMBEDDABLE_EXTENSIONS = {".pdf", ".docx", ".txt"}
-# Form kini juga PDF, jadi library dan file yang bisa di-embed pakai set yang sama.
-LIBRARY_EXTENSIONS = EMBEDDABLE_EXTENSIONS
+FORM_EXTENSIONS = {".pdf", ".docx", ".xlsx", ".xls"}
+LIBRARY_EXTENSIONS = EMBEDDABLE_EXTENSIONS | FORM_EXTENSIONS
 MAX_DOCUMENT_BYTES = 25 * 1024 * 1024
 ADMIN_SESSION_TTL = timedelta(hours=12)
 MAX_CONVERSATIONS = 50

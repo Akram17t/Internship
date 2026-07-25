@@ -16,10 +16,22 @@ load_capstone_env()
 def _citation_from_document(document, citation_id: int) -> dict[str, object]:
     # Ubah satu chunk hasil retrieval menjadi payload citation.
     page = document.metadata.get("page")
+    page_end = document.metadata.get("page_end")
+    visible_page = page + 1 if isinstance(page, int) else None
+    visible_page_end = page_end + 1 if isinstance(page_end, int) else None
     return {
         "id": citation_id,
         "source": str(document.metadata.get("source", "unknown source")),
-        "page": page + 1 if isinstance(page, int) else None,
+        "page": visible_page,
+        "page_end": (
+            visible_page_end
+            if (
+                isinstance(visible_page, int)
+                and isinstance(visible_page_end, int)
+                and visible_page_end > visible_page
+            )
+            else None
+        ),
         "section": document.metadata.get("section"),
         "chunk_id": document.metadata.get("chunk_id"),
         "content_type": document.metadata.get("content_type"),
@@ -41,6 +53,7 @@ def retrieve_knowledge(query: str, k: int | None = None) -> tuple[str, list[dict
         key = (
             metadata.get("source"),
             metadata.get("page"),
+            metadata.get("page_end"),
             metadata.get("section"),
         )
         citation_id = citation_ids.get(key)
@@ -54,7 +67,10 @@ def retrieve_knowledge(query: str, k: int | None = None) -> tuple[str, list[dict
         if citation.get("section"):
             details.append(f"Section: {citation['section']}")
         if citation.get("page"):
-            details.append(f"PDF page: {citation['page']}")
+            if citation.get("page_end"):
+                details.append(f"PDF pages: {citation['page']}-{citation['page_end']}")
+            else:
+                details.append(f"PDF page: {citation['page']}")
         if metadata.get("chunk_id"):
             details.append(f"Chunk: {metadata['chunk_id']}")
 

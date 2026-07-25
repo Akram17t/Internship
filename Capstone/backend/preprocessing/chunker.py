@@ -266,23 +266,24 @@ def _split_orphan_policy_lines(documents: list[Document]) -> list[Document]:
 
 
 def _merge_section_segments(sectioned_documents: list[Document]) -> list[Document]:
-    # Gabungkan potongan section yang sama agar lanjutan halaman/tabel tetap punya konteks.
+    # Gabungkan potongan section hanya dalam halaman yang sama.
+    # Lanjutan section di halaman berbeda dibiarkan terpisah agar citation page akurat.
     merged: list[Document] = []
-    lookup: dict[tuple[str, str, str], int] = {}
+    lookup: dict[tuple[str, str, str, object], int] = {}
 
     for document in sectioned_documents:
         section = str(document.metadata.get("section") or "")
         source = str(document.metadata.get("source", "unknown source"))
         content_type = str(document.metadata.get("content_type") or "text")
+        page = document.metadata.get("page")
         if not section:
             merged.append(document)
             continue
 
-        key = (source, section, content_type)
+        key = (source, section, content_type, page)
         existing_index = lookup.get(key)
         if existing_index is None:
             metadata = dict(document.metadata)
-            metadata.pop("page_end", None)
             lookup[key] = len(merged)
             merged.append(Document(page_content=document.page_content, metadata=metadata))
             continue
@@ -290,10 +291,13 @@ def _merge_section_segments(sectioned_documents: list[Document]) -> list[Documen
         existing = merged[existing_index]
         combined_content = f"{existing.page_content.rstrip()}\n{document.page_content.strip()}"
         metadata = dict(existing.metadata)
-        page = metadata.get("page")
-        next_page = document.metadata.get("page")
-        if isinstance(page, int) and isinstance(next_page, int) and next_page != page:
-            metadata["page_end"] = max(int(metadata.get("page_end", page)), next_page)
+        next_page_end = document.metadata.get("page_end")
+        if isinstance(next_page_end, int):
+            existing_page_end = metadata.get("page_end")
+            metadata["page_end"] = max(
+                int(existing_page_end) if isinstance(existing_page_end, int) else next_page_end,
+                next_page_end,
+            )
         if document.metadata.get("anomaly"):
             metadata["anomaly"] = document.metadata["anomaly"]
         merged[existing_index] = Document(page_content=combined_content.strip(), metadata=metadata)
@@ -321,13 +325,27 @@ def _detect_table_context(content: str) -> str:
     return ""
 
 
+def _contains_table_rows(content: str) -> bool:
+    return any(_is_table_row(line) for line in content.splitlines())
+
+
 def _attach_table_context(documents: list[Document]) -> list[Document]:
     with_context: list[Document] = []
+    table_context_by_section: dict[tuple[str, str], str] = {}
     for document in documents:
         metadata = dict(document.metadata)
+        source = str(metadata.get("source", "unknown source"))
+        section = str(metadata.get("section") or "")
+        key = (source, section)
         table_context = _detect_table_context(document.page_content)
         if table_context:
             metadata["table_context"] = table_context
+            if section:
+                table_context_by_section[key] = table_context
+        elif section and _contains_table_rows(document.page_content):
+            inherited_context = table_context_by_section.get(key)
+            if inherited_context:
+                metadata["table_context"] = inherited_context
         with_context.append(Document(page_content=document.page_content, metadata=metadata))
     return with_context
 
@@ -346,6 +364,20 @@ def _prefix_table_context(chunks: list[Document]) -> list[Document]:
         metadata.pop("table_context", None)
         contextualized.append(Document(page_content=content, metadata=metadata))
     return contextualized
+
+
+def _is_table_context_only_document(document: Document) -> bool:
+    table_context = str(document.metadata.get("table_context") or "").strip()
+    if not table_context or _contains_table_rows(document.page_content):
+        return False
+
+    section = str(document.metadata.get("section") or "").strip()
+    content = _normalize_whitespace(document.page_content)
+    context_only = _normalize_whitespace(table_context)
+    section_and_context = _normalize_whitespace(
+        "\n".join(part for part in (section, table_context) if part)
+    )
+    return content in {context_only, section_and_context}
 
 
 def split_documents_by_section(documents: list[Document]) -> list[Document]:
@@ -385,7 +417,7 @@ def split_documents_by_section(documents: list[Document]) -> list[Document]:
 
 
 def prepare_documents_for_chunking(documents: list[Document]) -> list[Document]:
-    # Tahap final sebelum text splitter: section berulang digabung dan konteks tabel disimpan.
+    # Tahap final sebelum text splitter: segmen per halaman dirapikan dan konteks tabel disimpan.
     return _attach_table_context(_merge_section_segments(split_documents_by_section(documents)))
 
 
@@ -410,6 +442,7 @@ def chunk_documents(documents: list[Document]) -> list[Document]:
         document
         for document in prepared_documents
         if document.metadata.get("content_type") != "flowchart"
+        and not _is_table_context_only_document(document)
         and (
             document.metadata.get("source"),
             document.metadata.get("section"),

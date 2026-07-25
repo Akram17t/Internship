@@ -171,13 +171,22 @@ async function submitQuestion(rawQuestion) {
     });
     if (!response.ok) {
       let detail = `HTTP ${response.status}`;
+      let errorPayload = {};
       try {
-        const errorPayload = await response.json();
+        errorPayload = await readJsonResponse(response);
         detail = formatApiError(errorPayload.detail, detail);
       } catch (_) {
         // Keep the generic HTTP status when the server did not return JSON.
       }
-      throw new Error(detail);
+      const queryError = new Error(detail);
+      const structuredDetail =
+        errorPayload && typeof errorPayload.detail === "object"
+          ? errorPayload.detail
+          : {};
+      queryError.feedback_id = structuredDetail.feedback_id || null;
+      queryError.feedback_token = structuredDetail.feedback_token || "";
+      queryError.conversation_id = structuredDetail.conversation_id || "";
+      throw queryError;
     }
     const payload = await response.json();
     if (payload.conversation_id) {
@@ -221,6 +230,10 @@ async function submitQuestion(rawQuestion) {
     streamMessage.content = fullText;
   } catch (error) {
     if (error.name === "AbortError") return;
+    if (error?.conversation_id) {
+      state.conversationId = error.conversation_id;
+      window.localStorage.setItem(CONVERSATION_STORAGE_KEY, state.conversationId);
+    }
     const errorMessage = formatApiError(
       error?.message || error,
       "Pastikan FastAPI, layanan AI, dan database embedding sedang berjalan.",
@@ -231,6 +244,9 @@ async function submitQuestion(rawQuestion) {
       citations: [],
       flowcharts: [],
       answer_source: "fallback",
+      feedback_id: error?.feedback_id || null,
+      feedback_token: error?.feedback_token || "",
+      feedback: null,
       duration_ms: Math.round(performance.now() - startedAt),
       timestamp: "Just now",
     });
@@ -724,12 +740,12 @@ function createFormDownloadRow(item) {
   const icon = document.createElement("span");
   icon.className = "material-symbols-outlined form-download-icon";
   icon.setAttribute("aria-hidden", "true");
-  icon.textContent = "picture_as_pdf";
+  icon.textContent = formDownloadIcon(item);
   const text = document.createElement("span");
   text.textContent = item.label || item.name || "Form";
   name.append(icon, text);
 
-  const fileName = `${item.label || item.name || "form"}.pdf`;
+  const fileName = item.name || `${item.label || "form"}.${item.doc_type || "pdf"}`;
   const downloadUrl = formDownloadUrl(item);
 
   const downloadButton = document.createElement("button");
@@ -738,7 +754,7 @@ function createFormDownloadRow(item) {
   downloadButton.textContent = "Download template";
   downloadButton.title = "Unduh form kosong";
   downloadButton.addEventListener("click", () => {
-    openTemplateDownload(downloadUrl, fileName);
+    openTemplateDownload(downloadUrl, fileName, item);
   });
 
   row.append(name, downloadButton);
@@ -752,14 +768,16 @@ function formDownloadUrl(item) {
   return `/api/documents/${encodeURIComponent(filename)}`;
 }
 
-function openTemplateDownload(url, filename) {
+function openTemplateDownload(url, filename, item = null) {
   if (!url) {
     window.openDocumentErrorModal?.("Link download form tidak tersedia.", [], "Download gagal");
     return;
   }
   if (typeof window.openTemplateDownloadModal === "function") {
     try {
-      window.openTemplateDownloadModal(url, filename);
+      window.openTemplateDownloadModal(url, filename, {
+        formats: formDownloadFormats(item, url, filename),
+      });
       return;
     } catch (error) {
       console.error(error);
@@ -770,6 +788,47 @@ function openTemplateDownload(url, filename) {
     return;
   }
   window.location.href = url;
+}
+
+function formDownloadIcon(item) {
+  const type = String(item?.doc_type || "").toLowerCase();
+  if (type === "docx") return "article";
+  if (type === "xlsx" || type === "xls") return "table_chart";
+  return "picture_as_pdf";
+}
+
+function formDownloadFormats(item, url, filename) {
+  const formats = {};
+  const available = Array.isArray(item?.formats) && item.formats.length
+    ? item.formats
+    : [String(item?.doc_type || "pdf").toLowerCase()];
+  if (available.includes("pdf")) {
+    formats.pdf = { label: "PDF", url, filename: withFormExtension(filename, "pdf") };
+  }
+  if (available.includes("docx")) {
+    formats.docx = {
+      label: "Word",
+      url: available.includes("pdf") ? withDownloadFormat(url, "docx") : url,
+      filename: withFormExtension(filename, "docx"),
+    };
+  }
+  if (available.includes("xlsx")) {
+    formats.pdf = { label: "Excel", url, filename: withFormExtension(filename, "xlsx") };
+  } else if (available.includes("xls")) {
+    formats.pdf = { label: "Excel", url, filename: withFormExtension(filename, "xls") };
+  }
+  return formats;
+}
+
+function withDownloadFormat(url, format) {
+  const nextUrl = new URL(url, window.location.origin);
+  nextUrl.searchParams.set("format", format);
+  return nextUrl.pathname + nextUrl.search;
+}
+
+function withFormExtension(filename, extension) {
+  const base = String(filename || "form").replace(/\.(pdf|docx|xlsx|xls)$/i, "");
+  return `${base}.${extension}`;
 }
 
 function normalizeFormDownloads(downloads = []) {
@@ -786,6 +845,8 @@ function normalizeFormDownloads(downloads = []) {
     .map((item) => ({
       ...item,
       label: item.display_name || item.name || "Form",
+      doc_type: item.doc_type || "",
+      formats: Array.isArray(item.formats) ? item.formats : [],
       used: false,
     }));
 }
@@ -843,11 +904,21 @@ function formatCitationLocation(citation) {
   return (
     [
       citation.section || null,
-      citation.page ? `PDF halaman ${citation.page}` : null,
+      formatCitationPageRange(citation),
     ]
       .filter(Boolean)
       .join(" - ") || "Lokasi tidak tersedia"
   );
+}
+
+function formatCitationPageRange(citation) {
+  const page = Number(citation?.page);
+  const pageEnd = Number(citation?.page_end);
+  if (!Number.isInteger(page) || page < 1) return null;
+  if (Number.isInteger(pageEnd) && pageEnd > page) {
+    return `PDF halaman ${page}-${pageEnd}`;
+  }
+  return `PDF halaman ${page}`;
 }
 
 function formatCitationLabel(citation, index) {

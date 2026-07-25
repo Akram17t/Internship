@@ -36,6 +36,7 @@ from backend.api.storage import (
     _document_kind_for_path,
     _is_embeddable_path,
     _iter_form_downloads,
+    _related_form_downloads_for_citations,
     _resolve_citation_document_path,
     _resolve_document_path,
     _selected_form_downloads,
@@ -115,6 +116,23 @@ def _record_chat_activity(
         return None
 
 
+def _query_error_detail(
+    *,
+    message: str,
+    conversation_id: str,
+    feedback_id: int | None,
+    feedback_token: str,
+) -> dict[str, object]:
+    detail: dict[str, object] = {
+        "message": message,
+        "conversation_id": conversation_id,
+    }
+    if feedback_id is not None:
+        detail["feedback_id"] = feedback_id
+        detail["feedback_token"] = feedback_token
+    return detail
+
+
 @app.get("/health")
 def health_check() -> dict[str, str]:
     # Probe sederhana untuk mengecek backend hidup.
@@ -125,7 +143,7 @@ def health_check() -> dict[str, str]:
 def public_config() -> PublicConfigResponse:
     # Config frontend yang aman dibuka ke browser.
     return PublicConfigResponse(
-        typing_animation_enabled=get_bool_env("TYPING_ANIMATION_ENABLED", True),
+        typing_animation_enabled=get_bool_env("TYPING_ANIMATION_ENABLED", False),
     )
 
 
@@ -156,6 +174,7 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
         "conversation_context_chars": len(conversation_context),
         "available_form_count": len(available_forms),
     }
+    feedback_token = secrets.token_urlsafe(32)
     with trace_context(
         name="chat-query",
         session_id=conversation_id,
@@ -172,12 +191,15 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
             )
         except ModelGenerationError as error:
             logger.exception("[chat:%s] Request gagal", conversation_id)
-            _record_chat_activity(
+            activity_log_id = _record_chat_activity(
                 status="error",
                 conversation_id=conversation_id,
                 question=payload.question,
                 response_time_seconds=time.perf_counter() - request_started,
+                answer_source="fallback",
                 error=error,
+                feedback_token=feedback_token,
+                trace_id=current_trace_id(),
             )
             update_observation(
                 trace,
@@ -188,15 +210,26 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
                 },
                 error=error,
             )
-            raise HTTPException(status_code=502, detail=str(error)) from error
+            raise HTTPException(
+                status_code=502,
+                detail=_query_error_detail(
+                    message=str(error),
+                    conversation_id=conversation_id,
+                    feedback_id=activity_log_id,
+                    feedback_token=feedback_token,
+                ),
+            ) from error
         except Exception as error:
             logger.exception("[chat:%s] Request gagal", conversation_id)
-            _record_chat_activity(
+            activity_log_id = _record_chat_activity(
                 status="error",
                 conversation_id=conversation_id,
                 question=payload.question,
                 response_time_seconds=time.perf_counter() - request_started,
+                answer_source="fallback",
                 error=error,
+                feedback_token=feedback_token,
+                trace_id=current_trace_id(),
             )
             update_observation(
                 trace,
@@ -207,7 +240,15 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
                 },
                 error=error,
             )
-            raise
+            raise HTTPException(
+                status_code=500,
+                detail=_query_error_detail(
+                    message="Request gagal diproses.",
+                    conversation_id=conversation_id,
+                    feedback_id=activity_log_id,
+                    feedback_token=feedback_token,
+                ),
+            ) from error
         _append_conversation_turn(conversation_id, payload.question, answer)
         logger.debug("[chat:%s] Riwayat percakapan tersimpan", conversation_id)
         citations = [
@@ -219,7 +260,20 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
         ]
         form_downloads: list[FormDownloadResponse] = []
         if _answer_has_supported_form_context(answer):
-            form_downloads = _selected_form_downloads(selected_form_names, available_forms)
+            selected_downloads = _selected_form_downloads(selected_form_names, available_forms)
+            related_downloads = _related_form_downloads_for_citations(
+                question=payload.question,
+                answer=answer,
+                citations=raw_citations,
+                forms=available_forms,
+            )
+            form_downloads = []
+            seen_form_urls: set[str] = set()
+            for form_download in [*selected_downloads, *related_downloads]:
+                if form_download.download_url in seen_form_urls:
+                    continue
+                form_downloads.append(form_download)
+                seen_form_urls.add(form_download.download_url)
         flowcharts = [
             FlowchartScreenshotResponse(**flowchart)
             for flowchart in find_flowcharts_for_citations(raw_citations)
@@ -233,7 +287,6 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
             len(form_downloads),
             len(flowcharts),
         )
-        feedback_token = secrets.token_urlsafe(32)
         activity_log_id = _record_chat_activity(
             status="success",
             conversation_id=conversation_id,

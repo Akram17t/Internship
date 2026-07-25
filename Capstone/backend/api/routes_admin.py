@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hmac
 import logging
+import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Annotated
@@ -11,7 +12,7 @@ from fastapi import Header, HTTPException, Query
 
 from backend.api.auth import _create_admin_token, _find_admin, _has_configured_admin, _require_admin
 from backend.api.cache_store import _add_admin_config, _find_faq_index, _load_faqs, _save_faqs
-from backend.api.core import FAQ_LOCK, LIBRARY_EXTENSIONS, REINDEX_LOCK, app
+from backend.api.core import FAQ_LOCK, FORM_EXTENSIONS, LIBRARY_EXTENSIONS, REINDEX_LOCK, app
 from backend.api.faq_service import PINNED_IMAGE_EXTENSIONS, _build_faq_item, replace_pinned_image
 from backend.api.flowchart_service import clear_flowchart_cache_for_source
 from backend.api.forms_service import delete_form_docx_template, ensure_form_docx_template
@@ -33,6 +34,7 @@ from backend.api.models import (
 from backend.api.storage import (
     _decode_document,
     _document_kind_for_path,
+    _form_upload_dir_for_sop,
     _get_data_dir,
     _is_embeddable_path,
     _iter_library_items,
@@ -291,16 +293,21 @@ def save_document(
     suffix = Path(filename).suffix.lower()
     if suffix not in LIBRARY_EXTENSIONS:
         raise HTTPException(status_code=400, detail="Unsupported document type.")
-    if suffix == ".docx" and _document_kind_for_path(Path(filename)) == "form":
-        raise HTTPException(
-            status_code=400,
-            detail="Upload form Word tidak didukung. Upload PDF form agar versi Word dibuat otomatis.",
-        )
+    requested_kind = payload.document_kind or _document_kind_for_path(Path(filename))
+    if payload.replace_path:
+        existing_path = _resolve_document_path(payload.replace_path)
+        if existing_path.exists():
+            requested_kind = _document_kind_for_path(existing_path)
+    is_form_upload = requested_kind == "form"
+    if suffix in {".xlsx", ".xls"} and not is_form_upload:
+        raise HTTPException(status_code=400, detail="Excel hanya didukung untuk upload form.")
+    if is_form_upload and suffix not in FORM_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="Unsupported form type.")
 
     content = _decode_document(payload.content_base64)
 
     if payload.replace_path:
-        target_path = _resolve_document_path(payload.replace_path)
+        target_path = existing_path
         if not target_path.exists() or not target_path.is_file():
             raise HTTPException(status_code=404, detail="Document not found.")
         if target_path.suffix.lower() != suffix:
@@ -310,7 +317,19 @@ def save_document(
             )
         action = "updated"
     else:
-        target_path = (data_dir / filename).resolve()
+        if is_form_upload and payload.linked_sop_path:
+            sop_path = _resolve_document_path(payload.linked_sop_path)
+            if (
+                not sop_path.exists()
+                or not sop_path.is_file()
+                or _document_kind_for_path(sop_path) == "form"
+            ):
+                raise HTTPException(status_code=400, detail="Linked document tidak valid.")
+            target_dir = _form_upload_dir_for_sop(data_dir, sop_path)
+            target_dir.mkdir(parents=True, exist_ok=True)
+            target_path = (target_dir / filename).resolve()
+        else:
+            target_path = (data_dir / filename).resolve()
         try:
             target_path.relative_to(data_dir)
         except ValueError as error:
@@ -350,10 +369,21 @@ def delete_document(
     if target_path.suffix.lower() not in LIBRARY_EXTENSIONS:
         raise HTTPException(status_code=400, detail="Unsupported document type.")
 
+    data_dir = _get_data_dir().resolve()
+    document_kind = _document_kind_for_path(target_path)
     requires_reindex = _is_embeddable_path(target_path)
-    if target_path.suffix.lower() == ".pdf" and _document_kind_for_path(target_path) == "form":
+    linked_form_dir: Path | None = None
+    if document_kind != "form":
+        linked_form_dir = _form_upload_dir_for_sop(data_dir, target_path).resolve()
+        try:
+            linked_form_dir.relative_to(data_dir)
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail="Invalid form link.") from error
+    if target_path.suffix.lower() == ".pdf" and document_kind == "form":
         delete_form_docx_template(target_path)
     target_path.unlink()
+    if linked_form_dir is not None and linked_form_dir.exists():
+        shutil.rmtree(linked_form_dir)
     if target_path.suffix.lower() == ".pdf":
         clear_flowchart_cache_for_source(target_path.name)
     message = "Document deleted."

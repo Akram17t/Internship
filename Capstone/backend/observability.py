@@ -22,6 +22,8 @@ _SENSITIVE_PATTERNS = [
 ]
 _DEFAULT_TEXT_LIMIT = 1200
 _LANGFUSE_CLIENT: Any | None = None
+_LANGFUSE_OPENAI_CLASS: Any | None = None
+_LANGFUSE_OPENAI_IMPORT_ATTEMPTED = False
 
 
 class NoopObservation:
@@ -33,6 +35,34 @@ class NoopObservation:
 
     def __exit__(self, *_: Any) -> None:
         return None
+
+
+@contextlib.contextmanager
+def _observation_or_noop(observation_context: Any) -> Iterator[Any]:
+    try:
+        observation = observation_context.__enter__()
+    except Exception:
+        yield NoopObservation()
+        return
+
+    try:
+        yield observation
+    except BaseException as error:
+        try:
+            should_suppress = observation_context.__exit__(
+                type(error),
+                error,
+                error.__traceback__,
+            )
+        except Exception:
+            should_suppress = False
+        if not should_suppress:
+            raise
+    else:
+        try:
+            observation_context.__exit__(None, None, None)
+        except Exception:
+            return
 
 
 def _enabled_flag() -> bool:
@@ -146,18 +176,31 @@ def base_url_host(base_url: str) -> str:
 
 
 def openai_client_class() -> Any:
-    if is_enabled():
-        _configure_langfuse_env()
-        _client()
-        try:
-            from langfuse.openai import OpenAI
-
-            return OpenAI
-        except Exception:
-            pass
+    langfuse_openai = _langfuse_openai_class()
+    if langfuse_openai is not None:
+        return langfuse_openai
     from openai import OpenAI
 
     return OpenAI
+
+
+def _langfuse_openai_class() -> Any | None:
+    global _LANGFUSE_OPENAI_CLASS, _LANGFUSE_OPENAI_IMPORT_ATTEMPTED
+    if not is_enabled():
+        return None
+    if _LANGFUSE_OPENAI_CLASS is not None:
+        return _LANGFUSE_OPENAI_CLASS
+    if _LANGFUSE_OPENAI_IMPORT_ATTEMPTED:
+        return None
+    _LANGFUSE_OPENAI_IMPORT_ATTEMPTED = True
+    _configure_langfuse_env()
+    _client()
+    try:
+        from langfuse.openai import OpenAI
+    except Exception:
+        return None
+    _LANGFUSE_OPENAI_CLASS = OpenAI
+    return _LANGFUSE_OPENAI_CLASS
 
 
 def openai_observation_kwargs(
@@ -165,7 +208,7 @@ def openai_observation_kwargs(
     *,
     metadata: dict[str, object] | None = None,
 ) -> dict[str, object]:
-    if not is_enabled():
+    if _langfuse_openai_class() is None:
         return {}
     return {
         "name": name,
@@ -193,12 +236,20 @@ def trace_context(
         yield NoopObservation()
         return
 
-    with client.start_as_current_observation(as_type="span", name=name) as observation:
-        observation.update(
+    try:
+        observation_context = client.start_as_current_observation(
+            as_type="chain",
+            name=name,
             input=redact(input),
             metadata=redact(metadata or {}, limit=600),
         )
+    except Exception:
+        yield NoopObservation()
+        return
+
+    with _observation_or_noop(observation_context) as observation:
         with propagate_attributes(
+            trace_name=name,
             session_id=session_id,
             tags=tags or [],
             environment=environment_name(),
@@ -210,6 +261,7 @@ def trace_context(
 def span(
     name: str,
     *,
+    parent: Any | None = None,
     input: object = None,
     metadata: dict[str, object] | None = None,
     as_type: str = "span",
@@ -219,11 +271,23 @@ def span(
         yield NoopObservation()
         return
 
-    with client.start_as_current_observation(as_type=as_type, name=name) as observation:
-        observation.update(
+    if parent is not None and hasattr(parent, "start_as_current_observation"):
+        start_observation = parent.start_as_current_observation
+    else:
+        start_observation = client.start_as_current_observation
+
+    try:
+        observation_context = start_observation(
+            as_type=as_type,
+            name=name,
             input=redact(input),
             metadata=redact(metadata or {}, limit=600),
         )
+    except Exception:
+        yield NoopObservation()
+        return
+
+    with _observation_or_noop(observation_context) as observation:
         yield observation
 
 
@@ -254,6 +318,16 @@ def current_trace_id() -> str:
         return ""
     try:
         return str(client.get_current_trace_id() or "")
+    except Exception:
+        return ""
+
+
+def current_observation_id() -> str:
+    client = _client()
+    if client is None:
+        return ""
+    try:
+        return str(client.get_current_observation_id() or "")
     except Exception:
         return ""
 

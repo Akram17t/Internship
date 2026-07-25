@@ -10,7 +10,7 @@ RESEARCHER_SRC = Path(__file__).resolve().parents[1] / "backend" / "researcher_c
 if str(RESEARCHER_SRC) not in sys.path:
     sys.path.insert(0, str(RESEARCHER_SRC))
 
-from backend.answer_policy import is_unsupported_answer, unsupported_answer_text
+from backend.answer_policy import is_unsupported_answer, unsupported_answer_text, unsupported_answer_text_en
 from researcher_crew import main as crew_main
 
 
@@ -416,6 +416,21 @@ class AnswerFinalizationTests(unittest.TestCase):
         self.assertEqual(selected_forms, [])
         self.assertEqual(answer_source, "fallback")
         store_cache.assert_not_called()
+
+    def test_unsupported_flow_uses_english_for_english_question(self) -> None:
+        with (
+            patch("researcher_crew.main.lookup_semantic_cache", return_value=None),
+            patch("researcher_crew.main.retrieve_knowledge", return_value=("", [])),
+        ):
+            answer, citations, selected_forms, answer_source = crew_main.run_knowledge_crew(
+                "What is the policy for a missing laptop?",
+                trace_id="test",
+            )
+
+        self.assertEqual(answer, unsupported_answer_text_en())
+        self.assertEqual(citations, [])
+        self.assertEqual(selected_forms, [])
+        self.assertEqual(answer_source, "fallback")
 
 
 if __name__ == "__main__":

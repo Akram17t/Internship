@@ -10,6 +10,13 @@ def unsupported_answer_text() -> str:
     )
 
 
+def unsupported_answer_text_en() -> str:
+    return (
+        "The system could not find information related to this in the SOP documents. "
+        "Please escalate to HR or the relevant manager for manual instructions."
+    )
+
+
 def faq_unavailable_answer_text() -> str:
     return "Informasi ini belum tersedia dalam dokumen yang saat ini terindeks."
 
@@ -23,14 +30,21 @@ def is_unsupported_answer(answer: str) -> bool:
     normalized = _normalize_exact_answer(answer)
     return normalized in {
         _normalize_exact_answer(unsupported_answer_text()),
+        _normalize_exact_answer(unsupported_answer_text_en()),
         _normalize_exact_answer(faq_unavailable_answer_text()),
     }
 
 
 def strip_trailing_unsupported_answer(answer: str) -> str:
-    canonical = re.escape(unsupported_answer_text())
+    canonical = "|".join(
+        re.escape(text)
+        for text in [
+            unsupported_answer_text(),
+            unsupported_answer_text_en(),
+        ]
+    )
     pattern = re.compile(
-        rf"(?:\s*\n+\s*|\s+){canonical}\.?(?:\s*\[\d+\])?\s*$",
+        rf"(?:\s*\n+\s*|\s+)(?:{canonical})\.?(?:\s*\[\d+\])?\s*$",
         flags=re.IGNORECASE,
     )
     match = pattern.search(answer)

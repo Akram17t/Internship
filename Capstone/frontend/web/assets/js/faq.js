@@ -208,10 +208,20 @@ function formatCitationText(citation) {
   return [
     citation.source || "Unknown source",
     citation.section || null,
-    citation.page ? `PDF halaman ${citation.page}` : null,
+    formatCitationPageRange(citation),
   ]
     .filter(Boolean)
     .join(" - ");
+}
+
+function formatCitationPageRange(citation) {
+  const page = Number(citation?.page);
+  const pageEnd = Number(citation?.page_end);
+  if (!Number.isInteger(page) || page < 1) return null;
+  if (Number.isInteger(pageEnd) && pageEnd > page) {
+    return `PDF halaman ${page}-${pageEnd}`;
+  }
+  return `PDF halaman ${page}`;
 }
 
 function bindAdminFaqs() {

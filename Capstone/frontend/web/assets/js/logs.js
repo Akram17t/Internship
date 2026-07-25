@@ -12,37 +12,36 @@ function bindAdminLogs() {
       void loadActivityLogs();
     });
   });
-  elements.logsRefreshButton?.addEventListener("click", () => {
-    void loadActivityLogs();
-  });
-  elements.logsTabs?.querySelectorAll("[data-log-tab]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const nextTab = button.dataset.logTab === "sessions" ? "sessions" : "questions";
-      if (state.activeLogsTab === nextTab) return;
-      state.activeLogsTab = nextTab;
+
+  [
+    elements.logsTotalChatCard,
+    elements.logsTotalSessionsCard,
+    elements.logsFeedbackSummaryCard,
+  ].forEach((button) => {
+    button?.addEventListener("click", () => {
+      const nextView = normalizeLogsView(button.dataset.logView);
+      if (state.activeLogsView === nextView && !state.selectedLogSessionId) return;
+      state.activeLogsView = nextView;
+      state.selectedLogSessionId = "";
       resetLogPage();
-      renderActivityLogs();
+      void loadActivityLogs();
     });
   });
-  elements.logsFeedbackSummaryCard?.addEventListener("click", () => {
-    state.activeLogsTab = "questions";
-    state.logsFeedbackFilter =
-      state.logsFeedbackFilter === "negative" ? "all" : "negative";
-    resetLogPage();
+
+  elements.logsRefreshButton?.addEventListener("click", () => {
     void loadActivityLogs();
   });
   elements.logsClearSessionButton?.addEventListener("click", () => {
     if (!state.selectedLogSessionId) return;
     state.selectedLogSessionId = "";
+    state.activeLogsView = "questions";
     resetLogPage();
     void loadActivityLogs();
   });
 }
 
 function setDefaultLogDateRange() {
-  if (state.logDateRange) {
-    return;
-  }
+  if (state.logDateRange) return;
   const end = new Date();
   const start = new Date();
   start.setDate(end.getDate() - 29);
@@ -68,13 +67,19 @@ async function loadActivityLogs() {
   state.isLoadingLogs = true;
   state.logError = "";
   renderActivityLogs();
-  const params = buildLogQueryParams({ includeFeedbackFilter: true });
-  const summaryParams = buildLogQueryParams();
+
+  const logsParams = buildLogQueryParams({
+    feedbackOnly: state.activeLogsView === "feedback",
+    includeSession: state.activeLogsView === "questions",
+  });
+  const summaryParams = buildLogQueryParams({
+    includeSession: state.activeLogsView === "questions",
+  });
   const sessionsParams = buildLogQueryParams({ includeSession: false });
 
   try {
     const [logsResponse, summaryResponse, sessionsResponse] = await Promise.all([
-      fetch(`/api/admin/logs?${params.toString()}`, {
+      fetch(`/api/admin/logs?${logsParams.toString()}`, {
         cache: "no-store",
         headers: adminAuthHeaders(),
       }),
@@ -103,10 +108,11 @@ async function loadActivityLogs() {
         formatApiError(sessionsPayload.detail, "Unable to load log sessions."),
       );
     }
+
     state.activityLogs = Array.isArray(logsPayload) ? logsPayload : [];
     state.activityLogSessions = Array.isArray(sessionsPayload) ? sessionsPayload : [];
     state.activityLogSummary = summaryPayload || null;
-    clampLogPage(filterActivityLogs(state.activityLogs).length);
+    clampLogPage(getActiveLogItemCount());
   } catch (error) {
     state.activityLogs = [];
     state.activityLogSessions = [];
@@ -119,17 +125,14 @@ async function loadActivityLogs() {
 }
 
 function buildLogQueryParams(options = {}) {
-  const includeSession = options.includeSession !== false;
   const params = new URLSearchParams({ limit: "100" });
   const range = state.logDateRange || {};
   if (range.start) params.set("start_date", range.start);
   if (range.end) params.set("end_date", range.end);
-  if (includeSession && state.selectedLogSessionId) {
+  if (options.includeSession === true && state.selectedLogSessionId) {
     params.set("conversation_id", state.selectedLogSessionId);
   }
-  if (options.includeFeedbackFilter === true && state.logsFeedbackFilter === "negative") {
-    params.set("feedback", "negative");
-  }
+  if (options.feedbackOnly === true) params.set("feedback", "negative");
   return params;
 }
 
@@ -146,13 +149,12 @@ function renderActivityLogs() {
   elements.logsStatus.classList.remove("is-error");
   elements.logsRefreshButton?.classList.toggle("is-loading", state.isLoadingLogs);
   syncLogDateInputs();
-  syncLogTabs();
+  syncLogViewControls();
   renderActiveSessionFilter();
   renderActivitySummary();
 
   if (!isAdminSession()) {
     elements.logsStatus.textContent = "";
-    updateLogResultCount(0);
     state.activityLogSessions = [];
     return;
   }
@@ -160,32 +162,34 @@ function renderActivityLogs() {
   if (state.isLoadingLogs) {
     elements.logsStatus.textContent = "Loading activity...";
     elements.logsList.appendChild(createLogsSkeleton());
-    updateLogResultCount(0);
     return;
   }
 
   if (state.logError) {
     elements.logsStatus.textContent = state.logError;
     elements.logsStatus.classList.add("is-error");
-    updateLogResultCount(0);
     return;
   }
 
-  if (state.activeLogsTab === "sessions") {
+  if (state.activeLogsView === "sessions") {
     renderActivityLogSessions();
     return;
   }
 
-  const visibleItems = filterActivityLogs(state.activityLogs);
-  clampLogPage(visibleItems.length);
-  updateLogResultCount(visibleItems.length);
+  if (state.activeLogsView === "feedback") {
+    renderActivityLogFeedback();
+    return;
+  }
 
+  renderActivityLogQuestions();
+}
+
+function renderActivityLogQuestions() {
+  const visibleItems = getVisibleQuestionLogs();
+  clampLogPage(visibleItems.length);
   if (!visibleItems.length) {
-    elements.logsStatus.textContent =
-      state.logsFeedbackFilter === "negative"
-        ? "No feedback in the selected date range."
-        : "No chatbot activity in the selected date range.";
-    elements.logsList.appendChild(createLogsEmptyState());
+    elements.logsStatus.textContent = "No chatbot activity in the selected date range.";
+    elements.logsList.appendChild(createLogsEmptyState("forum", "No questions yet"));
     return;
   }
 
@@ -193,36 +197,65 @@ function renderActivityLogs() {
   const pagination = getLogPagination(visibleItems.length);
   const pageItems = visibleItems.slice(pagination.startIndex, pagination.endIndex);
   elements.logsList.appendChild(createLogsTable(pageItems, pagination.startIndex));
-  renderLogPagination(visibleItems.length);
-}
-
-function filterActivityLogs(items) {
-  if (state.logsFeedbackFilter !== "negative") return items;
-  return items.filter((item) => hasNegativeFeedback(item));
+  renderLogPagination(visibleItems.length, "questions");
 }
 
 function renderActivityLogSessions() {
-  if (!elements.logsList) return;
-  if (elements.logsPagination) elements.logsPagination.innerHTML = "";
   const sessions = Array.isArray(state.activityLogSessions)
     ? state.activityLogSessions
     : [];
-  updateLogResultCount(sessions.length, "session");
   if (!sessions.length) {
-    elements.logsStatus.textContent =
-      "No chatbot sessions in the selected date range.";
+    elements.logsStatus.textContent = "No chatbot sessions in the selected date range.";
     elements.logsList.appendChild(createLogsEmptyState("forum", "No sessions yet"));
     return;
   }
+
   elements.logsStatus.textContent = "";
   elements.logsList.appendChild(createLogSessionsTable(sessions));
+}
+
+function renderActivityLogFeedback() {
+  const feedbackItems = getVisibleFeedbackLogs();
+  clampLogPage(feedbackItems.length);
+  if (!feedbackItems.length) {
+    elements.logsStatus.textContent = "No feedback in the selected date range.";
+    elements.logsList.appendChild(createLogsEmptyState("thumb_down", "No feedback yet"));
+    return;
+  }
+
+  elements.logsStatus.textContent = "";
+  const pagination = getLogPagination(feedbackItems.length);
+  const pageItems = feedbackItems.slice(pagination.startIndex, pagination.endIndex);
+  elements.logsList.appendChild(createFeedbackStream(pageItems, pagination.startIndex));
+  renderLogPagination(feedbackItems.length, "feedback");
+}
+
+function getVisibleQuestionLogs() {
+  return Array.isArray(state.activityLogs) ? state.activityLogs : [];
+}
+
+function getVisibleFeedbackLogs() {
+  return (Array.isArray(state.activityLogs) ? state.activityLogs : []).filter(
+    (item) => hasNegativeFeedback(item),
+  );
+}
+
+function getActiveLogItemCount() {
+  if (state.activeLogsView === "sessions") {
+    return Array.isArray(state.activityLogSessions)
+      ? state.activityLogSessions.length
+      : 0;
+  }
+  if (state.activeLogsView === "feedback") {
+    return getVisibleFeedbackLogs().length;
+  }
+  return getVisibleQuestionLogs().length;
 }
 
 function renderActivitySummary() {
   const summary = state.activityLogSummary || {};
   setLogMetric(elements.logsTotalChat, summary.total_chat);
   setLogMetric(elements.logsTotalSessions, summary.total_sessions);
-  setLogMetric(elements.logsAverageChat, summary.average_chat_per_session);
   setLogMetric(elements.logsNegativeFeedback, summary.negative_feedback);
 }
 
@@ -245,6 +278,15 @@ function createLogSessionsTable(sessions) {
   feed.className = "logs-table logs-sessions-table";
   sessions.forEach((item, index) => {
     feed.appendChild(createLogSessionRow(item, index));
+  });
+  return feed;
+}
+
+function createFeedbackStream(items, startIndex = 0) {
+  const feed = document.createElement("div");
+  feed.className = "logs-table logs-feedback-stream";
+  items.forEach((item, index) => {
+    feed.appendChild(createLogFeedbackRow(item, startIndex + index));
   });
   return feed;
 }
@@ -275,7 +317,7 @@ function createLogSessionRow(item, index) {
   meta.className = "logs-session-meta";
   meta.textContent = `${formatLogNumber(item.question_count)} ${
     Number(item.question_count) === 1 ? "question" : "questions"
-  } · Last activity ${formatLogTimeParts(item.last_at).date}`;
+  }`;
   detail.append(topLine, meta);
 
   const timestamp = createLogTimestamp(item.last_at);
@@ -287,7 +329,7 @@ function createLogSessionRow(item, index) {
   openButton.append(detail, timestamp);
   openButton.addEventListener("click", () => {
     state.selectedLogSessionId = item.conversation_id || "";
-    state.activeLogsTab = "questions";
+    state.activeLogsView = "questions";
     resetLogPage();
     void loadActivityLogs();
   });
@@ -318,6 +360,7 @@ function createLogRow(item, index) {
   const row = document.createElement("article");
   row.className = "log-row";
   row.classList.toggle("has-feedback", hasNegativeFeedback(item));
+  row.dataset.logId = String(item.id || "");
   row.dataset.status = "success";
   row.style.setProperty("--row-index", String(Math.min(index, 8)));
 
@@ -338,25 +381,55 @@ function createLogRow(item, index) {
   question.textContent = item.details?.question || item.summary || "Chat question";
   questionLine.append(statusDot, question);
   detail.append(questionLine);
-  if (hasNegativeFeedback(item)) {
-    const feedbackBadge = document.createElement("small");
-    feedbackBadge.className = "log-feedback-badge";
-    feedbackBadge.textContent = "Feedback";
-    detail.appendChild(feedbackBadge);
-  }
 
   const timestamp = createLogTimestamp(item.created_at);
-
   const deleteButton = createLogDeleteButton(item);
 
   toggle.append(detail, timestamp);
+  attachLogPanel(row, toggle, createLogConversationPanel(item), index);
+  row.append(toggle, deleteButton, row._logPanel);
+  return row;
+}
 
-  const panel = createLogConversationPanel(item);
-  const panelId = `log-detail-${item.id || index}`;
+function createLogFeedbackRow(item, index) {
+  const row = document.createElement("article");
+  row.className = "log-row log-feedback-row has-feedback";
+  row.dataset.logId = String(item.id || "");
+  row.dataset.status = "success";
+  row.style.setProperty("--row-index", String(Math.min(index, 8)));
+
+  const toggle = document.createElement("button");
+  toggle.className = "log-row-toggle log-feedback-toggle";
+  toggle.type = "button";
+  toggle.setAttribute("aria-expanded", "false");
+
+  const icon = document.createElement("span");
+  icon.className = "material-symbols-outlined log-feedback-icon";
+  icon.textContent = "thumb_down";
+  icon.setAttribute("aria-hidden", "true");
+
+  const copy = document.createElement("div");
+  copy.className = "log-feedback-copy";
+  const kicker = document.createElement("span");
+  kicker.textContent = "User feedback";
+  const reason = document.createElement("p");
+  reason.className = "log-feedback-reason";
+  reason.textContent = feedbackReasonText(item);
+  copy.append(kicker, reason);
+
+  toggle.append(icon, copy);
+  attachLogPanel(row, toggle, createLogFeedbackPanel(item), index);
+  row.append(toggle, createLogDeleteButton(item), row._logPanel);
+  return row;
+}
+
+function attachLogPanel(row, toggle, panel, index, options = {}) {
+  const panelId = `log-detail-${row.dataset.status || "item"}-${index}`;
+  const isOpen = row.classList.contains("is-open");
   panel.id = panelId;
-  panel.setAttribute("aria-hidden", "true");
+  panel.setAttribute("aria-hidden", String(!isOpen));
   toggle.setAttribute("aria-controls", panelId);
-
+  toggle.setAttribute("aria-expanded", String(isOpen));
   toggle.addEventListener("click", () => {
     const willOpen = !row.classList.contains("is-open");
     const table = row.closest(".logs-table");
@@ -364,10 +437,9 @@ function createLogRow(item, index) {
       if (openRow !== row) setLogRowOpen(openRow, false);
     });
     setLogRowOpen(row, willOpen);
+    options.onToggle?.(willOpen);
   });
-
-  row.append(toggle, deleteButton, panel);
-  return row;
+  row._logPanel = panel;
 }
 
 function createLogDeleteButton(item) {
@@ -403,7 +475,7 @@ async function deleteActivityLog(logId, button) {
       throw new Error(formatApiError(payload.detail, "Unable to delete log."));
     }
     state.activityLogs = state.activityLogs.filter((item) => item.id !== logId);
-    clampLogPage(filterActivityLogs(state.activityLogs).length);
+    clampLogPage(getActiveLogItemCount());
     renderActivityLogs();
     void loadActivityLogs();
   } catch (error) {
@@ -430,15 +502,13 @@ async function deleteActivityLogSession(conversationId, button) {
     if (!response.ok) {
       throw new Error(formatApiError(payload.detail, "Unable to delete session."));
     }
-    if (state.selectedLogSessionId === conversationId) {
-      state.selectedLogSessionId = "";
-    }
     state.activityLogSessions = state.activityLogSessions.filter(
       (item) => item.conversation_id !== conversationId,
     );
     state.activityLogs = state.activityLogs.filter(
       (item) => item.details?.conversation_id !== conversationId,
     );
+    if (state.selectedLogSessionId === conversationId) state.selectedLogSessionId = "";
     renderActivityLogs();
     void loadActivityLogs();
   } catch (error) {
@@ -477,25 +547,50 @@ function createLogConversationPanel(item) {
   return panel;
 }
 
+function createLogFeedbackPanel(item) {
+  const panel = document.createElement("div");
+  panel.className = "log-row-panel log-feedback-panel";
+  const panelInner = document.createElement("div");
+  panelInner.className = "log-row-panel-inner";
+  const question =
+    item.details?.question ||
+    item.summary ||
+    "No question recorded.";
+  const answer =
+    item.details?.answer ||
+    item.details?.answer_preview ||
+    "No answer recorded.";
+  panelInner.appendChild(createLogMessage("Question", question, "user"));
+  panelInner.appendChild(createLogMessage("Assistant answer", answer, "assistant"));
+  panel.appendChild(panelInner);
+  window.requestAnimationFrame(() => setupLogReadMore(panel, answer));
+  return panel;
+}
+
 function hasNegativeFeedback(item) {
   return item?.details?.feedback?.rating === "thumbs_down";
+}
+
+function feedbackReasonText(item) {
+  return item?.details?.feedback?.reason || "No reason recorded.";
 }
 
 function createLogFeedbackDetail(feedback) {
   const detail = document.createElement("section");
   detail.className = "log-feedback-detail";
+  const icon = document.createElement("span");
+  icon.className = "material-symbols-outlined";
+  icon.textContent = "thumb_down";
+  icon.setAttribute("aria-hidden", "true");
+  const copy = document.createElement("div");
   const heading = document.createElement("span");
   heading.className = "log-message-label";
   heading.textContent = "Feedback";
   const reason = document.createElement("p");
   reason.className = "log-message-content";
   reason.textContent = feedback?.reason || "No reason recorded.";
-  const timestamp = document.createElement("small");
-  timestamp.className = "log-feedback-time";
-  timestamp.textContent = feedback?.created_at
-    ? `Submitted ${formatLogTimeParts(feedback.created_at).date}`
-    : "Submitted by user";
-  detail.append(heading, reason, timestamp);
+  copy.append(heading, reason);
+  detail.append(icon, copy);
   return detail;
 }
 
@@ -523,8 +618,10 @@ function createLogMessage(label, text, type) {
 }
 
 function setupLogReadMore(panel, answer) {
-  const content = panel.querySelector(".log-message-content");
-  const message = panel.querySelector(".log-message");
+  const message =
+    panel.querySelector(".log-message.is-assistant") ||
+    panel.querySelector(".log-message");
+  const content = message?.querySelector(".log-message-content");
   if (!content || !message) return;
   const plainAnswer = String(answer || "");
   const isLongText = plainAnswer.length > 650 || plainAnswer.split(/\r?\n/).length > 8;
@@ -585,14 +682,7 @@ function createLogTimestamp(value) {
   return time;
 }
 
-function updateLogResultCount(count, singular = "question") {
-  if (!elements.logsResultCount) return;
-  const plural = singular === "session" ? "sessions" : "questions";
-  const label = count === 1 ? singular : plural;
-  elements.logsResultCount.textContent = `${formatLogNumber(count)} ${label}`;
-}
-
-function renderLogPagination(total) {
+function renderLogPagination(total, label = "questions") {
   if (!elements.logsPagination) return;
   elements.logsPagination.innerHTML = "";
   const pageSize = getLogPageSize();
@@ -603,11 +693,12 @@ function renderLogPagination(total) {
   nav.className = "logs-page-controls";
   nav.setAttribute("aria-label", "Logs pagination");
 
-  const label = document.createElement("span");
-  label.className = "logs-page-label";
-  label.textContent = `${formatLogNumber(pagination.startIndex + 1)}-${formatLogNumber(
+  const countLabel = label === "feedback" ? "feedback" : "questions";
+  const range = document.createElement("span");
+  range.className = "logs-page-label";
+  range.textContent = `${formatLogNumber(pagination.startIndex + 1)}-${formatLogNumber(
     pagination.endIndex,
-  )} of ${formatLogNumber(total)} questions`;
+  )} of ${formatLogNumber(total)} ${countLabel}`;
 
   const previous = createLogPageButton("chevron_left", "Previous page", () => {
     state.logPage = Math.max(1, getLogPage() - 1);
@@ -621,7 +712,7 @@ function renderLogPagination(total) {
   });
   next.disabled = pagination.page >= pagination.totalPages;
 
-  nav.append(label, previous, next);
+  nav.append(range, previous, next);
   elements.logsPagination.appendChild(nav);
 }
 
@@ -676,26 +767,10 @@ function syncLogDateInputs() {
   }
 }
 
-function syncLogTabs() {
-  elements.logsTabs?.querySelectorAll("[data-log-tab]").forEach((button) => {
-    const isActive = button.dataset.logTab === state.activeLogsTab;
-    button.classList.toggle("is-active", isActive);
-    button.setAttribute("aria-selected", String(isActive));
-  });
-  const isFeedbackActive = state.logsFeedbackFilter === "negative";
-  elements.logsFeedbackSummaryCard?.classList.toggle("is-filtering", isFeedbackActive);
-  elements.logsFeedbackSummaryCard?.setAttribute("aria-pressed", String(isFeedbackActive));
-  elements.logsActivityPanel?.classList.toggle("is-feedback-mode", isFeedbackActive);
-  if (elements.logsActivityTitle) {
-    elements.logsActivityTitle.textContent = isFeedbackActive
-      ? "Feedback questions"
-      : "Recent questions";
-  }
-}
-
 function renderActiveSessionFilter() {
   if (!elements.logsSessionFilter) return;
-  const sessionId = state.selectedLogSessionId || "";
+  const sessionId =
+    state.activeLogsView === "questions" ? state.selectedLogSessionId || "" : "";
   elements.logsSessionFilter.hidden = !sessionId;
   if (elements.logsActiveSessionLabel) {
     elements.logsActiveSessionLabel.textContent = sessionId
@@ -704,6 +779,40 @@ function renderActiveSessionFilter() {
   }
 }
 
+function syncLogViewControls() {
+  const activeView = normalizeLogsView(state.activeLogsView);
+  state.activeLogsView = activeView;
+  [
+    elements.logsTotalChatCard,
+    elements.logsTotalSessionsCard,
+    elements.logsFeedbackSummaryCard,
+  ].forEach((button) => {
+    const isActive = normalizeLogsView(button?.dataset.logView) === activeView;
+    button?.classList.toggle("is-active", isActive);
+    button?.classList.toggle("is-primary", isActive);
+    button?.setAttribute("aria-pressed", String(isActive));
+  });
+  elements.logsActivityPanel?.classList.toggle(
+    "is-feedback-mode",
+    activeView === "feedback",
+  );
+  elements.logsActivityPanel?.classList.toggle(
+    "is-session-mode",
+    activeView === "sessions",
+  );
+  if (elements.logsActivityTitle) {
+    elements.logsActivityTitle.textContent = {
+      questions: "Recent questions",
+      sessions: "Chat sessions",
+      feedback: "Feedback",
+    }[activeView];
+  }
+}
+
+function normalizeLogsView(value) {
+  if (value === "sessions" || value === "feedback") return value;
+  return "questions";
+}
 
 function toDateInputValue(date) {
   const year = date.getFullYear();

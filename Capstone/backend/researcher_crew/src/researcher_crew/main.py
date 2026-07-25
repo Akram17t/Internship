@@ -17,6 +17,7 @@ from backend.answer_policy import (
     is_unsupported_answer,
     strip_trailing_unsupported_answer,
     unsupported_answer_text,
+    unsupported_answer_text_en,
 )
 from backend.settings import get_env, get_int_env, get_required_env, load_capstone_env
 from backend.semantic_cache import lookup_semantic_cache, store_semantic_cache
@@ -51,8 +52,9 @@ ANSWER_ROLE_PROMPT = (
 )
 
 ANSWER_TASK_RULES = (
-    "Jawab pertanyaan user dalam bahasa Indonesia hanya memakai retrieved evidence "
-    "yang diberikan.\n\n"
+    "Jawab pertanyaan user hanya memakai retrieved evidence yang diberikan.\n"
+    "Gunakan bahasa yang sama dengan pertanyaan terakhir user. Jika pertanyaan terakhir "
+    "berbahasa Inggris, jawab dalam bahasa Inggris; jika berbahasa Indonesia, jawab dalam bahasa Indonesia.\n\n"
     "Gaya jawaban:\n"
     "- Natural, jelas, dan membantu.\n"
     "- Pilih format yang paling cocok: paragraf, bullet, numbered steps, tabel kecil, atau campuran.\n"
@@ -74,17 +76,19 @@ ANSWER_TASK_RULES = (
     "- Jangan invent nama form.\n"
     "- Untuk permohonan/perubahan hak akses sistem, pilih System Access Control List jika tersedia.\n"
     "- Exit Clearance hanya untuk resign/offboarding; Jangan pilih Exit Clearance hanya karena evidence menyebut akses dicabut.\n"
-    "- Jangan menulis filename PDF atau section download form di jawaban visible; app akan render form terpisah.\n"
+    "- Jangan menulis filename form atau section download form di jawaban visible; app akan render form terpisah.\n"
     "- Jangan membuat heading/kalimat visible seperti 'Form yang digunakan', 'Form terkait', atau 'Form yang bisa diunduh'; cukup isi FORM_SELECTION.\n"
     "- Jika evidence menjawab pertanyaan, di akhir jawaban tambahkan tepat satu baris machine-readable:\n"
-    "FORM_SELECTION: [\"exact form filename.pdf\"]\n"
+    "FORM_SELECTION: [\"exact form filename\"]\n"
     "- Jika tidak perlu form, tulis tepat:\n"
     "FORM_SELECTION: []\n\n"
     "Aturan reliabilitas:\n"
     "- Jangan invent detail policy, file, page, form number, approval, aktor, kalkulasi, requirement, pengecualian, atau rekomendasi.\n"
     "- Jangan pernah output reasoning tersembunyi, chain-of-thought, atau tag <think>...</think>.\n"
-    "- Jika evidence tidak menjawab langsung, balas persis kalimat ini saja tanpa FORM_SELECTION:\n"
+    "- Jika evidence tidak menjawab langsung dan pertanyaan berbahasa Indonesia, balas persis kalimat ini saja tanpa FORM_SELECTION:\n"
     "\"Sistem tidak dapat menemukan informasi terkait hal tersebut di dalam dokumen SOP. Silakan lakukan eskalasi ke HR atau manajer terkait untuk instruksi manual.\""
+    "\n- Jika evidence tidak menjawab langsung dan pertanyaan berbahasa Inggris, balas persis kalimat ini saja tanpa FORM_SELECTION:\n"
+    "\"The system could not find information related to this in the SOP documents. Please escalate to HR or the relevant manager for manual instructions.\""
 )
 
 
@@ -99,6 +103,44 @@ def _strip_trailing_unsupported_answer(answer: str) -> str:
     unsupported bisa mengembalikan jawaban tanpa citation/form.
     """
     return strip_trailing_unsupported_answer(answer)
+
+
+def _is_english_question(question: str) -> bool:
+    value = question.lower()
+    english_markers = {
+        "how",
+        "what",
+        "when",
+        "where",
+        "which",
+        "who",
+        "why",
+        "can",
+        "could",
+        "should",
+        "procedure",
+        "policy",
+        "form",
+    }
+    indonesian_markers = {
+        "apa",
+        "bagaimana",
+        "dimana",
+        "kapan",
+        "kenapa",
+        "siapa",
+        "prosedur",
+        "kebijakan",
+        "formulir",
+    }
+    words = set(re.findall(r"[a-z]+", value))
+    return bool(words.intersection(english_markers)) and not bool(
+        words.intersection(indonesian_markers)
+    )
+
+
+def _unsupported_answer_for_question(question: str) -> str:
+    return unsupported_answer_text_en() if _is_english_question(question) else unsupported_answer_text()
 
 
 def _strip_generated_sources_section(answer: str) -> str:
@@ -677,7 +719,7 @@ def run_knowledge_crew(
         logger.info(
             "[%s] total   | %.2fs (tanpa sumber)", trace_label, time.perf_counter() - started_at
         )
-        return unsupported_answer_text(), [], [], "fallback"
+        return _unsupported_answer_for_question(standalone_question), [], [], "fallback"
 
     crew_started = time.perf_counter()
     answer = _strip_generated_sources_section(
@@ -696,12 +738,13 @@ def run_knowledge_crew(
             logger.info(
                 "[%s] total   | %.2fs (tanpa sumber)", trace_label, time.perf_counter() - started_at
             )
+            fallback_answer = _unsupported_answer_for_question(standalone_question)
             update_observation(
                 finalize_span,
-                output=unsupported_answer_text(),
+                output=fallback_answer,
                 metadata={"answer_source": "fallback"},
             )
-            return unsupported_answer_text(), [], [], "fallback"
+            return fallback_answer, [], [], "fallback"
         answer, citations = _finalize_answer_citations(answer, citations)
         update_observation(
             finalize_span,

@@ -18,6 +18,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from backend.api.main import app  # noqa: E402
 from backend.api.routes_public import _record_chat_activity  # noqa: E402
+from backend.answer_policy import unsupported_answer_text  # noqa: E402
 from backend.cache_db import (  # noqa: E402
     get_state_db_path,
     init_state_db,
@@ -238,6 +239,72 @@ class AdminLogsTests(unittest.TestCase):
             reason="Jawabannya kurang lengkap.",
             conversation_id="conv-feedback",
         )
+
+    def test_query_fallback_response_keeps_feedback_target(self) -> None:
+        with (
+            patch(
+                "researcher_crew.main.run_knowledge_crew",
+                return_value=(unsupported_answer_text(), [], [], "fallback"),
+            ),
+            patch("backend.api.routes_public._iter_form_downloads", return_value=[]),
+            patch("backend.api.routes_public.find_flowcharts_for_citations", return_value=[]),
+            patch("backend.api.routes_public._append_conversation_turn"),
+        ):
+            response = self.client.post(
+                "/query",
+                json={
+                    "question": "Harusnya SOP masa cuci piring ada?",
+                    "conversation_id": "conv-no-answer",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        payload = response.json()
+        self.assertEqual(payload["answer_source"], "fallback")
+        self.assertIsInstance(payload["feedback_id"], int)
+        self.assertTrue(payload["feedback_token"])
+
+    def test_query_provider_error_returns_feedback_target_and_accepts_feedback(self) -> None:
+        from researcher_crew.main import ModelGenerationError
+
+        with (
+            patch(
+                "researcher_crew.main.run_knowledge_crew",
+                side_effect=ModelGenerationError("provider gagal"),
+            ),
+            patch("backend.api.routes_public._iter_form_downloads", return_value=[]),
+        ):
+            response = self.client.post(
+                "/query",
+                json={
+                    "question": "Harusnya ada SOP tentang ini",
+                    "conversation_id": "conv-error-feedback",
+                },
+            )
+
+        self.assertEqual(response.status_code, 502, response.text)
+        detail = response.json()["detail"]
+        self.assertEqual(detail["conversation_id"], "conv-error-feedback")
+        self.assertEqual(detail["message"], "provider gagal")
+        self.assertIsInstance(detail["feedback_id"], int)
+        self.assertTrue(detail["feedback_token"])
+
+        with patch("backend.api.routes_public.score_user_thumbs_down", return_value=True):
+            feedback_response = self.client.post(
+                "/api/feedback",
+                json={
+                    "feedback_id": detail["feedback_id"],
+                    "feedback_token": detail["feedback_token"],
+                    "conversation_id": "conv-error-feedback",
+                    "rating": "thumbs_down",
+                    "reason": "Harusnya SOP ini tersedia.",
+                },
+            )
+
+        self.assertEqual(feedback_response.status_code, 200, feedback_response.text)
+        feedback = feedback_response.json()["feedback"]
+        self.assertEqual(feedback["rating"], "thumbs_down")
+        self.assertEqual(feedback["reason"], "Harusnya SOP ini tersedia.")
 
     def test_feedback_endpoint_rejects_wrong_token_without_new_log(self) -> None:
         log_id = insert_activity_log(

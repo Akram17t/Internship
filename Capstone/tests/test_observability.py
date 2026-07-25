@@ -40,13 +40,33 @@ class ObservabilityTests(unittest.TestCase):
             clear=True,
         ):
             self.assertTrue(observability.is_enabled())
-            kwargs = observability.openai_observation_kwargs(
-                "generate-response",
-                metadata={"operation": "unit-test"},
-            )
+            with patch("backend.observability._langfuse_openai_class", return_value=object()):
+                kwargs = observability.openai_observation_kwargs(
+                    "generate-response",
+                    metadata={"operation": "unit-test"},
+                )
 
         self.assertEqual(kwargs["name"], "generate-response")
         self.assertEqual(kwargs["metadata"], {"operation": "unit-test"})
+
+    def test_openai_observation_kwargs_noops_when_wrapper_unavailable(self) -> None:
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "LANGFUSE_TRACING_ENABLED": "true",
+                    "LANGFUSE_PUBLIC_KEY": "pk-lf-test",
+                    "LANGFUSE_SECRET_KEY": "sk-lf-test",
+                    "LANGFUSE_BASE_URL": "https://jp.cloud.langfuse.com",
+                },
+                clear=True,
+            ),
+            patch("backend.observability._langfuse_openai_class", return_value=None),
+        ):
+            self.assertEqual(
+                observability.openai_observation_kwargs("generate-response"),
+                {},
+            )
 
     def test_redact_masks_sensitive_values_and_truncates_text(self) -> None:
         with patch.dict(

@@ -60,9 +60,9 @@ def _top_k() -> int:
 
 
 def _model_name() -> str:
-    cache_version = get_env("SEMANTIC_CACHE_VERSION", "answer-style-v2").strip()
+    cache_version = get_env("SEMANTIC_CACHE_VERSION", "answer-style-v3-language-aware").strip()
     if not cache_version:
-        cache_version = "answer-style-v2"
+        cache_version = "answer-style-v3-language-aware"
     return f"{get_required_env('MODEL')}::{cache_version}"
 
 

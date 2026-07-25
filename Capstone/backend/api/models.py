@@ -14,6 +14,7 @@ class CitationResponse(BaseModel):
     id: int
     source: str
     page: int | None = None
+    page_end: int | None = None
     section: str | None = None
     chunk_id: int | None = None
     download_url: str | None = None
@@ -23,6 +24,9 @@ class FormDownloadResponse(BaseModel):
     name: str
     display_name: str
     download_url: str
+    doc_type: str = ""
+    formats: list[str] = Field(default_factory=list)
+    linked_sop_path: str | None = None
 
 
 class FlowchartScreenshotResponse(BaseModel):
@@ -117,6 +121,8 @@ class LibraryItem(BaseModel):
     size_bytes: int
     updated_at: str
     download_url: str
+    linked_sop_path: str | None = None
+    formats: list[str] = Field(default_factory=list)
 
 
 class ActivityLogItem(BaseModel):
@@ -153,6 +159,8 @@ class AdminDocumentPayload(BaseModel):
     filename: str = Field(..., min_length=1)
     content_base64: str = Field(..., min_length=1)
     replace_path: str | None = None
+    document_kind: Literal["document", "sop", "form"] | None = None
+    linked_sop_path: str | None = None
 
 
 class AdminDocumentResponse(BaseModel):

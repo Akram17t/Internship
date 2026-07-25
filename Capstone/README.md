@@ -16,7 +16,7 @@ Architecture and design docs, including a topology diagram, are in [docs/ARCHITE
 
 1. Create a virtual environment and install dependencies from `requirements.txt`.
 2. Copy `.env.example` to `.env`, run 9Router locally or set another OpenAI-compatible `CHAT_BASE_URL`, then set `CHAT_API_KEY` if your endpoint requires it and `NSCALE_SERVICE_TOKEN`.
-3. Put SOP/knowledge PDF or DOCX files into `backend/data/`; form templates should be PDF files with filenames starting with `Form`. The backend creates matching DOCX templates automatically.
+3. Put SOP/knowledge PDF or DOCX files into `backend/data/`; form templates can be PDF, Word, or Excel files. Forms uploaded below an SOP in the admin UI do not need a `Form` filename prefix.
 4. Run ingestion:
 
 ```bash
@@ -157,8 +157,8 @@ Important persistent data in `app_storage`:
 
 ## Frontend Config
 
-- `TYPING_ANIMATION_ENABLED=true` keeps the assistant typing reveal enabled.
-- Set `TYPING_ANIMATION_ENABLED=false` to show full answers immediately.
+- `TYPING_ANIMATION_ENABLED=false` shows full answers immediately by default.
+- Set `TYPING_ANIMATION_ENABLED=true` to restore the assistant typing reveal.
 
 ## Langfuse Observability
 
@@ -184,7 +184,7 @@ common secrets, contact details, and large image data before export.
 - `Chat`: main conversational interface connected to `POST /query`
 - `FAQ`: curated operational starter questions
 - `Library`: admin document/form list with download links from `backend/data`
-- Form templates: direct download only, with a PDF or Word format picker
+- Form templates: direct download only, with PDF/Word/Excel format choices based on the uploaded file
 
 ## Frontend Scripts
 

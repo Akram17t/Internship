@@ -38,6 +38,18 @@ function bindAdminDocuments() {
     state.pendingReplacePath = "";
   });
 
+  elements.formFileInput?.addEventListener("change", async () => {
+    const files = Array.from(elements.formFileInput.files || []);
+    if (!files.length || !state.pendingFormSopPath) return;
+    const linkedSopPath = state.pendingFormSopPath;
+    try {
+      await saveFormDocumentsForSop(files, linkedSopPath);
+    } finally {
+      elements.formFileInput.value = "";
+      state.pendingFormSopPath = "";
+    }
+  });
+
   elements.documentReindexButton.addEventListener("click", rebuildEmbeddings);
   elements.documentUndoButton.addEventListener("click", undoDocumentChange);
   bindTemplateDownloadModal();
@@ -111,7 +123,7 @@ async function saveDocuments(files) {
   updateDocumentControls();
 }
 
-async function saveDocument(file, replacePath = "") {
+async function saveDocument(file, replacePath = "", options = {}) {
   if (!isAdminSession() || state.isMutatingDocument || state.isReindexing)
     return;
   state.isMutatingDocument = true;
@@ -123,7 +135,7 @@ async function saveDocument(file, replacePath = "") {
     const previousSnapshot = replacePath
       ? await createDocumentSnapshot(findDocumentByPath(replacePath))
       : null;
-    const payload = await saveDocumentRequest(file, replacePath);
+    const payload = await saveDocumentRequest(file, replacePath, options);
     await loadLibrary();
     if (payload.requires_reindex) {
       pushDocumentChange({
@@ -156,6 +168,58 @@ async function saveDocument(file, replacePath = "") {
   }
 }
 
+async function saveFormDocumentsForSop(files, linkedSopPath) {
+  if (!isAdminSession() || state.isMutatingDocument || state.isReindexing)
+    return;
+  state.isMutatingDocument = true;
+  state.activeDocumentFormPath = linkedSopPath;
+  updateDocumentControls();
+
+  let successCount = 0;
+  const failures = [];
+  const insertedItems = [];
+  for (const [index, file] of files.entries()) {
+    showDocumentStatus(`Uploading form ${index + 1}/${files.length}: ${file.name}`);
+    try {
+      const payload = await saveDocumentRequest(file, "", {
+        documentKind: "form",
+        linkedSopPath,
+      });
+      successCount += 1;
+      if (payload.item) insertedItems.push(payload.item);
+    } catch (error) {
+      failures.push({
+        name: file.name,
+        reason: error.message || "Upload failed.",
+      });
+    }
+  }
+
+  state.isMutatingDocument = false;
+  await loadLibrary();
+  state.activeDocumentFormPath = linkedSopPath;
+
+  if (insertedItems.length) {
+    pushDocumentChange({
+      type: "insert",
+      label: `Undo insert ${insertedItems.length} form${insertedItems.length === 1 ? "" : "s"}`,
+      items: insertedItems,
+      requires_reindex: false,
+    });
+  }
+
+  if (failures.length) {
+    const summary = `${successCount} form uploaded, ${failures.length} failed.`;
+    showDocumentStatus(summary, true);
+    openDocumentErrorModal(summary, failures);
+  } else if (successCount > 0) {
+    showDocumentStatus(
+      `${successCount} form${successCount === 1 ? "" : "s"} berhasil diunggah. Tidak perlu rebuild embeddings.`,
+    );
+  }
+  updateDocumentControls();
+}
+
 function isFormPdfFile(file) {
   return (
     String(file?.name || "")
@@ -181,11 +245,13 @@ function formatDocumentSaveMessage(payload, isFormPdf = false) {
   return `${baseMessage} Tidak perlu rebuild embeddings.`;
 }
 
-async function saveDocumentRequest(file, replacePath = "") {
+async function saveDocumentRequest(file, replacePath = "", options = {}) {
   return saveDocumentPayload({
     filename: file.name,
     content_base64: await fileToBase64(file),
     replace_path: replacePath || null,
+    document_kind: options.documentKind || null,
+    linked_sop_path: options.linkedSopPath || null,
   });
 }
 
@@ -330,6 +396,8 @@ async function createDocumentSnapshot(item) {
     name: item.name || item.relative_path.split("/").pop() || "document",
     relative_path: item.relative_path,
     display_name: item.display_name || item.name || "document",
+    document_kind: item.document_kind || "document",
+    linked_sop_path: item.linked_sop_path || "",
     content_base64: await fetchDocumentBase64(item.download_url),
   };
 }
@@ -375,6 +443,8 @@ async function restoreDocumentSnapshot(snapshot, replace = false) {
     filename: snapshot.name,
     content_base64: snapshot.content_base64,
     replace_path: replace ? snapshot.relative_path : null,
+    document_kind: snapshot.document_kind || null,
+    linked_sop_path: snapshot.linked_sop_path || null,
   });
 }
 
@@ -560,6 +630,8 @@ function normalizeDocument(item, index) {
     ...item,
     document_kind: documentKind,
     is_embeddable: Boolean(item.is_embeddable),
+    formats: Array.isArray(item.formats) ? item.formats : [],
+    linked_sop_path: item.linked_sop_path || "",
     display_name: formatDocumentTitle(
       item.display_name || `Document ${index + 1}`,
     ),
@@ -576,22 +648,44 @@ function formatDocumentTitle(value) {
 }
 
 function getLibraryIcon(item) {
-  const type = String(item.doc_type || "").toLowerCase();
+  const type = getDocumentType(item);
   if (type === "pdf") return "picture_as_pdf";
   if (type === "doc" || type === "docx") return "article";
+  if (type === "xls" || type === "xlsx") return "table_chart";
   if (type === "txt") return "text_snippet";
   return "description";
 }
 
+function getDocumentType(item) {
+  const explicitType = String(item?.doc_type || "").trim().toLowerCase();
+  if (explicitType) return explicitType;
+  const name = String(item?.name || item?.display_name || "");
+  const match = name.toLowerCase().match(/\.([a-z0-9]+)$/);
+  return match ? match[1] : "";
+}
+
+function getDocumentTypeColorGroup(item) {
+  const type = getDocumentType(item);
+  if (type === "doc" || type === "docx") return "word";
+  if (type === "xls" || type === "xlsx") return "excel";
+  if (type === "pdf" || type === "txt") return type;
+  return "default";
+}
+
+function applyDocumentIcon(icon, item) {
+  icon.textContent = getLibraryIcon(item);
+  icon.dataset.docType = getDocumentTypeColorGroup(item);
+}
+
 function renderLibrary() {
-  const documents = state.documents.filter((item) => {
+  const visibleItems = state.documents.filter((item) => {
     const haystack =
       `${item.display_name} ${item.description || ""}`.toLowerCase();
     return !state.filter || haystack.includes(state.filter);
   });
   elements.libraryList.innerHTML = "";
 
-  if (!documents.length) {
+  if (!visibleItems.length) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
     empty.textContent = "Tidak ada dokumen yang cocok dengan filter ini.";
@@ -599,16 +693,31 @@ function renderLibrary() {
     return;
   }
 
-  const documentItems = documents.filter(
+  const documentItems = visibleItems.filter(
     (item) => item.document_kind !== "form",
   );
-  const formItems = documents.filter((item) => item.document_kind === "form");
-  appendLibrarySection("Documents", documentItems);
-  appendLibrarySection("Forms", formItems);
+  if (!documentItems.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.textContent = "Tidak ada dokumen yang cocok dengan filter ini.";
+    elements.libraryList.appendChild(empty);
+    updateDocumentControls();
+    return;
+  }
+  if (
+    state.activeDocumentFormPath &&
+    !documentItems.some(
+      (item) => documentFormKey(item) === state.activeDocumentFormPath,
+    )
+  ) {
+    state.activeDocumentFormPath = "";
+  }
+  const allFormItems = state.documents.filter((item) => item.document_kind === "form");
+  appendLibrarySection("Documents", documentItems, allFormItems);
   updateDocumentControls();
 }
 
-function appendLibrarySection(title, items) {
+function appendLibrarySection(title, items, forms = []) {
   if (!items.length) return;
 
   const section = document.createElement("section");
@@ -623,24 +732,108 @@ function appendLibrarySection(title, items) {
   section.appendChild(heading);
 
   items.forEach((item) => {
-    section.appendChild(createLibraryRow(item));
+    section.appendChild(createDocumentLibraryGroup(item, formsForDocument(item, forms)));
   });
 
   elements.libraryList.appendChild(section);
 }
 
-function createLibraryRow(item) {
+function createDocumentLibraryGroup(item, forms) {
+  const group = document.createElement("div");
+  group.className = "document-library-group";
+  const key = documentFormKey(item);
+  const isOpen = key && state.activeDocumentFormPath === key;
+  const relatedId = `related-forms-${stableDomId(key || item.display_name)}`;
+  group.classList.toggle("is-forms-open", Boolean(isOpen));
+  group.appendChild(createLibraryRow(item, { isOpen, relatedId }));
+
+  const related = document.createElement("div");
+  related.className = "related-forms";
+  related.id = relatedId;
+  const header = document.createElement("div");
+  header.className = "related-forms-heading";
+  const title = document.createElement("span");
+  title.textContent = "Forms";
+  header.appendChild(title);
+  related.appendChild(header);
+
+  if (forms.length) {
+    forms.forEach((form) => related.appendChild(createRelatedFormRow(form)));
+  }
+  related.appendChild(createInsertFormRow(item, forms.length > 0));
+  group.appendChild(related);
+  return group;
+}
+
+function documentFormKey(item) {
+  return String(item?.relative_path || item?.name || item?.display_name || "");
+}
+
+function stableDomId(value) {
+  const safeValue = String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return safeValue || "document";
+}
+
+function toggleDocumentForms(item) {
+  const key = documentFormKey(item);
+  if (!key) return;
+  state.activeDocumentFormPath =
+    state.activeDocumentFormPath === key ? "" : key;
+  renderLibrary();
+}
+
+function formsForDocument(documentItem, forms) {
+  if (!documentItem?.relative_path) return [];
+  const documentPath = String(documentItem.relative_path).toLowerCase();
+  const documentName = String(documentItem.name || "").toLowerCase();
+  return forms.filter((form) => {
+    const linked = String(form.linked_sop_path || "").toLowerCase();
+    return (
+      linked === documentPath ||
+      linked.endsWith(`/${documentName}`) ||
+      linked === documentName
+    );
+  });
+}
+
+function createLibraryRow(item, options = {}) {
   const fragment = elements.libraryItemTemplate.content.cloneNode(true);
   const row = fragment.querySelector(".document-row");
   row.dataset.kind = item.document_kind || "document";
-  fragment.querySelector(".document-icon").textContent = getLibraryIcon(item);
+  row.classList.add("is-toggleable");
+  row.tabIndex = 0;
+  if (options.relatedId) row.setAttribute("aria-controls", options.relatedId);
+  row.setAttribute("aria-expanded", options.isOpen ? "true" : "false");
+  applyDocumentIcon(fragment.querySelector(".document-icon"), item);
   fragment.querySelector(".document-title").textContent = item.display_name;
   const meta = fragment.querySelector(".document-meta");
   meta.textContent = "";
   meta.hidden = true;
   const link = fragment.querySelector(".document-download");
+  const expandButton = fragment.querySelector(".document-expand");
   const updateButton = fragment.querySelector(".document-update");
   const deleteButton = fragment.querySelector(".document-delete");
+  expandButton.setAttribute(
+    "aria-label",
+    options.isOpen
+      ? `Hide forms for ${item.display_name}`
+      : `Show forms for ${item.display_name}`,
+  );
+  expandButton.setAttribute("aria-expanded", options.isOpen ? "true" : "false");
+  expandButton.addEventListener("click", () => toggleDocumentForms(item));
+  row.addEventListener("click", (event) => {
+    if (event.target.closest("a, button, input, label")) return;
+    toggleDocumentForms(item);
+  });
+  row.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    if (event.target.closest("a, button, input, label")) return;
+    event.preventDefault();
+    toggleDocumentForms(item);
+  });
   if (item.download_url) {
     link.href = item.download_url;
     link.addEventListener("click", (event) => {
@@ -664,6 +857,78 @@ function createLibraryRow(item) {
     deleteButton.hidden = true;
   }
   return row;
+}
+
+function createRelatedFormRow(item) {
+  const row = document.createElement("article");
+  row.className = "related-form-row";
+  row.dataset.kind = "form";
+
+  const info = document.createElement("div");
+  info.className = "related-form-info";
+  const icon = document.createElement("span");
+  icon.className = "material-symbols-outlined related-form-icon";
+  icon.setAttribute("aria-hidden", "true");
+  applyDocumentIcon(icon, item);
+  const title = document.createElement("span");
+  title.className = "related-form-title";
+  title.textContent = item.display_name || item.name || "Form";
+  info.append(icon, title);
+
+  const actions = document.createElement("div");
+  actions.className = "related-form-actions";
+
+  const downloadButton = document.createElement("button");
+  downloadButton.className = "related-form-button";
+  downloadButton.type = "button";
+  downloadButton.title = "Download form";
+  downloadButton.setAttribute("aria-label", `Download ${item.display_name || item.name || "form"}`);
+  downloadButton.innerHTML = '<span class="material-symbols-outlined">download</span>';
+  downloadButton.addEventListener("click", () => {
+    openTemplateDownloadModal(item.download_url, item.name || item.display_name, {
+      formats: downloadFormatsForDocument(item),
+    });
+  });
+  actions.appendChild(downloadButton);
+
+  const deleteButton = document.createElement("button");
+  deleteButton.className = "related-form-button admin-only is-danger";
+  deleteButton.type = "button";
+  deleteButton.title = "Delete form";
+  deleteButton.setAttribute("aria-label", `Delete ${item.display_name || item.name || "form"}`);
+  deleteButton.innerHTML = '<span class="material-symbols-outlined">delete</span>';
+  deleteButton.addEventListener("click", () => deleteDocument(item));
+  actions.appendChild(deleteButton);
+
+  row.append(info, actions);
+  return row;
+}
+
+function createInsertFormRow(sop, hasForms) {
+  const row = document.createElement("button");
+  row.className = "related-form-insert admin-only";
+  row.type = "button";
+  row.setAttribute(
+    "aria-label",
+    hasForms ? "Insert another form" : "Insert form for this SOP",
+  );
+  const icon = document.createElement("span");
+  icon.className = "material-symbols-outlined";
+  icon.setAttribute("aria-hidden", "true");
+  icon.textContent = "upload_file";
+  const label = document.createElement("span");
+  label.textContent = hasForms ? "Insert another form" : "Insert form";
+  row.append(icon, label);
+  row.addEventListener("click", () => startFormUploadForSop(sop));
+  return row;
+}
+
+function startFormUploadForSop(item) {
+  if (!isAdminSession() || state.isMutatingDocument || state.isReindexing) return;
+  if (!item?.relative_path || !elements.formFileInput) return;
+  state.pendingFormSopPath = item.relative_path;
+  elements.formFileInput.value = "";
+  elements.formFileInput.click();
 }
 
 let templateDownloadModalBound = false;
@@ -724,7 +989,7 @@ function withDownloadFormat(url, format) {
 }
 
 function withFileExtension(filename, extension) {
-  const safeName = String(filename || "form").replace(/\.(pdf|docx|txt)$/i, "");
+  const safeName = String(filename || "form").replace(/\.(pdf|docx|txt|xlsx|xls)$/i, "");
   return `${safeName}.${extension}`;
 }
 
@@ -751,14 +1016,34 @@ function templateDownloadFormats(url, filename, availableFormats) {
       filename: withFileExtension(filename, "txt"),
     };
   }
+  if (availableFormats.includes("xlsx")) {
+    formats.pdf = {
+      label: "Excel",
+      url,
+      filename: withFileExtension(filename, "xlsx"),
+    };
+  } else if (availableFormats.includes("xls")) {
+    formats.pdf = {
+      label: "Excel",
+      url,
+      filename: withFileExtension(filename, "xls"),
+    };
+  }
   return formats;
 }
 
 function downloadFormatsForDocument(item) {
   const type = String(item.doc_type || "").toLowerCase();
   const filename = item.name || item.display_name || "document";
+  if (Array.isArray(item.formats) && item.formats.length) {
+    return templateDownloadFormats(item.download_url, filename, item.formats);
+  }
   if (item.document_kind === "form") {
-    return templateDownloadFormats(item.download_url, filename, ["pdf", "docx"]);
+    if (type === "pdf") return templateDownloadFormats(item.download_url, filename, ["pdf", "docx"]);
+    if (type === "docx") return templateDownloadFormats(item.download_url, filename, ["docx"]);
+    if (type === "xlsx" || type === "xls") {
+      return templateDownloadFormats(item.download_url, filename, [type]);
+    }
   }
   if (type === "pdf") return templateDownloadFormats(item.download_url, filename, ["pdf"]);
   if (type === "doc" || type === "docx") {

@@ -30,7 +30,7 @@ class ChunkerTests(unittest.TestCase):
         self.assertFalse(_looks_like_heading("1 Menginput data karyawan baru HR Personnel Staff"))
         self.assertFalse(_looks_like_heading("PKWT/PKWTT"))
 
-    def test_repeated_section_segments_are_merged_with_page_end(self) -> None:
+    def test_repeated_section_segments_across_pages_keep_each_page(self) -> None:
         documents = [
             Document(
                 page_content="5. TUGAS DAN TANGGUNG JAWAB\nPeran Tanggung Jawab",
@@ -47,11 +47,14 @@ class ChunkerTests(unittest.TestCase):
 
         prepared = prepare_documents_for_chunking(documents)
 
-        self.assertEqual(len(prepared), 1)
+        self.assertEqual(len(prepared), 2)
         self.assertEqual(prepared[0].metadata["section"], "5. TUGAS DAN TANGGUNG JAWAB")
         self.assertEqual(prepared[0].metadata["page"], 4)
-        self.assertEqual(prepared[0].metadata["page_end"], 5)
-        self.assertIn("Karyawan terkait mengisi form", prepared[0].page_content)
+        self.assertEqual(prepared[1].metadata["section"], "5. TUGAS DAN TANGGUNG JAWAB")
+        self.assertEqual(prepared[1].metadata["page"], 5)
+        self.assertNotIn("page_end", prepared[0].metadata)
+        self.assertIn("Karyawan terkait mengisi form", prepared[1].page_content)
+        self.assertEqual(prepared[1].metadata["table_context"], "Peran Tanggung Jawab")
 
     def test_table_chunks_keep_header_context(self) -> None:
         repeated_rows = "\n".join(
@@ -80,6 +83,15 @@ class ChunkerTests(unittest.TestCase):
         self.assertGreater(len(money_chunks), 1)
         self.assertTrue(
             all("Destinasi Jabatan Uang Makan" in chunk.page_content for chunk in money_chunks)
+        )
+        self.assertTrue(all(chunk.metadata["page"] == 6 for chunk in money_chunks))
+        self.assertFalse(
+            any(
+                chunk.metadata.get("page") == 5
+                and "Destinasi Jabatan Uang Makan" in chunk.page_content
+                and "Rp " not in chunk.page_content
+                for chunk in chunks
+            )
         )
 
     def test_orphan_policy_line_is_not_left_in_activity_section(self) -> None:
