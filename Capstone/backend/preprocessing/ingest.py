@@ -6,54 +6,35 @@ from time import perf_counter
 
 from langchain_core.documents import Document
 
-from backend.api.flowchart_service import prune_stale_flowchart_cache
-from backend.settings import get_env, load_capstone_env
 from backend.preprocessing.chunker import chunk_documents
-from backend.preprocessing.flowchart_extractor import (
-    get_flowchart_timing,
-    reset_flowchart_timing,
-)
 from backend.preprocessing.loader import load_documents
 from backend.preprocessing.vectorstore import clear_vectorstore, get_chroma_dir, rebuild_vectorstore
+from backend.settings import get_env, load_capstone_env
 
 load_capstone_env()
-
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 CITATION_SCHEMA_MARKER = ".citation-metadata-v1"
 
 
 def get_data_dir() -> Path:
-    # Tentukan folder dokumen sumber untuk proses ingest.
-    raw_dir = get_env("DATA_DIR", "backend/data")
-    path = Path(raw_dir)
-    if not path.is_absolute():
-        path = ROOT_DIR / path
-    return path
+    path = Path(get_env("DATA_DIR", "backend/data"))
+    return path if path.is_absolute() else ROOT_DIR / path
 
 
 def get_chunk_debug_path() -> Path:
-    # Dump final chunks yang sama dengan input embedding.
-    # Lokal: backend/data -> backend/debug/chunks.md.
-    # Docker: /app/storage/data -> /app/storage/debug/chunks.md.
     return get_data_dir().parent / "debug" / "chunks.md"
 
 
 def _format_chunk_debug(chunks: list[Document]) -> str:
-    lines = [
-        "# Ingest Chunk Debug",
-        "",
-        f"Chunks created: {len(chunks)}",
-        "",
-    ]
+    lines = ["# Ingest Chunk Debug", "", f"Chunks created: {len(chunks)}", ""]
     for index, chunk in enumerate(chunks, start=1):
-        metadata = dict(chunk.metadata)
         lines.extend(
             [
                 f"## Chunk {index}",
                 "",
                 "```json",
-                json.dumps(metadata, ensure_ascii=False, indent=2, sort_keys=True),
+                json.dumps(dict(chunk.metadata), ensure_ascii=False, indent=2, sort_keys=True),
                 "```",
                 "",
                 "```text",
@@ -77,12 +58,9 @@ def _is_empty_source_error(error: ValueError) -> bool:
 
 
 def main() -> str:
-    # Muat dokumen, pecah jadi chunk, lalu bangun ulang vector DB.
     total_started_at = perf_counter()
-
-    print("[1/3] Loading documents and extracting flowcharts...")
+    print("[1/3] Loading documents...")
     stage_started_at = perf_counter()
-    reset_flowchart_timing()
     data_dir = get_data_dir()
     try:
         documents = load_documents(data_dir)
@@ -93,78 +71,40 @@ def main() -> str:
         if not _is_empty_source_error(error):
             raise
         documents = []
-    removed_flowcharts = prune_stale_flowchart_cache(
-        {path.name for path in data_dir.rglob("*.pdf") if path.is_file()}
-    )
     load_seconds = perf_counter() - stage_started_at
-    flowchart_seconds, flowchart_count = get_flowchart_timing()
-    flowchart_enabled = get_env("FLOWCHART_EXTRACTION_ENABLED", "true").lower() in {
-        "1",
-        "true",
-        "yes",
-        "on",
-    }
-    print(f"[1/3] Loaded {len(documents)} source documents in {load_seconds:.2f}s.")
-    print(
-        "[flowchart] "
-        f"enabled={str(flowchart_enabled).lower()}, "
-        f"extracted={flowchart_count}, "
-        f"pruned={removed_flowcharts}, "
-        f"time={flowchart_seconds:.2f}s."
-    )
+    print(f"[1/3] Loaded {len(documents)} page documents in {load_seconds:.2f}s.")
 
     print("[2/3] Chunking documents...")
     stage_started_at = perf_counter()
     chunks = chunk_documents(documents)
     chunk_seconds = perf_counter() - stage_started_at
     print(f"[2/3] Created {len(chunks)} chunks in {chunk_seconds:.2f}s.")
-    chunk_debug_path = write_chunk_debug(chunks)
-    if chunk_debug_path is not None:
-        print(f"[debug] Chunk debug written to {chunk_debug_path}.")
+    print(f"[debug] Chunk debug written to {write_chunk_debug(chunks)}.")
 
+    stage_started_at = perf_counter()
     if not chunks:
         print("[3/3] No source chunks found. Clearing vector database...")
-        stage_started_at = perf_counter()
         removed_vectors = clear_vectorstore()
-        from backend.semantic_cache import reset_semantic_cache
+        result = "cleared"
+        action = f"cleared ({removed_vectors} files/directories removed)"
+    else:
+        print("[3/3] Rebuilding vector database...")
+        rebuild_vectorstore(chunks)
+        (get_chroma_dir() / CITATION_SCHEMA_MARKER).write_text("1\n", encoding="ascii")
+        result = "rebuilt"
+        action = "rebuilt"
 
-        reset_semantic_cache()
-        vector_seconds = perf_counter() - stage_started_at
-        total_seconds = perf_counter() - total_started_at
-        print(
-            "[3/3] Vector database cleared "
-            f"in {vector_seconds:.2f}s ({removed_vectors} files/directories removed)."
-        )
-        print(
-            "Preprocessing completed "
-            f"in {total_seconds:.2f}s "
-            f"(load={load_seconds:.2f}s, flowchart={flowchart_seconds:.2f}s, "
-            f"chunk={chunk_seconds:.2f}s, "
-            f"vector={vector_seconds:.2f}s)."
-        )
-        return "cleared"
-
-    print("[3/3] Rebuilding vector database...")
-    stage_started_at = perf_counter()
-    rebuild_vectorstore(chunks)
-    vector_seconds = perf_counter() - stage_started_at
-    (get_chroma_dir() / CITATION_SCHEMA_MARKER).write_text("1\n", encoding="ascii")
-
-    # Index baru tidak punya cache; buang entri cache lama agar tidak menumpuk.
     from backend.semantic_cache import reset_semantic_cache
 
     reset_semantic_cache()
+    vector_seconds = perf_counter() - stage_started_at
     total_seconds = perf_counter() - total_started_at
-
-    print(f"[3/3] Vector database rebuilt in {vector_seconds:.2f}s.")
+    print(f"[3/3] Vector database {action} in {vector_seconds:.2f}s.")
     print(
-        "Preprocessing completed "
-        f"in {total_seconds:.2f}s "
-        f"(load={load_seconds:.2f}s, flowchart={flowchart_seconds:.2f}s, "
-        f"chunk={chunk_seconds:.2f}s, "
-        f"vector={vector_seconds:.2f}s)."
+        f"Preprocessing completed in {total_seconds:.2f}s "
+        f"(load={load_seconds:.2f}s, chunk={chunk_seconds:.2f}s, vector={vector_seconds:.2f}s)."
     )
-    return "rebuilt"
+    return result
 
 
 if __name__ == "__main__":

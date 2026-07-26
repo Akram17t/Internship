@@ -5,6 +5,8 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+.hypothesis/
+/tests/
 .streamlit/secrets.toml
 backend/data/*
 !backend/data/.gitkeep

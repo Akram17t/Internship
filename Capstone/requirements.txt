@@ -12,3 +12,6 @@ docx2txt>=0.9
 pymupdf>=1.26.0
 pdf2docx>=0.5.8
 python-docx>=1.1.2
+
+# Test-only dependencies
+hypothesis>=6.100.0

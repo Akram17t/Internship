@@ -1,461 +1,373 @@
 from __future__ import annotations
 
+import hashlib
+import json
+import logging
+import os
 import re
+import tempfile
+from pathlib import Path
+from typing import Any
 
 from langchain_core.documents import Document
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+from backend.observability import openai_client_class, openai_observation_kwargs
+from backend.openai_compat import (
+    openai_client_kwargs,
+    openai_request_kwargs,
+    resolve_openai_compatible_api_key,
+)
+from backend.settings import get_env, get_int_env
+
+LOGGER = logging.getLogger(__name__)
+ROOT_DIR = Path(__file__).resolve().parents[2]
+FALLBACK_CHUNK_SIZE = 1200
+CHUNK_PROMPT_SCHEMA_VERSION = "final-chunks-v1"
+_PAGE_MARKER = "--- PAGE {page} ---"
+_CACHE_FILENAME = re.compile(r"^[0-9a-f]{64}\.json$")
+
+_SYSTEM_PROMPT = """You split source documents into final retrieval chunks.
+Return strict JSON only: {"chunks": [{"content": "...", "metadata": {...}}]}.
+Each chunk must contain useful source text, not an outline or boundary list.
+Metadata must include page, page_end, section, document_kind, and content_type.
+Use the exact zero-based page numbers shown in PAGE markers. Preserve factual text,
+table context, and section meaning. Do not add facts or markdown fences."""
 
 
-# cek header/footer SOP yang berulang dan ganggu retrieval
-NOISE_LINE_PATTERNS = [
-    re.compile(r"(?i)^\s*controlled copy\s*$"),
-    re.compile(r"(?i)^\s*standard operating procedure\s*$"),
-    re.compile(r"(?i)^\s*nomor dokumen\b.*\bhalaman\s*$"),
-    re.compile(r"(?i)^\s*versi\s*:\s*.*$"),
-    re.compile(r"(?i)^\s*nomor dokumen\s*:\s*.*$"),
-    re.compile(r"(?i)^\s*pemilik prosedur\s*:\s*.*$"),
-    re.compile(r"(?i)^\s*nama dokumen\s*:\s*.*$"),
-    re.compile(r"(?i)^\s*departemen terkait\s*:\s*.*$"),
-    re.compile(r"(?i)^\s*tanggal pengesahan\s*:\s*.*$"),
-    re.compile(r"(?i)^\s*mulai berlaku\s*:\s*.*$"),
-    re.compile(r"(?i)^\s*tanggal perubahan\s*:\s*.*$"),
-    re.compile(r"(?i)^\s*referensi\s*:\s*.*$"),
-    re.compile(r"(?i)^\s*\d+\s+dari\s+\d+\s*$"),
-    re.compile(r"(?i)^.*\b\d+\s+dari\s+\d+\b.*$"),
-]
-
-SKIP_PAGE_MARKERS = (
-    "lembar pengesahan",
-    "lembar histori perubahan",
-)
-
-# cek heading model "Pasal 5"
-ARTICLE_HEADING_PATTERN = re.compile(
-    r"(?i)^pasal\s+\d+[a-z]?(?:\s*[-\u2013\u2014]\s*.+)?$"
-)
-# cek heading model "BAB II"
-CHAPTER_HEADING_PATTERN = re.compile(
-    r"(?i)^bab\s+[ivxlcdm0-9]+(?:\s*[-\u2013\u2014]\s*.+)?$"
-)
-# cek heading bernomor seperti "4.1 Prinsip Umum"
-DECIMAL_HEADING_PATTERN = re.compile(
-    r"^\d+\.\d+(?:\.\d+)?\.?\s+[A-Z][A-Za-z0-9/&(),'\- ]+$"
-)
-TOP_LEVEL_HEADING_PATTERN = re.compile(r"^\d+\.\s+(?P<title>.+)$")
-OFFICIAL_UPPERCASE_TITLES = {
-    "TUJUAN",
-    "RUANG LINGKUP",
-    "DEFINISI",
-    "KEBIJAKAN",
-    "KETENTUAN",
-    "AKTIVITAS",
-    "TUGAS DAN TANGGUNG JAWAB",
-    "UKURAN KEBERHASILAN",
-    "DOKUMEN TERKAIT",
-    "ALUR PROSES",
-}
-TEMPLATE_TITLE_PATTERN = re.compile(r"(?i)^\[nama perusahaan\](?:\s+.+)?$")
-TABLE_HEADER_PATTERNS = (
-    re.compile(r"(?i)\bperan\s+tanggung\s+jawab\b"),
-    re.compile(r"(?i)\bnomor\s+form\s+nama\s+form\b"),
-    re.compile(r"(?i)\bno\s+proses\s+pic\s+sasaran\b"),
-    re.compile(r"(?i)\bdestinasi\s+jabatan\b"),
-    re.compile(r"(?i)\bjabatan\s+requestor\b"),
-    re.compile(r"(?i)\baspek\s+peristiwa\b"),
-)
-TABLE_ROW_PATTERN = re.compile(
-    r"(?i)^(?:\d+\s+\S+|(?:dalam|luar)\s+negeri\b|(?:staff|manager|director|"
-    r"supervisor|karyawan|administrator|pemohon|pemilik|incident|general|hr)\b|"
-    r"\[nomor\s+form\]|[A-Z0-9]+/FM/|FM/[A-Z]+/)"
-)
-CURRENCY_PATTERN = re.compile(r"(?i)\b(?:rp|usd)\s*\d")
-ORPHAN_POLICY_LINE_PATTERN = re.compile(
-    r"(?i)^perjalanan\s+dinas\s+lebih\s+dari\s+\d+.*\bpenugasan\b"
-)
-# cek heading huruf besar pendek
-UPPERCASE_HEADING_PATTERN = re.compile(r"^[A-Z][A-Z0-9/&(),'\- ]+$")
+def _group_by_source(documents: list[Document]) -> dict[str, list[Document]]:
+    grouped: dict[str, list[Document]] = {}
+    for document in documents:
+        source = str(document.metadata.get("source") or "unknown source")
+        grouped.setdefault(source, []).append(document)
+    for pages in grouped.values():
+        if all(isinstance(page.metadata.get("page"), int) for page in pages):
+            pages.sort(key=lambda page: int(page.metadata["page"]))
+    return grouped
 
 
-def build_text_splitter(chunk_size: int = 1200, chunk_overlap: int = 150) -> RecursiveCharacterTextSplitter:
-    # Buat text splitter utama sebelum embedding.
-    return RecursiveCharacterTextSplitter(
-        chunk_size=chunk_size,
-        chunk_overlap=chunk_overlap,
-        separators=["\n\n", "\n", ". ", " ", ""],
+def _page_number(document: Document, index: int) -> int:
+    page = document.metadata.get("page")
+    return page if isinstance(page, int) else index
+
+
+def _source_text(pages: list[Document]) -> str:
+    return "\n\n".join(
+        f"{_PAGE_MARKER.format(page=_page_number(page, index))}\n{page.page_content.strip()}"
+        for index, page in enumerate(pages)
+        if page.page_content.strip()
     )
 
 
-def _normalize_whitespace(value: str) -> str:
-    # Rapikan whitespace berulang menjadi satu spasi.
-    return " ".join(value.split())
+def _message_content(completion: Any) -> str:
+    choices = getattr(completion, "choices", None)
+    if not choices:
+        return ""
+    content = getattr(getattr(choices[0], "message", None), "content", "")
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "".join(
+            str(item.get("text") or "") if isinstance(item, dict) else str(item)
+            for item in content
+        )
+    return str(content or "")
 
 
-def _normalize_heading_title(value: str) -> str:
-    normalized = _normalize_whitespace(value).strip(".:").upper()
-    return normalized
+def _model_identity() -> str:
+    return get_env("MODEL", "kr/claude-sonnet-4.5")
 
 
-def _is_official_uppercase_title(value: str) -> bool:
-    original = _normalize_whitespace(value).strip(".:")
-    normalized = _normalize_heading_title(value)
-    if normalized in OFFICIAL_UPPERCASE_TITLES and original == original.upper():
-        return True
-    return bool(
-        original == original.upper()
-        and UPPERCASE_HEADING_PATTERN.match(original)
-        and len(original.split()) >= 2
+def _request_ai_chunks(document_text: str) -> str:
+    base_url = get_env("CHAT_BASE_URL", "http://localhost:20128/v1").rstrip("/")
+    api_key = resolve_openai_compatible_api_key(
+        base_url=base_url,
+        primary_env="CHAT_API_KEY",
+        fallback_envs=("OPENAI_API_KEY", "ROUTER9_API_KEY", "NINE_ROUTER_API_KEY"),
     )
-
-
-def _is_template_title_line(line: str) -> bool:
-    return bool(TEMPLATE_TITLE_PATTERN.match(_normalize_whitespace(line)))
-
-
-def _is_noise_line(line: str) -> bool:
-    # Deteksi baris boilerplate berulang yang tidak perlu di-embed.
-    normalized = line.strip()
-    if not normalized:
-        return True
-    if _is_template_title_line(normalized):
-        return True
-    return any(pattern.match(normalized) for pattern in NOISE_LINE_PATTERNS)
-
-
-def _clean_page_text(document: Document) -> str:
-    # Buang header, footer, dan halaman kosong yang mengganggu chunking.
-    raw_lines = [line.strip() for line in document.page_content.splitlines()]
-    if not raw_lines:
-        return ""
-    title = _normalize_whitespace(str(document.metadata.get("title", "")).strip())
-    title_without_template = title.replace("(Template)", "").strip()
-    title_aliases = {title.lower(), title_without_template.lower()}
-    if title.lower().startswith("sop - "):
-        title_aliases.add(re.sub(r"(?i)^sop\s*-\s*", "", title).strip().lower())
-        title_aliases.add(re.sub(r"(?i)^sop\s*-\s*", "", title_without_template).strip().lower())
-
-    lowered_page = "\n".join(raw_lines).lower()
-    if any(marker in lowered_page for marker in SKIP_PAGE_MARKERS):
-        return ""
-    if (
-        "level dokumen" in lowered_page
-        and "pemilik dokumen" in lowered_page
-        and "nomor dokumen" in lowered_page
-    ):
-        return ""
-
-    cleaned_lines = [
-        line
-        for line in raw_lines
-        if not _is_noise_line(line)
-        and _normalize_whitespace(line).lower() not in title_aliases
-    ]
-    if not cleaned_lines:
-        return ""
-
-    if (
-        len(cleaned_lines) <= 2
-        and all(len(_normalize_whitespace(line).split()) <= 4 for line in cleaned_lines)
-        and not any(_looks_like_heading(line) for line in cleaned_lines)
-    ):
-        return ""
-
-    if (
-        len(cleaned_lines) <= 3
-        and "level dokumen" in lowered_page
-        and "pemilik dokumen" in lowered_page
-    ):
-        return ""
-
-    return "\n".join(cleaned_lines).strip()
-
-
-def _looks_like_heading(line: str) -> bool:
-    # Tebak apakah sebuah baris adalah heading yang layak jadi pemisah.
-    normalized = _normalize_whitespace(line)
-    if not normalized:
-        return False
-
-    word_count = len(normalized.split())
-    if word_count > 12 or len(normalized) > 110:
-        return False
-
-    if ARTICLE_HEADING_PATTERN.match(normalized):
-        return True
-    if CHAPTER_HEADING_PATTERN.match(normalized):
-        return True
-    if DECIMAL_HEADING_PATTERN.match(normalized):
-        return True
-
-    top_level_match = TOP_LEVEL_HEADING_PATTERN.match(normalized)
-    if top_level_match and _is_official_uppercase_title(top_level_match.group("title")):
-        return True
-
-    if normalized.lower() not in SKIP_PAGE_MARKERS and _is_official_uppercase_title(normalized):
-        return True
-
-    return False
-
-
-def _append_segment(
-    sectioned_documents: list[Document],
-    document: Document,
-    content_lines: list[str],
-    section: str | None,
-) -> None:
-    # Tambahkan satu segmen bersih sambil menjaga metadata.
-    content = "\n".join(content_lines).strip()
-    if not content:
-        return
-    if section and _normalize_whitespace(content) == _normalize_whitespace(section):
-        return
-    if not section and document.metadata.get("document_kind") == "sop":
-        return
-
-    metadata = dict(document.metadata)
-    if section:
-        metadata["section"] = section
-    sectioned_documents.append(Document(page_content=content, metadata=metadata))
-
-
-def _is_policy_section(section: str | None) -> bool:
-    normalized = (section or "").lower()
-    return "ketentuan" in normalized or "kebijakan" in normalized
-
-
-def _is_activity_section(section: str | None) -> bool:
-    return "aktivitas" in (section or "").lower()
-
-
-def _split_orphan_policy_lines(documents: list[Document]) -> list[Document]:
-    # Pindahkan baris kebijakan yang terbaca out-of-order agar tidak masuk section aktivitas.
-    processed: list[Document] = []
-    last_policy_section_by_source: dict[str, str] = {}
-
-    for document in documents:
-        source = str(document.metadata.get("source", "unknown source"))
-        section = document.metadata.get("section")
-        if _is_policy_section(str(section) if section else None):
-            last_policy_section_by_source[source] = str(section)
-
-        if not _is_activity_section(str(section) if section else None):
-            processed.append(document)
-            continue
-
-        kept_lines: list[str] = []
-        orphan_lines: list[str] = []
-        for line in document.page_content.splitlines():
-            normalized = _normalize_whitespace(line)
-            if ORPHAN_POLICY_LINE_PATTERN.match(normalized):
-                orphan_lines.append(normalized)
-            else:
-                kept_lines.append(line)
-
-        if kept_lines:
-            processed.append(
-                Document(page_content="\n".join(kept_lines).strip(), metadata=dict(document.metadata))
-            )
-        if orphan_lines:
-            metadata = dict(document.metadata)
-            target_section = last_policy_section_by_source.get(source)
-            if target_section:
-                metadata["section"] = target_section
-            metadata["anomaly"] = "orphan_policy_line_relocated"
-            processed.append(Document(page_content="\n".join(orphan_lines), metadata=metadata))
-
-    return processed
-
-
-def _merge_section_segments(sectioned_documents: list[Document]) -> list[Document]:
-    # Gabungkan potongan section hanya dalam halaman yang sama.
-    # Lanjutan section di halaman berbeda dibiarkan terpisah agar citation page akurat.
-    merged: list[Document] = []
-    lookup: dict[tuple[str, str, str, object], int] = {}
-
-    for document in sectioned_documents:
-        section = str(document.metadata.get("section") or "")
-        source = str(document.metadata.get("source", "unknown source"))
-        content_type = str(document.metadata.get("content_type") or "text")
-        page = document.metadata.get("page")
-        if not section:
-            merged.append(document)
-            continue
-
-        key = (source, section, content_type, page)
-        existing_index = lookup.get(key)
-        if existing_index is None:
-            metadata = dict(document.metadata)
-            lookup[key] = len(merged)
-            merged.append(Document(page_content=document.page_content, metadata=metadata))
-            continue
-
-        existing = merged[existing_index]
-        combined_content = f"{existing.page_content.rstrip()}\n{document.page_content.strip()}"
-        metadata = dict(existing.metadata)
-        next_page_end = document.metadata.get("page_end")
-        if isinstance(next_page_end, int):
-            existing_page_end = metadata.get("page_end")
-            metadata["page_end"] = max(
-                int(existing_page_end) if isinstance(existing_page_end, int) else next_page_end,
-                next_page_end,
-            )
-        if document.metadata.get("anomaly"):
-            metadata["anomaly"] = document.metadata["anomaly"]
-        merged[existing_index] = Document(page_content=combined_content.strip(), metadata=metadata)
-
-    return merged
-
-
-def _is_table_row(line: str) -> bool:
-    normalized = _normalize_whitespace(line)
-    return bool(CURRENCY_PATTERN.search(normalized) or TABLE_ROW_PATTERN.match(normalized))
-
-
-def _detect_table_context(content: str) -> str:
-    lines = [_normalize_whitespace(line) for line in content.splitlines() if line.strip()]
-    for index, line in enumerate(lines):
-        if not any(pattern.search(line) for pattern in TABLE_HEADER_PATTERNS):
-            continue
-
-        context: list[str] = []
-        for candidate in lines[index : index + 8]:
-            if context and _is_table_row(candidate):
-                break
-            context.append(candidate)
-        return "\n".join(context).strip()
-    return ""
-
-
-def _contains_table_rows(content: str) -> bool:
-    return any(_is_table_row(line) for line in content.splitlines())
-
-
-def _attach_table_context(documents: list[Document]) -> list[Document]:
-    with_context: list[Document] = []
-    table_context_by_section: dict[tuple[str, str], str] = {}
-    for document in documents:
-        metadata = dict(document.metadata)
-        source = str(metadata.get("source", "unknown source"))
-        section = str(metadata.get("section") or "")
-        key = (source, section)
-        table_context = _detect_table_context(document.page_content)
-        if table_context:
-            metadata["table_context"] = table_context
-            if section:
-                table_context_by_section[key] = table_context
-        elif section and _contains_table_rows(document.page_content):
-            inherited_context = table_context_by_section.get(key)
-            if inherited_context:
-                metadata["table_context"] = inherited_context
-        with_context.append(Document(page_content=document.page_content, metadata=metadata))
-    return with_context
-
-
-def _prefix_table_context(chunks: list[Document]) -> list[Document]:
-    contextualized: list[Document] = []
-    for chunk in chunks:
-        table_context = str(chunk.metadata.get("table_context") or "").strip()
-        section = str(chunk.metadata.get("section") or "").strip()
-        content = chunk.page_content.strip()
-        if table_context and table_context not in content:
-            prefix_parts = [part for part in (section, table_context) if part]
-            content = "\n".join([*prefix_parts, content])
-
-        metadata = dict(chunk.metadata)
-        metadata.pop("table_context", None)
-        contextualized.append(Document(page_content=content, metadata=metadata))
-    return contextualized
-
-
-def _is_table_context_only_document(document: Document) -> bool:
-    table_context = str(document.metadata.get("table_context") or "").strip()
-    if not table_context or _contains_table_rows(document.page_content):
-        return False
-
-    section = str(document.metadata.get("section") or "").strip()
-    content = _normalize_whitespace(document.page_content)
-    context_only = _normalize_whitespace(table_context)
-    section_and_context = _normalize_whitespace(
-        "\n".join(part for part in (section, table_context) if part)
+    client = openai_client_class()(
+        **openai_client_kwargs(
+            api_key=api_key,
+            base_url=base_url,
+            timeout=get_int_env("CHAT_TIMEOUT_SECONDS", 240),
+        )
     )
-    return content in {context_only, section_and_context}
+    payload: dict[str, Any] = {
+        "model": _model_identity(),
+        "messages": [
+            {"role": "system", "content": _SYSTEM_PROMPT},
+            {"role": "user", "content": document_text},
+        ],
+        "response_format": {"type": "json_object"},
+        "temperature": 0,
+        "max_tokens": get_int_env("CHUNK_AI_MAX_COMPLETION_TOKENS", 8192),
+        "stream": False,
+    }
+    payload.update(openai_request_kwargs(api_key=api_key, base_url=base_url))
+    payload.update(
+        openai_observation_kwargs(
+            "chunk-document",
+            metadata={"operation": "chunk-document", "document_chars": len(document_text)},
+        )
+    )
+    return _message_content(client.chat.completions.create(**payload))
 
 
-def split_documents_by_section(documents: list[Document]) -> list[Document]:
-    """Pecah dokumen berdasarkan heading terbaik yang terdeteksi sambil menjaga metadata halaman."""
-    sectioned_documents: list[Document] = []
-    active_sections: dict[str, str] = {}
-
-    for document in documents:
-        if document.metadata.get("content_type") == "flowchart":
-            sectioned_documents.append(document)
-            continue
-
-        source = str(document.metadata.get("source", "unknown source"))
-        current_section = active_sections.get(source)
-        cleaned_text = _clean_page_text(document)
-        if not cleaned_text:
-            continue
-
-        lines = [_normalize_whitespace(line) for line in cleaned_text.splitlines() if line.strip()]
-        if not lines:
-            continue
-
-        buffer: list[str] = []
-        for line in lines:
-            if _looks_like_heading(line):
-                _append_segment(sectioned_documents, document, buffer, current_section)
-                current_section = line
-                buffer = [line]
+def _json_values(response_text: str) -> list[Any]:
+    text = str(response_text or "").strip()
+    candidates = [text]
+    candidates.extend(
+        match.group("body").strip()
+        for match in re.finditer(
+            r"```(?:json)?\s*(?P<body>.*?)\s*```", text, re.IGNORECASE | re.DOTALL
+        )
+    )
+    decoder = json.JSONDecoder()
+    values: list[Any] = []
+    for candidate in candidates:
+        try:
+            values.append(json.loads(candidate))
+        except (json.JSONDecodeError, TypeError):
+            pass
+        for match in re.finditer(r"[\[{]", candidate):
+            try:
+                value, _ = decoder.raw_decode(candidate[match.start() :])
+            except json.JSONDecodeError:
                 continue
-            buffer.append(line)
-
-        _append_segment(sectioned_documents, document, buffer, current_section)
-        if current_section:
-            active_sections[source] = current_section
-
-    return _split_orphan_policy_lines(sectioned_documents)
+            values.append(value)
+    return values
 
 
-def prepare_documents_for_chunking(documents: list[Document]) -> list[Document]:
-    # Tahap final sebelum text splitter: segmen per halaman dirapikan dan konteks tabel disimpan.
-    return _attach_table_context(_merge_section_segments(split_documents_by_section(documents)))
+def _parse_ai_chunks(response_text: str) -> list[dict[str, Any]]:
+    for value in _json_values(response_text):
+        entries = value.get("chunks") if isinstance(value, dict) else value
+        if not isinstance(entries, list) or not entries:
+            continue
+        parsed: list[dict[str, Any]] = []
+        for entry in entries:
+            if not isinstance(entry, dict):
+                parsed = []
+                break
+            content = entry.get("content", entry.get("page_content"))
+            metadata = entry.get("metadata", {})
+            if not isinstance(content, str) or not content.strip() or not isinstance(metadata, dict):
+                parsed = []
+                break
+            top_level_metadata = {
+                key: item
+                for key, item in entry.items()
+                if key not in {"content", "page_content", "metadata"}
+            }
+            parsed.append(
+                {"content": content.strip(), "metadata": {**top_level_metadata, **metadata}}
+            )
+        if parsed:
+            return parsed
+    raise ValueError("AI response did not contain a valid non-empty chunk list")
+
+
+def _source_hash(document_text: str) -> str:
+    return hashlib.sha256(document_text.encode("utf-8")).hexdigest()
+
+
+def _cache_key(source: str, source_hash: str, model: str, prompt_version: str) -> str:
+    identity = json.dumps(
+        {
+            "model": model,
+            "prompt_schema_version": prompt_version,
+            "source": source,
+            "source_hash": source_hash,
+        },
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    return hashlib.sha256(identity.encode("utf-8")).hexdigest()
+
+
+def _cache_dir() -> Path:
+    configured = Path(get_env("CHUNK_CACHE_DIR", "backend/cache/chunks"))
+    return configured if configured.is_absolute() else ROOT_DIR / configured
+
+
+def _cache_path(key: str) -> Path:
+    return _cache_dir() / f"{key}.json"
+
+
+def _read_cache_entry(
+    key: str, source: str, source_hash: str, model: str, prompt_version: str
+) -> list[dict[str, Any]] | None:
+    try:
+        payload = json.loads(_cache_path(key).read_text(encoding="utf-8"))
+        if not isinstance(payload, dict) or any(
+            payload.get(field) != expected
+            for field, expected in {
+                "source": source,
+                "source_hash": source_hash,
+                "model": model,
+                "prompt_schema_version": prompt_version,
+            }.items()
+        ):
+            return None
+        return _parse_ai_chunks(json.dumps({"chunks": payload.get("chunks")}))
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        return None
+
+
+def _write_cache_entry(
+    key: str,
+    source: str,
+    source_hash: str,
+    model: str,
+    prompt_version: str,
+    entries: list[dict[str, Any]],
+) -> None:
+    cache_dir = _cache_dir()
+    temp_path: Path | None = None
+    try:
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "source": source,
+            "source_hash": source_hash,
+            "model": model,
+            "prompt_schema_version": prompt_version,
+            "chunks": entries,
+        }
+        with tempfile.NamedTemporaryFile(
+            "w", encoding="utf-8", dir=cache_dir, delete=False, suffix=".tmp"
+        ) as handle:
+            json.dump(payload, handle, ensure_ascii=False, separators=(",", ":"))
+            handle.flush()
+            os.fsync(handle.fileno())
+            temp_path = Path(handle.name)
+        os.replace(temp_path, _cache_path(key))
+        temp_path = None
+    except OSError as error:
+        LOGGER.warning("Could not write AI chunk cache for %s: %s", source, error)
+    finally:
+        if temp_path is not None:
+            try:
+                temp_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
+def _prune_stale_cache(valid_keys: set[str]) -> int:
+    cache_dir = _cache_dir()
+    if not cache_dir.is_dir():
+        return 0
+    valid_names = {f"{key}.json" for key in valid_keys}
+    removed = 0
+    for path in cache_dir.glob("*.json"):
+        if not _CACHE_FILENAME.fullmatch(path.name) or path.name in valid_names:
+            continue
+        try:
+            path.unlink()
+            removed += 1
+        except OSError as error:
+            LOGGER.warning("Could not prune stale AI chunk cache %s: %s", path, error)
+    return removed
+
+
+def _base_metadata(source: str, pages: list[Document]) -> dict[str, Any]:
+    metadata = dict(pages[0].metadata) if pages else {}
+    metadata["source"] = source
+    metadata.setdefault("document_kind", "document")
+    metadata.setdefault("content_type", "text")
+    return metadata
+
+
+def _documents_from_entries(
+    source: str, pages: list[Document], entries: list[dict[str, Any]]
+) -> list[Document]:
+    base = _base_metadata(source, pages)
+    default_page = _page_number(pages[0], 0) if pages else 0
+    documents: list[Document] = []
+    for entry in entries:
+        metadata = {**base, **entry["metadata"]}
+        metadata["source"] = source
+        page = metadata.get("page")
+        page = page if isinstance(page, int) else default_page
+        page_end = metadata.get("page_end")
+        page_end = page_end if isinstance(page_end, int) else page
+        metadata["page"] = min(page, page_end)
+        metadata["page_end"] = max(page, page_end)
+        metadata["section"] = str(metadata.get("section") or base.get("title") or "Document")
+        metadata["document_kind"] = str(metadata.get("document_kind") or "document")
+        metadata["content_type"] = str(metadata.get("content_type") or "text")
+        documents.append(Document(page_content=entry["content"], metadata=metadata))
+    return documents
+
+
+def _split_approximately(text: str, size: int = FALLBACK_CHUNK_SIZE) -> list[str]:
+    remaining = text.strip()
+    chunks: list[str] = []
+    while remaining:
+        if len(remaining) <= size:
+            chunks.append(remaining)
+            break
+        split_at = remaining.rfind(" ", size // 2, size + 1)
+        if split_at < 1:
+            split_at = size
+        chunks.append(remaining[:split_at].strip())
+        remaining = remaining[split_at:].strip()
+    return [chunk for chunk in chunks if chunk]
+
+
+def _fallback_documents(source: str, pages: list[Document]) -> list[Document]:
+    base = _base_metadata(source, pages)
+    documents: list[Document] = []
+    for index, page_document in enumerate(pages):
+        page = _page_number(page_document, index)
+        for content in _split_approximately(page_document.page_content):
+            metadata = {**base, **page_document.metadata}
+            metadata.update(
+                {
+                    "source": source,
+                    "page": page,
+                    "page_end": page,
+                    "section": str(metadata.get("section") or metadata.get("title") or "Document"),
+                    "document_kind": str(metadata.get("document_kind") or "document"),
+                    "content_type": str(metadata.get("content_type") or "text"),
+                    "fallback": True,
+                }
+            )
+            documents.append(Document(page_content=content, metadata=metadata))
+    return documents
 
 
 def chunk_documents(documents: list[Document]) -> list[Document]:
-    # Pecah dokumen bersih menjadi chunk dan beri chunk ID.
-    splitter = build_text_splitter()
-    prepared_documents = prepare_documents_for_chunking(documents)
-    flowchart_documents = [
-        document
-        for document in prepared_documents
-        if document.metadata.get("content_type") == "flowchart"
-        and document.page_content.strip()
-    ]
-    flowchart_keys = {
-        (
-            document.metadata.get("source"),
-            document.metadata.get("section"),
-        )
-        for document in flowchart_documents
-    }
-    text_documents = [
-        document
-        for document in prepared_documents
-        if document.metadata.get("content_type") != "flowchart"
-        and not _is_table_context_only_document(document)
-        and (
-            document.metadata.get("source"),
-            document.metadata.get("section"),
-        )
-        not in flowchart_keys
-    ]
-    chunks = _prefix_table_context(splitter.split_documents(text_documents))
-    chunks.extend(
-        Document(page_content=document.page_content, metadata=dict(document.metadata))
-        for document in flowchart_documents
-    )
+    model = _model_identity()
+    prompt_version = CHUNK_PROMPT_SCHEMA_VERSION
+    sources: list[tuple[str, list[Document], str, str, str]] = []
+    for source, pages in _group_by_source(documents).items():
+        document_text = _source_text(pages)
+        if not document_text:
+            continue
+        source_hash = _source_hash(document_text)
+        key = _cache_key(source, source_hash, model, prompt_version)
+        sources.append((source, pages, document_text, source_hash, key))
 
-    for index, chunk in enumerate(chunks, start=1):
-        chunk.metadata["chunk_id"] = index
+    _prune_stale_cache({key for _, _, _, _, key in sources})
+    chunks: list[Document] = []
+    for source, pages, document_text, source_hash, key in sources:
+        entries = _read_cache_entry(key, source, source_hash, model, prompt_version)
+        if entries is not None:
+            source_chunks = _documents_from_entries(source, pages, entries)
+        else:
+            try:
+                response_text = _request_ai_chunks(document_text)
+                if not response_text.strip():
+                    raise ValueError("AI returned empty output")
+                entries = _parse_ai_chunks(response_text)
+                source_chunks = _documents_from_entries(source, pages, entries)
+                _write_cache_entry(
+                    key, source, source_hash, model, prompt_version, entries
+                )
+            except Exception as error:
+                LOGGER.warning("AI chunking failed for %s; using local fallback: %s", source, error)
+                source_chunks = _fallback_documents(source, pages)
+        chunks.extend(source_chunks)
 
+    for chunk_id, chunk in enumerate(chunks, start=1):
+        chunk.metadata["chunk_id"] = chunk_id
     return chunks

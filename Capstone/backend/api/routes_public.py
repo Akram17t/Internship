@@ -14,16 +14,11 @@ from backend.api.forms_service import (
     DOCX_MIME,
     get_form_docx_template,
 )
-from backend.api.flowchart_service import (
-    find_flowcharts_for_citations,
-    get_flowchart_image,
-)
 from backend.api.models import (
     CitationResponse,
     FAQItem,
     FeedbackPayload,
     FeedbackResponse,
-    FlowchartScreenshotResponse,
     FormDownloadResponse,
     PublicConfigResponse,
     QueryRequest,
@@ -73,7 +68,6 @@ def _record_chat_activity(
     answer_source: str = "",
     citations: list[CitationResponse] | None = None,
     form_downloads: list[FormDownloadResponse] | None = None,
-    flowcharts: list[FlowchartScreenshotResponse] | None = None,
     error: object = "",
     feedback_token: str = "",
     trace_id: str = "",
@@ -94,7 +88,6 @@ def _record_chat_activity(
         "citation_count": len(citation_items),
         "citation_sources": source_names,
         "form_count": len(form_downloads or []),
-        "flowchart_count": len(flowcharts or []),
         "response_time_seconds": round(response_time_seconds, 3),
     }
     if feedback_token:
@@ -274,18 +267,13 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
                     continue
                 form_downloads.append(form_download)
                 seen_form_urls.add(form_download.download_url)
-        flowcharts = [
-            FlowchartScreenshotResponse(**flowchart)
-            for flowchart in find_flowcharts_for_citations(raw_citations)
-        ]
         response_time_seconds = time.perf_counter() - request_started
         logger.debug(
-            "[chat:%s] Request selesai dalam %.2fs, citation=%s, form=%s, flowchart=%s",
+            "[chat:%s] Request selesai dalam %.2fs, citation=%s, form=%s",
             conversation_id,
             response_time_seconds,
             len(citations),
             len(form_downloads),
-            len(flowcharts),
         )
         activity_log_id = _record_chat_activity(
             status="success",
@@ -295,7 +283,6 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
             answer_source=answer_source,
             citations=citations,
             form_downloads=form_downloads,
-            flowcharts=flowcharts,
             response_time_seconds=response_time_seconds,
             feedback_token=feedback_token,
             trace_id=current_trace_id(),
@@ -315,7 +302,6 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
                 "answer_source": answer_source,
                 "citation_count": len(citations),
                 "selected_form_count": len(form_downloads),
-                "flowchart_count": len(flowcharts),
                 "active_index": active_index,
                 "response_time_seconds": round(response_time_seconds, 3),
             },
@@ -324,7 +310,6 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
             answer=answer,
             citations=citations,
             form_downloads=form_downloads,
-            flowcharts=flowcharts,
             conversation_id=conversation_id,
             answer_source=answer_source,
             feedback_id=activity_log_id,
@@ -362,19 +347,6 @@ def submit_chat_feedback(payload: FeedbackPayload) -> FeedbackResponse:
     return FeedbackResponse(message="Feedback recorded.", feedback=feedback)
 
 
-@app.get("/api/flowcharts/{flowchart_id}")
-def flowchart_screenshot(flowchart_id: str) -> Response:
-    image = get_flowchart_image(flowchart_id)
-    if image is None:
-        raise HTTPException(status_code=404, detail="Flowchart image not found.")
-    content, media_type = image
-    return Response(
-        content=content,
-        media_type=media_type,
-        headers={"Cache-Control": "private, max-age=3600"},
-    )
-
-
 @app.get("/api/faq", response_model=list[FAQItem])
 def get_faq() -> list[FAQItem]:
     # Kembalikan FAQ pinned lalu FAQ tersimpan.
@@ -399,7 +371,7 @@ def get_faq_image(filename: str) -> FileResponse:
 
 @app.get("/api/citations/{document_path:path}")
 def download_citation_document(document_path: str) -> FileResponse:
-    # Unduh dokumen yang memang boleh menjadi sumber citation untuk guest.
+    # Buka dokumen yang memang boleh menjadi sumber citation untuk guest.
     resolved_path = _resolve_citation_document_path(document_path)
 
     if not resolved_path.exists() or not resolved_path.is_file():
@@ -410,6 +382,7 @@ def download_citation_document(document_path: str) -> FileResponse:
     return FileResponse(
         path=resolved_path,
         filename=resolved_path.name,
+        content_disposition_type="inline",
         headers={"Cache-Control": "no-store"},
     )
 

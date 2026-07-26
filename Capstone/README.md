@@ -8,7 +8,7 @@ Architecture and design docs, including a topology diagram, are in [docs/ARCHITE
 
 - FastAPI for REST backend and frontend hosting
 - Vanilla HTML, CSS, and JavaScript for the web UI
-- OpenAI-compatible chat, FAQ, and flowchart vision generation, defaulting to 9Router with Kiro for chat
+- OpenAI-compatible chat, FAQ, and document chunk generation, defaulting to 9Router with Kiro for chat
 - Nscale OpenAI-compatible API for hosted embeddings
 - ChromaDB for local vector storage
 
@@ -63,9 +63,7 @@ MODEL=kr/claude-sonnet-4.5
 CHAT_BASE_URL=http://9router:20129/v1
 CHAT_API_KEY=
 OPENAI_COMPAT_NO_AUTH_BASE_URLS=http://9router:20129/v1
-FLOWCHART_MODEL=kr/claude-sonnet-4.5
-FLOWCHART_BASE_URL=http://9router:20129/v1
-FLOWCHART_API_KEY=
+CHUNK_AI_MAX_COMPLETION_TOKENS=8192
 APP_STATE_DB=/app/storage/app_state.db
 DATA_DIR=/app/storage/data
 CHROMA_DIR=/app/storage/chroma_db
@@ -80,7 +78,7 @@ network namespace, so no API key is needed for app-to-router traffic. Only the
 dashboard/API port `20128` is bound to EC2 localhost. Keep it closed publicly
 and use an SSH tunnel for dashboard access. The existing `/home/ec2-user/.9router`
 data directory remains mounted so the Kiro connection survives rebuilds.
-Keep `CHAT_API_KEY` and `FLOWCHART_API_KEY` blank for this internal 9Router
+Keep `CHAT_API_KEY` blank for this internal 9Router
 setup. The app treats `localhost:20128`, `localhost:20129`, `9router:20128`,
 and `9router:20129` as no-auth 9Router endpoints and will not fall back to a
 global `OPENAI_API_KEY` for them.
@@ -191,7 +189,7 @@ common secrets, contact details, and large image data before export.
 The frontend is still plain browser JavaScript without a bundler. `frontend/web/assets/app.js`
 is now the bootstrap/glue file, while feature logic lives in small global modules:
 
-- `assets/js/chat.js`: chat submit/rendering, citations, flowcharts, and form links
+- `assets/js/chat.js`: chat submit/rendering, citations, and form links
 - `assets/js/faq.js`, `assets/js/library.js`, `assets/js/auth.js`, `assets/js/api.js`, `assets/js/markdown.js`: FAQ, document admin, auth bindings, API helpers, and markdown rendering
 
 ## Structure

@@ -44,12 +44,11 @@ function renderFaqs() {
       source.hidden = true;
     } else if (item.source) {
       source.textContent = item.source;
-      if (item.source_url) {
-        source.href = item.source_url;
-        source.addEventListener("click", (event) => {
-          event.preventDefault();
-          downloadDocument(item.source_url, item.source);
-        });
+      const browserUrl = citationBrowserUrl(item);
+      if (browserUrl) {
+        source.href = browserUrl;
+        source.target = "_blank";
+        source.rel = "noopener noreferrer";
       } else {
         source.removeAttribute("href");
         source.removeAttribute("target");
@@ -155,6 +154,8 @@ function normalizeFaq(item) {
     answer: item.answer,
     source: item.source || "",
     source_url: item.source_url || "",
+    page: item.page,
+    page_end: item.page_end,
     suggested_query: item.suggested_query || item.question,
     citations: Array.isArray(item.citations) ? item.citations : [],
     image_url: item.image_url || "",
@@ -171,6 +172,8 @@ function getFaqCitations(item) {
       id: 1,
       source: item.source,
       download_url: item.source_url || "",
+      page: item.page,
+      page_end: item.page_end,
     },
   ];
 }
@@ -190,13 +193,9 @@ function renderFaqCitations(container, citations) {
     source.className = "faq-citation-link";
     source.textContent = formatCitationText(citation);
     if (canOpenDocument) {
-      source.href = citation.download_url;
+      source.href = citationBrowserUrl(citation);
       source.target = "_blank";
-      source.rel = "noopener";
-      source.addEventListener("click", (event) => {
-        event.preventDefault();
-        downloadDocument(citation.download_url, citation.source);
-      });
+      source.rel = "noopener noreferrer";
     }
     list.appendChild(source);
   });

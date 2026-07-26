@@ -14,7 +14,6 @@ from backend.api.auth import _create_admin_token, _find_admin, _has_configured_a
 from backend.api.cache_store import _add_admin_config, _find_faq_index, _load_faqs, _save_faqs
 from backend.api.core import FAQ_LOCK, FORM_EXTENSIONS, LIBRARY_EXTENSIONS, REINDEX_LOCK, app
 from backend.api.faq_service import PINNED_IMAGE_EXTENSIONS, _build_faq_item, replace_pinned_image
-from backend.api.flowchart_service import clear_flowchart_cache_for_source
 from backend.api.forms_service import delete_form_docx_template, ensure_form_docx_template
 from backend.api.models import (
     ActivityLogItem,
@@ -339,8 +338,6 @@ def save_document(
         action = "inserted"
 
     target_path.write_bytes(content)
-    if suffix == ".pdf":
-        clear_flowchart_cache_for_source(target_path.name)
     if suffix == ".pdf" and _document_kind_for_path(target_path) == "form":
         logger.info(
             "[admin-documents] Form PDF %s tersimpan, mulai buat template Word",
@@ -384,8 +381,6 @@ def delete_document(
     target_path.unlink()
     if linked_form_dir is not None and linked_form_dir.exists():
         shutil.rmtree(linked_form_dir)
-    if target_path.suffix.lower() == ".pdf":
-        clear_flowchart_cache_for_source(target_path.name)
     message = "Document deleted."
     return AdminDocumentResponse(
         message=message,

@@ -210,7 +210,6 @@ async function submitQuestion(rawQuestion) {
       form_downloads: Array.isArray(payload.form_downloads)
         ? payload.form_downloads
         : [],
-      flowcharts: Array.isArray(payload.flowcharts) ? payload.flowcharts : [],
       answer_source: normalizeAnswerSource(payload.answer_source),
       feedback_id: payload.feedback_id || null,
       feedback_token: payload.feedback_token || "",
@@ -242,7 +241,6 @@ async function submitQuestion(rawQuestion) {
       role: "assistant",
       content: `Aku belum bisa menyelesaikan jawaban ini. ${errorMessage}`,
       citations: [],
-      flowcharts: [],
       answer_source: "fallback",
       feedback_id: error?.feedback_id || null,
       feedback_token: error?.feedback_token || "",
@@ -282,7 +280,6 @@ function stopGeneration() {
     role: "assistant",
     content: "Respons dihentikan.",
     citations: [],
-    flowcharts: [],
     duration_ms: durationMs,
     timestamp: "Just now",
   });
@@ -424,7 +421,6 @@ function renderMessages(scrollBehavior = "auto", options = {}) {
         bubble,
         formDownloads.filter((item) => !item.used),
       );
-      renderFlowchartScreenshots(bubble, message.flowcharts);
     }
 
     meta.textContent = `${isAssistant ? "AI Assistant" : "You"} • ${message.timestamp || "Just now"}`;
@@ -550,40 +546,6 @@ async function submitFeedback(event) {
   }
 }
 
-function renderFlowchartScreenshots(container, flowcharts) {
-  if (!Array.isArray(flowcharts)) return;
-  flowcharts.forEach((flowchart) => {
-    if (!flowchart?.image_url) return;
-    const card = document.createElement("figure");
-    card.className = "flowchart-screenshot";
-
-    const caption = document.createElement("figcaption");
-    const title = document.createElement("strong");
-    title.textContent = flowchart.title || "Alur Proses";
-    const meta = document.createElement("span");
-    meta.textContent = [
-      flowchart.source,
-      flowchart.page ? `Halaman ${flowchart.page}` : "",
-    ]
-      .filter(Boolean)
-      .join(" / ");
-    caption.append(title, meta);
-
-    const link = document.createElement("a");
-    link.href = flowchart.image_url;
-    link.target = "_blank";
-    link.rel = "noopener";
-    link.setAttribute("aria-label", `Buka ${flowchart.title || "flowchart"}`);
-    const image = document.createElement("img");
-    image.src = flowchart.image_url;
-    image.alt = flowchart.title || "Flowchart dari dokumen SOP";
-    image.loading = "lazy";
-    link.appendChild(image);
-    card.append(caption, link);
-    container.appendChild(card);
-  });
-}
-
 function isNearChatBottom(threshold = 120) {
   const thread = elements.chatThread;
   if (!thread) return true;
@@ -627,7 +589,7 @@ function scrollChatToBottom(behavior = "auto", { force = false } = {}) {
 
   window.requestAnimationFrame(() => {
     scrollToLatest();
-    // Susulan singkat untuk konten yang muncul belakangan (chip/flowchart) di render final.
+    // Susulan singkat untuk konten yang muncul belakangan di render final.
     if (behavior === "smooth") {
       window.setTimeout(scrollToLatest, 120);
       window.setTimeout(scrollToLatest, 320);
@@ -665,28 +627,17 @@ function formatAnswerSource(source) {
 
 function createCitationChip(citation, index, isInline = false) {
   const fileType = getCitationFileType(citation);
-  const canOpenDocument = Boolean(citation.download_url);
-  const isPublicForm =
-    Boolean(citation.download_url) && isFormSource(citation.source);
-  const chip = isPublicForm
-    ? document.createElement("a")
-    : document.createElement("button");
+  const browserUrl = citationBrowserUrl(citation);
+  const chip = document.createElement(browserUrl ? "a" : "span");
   chip.className = `citation-chip citation-chip--${fileType}`;
   if (isInline) chip.classList.add("is-inline");
   chip.setAttribute("aria-label", formatCitationLabel(citation, index));
   chip.title = formatCitationLabel(citation, index);
 
-  if (isPublicForm) {
-    chip.href = citation.download_url;
+  if (browserUrl) {
+    chip.href = browserUrl;
     chip.target = "_blank";
-    chip.rel = "noopener";
-  } else {
-    chip.type = "button";
-    if (canOpenDocument) {
-      chip.addEventListener("click", () =>
-        downloadDocument(citation.download_url, citation.source),
-      );
-    }
+    chip.rel = "noopener noreferrer";
   }
 
   const icon = document.createElement("span");

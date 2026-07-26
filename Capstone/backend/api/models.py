@@ -29,21 +29,10 @@ class FormDownloadResponse(BaseModel):
     linked_sop_path: str | None = None
 
 
-class FlowchartScreenshotResponse(BaseModel):
-    id: str
-    title: str
-    source: str
-    page: int | None = None
-    section: str = ""
-    confidence: float = 0
-    image_url: str
-
-
 class QueryResponse(BaseModel):
     answer: str
     citations: list[CitationResponse] = Field(default_factory=list)
     form_downloads: list[FormDownloadResponse] = Field(default_factory=list)
-    flowcharts: list[FlowchartScreenshotResponse] = Field(default_factory=list)
     conversation_id: str
     answer_source: Literal["model", "cache", "fallback"] = "model"
     feedback_id: int | None = None

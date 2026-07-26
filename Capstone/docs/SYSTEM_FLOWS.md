@@ -79,7 +79,7 @@ flowchart TD
 | Download document | `download_document()` | `backend/api/routes_public.py` |
 | Ambil DOCX sidecar | `get_form_docx_template()` | `backend/api/forms_service.py` |
 
-## 4. Chunking dan Flowchart Extraction
+## 4. AI Document Chunking
 
 ```mermaid
 flowchart TD
@@ -87,15 +87,12 @@ flowchart TD
   B --> C{File form?}
   C -->|Ya| D[Skip dari embedding]
   C -->|Tidak| E[PyPDFLoader / Docx2txt / TextLoader]
-  E --> F{PDF dan flowchart enabled?}
-  F -->|Ya| G[detect_flowchart_candidates]
-  G --> H[Ollama vision ekstrak node/edge]
-  H --> I[Simpan payload ke backend/cache/flowcharts]
-  I --> J[Tambah Document content_type=flowchart]
-  F -->|Tidak| K[Dokumen teks biasa]
-  J --> L[chunk_documents]
-  K --> L
-  L --> M[rebuild_vectorstore]
+  E --> F[Group halaman per source]
+  F --> G[Model menghasilkan final chunks JSON]
+  G -->|valid| H[LangChain Documents + citation metadata]
+  G -->|gagal| I[Local splitter sekitar 1200 karakter]
+  H --> J[rebuild_vectorstore]
+  I --> J
 ```
 
 ## 5. FAQ
