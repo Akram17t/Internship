@@ -1691,15 +1691,6 @@ body[data-faq-state="running"] #faqStatus {
 .faq-answer li + li {
   margin-top: 7px;
 }
-.faq-answer-image {
-  grid-column: 1;
-  display: block;
-  max-width: 100%;
-  height: auto;
-  margin: 14px 0 0 16px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-}
 .faq-citations {
   grid-column: 1;
   margin: 14px 0 0 16px;
@@ -2407,25 +2398,27 @@ body[data-role="admin"]
 }
 
 .document-expand {
-  display: grid;
-  width: 38px;
-  height: 38px;
-  padding: 0;
+  display: flex;
+  min-width: 96px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 14px;
   border: 1px solid var(--line);
-  border-radius: 50%;
-  place-items: center;
+  border-radius: 100px;
   background: transparent;
   color: var(--ink);
+  font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
   transition:
     border-color 0.2s ease,
     background-color 0.2s ease,
-    color 0.2s ease,
-    transform 0.2s ease;
+    color 0.2s ease;
 }
 
 .document-expand .material-symbols-outlined {
-  font-size: 19px;
+  font-size: 15px;
   transition: transform 0.2s ease;
 }
 
@@ -4979,7 +4972,8 @@ body.logout-open {
     justify-content: flex-end;
   }
   .document-update,
-  .document-delete {
+  .document-delete,
+  .document-expand {
     min-width: 92px;
   }
   .admin-document-form {

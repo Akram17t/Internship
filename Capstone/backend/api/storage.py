@@ -113,7 +113,7 @@ def _safe_form_folder_name(sop_path: Path) -> str:
 
 
 def _format_file_display_name(path: Path) -> str:
-    return _clean_document_label(path.name) or path.stem.replace("_", " ").strip() or path.name
+    return path.stem
 
 
 def _form_download_formats(path: Path) -> list[str]:

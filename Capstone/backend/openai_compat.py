@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Any
 from urllib.parse import urlparse
 
 from backend.settings import get_env
@@ -76,3 +77,18 @@ def openai_request_kwargs(*, api_key: str, base_url: str) -> dict[str, object]:
     from openai import Omit
 
     return {"extra_headers": {"Authorization": Omit()}}
+
+
+def extract_chat_message_content(completion: Any) -> str:
+    choices = getattr(completion, "choices", None)
+    if not choices:
+        return ""
+    content = getattr(getattr(choices[0], "message", None), "content", "")
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "".join(
+            str(item.get("text") or "") if isinstance(item, dict) else str(item)
+            for item in content
+        )
+    return str(content or "")

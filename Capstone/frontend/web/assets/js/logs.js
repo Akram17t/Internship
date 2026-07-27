@@ -126,6 +126,7 @@ async function loadActivityLogs() {
 
 function buildLogQueryParams(options = {}) {
   const params = new URLSearchParams({ limit: "1000" });
+  if (LOCAL_TIME_ZONE) params.set("tz", LOCAL_TIME_ZONE);
   const range = state.logDateRange || {};
   if (range.start) params.set("start_date", range.start);
   if (range.end) params.set("end_date", range.end);
@@ -827,7 +828,8 @@ function formatLogNumber(value) {
   return number.toLocaleString("en-US", { maximumFractionDigits: 2 });
 }
 
-const LOG_TIME_ZONE = "Asia/Jakarta";
+// Whichever machine is viewing the dashboard, not a hardcoded region.
+const LOCAL_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 function parseLogTimestamp(value) {
   if (!value) return null;
@@ -836,7 +838,7 @@ function parseLogTimestamp(value) {
   const hasExplicitTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(rawValue);
   if (hasExplicitTimezone) {
     const date = new Date(rawValue);
-    return Number.isNaN(date.getTime()) ? null : { date, timeZone: LOG_TIME_ZONE };
+    return Number.isNaN(date.getTime()) ? null : { date, timeZone: LOCAL_TIME_ZONE };
   }
 
   const match = rawValue.match(

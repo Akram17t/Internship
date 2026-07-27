@@ -107,7 +107,7 @@ async function saveDocuments(files) {
       requires_reindex: true,
     });
     markReindexRequired(
-      `${embeddableCount} dokumen knowledge diperbarui. Rebuild embeddings sebelum lanjut.`,
+      `${embeddableCount} dokumen knowledge diperbarui. Finalize sebelum lanjut.`,
     );
   } else if (successCount > 0) {
     pushDocumentChange({
@@ -117,7 +117,7 @@ async function saveDocuments(files) {
       requires_reindex: false,
     });
     showDocumentStatus(
-      `${successCount} file berhasil diunggah. Tidak perlu rebuild embeddings.`,
+      `${successCount} file berhasil diunggah. Tidak perlu finalize.`,
     );
   }
   updateDocumentControls();
@@ -146,7 +146,7 @@ async function saveDocument(file, replacePath = "", options = {}) {
         requires_reindex: true,
       });
       markReindexRequired(
-        `${payload.message || "Document saved."} Rebuild embeddings sebelum lanjut.`,
+        `${payload.message || "Document saved."} Finalize sebelum lanjut.`,
       );
     } else {
       pushDocumentChange({
@@ -214,7 +214,7 @@ async function saveFormDocumentsForSop(files, linkedSopPath) {
     openDocumentErrorModal(summary, failures);
   } else if (successCount > 0) {
     showDocumentStatus(
-      `${successCount} form${successCount === 1 ? "" : "s"} berhasil diunggah. Tidak perlu rebuild embeddings.`,
+      `${successCount} form${successCount === 1 ? "" : "s"} berhasil diunggah. Tidak perlu finalize.`,
     );
   }
   updateDocumentControls();
@@ -242,7 +242,7 @@ function getDocumentSaveStatus(file, replacePath = "") {
 
 function formatDocumentSaveMessage(payload, isFormPdf = false) {
   const baseMessage = payload.message || "File saved.";
-  return `${baseMessage} Tidak perlu rebuild embeddings.`;
+  return `${baseMessage} Tidak perlu finalize.`;
 }
 
 async function saveDocumentRequest(file, replacePath = "", options = {}) {
@@ -297,7 +297,7 @@ async function deleteDocument(item) {
         requires_reindex: true,
       });
       markReindexRequired(
-        `${payload.message || "Document deleted."} Rebuild embeddings sebelum lanjut.`,
+        `${payload.message || "Document deleted."} Finalize sebelum lanjut.`,
       );
     } else {
       pushDocumentChange({
@@ -307,7 +307,7 @@ async function deleteDocument(item) {
         requires_reindex: false,
       });
       showDocumentStatus(
-        `${payload.message || "File deleted."} Tidak perlu rebuild embeddings.`,
+        `${payload.message || "File deleted."} Tidak perlu finalize.`,
       );
     }
   } catch (error) {
@@ -491,12 +491,10 @@ async function undoDocumentChange() {
     state.documentChanges = [];
     state.documentUndo = null;
     if (touchedEmbeddings) {
-      clearReindexRequired(
-        "Semua perubahan dokumen dibatalkan. Embeddings kembali sesuai.",
-      );
+      clearReindexRequired("Semua perubahan dokumen dibatalkan.");
     } else {
       showDocumentStatus(
-        "Semua perubahan dokumen dibatalkan. Tidak perlu rebuild embeddings.",
+        "Semua perubahan dokumen dibatalkan. Tidak perlu finalize.",
       );
     }
   } catch (error) {
@@ -523,10 +521,10 @@ async function rebuildEmbeddings() {
     });
     const payload = await readJsonResponse(response);
     if (!response.ok)
-      throw new Error(payload.detail || "Rebuild embeddings failed.");
-    clearReindexRequired(payload.message || "Embeddings rebuilt.");
+      throw new Error(payload.detail || "Finalize failed.");
+    clearReindexRequired(payload.message || "Changes finalized.");
   } catch (error) {
-    showDocumentStatus(error.message || "Rebuild embeddings failed.", true);
+    showDocumentStatus(error.message || "Finalize failed.", true);
   } finally {
     state.isReindexing = false;
     syncReindexState();
@@ -536,7 +534,7 @@ async function rebuildEmbeddings() {
 }
 
 function markReindexRequired(
-  message = "Document library changed. Rebuild embeddings before continuing.",
+  message = "Document library changed. Finalize before continuing.",
 ) {
   state.needsReindex = true;
   window.localStorage.setItem(REINDEX_STORAGE_KEY, "1");
@@ -544,7 +542,7 @@ function markReindexRequired(
   showDocumentStatus(message, false);
 }
 
-function clearReindexRequired(message = "Embeddings rebuilt.") {
+function clearReindexRequired(message = "Changes finalized.") {
   state.needsReindex = false;
   clearDocumentUndo();
   window.localStorage.removeItem(REINDEX_STORAGE_KEY);
@@ -563,7 +561,7 @@ function syncReindexState() {
     clearDocumentStatus();
   } else if (state.needsReindex && !elements.adminDocumentStatus.textContent) {
     showDocumentStatus(
-      "Document library changed. Rebuild embeddings before continuing.",
+      "Document library changed. Finalize before continuing.",
     );
   }
 }
@@ -742,26 +740,30 @@ function createDocumentLibraryGroup(item, forms) {
   const group = document.createElement("div");
   group.className = "document-library-group";
   const key = documentFormKey(item);
-  const isOpen = key && state.activeDocumentFormPath === key;
+  // Guests can't insert a form, so an SOP with zero linked forms has nothing
+  // to show them; only render the panel when there are forms or an admin
+  // could add one.
+  const canManageForms = forms.length > 0 || isAdminSession();
+  const isOpen = canManageForms && Boolean(key) && state.activeDocumentFormPath === key;
   const relatedId = `related-forms-${stableDomId(key || item.display_name)}`;
   group.classList.toggle("is-forms-open", Boolean(isOpen));
-  group.appendChild(createLibraryRow(item, { isOpen, relatedId }));
+  group.appendChild(createLibraryRow(item, { isOpen, relatedId, canManageForms }));
 
-  const related = document.createElement("div");
-  related.className = "related-forms";
-  related.id = relatedId;
-  const header = document.createElement("div");
-  header.className = "related-forms-heading";
-  const title = document.createElement("span");
-  title.textContent = "Forms";
-  header.appendChild(title);
-  related.appendChild(header);
+  if (canManageForms) {
+    const related = document.createElement("div");
+    related.className = "related-forms";
+    related.id = relatedId;
+    const header = document.createElement("div");
+    header.className = "related-forms-heading";
+    const title = document.createElement("span");
+    title.textContent = "Forms";
+    header.appendChild(title);
+    related.appendChild(header);
 
-  if (forms.length) {
     forms.forEach((form) => related.appendChild(createRelatedFormRow(form)));
+    related.appendChild(createInsertFormRow(item, forms.length > 0));
+    group.appendChild(related);
   }
-  related.appendChild(createInsertFormRow(item, forms.length > 0));
-  group.appendChild(related);
   return group;
 }
 
@@ -803,10 +805,6 @@ function createLibraryRow(item, options = {}) {
   const fragment = elements.libraryItemTemplate.content.cloneNode(true);
   const row = fragment.querySelector(".document-row");
   row.dataset.kind = item.document_kind || "document";
-  row.classList.add("is-toggleable");
-  row.tabIndex = 0;
-  if (options.relatedId) row.setAttribute("aria-controls", options.relatedId);
-  row.setAttribute("aria-expanded", options.isOpen ? "true" : "false");
   applyDocumentIcon(fragment.querySelector(".document-icon"), item);
   fragment.querySelector(".document-title").textContent = item.display_name;
   const meta = fragment.querySelector(".document-meta");
@@ -816,24 +814,32 @@ function createLibraryRow(item, options = {}) {
   const expandButton = fragment.querySelector(".document-expand");
   const updateButton = fragment.querySelector(".document-update");
   const deleteButton = fragment.querySelector(".document-delete");
-  expandButton.setAttribute(
-    "aria-label",
-    options.isOpen
-      ? `Hide forms for ${item.display_name}`
-      : `Show forms for ${item.display_name}`,
-  );
-  expandButton.setAttribute("aria-expanded", options.isOpen ? "true" : "false");
-  expandButton.addEventListener("click", () => toggleDocumentForms(item));
-  row.addEventListener("click", (event) => {
-    if (event.target.closest("a, button, input, label")) return;
-    toggleDocumentForms(item);
-  });
-  row.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter" && event.key !== " ") return;
-    if (event.target.closest("a, button, input, label")) return;
-    event.preventDefault();
-    toggleDocumentForms(item);
-  });
+  if (options.canManageForms) {
+    row.classList.add("is-toggleable");
+    row.tabIndex = 0;
+    if (options.relatedId) row.setAttribute("aria-controls", options.relatedId);
+    row.setAttribute("aria-expanded", options.isOpen ? "true" : "false");
+    expandButton.setAttribute(
+      "aria-label",
+      options.isOpen
+        ? `Hide forms for ${item.display_name}`
+        : `Show forms for ${item.display_name}`,
+    );
+    expandButton.setAttribute("aria-expanded", options.isOpen ? "true" : "false");
+    expandButton.addEventListener("click", () => toggleDocumentForms(item));
+    row.addEventListener("click", (event) => {
+      if (event.target.closest("a, button, input, label")) return;
+      toggleDocumentForms(item);
+    });
+    row.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      if (event.target.closest("a, button, input, label")) return;
+      event.preventDefault();
+      toggleDocumentForms(item);
+    });
+  } else {
+    expandButton.hidden = true;
+  }
   if (item.download_url) {
     link.href = item.download_url;
     link.addEventListener("click", (event) => {

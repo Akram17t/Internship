@@ -3,17 +3,18 @@ from __future__ import annotations
 import hmac
 import logging
 import shutil
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone, tzinfo
 from pathlib import Path
 from typing import Annotated
 from urllib.parse import unquote
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import Header, HTTPException, Query
 
 from backend.api.auth import _create_admin_token, _find_admin, _has_configured_admin, _require_admin
 from backend.api.cache_store import _add_admin_config, _find_faq_index, _load_faqs, _save_faqs
 from backend.api.core import FAQ_LOCK, FORM_EXTENSIONS, LIBRARY_EXTENSIONS, REINDEX_LOCK, app
-from backend.api.faq_service import PINNED_IMAGE_EXTENSIONS, _build_faq_item, replace_pinned_image
+from backend.api.faq_service import _build_faq_item
 from backend.api.forms_service import delete_form_docx_template, ensure_form_docx_template
 from backend.api.models import (
     ActivityLogItem,
@@ -51,11 +52,26 @@ from backend.cache_db import (
 logger = logging.getLogger("uvicorn.error")
 
 
+def _resolve_display_tz(tz: str | None) -> tzinfo:
+    # "Today" and the date-range filters should reflect whichever admin is
+    # viewing the dashboard, not the server host's own OS/container timezone
+    # (UTC on EC2, local elsewhere) -- the frontend sends the browser's IANA
+    # timezone name; fall back to UTC if it's missing or not a real zone.
+    if tz:
+        try:
+            return ZoneInfo(tz)
+        except (ZoneInfoNotFoundError, ValueError):
+            pass
+    return timezone.utc
+
+
 def _activity_date_range(
     start_date: str | None,
     end_date: str | None,
+    tz: str | None = None,
 ) -> tuple[str, str]:
-    today = datetime.now().date()
+    display_tz = _resolve_display_tz(tz)
+    today = datetime.now(timezone.utc).astimezone(display_tz).date()
     default_start = today - timedelta(days=29)
     try:
         start = datetime.fromisoformat(start_date).date() if start_date else default_start
@@ -64,9 +80,11 @@ def _activity_date_range(
         raise HTTPException(status_code=422, detail="Format tanggal harus YYYY-MM-DD.") from error
     if end < start:
         raise HTTPException(status_code=422, detail="Tanggal akhir harus setelah tanggal mulai.")
+    start_at = datetime.combine(start, datetime.min.time(), tzinfo=display_tz)
+    end_at = datetime.combine(end, datetime.max.time(), tzinfo=display_tz)
     return (
-        datetime.combine(start, datetime.min.time()).isoformat(timespec="seconds"),
-        datetime.combine(end, datetime.max.time()).isoformat(timespec="seconds"),
+        start_at.astimezone(timezone.utc).isoformat(timespec="seconds"),
+        end_at.astimezone(timezone.utc).isoformat(timespec="seconds"),
     )
 
 
@@ -107,25 +125,6 @@ def create_admin_account(
         name=payload.name,
     )
     return AdminAccountResponse(email=admin["email"], name=admin["name"])
-
-
-@app.post("/api/admin/faq-image", response_model=AdminDocumentResponse)
-def upload_pinned_faq_image(
-    payload: AdminDocumentPayload,
-    authorization: str = Header(default=""),
-) -> AdminDocumentResponse:
-    # Ganti aset gambar organogram pinned.
-    _require_admin(authorization)
-    extension = Path(unquote(payload.filename)).suffix.lower()
-    if extension not in PINNED_IMAGE_EXTENSIONS:
-        raise HTTPException(
-            status_code=400,
-            detail="Gambar harus berformat .webp, .png, atau .jpg.",
-        )
-
-    content = _decode_document(payload.content_base64)
-    replace_pinned_image(content, extension)
-    return AdminDocumentResponse(message="Gambar FAQ diperbarui.")
 
 
 @app.post("/api/admin/faq", response_model=AdminFAQResponse)
@@ -185,6 +184,7 @@ def get_library() -> list[LibraryItem]:
 def get_activity_logs(
     start_date: str | None = None,
     end_date: str | None = None,
+    tz: str | None = None,
     conversation_id: str | None = None,
     feedback: str | None = None,
     limit: Annotated[int, Query(ge=1, le=1000)] = 1000,
@@ -195,7 +195,7 @@ def get_activity_logs(
     _require_admin(authorization)
     if feedback not in {None, "", "all", "negative"}:
         raise HTTPException(status_code=422, detail="Filter feedback tidak valid.")
-    start_at, end_at = _activity_date_range(start_date, end_date)
+    start_at, end_at = _activity_date_range(start_date, end_date, tz)
     return [
         ActivityLogItem(**item)
         for item in list_activity_logs(
@@ -214,11 +214,12 @@ def get_activity_logs(
 def get_activity_log_sessions(
     start_date: str | None = None,
     end_date: str | None = None,
+    tz: str | None = None,
     authorization: str = Header(default=""),
 ) -> list[ActivityLogSessionItem]:
     # Kembalikan daftar sesi chat dalam date range yang dipilih.
     _require_admin(authorization)
-    start_at, end_at = _activity_date_range(start_date, end_date)
+    start_at, end_at = _activity_date_range(start_date, end_date, tz)
     return [
         ActivityLogSessionItem(**item)
         for item in list_activity_log_sessions(
@@ -262,12 +263,13 @@ def delete_activity_log_session(
 def get_activity_log_summary(
     start_date: str | None = None,
     end_date: str | None = None,
+    tz: str | None = None,
     conversation_id: str | None = None,
     authorization: str = Header(default=""),
 ) -> ActivityLogSummaryResponse:
     # Ringkasan pemakaian chatbot untuk rentang tanggal yang sama dengan list log.
     _require_admin(authorization)
-    start_at, end_at = _activity_date_range(start_date, end_date)
+    start_at, end_at = _activity_date_range(start_date, end_date, tz)
     return ActivityLogSummaryResponse(
         **summarize_activity_logs(
             event_type="chat",
@@ -402,11 +404,11 @@ def reindex_documents(authorization: str = Header(default="")) -> AdminReindexRe
     except Exception as error:
         raise HTTPException(
             status_code=500,
-            detail=f"Rebuild embeddings failed: {error}",
+            detail=f"Finalize failed: {error}",
         ) from error
     finally:
         REINDEX_LOCK.release()
 
     if reindex_result == "cleared":
-        return AdminReindexResponse(message="No source documents found. Embeddings cleared.")
-    return AdminReindexResponse(message="Embeddings rebuilt.")
+        return AdminReindexResponse(message="No source documents found.")
+    return AdminReindexResponse(message="Changes finalized.")

@@ -60,3 +60,6 @@ SimpleRAG/chroma_db/
 Thumbs.db
 .idea/
 .vscode/
+
+# Claude Code
+.claude/

@@ -7,7 +7,7 @@ import sqlite3
 import threading
 import uuid
 from contextlib import closing
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -287,7 +287,7 @@ def _normalize_faq_payload(
     if citations and not source_url:
         source_url = str(citations[0].get("download_url") or "").strip()
 
-    timestamp = now or datetime.now().isoformat(timespec="seconds")
+    timestamp = now or datetime.now(timezone.utc).isoformat(timespec="seconds")
     updated_at = _parse_timestamp(raw_item.get("updated_at")) or timestamp
     created_at = _parse_timestamp(raw_item.get("created_at")) or updated_at
 
@@ -348,7 +348,7 @@ def _ensure_default_admin(connection: sqlite3.Connection) -> None:
     if existing_count:
         return
 
-    now = datetime.now().isoformat(timespec="seconds")
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
     connection.execute(
         """
         INSERT OR IGNORE INTO admin_accounts(email, password, name, created_at)
@@ -423,7 +423,7 @@ def add_admin_account(*, email: str, password: str, name: str) -> dict[str, str]
 
     with STATE_DB_LOCK:
         init_state_db()
-        now = datetime.now().isoformat(timespec="seconds")
+        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
         with closing(_connect()) as connection:
             try:
                 connection.execute(
@@ -444,7 +444,7 @@ def add_admin_account(*, email: str, password: str, name: str) -> dict[str, str]
 
 
 def _cleanup_conversations(connection: sqlite3.Connection, now: datetime | None = None) -> None:
-    cutoff = (now or datetime.now()) - CONVERSATION_TTL
+    cutoff = (now or datetime.now(timezone.utc)) - CONVERSATION_TTL
     cutoff_value = cutoff.isoformat(timespec="seconds")
 
     expired_ids = [
@@ -511,7 +511,7 @@ def _cleanup_conversations(connection: sqlite3.Connection, now: datetime | None 
 
 
 def _cleanup_activity_logs(connection: sqlite3.Connection, now: datetime | None = None) -> None:
-    cutoff = (now or datetime.now()) - ACTIVITY_LOG_RETENTION
+    cutoff = (now or datetime.now(timezone.utc)) - ACTIVITY_LOG_RETENTION
     connection.execute(
         "DELETE FROM activity_logs WHERE created_at < ?",
         (cutoff.isoformat(timespec="seconds"),),
@@ -549,7 +549,7 @@ def get_conversation_context(conversation_id: str) -> str:
 def append_conversation_turn(conversation_id: str, question: str, answer: str) -> None:
     with STATE_DB_LOCK:
         init_state_db()
-        now = datetime.now().isoformat(timespec="seconds")
+        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
         with closing(_connect()) as connection:
             _cleanup_conversations(connection)
             connection.executemany(
@@ -578,7 +578,7 @@ def insert_activity_log(
 ) -> int:
     with STATE_DB_LOCK:
         init_state_db()
-        now = datetime.now().isoformat(timespec="seconds")
+        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
         with closing(_connect()) as connection:
             _cleanup_activity_logs(connection)
             cursor = connection.execute(
@@ -635,7 +635,7 @@ def update_activity_log_feedback(
 
     with STATE_DB_LOCK:
         init_state_db()
-        now = datetime.now().isoformat(timespec="seconds")
+        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
         with closing(_connect()) as connection:
             row = connection.execute(
                 """
@@ -1087,7 +1087,7 @@ def list_faq_items() -> list[dict[str, Any]]:
 def replace_faq_items(items: list[dict[str, object]]) -> None:
     with STATE_DB_LOCK:
         init_state_db()
-        now = datetime.now().isoformat(timespec="seconds")
+        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
         with closing(_connect()) as connection:
             connection.execute("DELETE FROM faq_items")
             for index, raw_item in enumerate(items):
@@ -1114,7 +1114,7 @@ def insert_semantic_cache_entry(
 ) -> None:
     with STATE_DB_LOCK:
         init_state_db()
-        now = datetime.now().isoformat(timespec="seconds")
+        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
         with closing(_connect()) as connection:
             connection.execute(
                 """
@@ -1214,7 +1214,7 @@ def get_semantic_cache_entry_by_question(
 def mark_semantic_cache_hit(entry_id: str) -> None:
     with STATE_DB_LOCK:
         init_state_db()
-        now = datetime.now().isoformat(timespec="seconds")
+        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
         with closing(_connect()) as connection:
             connection.execute(
                 """

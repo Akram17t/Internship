@@ -13,6 +13,7 @@ from langchain_core.documents import Document
 
 from backend.observability import openai_client_class, openai_observation_kwargs
 from backend.openai_compat import (
+    extract_chat_message_content,
     openai_client_kwargs,
     openai_request_kwargs,
     resolve_openai_compatible_api_key,
@@ -58,21 +59,6 @@ def _source_text(pages: list[Document]) -> str:
     )
 
 
-def _message_content(completion: Any) -> str:
-    choices = getattr(completion, "choices", None)
-    if not choices:
-        return ""
-    content = getattr(getattr(choices[0], "message", None), "content", "")
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        return "".join(
-            str(item.get("text") or "") if isinstance(item, dict) else str(item)
-            for item in content
-        )
-    return str(content or "")
-
-
 def _model_identity() -> str:
     return get_env("MODEL", "kr/claude-sonnet-4.5")
 
@@ -109,7 +95,7 @@ def _request_ai_chunks(document_text: str) -> str:
             metadata={"operation": "chunk-document", "document_chars": len(document_text)},
         )
     )
-    return _message_content(client.chat.completions.create(**payload))
+    return extract_chat_message_content(client.chat.completions.create(**payload))
 
 
 def _json_values(response_text: str) -> list[Any]:

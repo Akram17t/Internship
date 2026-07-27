@@ -9,7 +9,6 @@ from fastapi.responses import FileResponse, Response
 
 from backend.api.cache_store import _append_conversation_turn, _clean_conversation_id, _get_conversation_context, _load_faqs
 from backend.api.core import FAQ_LOCK, FRONTEND_DIR, app
-from backend.api.faq_service import get_pinned_image_file, _pinned_faq_items
 from backend.api.forms_service import (
     DOCX_MIME,
     get_form_docx_template,
@@ -349,24 +348,9 @@ def submit_chat_feedback(payload: FeedbackPayload) -> FeedbackResponse:
 
 @app.get("/api/faq", response_model=list[FAQItem])
 def get_faq() -> list[FAQItem]:
-    # Kembalikan FAQ pinned lalu FAQ tersimpan.
+    # Kembalikan daftar FAQ tersimpan.
     with FAQ_LOCK:
-        stored = _load_faqs()
-    return [*_pinned_faq_items(), *stored]
-
-
-@app.get("/api/faq-image/{filename}")
-def get_faq_image(filename: str) -> FileResponse:
-    # Sajikan gambar organogram upload dari storage persisten.
-    try:
-        image_path = get_pinned_image_file(filename)
-    except FileNotFoundError as error:
-        raise HTTPException(status_code=404, detail="FAQ image not found.") from error
-    return FileResponse(
-        path=image_path,
-        filename=image_path.name,
-        headers={"Cache-Control": "private, max-age=3600"},
-    )
+        return _load_faqs()
 
 
 @app.get("/api/citations/{document_path:path}")

@@ -14,31 +14,6 @@ function renderFaqs() {
     fragment
       .querySelector(".faq-answer")
       .appendChild(formatMessage(stripCitationMarkers(item.answer)));
-    if (item.image_url) {
-      const image = document.createElement("img");
-      image.className = "faq-answer-image";
-      image.src = item.image_url;
-      image.alt = item.question;
-      image.loading = "lazy";
-      fragment.querySelector(".faq-answer").after(image);
-      askButton.hidden = true;
-      if (isAdminSession()) {
-        const actions = fragment.querySelector(".faq-actions");
-        const fileInput = document.createElement("input");
-        fileInput.type = "file";
-        fileInput.accept = "image/webp,image/png,image/jpeg";
-        fileInput.hidden = true;
-        const changeButton = document.createElement("button");
-        changeButton.type = "button";
-        changeButton.className = "faq-ask";
-        changeButton.textContent = "Ganti gambar";
-        changeButton.addEventListener("click", () => fileInput.click());
-        fileInput.addEventListener("change", () => {
-          uploadPinnedFaqImage(fileInput.files && fileInput.files[0]);
-        });
-        actions.append(changeButton, fileInput);
-      }
-    }
     if (citations.length) {
       renderFaqCitations(citationContainer, citations);
       source.hidden = true;
@@ -89,30 +64,6 @@ function renderFaqs() {
   updateFaqControls();
 }
 
-async function uploadPinnedFaqImage(file) {
-  if (!file || !isAdminSession()) return;
-  showFaqStatus("Mengunggah gambar...");
-  try {
-    const response = await fetch("/api/admin/faq-image", {
-      method: "POST",
-      headers: adminAuthHeaders({ "Content-Type": "application/json" }),
-      body: JSON.stringify({
-        filename: file.name,
-        content_base64: await fileToBase64(file),
-      }),
-    });
-    const payload = await readJsonResponse(response);
-    if (!response.ok)
-      throw new Error(
-        formatApiError(payload.detail, "Gagal mengunggah gambar."),
-      );
-    showFaqStatus("Gambar FAQ diperbarui.");
-    await loadFaqs();
-  } catch (error) {
-    showFaqStatus(error.message || "Gagal mengunggah gambar.", true);
-  }
-}
-
 function stripCitationMarkers(value) {
   return String(value)
     .replace(/\s*\[(\d+)\]/g, "")
@@ -158,7 +109,6 @@ function normalizeFaq(item) {
     page_end: item.page_end,
     suggested_query: item.suggested_query || item.question,
     citations: Array.isArray(item.citations) ? item.citations : [],
-    image_url: item.image_url || "",
   };
 }
 
@@ -273,7 +223,7 @@ async function saveFaq(event) {
     state.isReindexing
   ) {
     if (state.needsReindex || state.isReindexing) {
-      showFaqStatus("Rebuild embeddings dulu sebelum mengubah FAQ.", true);
+      showFaqStatus("Finalize dulu sebelum mengubah FAQ.", true);
     }
     return;
   }
