@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import logging
 import os
 import re
 from collections.abc import Iterator
@@ -11,6 +12,8 @@ from backend.settings import get_env, load_capstone_env
 
 
 load_capstone_env()
+
+logger = logging.getLogger("uvicorn.error")
 
 _SENSITIVE_PATTERNS = [
     re.compile(r"data:image/[A-Za-z0-9.+-]+;base64,[A-Za-z0-9+/=]+"),
@@ -105,15 +108,24 @@ def _client() -> Any | None:
     _configure_langfuse_env()
     try:
         from langfuse import Langfuse
-    except Exception:
+    except Exception as error:
+        logger.warning("Langfuse SDK not importable; tracing disabled: %s", error)
         return None
     try:
         _LANGFUSE_CLIENT = Langfuse(
             environment=environment_name(),
             mask_otel_spans=_mask_otel_spans,
         )
+        logger.info(
+            "Langfuse tracing connected (environment=%s, host=%s).",
+            environment_name(),
+            base_url_host(_langfuse_base_url()),
+        )
         return _LANGFUSE_CLIENT
-    except Exception:
+    except Exception as error:
+        logger.warning(
+            "Langfuse client failed to initialize; tracing disabled: %s", error
+        )
         return None
 
 
@@ -232,7 +244,8 @@ def trace_context(
 
     try:
         from langfuse import propagate_attributes
-    except Exception:
+    except Exception as error:
+        logger.warning("Langfuse propagate_attributes not importable: %s", error)
         yield NoopObservation()
         return
 
@@ -243,7 +256,8 @@ def trace_context(
             input=redact(input),
             metadata=redact(metadata or {}, limit=600),
         )
-    except Exception:
+    except Exception as error:
+        logger.warning("Langfuse trace_context '%s' failed to start: %s", name, error)
         yield NoopObservation()
         return
 
@@ -283,7 +297,8 @@ def span(
             input=redact(input),
             metadata=redact(metadata or {}, limit=600),
         )
-    except Exception:
+    except Exception as error:
+        logger.warning("Langfuse span '%s' failed to start: %s", name, error)
         yield NoopObservation()
         return
 
@@ -366,6 +381,31 @@ def score_user_thumbs_down(
         return True
     except Exception:
         return False
+
+
+def log_startup_status() -> None:
+    # Log status Langfuse sekali saat startup supaya gagal-connect di EC2/Docker
+    # langsung kelihatan di log container, bukan diam-diam no-op.
+    if not _enabled_flag():
+        logger.info("Langfuse tracing: disabled (LANGFUSE_TRACING_ENABLED is not on).")
+        return
+    if not (get_env("LANGFUSE_PUBLIC_KEY", "") and get_env("LANGFUSE_SECRET_KEY", "")):
+        logger.warning(
+            "Langfuse tracing: enabled but LANGFUSE_PUBLIC_KEY/LANGFUSE_SECRET_KEY "
+            "is missing; tracing will stay disabled."
+        )
+        return
+    if not _langfuse_base_url():
+        logger.warning(
+            "Langfuse tracing: enabled but LANGFUSE_BASE_URL/LANGFUSE_HOST is missing; "
+            "tracing will stay disabled."
+        )
+        return
+    if _client() is None:
+        logger.warning(
+            "Langfuse tracing: enabled and configured, but client failed to connect "
+            "(see warning above for the reason)."
+        )
 
 
 def shutdown() -> None:

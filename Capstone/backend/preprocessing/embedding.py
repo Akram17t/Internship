@@ -5,6 +5,7 @@ from typing import Any
 
 from langchain_core.embeddings import Embeddings
 
+from backend.observability import openai_client_class
 from backend.settings import get_env, get_int_env, get_required_env, load_capstone_env
 
 load_capstone_env()
@@ -26,7 +27,7 @@ class NscaleEmbeddings(Embeddings):
         self.batch_size = max(1, batch_size)
         if client is None:
             try:
-                from openai import OpenAI
+                OpenAI = openai_client_class()
             except ImportError as error:
                 raise RuntimeError(
                     "Dependency OpenAI belum terpasang. Jalankan pip install -r requirements.txt."

@@ -21,11 +21,12 @@ if str(CREW_SRC_DIR) not in sys.path:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    from backend.observability import log_startup_status, shutdown
+
+    log_startup_status()
     try:
         yield
     finally:
-        from backend.observability import shutdown
-
         shutdown()
 
 
