@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import base64
 import binascii
-import json
 import re
 from datetime import datetime
 from pathlib import Path
@@ -277,23 +276,17 @@ def _iter_form_paths(data_dir: Path | None = None) -> list[Path]:
     return paths
 
 
-def _available_form_catalog(forms: list[FormDownloadResponse]) -> str:
-    # Ubah daftar form menjadi katalog yang bisa dipilih AI.
-    if not forms:
-        return "[]"
-
-    return json.dumps(
-        [
-            {
-                "name": form.name,
-                "display_name": form.display_name,
-                "doc_type": form.doc_type,
-                "linked_sop_path": form.linked_sop_path,
-            }
-            for form in forms
-        ],
-        ensure_ascii=False,
-    )
+def _form_catalog_entries(forms: list[FormDownloadResponse]) -> list[dict[str, str | None]]:
+    # Ubah daftar form menjadi entri katalog mentah (belum di-scope ke SOP tertentu).
+    return [
+        {
+            "name": form.name,
+            "display_name": form.display_name,
+            "doc_type": form.doc_type,
+            "linked_sop_path": form.linked_sop_path,
+        }
+        for form in forms
+    ]
 
 
 def _form_lookup_keys(form: FormDownloadResponse) -> set[str]:

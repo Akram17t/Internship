@@ -25,8 +25,8 @@ from backend.api.models import (
 )
 from backend.api.storage import (
     _answer_has_supported_form_context,
-    _available_form_catalog,
     _citation_download_url,
+    _form_catalog_entries,
     _document_kind_for_path,
     _is_embeddable_path,
     _iter_form_downloads,
@@ -178,7 +178,7 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
             answer, raw_citations, selected_form_names, answer_source = run_knowledge_crew(
                 payload.question,
                 conversation_context,
-                available_forms=_available_form_catalog(available_forms),
+                available_forms=_form_catalog_entries(available_forms),
                 trace_id=f"chat:{conversation_id}",
             )
         except ModelGenerationError as error:

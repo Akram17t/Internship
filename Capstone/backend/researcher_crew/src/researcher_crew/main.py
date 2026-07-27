@@ -72,10 +72,9 @@ ANSWER_TASK_RULES = (
     "- Jangan pakai marker generik seperti [n].\n"
     "- Jangan buat bagian sources/references terpisah.\n\n"
     "Aturan pemilihan form:\n"
-    "- Jika jawaban membutuhkan downloadable form, pilih hanya dari available downloadable forms.\n"
-    "- Jangan invent nama form.\n"
-    "- Untuk permohonan/perubahan hak akses sistem, pilih System Access Control List jika tersedia.\n"
-    "- Exit Clearance hanya untuk resign/offboarding; Jangan pilih Exit Clearance hanya karena evidence menyebut akses dicabut.\n"
+    "- Available downloadable forms yang diberikan sudah difilter hanya untuk SOP yang kamu kutip di jawaban ini; form dari SOP lain tidak akan pernah ada di daftar tersebut.\n"
+    "- Nilai sendiri apakah proses yang dijelaskan butuh salah satu form itu, walaupun nama formnya tidak disebut eksplisit di teks SOP.\n"
+    "- Pilih form hanya dari daftar available downloadable forms yang diberikan; jangan invent nama form yang tidak ada di daftar itu.\n"
     "- Jangan menulis filename form atau section download form di jawaban visible; app akan render form terpisah.\n"
     "- Jangan membuat heading/kalimat visible seperti 'Form yang digunakan', 'Form terkait', atau 'Form yang bisa diunduh'; cukup isi FORM_SELECTION.\n"
     "- Jika evidence menjawab pertanyaan, di akhir jawaban tambahkan tepat satu baris machine-readable:\n"
@@ -426,7 +425,7 @@ def _direct_answer_user_prompt(question: str, evidence: str, available_forms: st
     return (
         f"Pertanyaan terbaru:\n{question}\n\n"
         f"Retrieved evidence:\n{evidence}\n\n"
-        f"Available downloadable forms:\n{available_forms or '[]'}\n\n"
+        f"Available downloadable forms (sudah difilter untuk SOP yang dikutip di evidence ini):\n{available_forms or '[]'}\n\n"
         f"{ANSWER_TASK_RULES}\n\n"
         "Jawaban:"
     )
@@ -634,10 +633,40 @@ def _generate_faq_answer(question: str, evidence: str) -> str:
     return answer
 
 
+def _citation_source_keys(citations: list[dict[str, object]]) -> set[str]:
+    keys: set[str] = set()
+    for citation in citations:
+        source = str(citation.get("source") or "").strip()
+        if not source:
+            continue
+        keys.add(source.lower())
+        keys.add(Path(source).name.lower())
+    return keys
+
+
+def _forms_linked_to_citations(
+    forms: list[dict[str, Any]],
+    citations: list[dict[str, object]],
+) -> list[dict[str, Any]]:
+    # Sempitkan katalog form yang dilihat LLM ke SOP yang benar-benar dikutip
+    # di jawaban ini, supaya model tidak bisa memilih form dari SOP lain.
+    if not forms or not citations:
+        return []
+    source_keys = _citation_source_keys(citations)
+    scoped: list[dict[str, Any]] = []
+    for form in forms:
+        linked = str(form.get("linked_sop_path") or "").strip()
+        if not linked:
+            continue
+        if linked.lower() in source_keys or Path(linked).name.lower() in source_keys:
+            scoped.append(form)
+    return scoped
+
+
 def run_knowledge_crew(
     question: str,
     conversation_context: str = "",
-    available_forms: str = "",
+    available_forms: list[dict[str, Any]] | None = None,
     trace_id: str = "",
 ) -> tuple[str, list[dict[str, object]], list[str], str]:
     """Ambil evidence dokumen lalu hasilkan jawaban lewat chat crew."""
@@ -721,9 +750,12 @@ def run_knowledge_crew(
         )
         return _unsupported_answer_for_question(standalone_question), [], [], "fallback"
 
+    scoped_forms = _forms_linked_to_citations(available_forms or [], citations)
+    form_catalog = json.dumps(scoped_forms, ensure_ascii=False) if scoped_forms else "[]"
+
     crew_started = time.perf_counter()
     answer = _strip_generated_sources_section(
-        _generate_answer(standalone_question, evidence, available_forms)
+        _generate_answer(standalone_question, evidence, form_catalog)
     )
     logger.info("[%s] crew    | %.2fs", trace_label, time.perf_counter() - crew_started)
 

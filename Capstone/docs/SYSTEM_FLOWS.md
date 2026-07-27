@@ -72,7 +72,8 @@ flowchart TD
 
 | Step | Fungsi | Lokasi |
 |---|---|---|
-| Katalog form untuk AI | `_available_form_catalog()` | `backend/api/storage.py` |
+| Katalog form mentah | `_form_catalog_entries()` | `backend/api/storage.py` |
+| Scope katalog ke SOP dikutip | `_forms_linked_to_citations()` | `backend/researcher_crew/src/researcher_crew/main.py` |
 | Map form pilihan AI | `_selected_form_downloads()` | `backend/api/storage.py` |
 | Render block form | `renderFormDownloads()` | `frontend/web/assets/js/chat.js` |
 | Modal format | `openTemplateDownloadModal()` | `frontend/web/assets/js/library.js` |
