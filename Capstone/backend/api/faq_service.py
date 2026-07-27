@@ -8,6 +8,7 @@ from fastapi import HTTPException
 from backend.answer_policy import is_unsupported_answer
 from backend.api.models import AdminFAQPayload, CitationResponse, FAQItem
 from backend.api.storage import _citation_download_url
+from backend.observability import environment_name, trace_context
 
 
 def _is_unusable_faq_answer(answer: str, citations: list[CitationResponse]) -> bool:
@@ -21,8 +22,16 @@ def _build_faq_item(payload: AdminFAQPayload, faq_id: str | None = None) -> FAQI
     from researcher_crew.main import ModelGenerationError, run_faq_crew
 
     question = payload.question.strip()
+    resolved_faq_id = faq_id or uuid.uuid4().hex
     try:
-        answer, raw_citations = run_faq_crew(question)
+        with trace_context(
+            name="faq-generate",
+            session_id=resolved_faq_id,
+            input=question,
+            metadata={"feature": "faq", "environment": environment_name()},
+            tags=["capstone", "rag", "faq", environment_name()],
+        ):
+            answer, raw_citations = run_faq_crew(question)
     except ModelGenerationError as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
     citations = [
@@ -43,7 +52,7 @@ def _build_faq_item(payload: AdminFAQPayload, faq_id: str | None = None) -> FAQI
     source = citations[0].source if citations else ""
     source_url = citations[0].download_url if citations else ""
     return FAQItem(
-        id=faq_id or uuid.uuid4().hex,
+        id=resolved_faq_id,
         question=question,
         answer=answer,
         source=source,

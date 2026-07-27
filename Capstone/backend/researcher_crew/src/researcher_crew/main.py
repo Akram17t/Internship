@@ -767,7 +767,21 @@ def run_knowledge_crew(
 
 def run_faq_crew(question: str) -> tuple[str, list[dict[str, object]]]:
     """Buat jawaban FAQ singkat beserta citation dari evidence RAG lokal."""
-    evidence, citations = retrieve_knowledge(question)
+    with span(
+        "retrieve-context",
+        input=question,
+        metadata={"top_k": get_int_env("TOP_K", 4)},
+        as_type="retriever",
+    ) as retrieval_span:
+        evidence, citations = retrieve_knowledge(question)
+        update_observation(
+            retrieval_span,
+            output={"citation_count": len(citations), "evidence_chars": len(evidence)},
+            metadata={
+                "citation_count": len(citations),
+                "evidence_chars": len(evidence),
+            },
+        )
     if not citations:
         return (
             faq_unavailable_answer_text(),

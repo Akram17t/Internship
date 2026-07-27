@@ -6,12 +6,13 @@ import logging
 import os
 import re
 import tempfile
+import uuid
 from pathlib import Path
 from typing import Any
 
 from langchain_core.documents import Document
 
-from backend.observability import openai_client_class, openai_observation_kwargs
+from backend.observability import environment_name, openai_client_class, openai_observation_kwargs, trace_context
 from backend.openai_compat import (
     extract_chat_message_content,
     openai_client_kwargs,
@@ -63,7 +64,7 @@ def _model_identity() -> str:
     return get_env("MODEL", "kr/claude-sonnet-4.5")
 
 
-def _request_ai_chunks(document_text: str) -> str:
+def _request_ai_chunks(document_text: str, source: str) -> str:
     base_url = get_env("CHAT_BASE_URL", "http://localhost:20128/v1").rstrip("/")
     api_key = resolve_openai_compatible_api_key(
         base_url=base_url,
@@ -91,8 +92,8 @@ def _request_ai_chunks(document_text: str) -> str:
     payload.update(openai_request_kwargs(api_key=api_key, base_url=base_url))
     payload.update(
         openai_observation_kwargs(
-            "chunk-document",
-            metadata={"operation": "chunk-document", "document_chars": len(document_text)},
+            f"chunk-document: {source}",
+            metadata={"operation": "chunk-document", "source": source, "document_chars": len(document_text)},
         )
     )
     return extract_chat_message_content(client.chat.completions.create(**payload))
@@ -335,24 +336,31 @@ def chunk_documents(documents: list[Document]) -> list[Document]:
 
     _prune_stale_cache({key for _, _, _, _, key in sources})
     chunks: list[Document] = []
-    for source, pages, document_text, source_hash, key in sources:
-        entries = _read_cache_entry(key, source, source_hash, model, prompt_version)
-        if entries is not None:
-            source_chunks = _documents_from_entries(source, pages, entries)
-        else:
-            try:
-                response_text = _request_ai_chunks(document_text)
-                if not response_text.strip():
-                    raise ValueError("AI returned empty output")
-                entries = _parse_ai_chunks(response_text)
+    with trace_context(
+        name="chunk-documents",
+        session_id=uuid.uuid4().hex,
+        input=[source for source, *_ in sources],
+        metadata={"document_count": len(sources), "environment": environment_name()},
+        tags=["capstone", "ingest", "chunking", environment_name()],
+    ):
+        for source, pages, document_text, source_hash, key in sources:
+            entries = _read_cache_entry(key, source, source_hash, model, prompt_version)
+            if entries is not None:
                 source_chunks = _documents_from_entries(source, pages, entries)
-                _write_cache_entry(
-                    key, source, source_hash, model, prompt_version, entries
-                )
-            except Exception as error:
-                LOGGER.warning("AI chunking failed for %s; using local fallback: %s", source, error)
-                source_chunks = _fallback_documents(source, pages)
-        chunks.extend(source_chunks)
+            else:
+                try:
+                    response_text = _request_ai_chunks(document_text, source)
+                    if not response_text.strip():
+                        raise ValueError("AI returned empty output")
+                    entries = _parse_ai_chunks(response_text)
+                    source_chunks = _documents_from_entries(source, pages, entries)
+                    _write_cache_entry(
+                        key, source, source_hash, model, prompt_version, entries
+                    )
+                except Exception as error:
+                    LOGGER.warning("AI chunking failed for %s; using local fallback: %s", source, error)
+                    source_chunks = _fallback_documents(source, pages)
+            chunks.extend(source_chunks)
 
     for chunk_id, chunk in enumerate(chunks, start=1):
         chunk.metadata["chunk_id"] = chunk_id
