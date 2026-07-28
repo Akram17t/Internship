@@ -43,8 +43,8 @@ class FeedbackPayload(BaseModel):
     feedback_id: int = Field(..., ge=1)
     feedback_token: str = Field(..., min_length=16, max_length=256)
     conversation_id: str = Field(..., min_length=1, max_length=128)
-    rating: Literal["thumbs_down"]
-    reason: str = Field(..., min_length=5, max_length=500)
+    rating: Literal["thumbs_down", "thumbs_up"]
+    reason: str | None = Field(default=None, max_length=500)
 
 
 class FeedbackResponse(BaseModel):
@@ -160,3 +160,11 @@ class AdminDocumentResponse(BaseModel):
 
 class AdminReindexResponse(BaseModel):
     message: str
+
+
+class AdminGuardrailsPayload(BaseModel):
+    rules: str = Field(..., min_length=10)
+
+
+class AdminGuardrailsResponse(BaseModel):
+    rules: str

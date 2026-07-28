@@ -35,7 +35,11 @@ from backend.api.storage import (
     _resolve_document_path,
     _selected_form_downloads,
 )
-from backend.cache_db import insert_activity_log, update_activity_log_feedback
+from backend.cache_db import (
+    insert_activity_log,
+    mark_activity_log_cached,
+    update_activity_log_feedback,
+)
 from backend.observability import (
     current_trace_id,
     environment_name,
@@ -43,6 +47,7 @@ from backend.observability import (
     trace_context,
     update_observation,
 )
+from backend.semantic_cache import store_semantic_cache
 from backend.settings import get_bool_env
 
 logger = logging.getLogger("uvicorn.error")
@@ -70,6 +75,9 @@ def _record_chat_activity(
     error: object = "",
     feedback_token: str = "",
     trace_id: str = "",
+    cache_question: str = "",
+    cache_citations: list[dict[str, object]] | None = None,
+    cache_selected_forms: list[str] | None = None,
 ) -> int | None:
     citation_items = citations or []
     source_names = []
@@ -95,6 +103,12 @@ def _record_chat_activity(
         details["trace_id"] = trace_id
     if error:
         details["error"] = _truncate(error)
+    if answer_source == "model" and cache_citations:
+        details["cache_payload"] = {
+            "question": cache_question,
+            "citations": cache_citations,
+            "selected_forms": cache_selected_forms or [],
+        }
     try:
         return insert_activity_log(
             event_type="chat",
@@ -175,7 +189,7 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
         tags=["capstone", "rag", "chat", environment_name()],
     ) as trace:
         try:
-            answer, raw_citations, selected_form_names, answer_source = run_knowledge_crew(
+            answer, raw_citations, selected_form_names, answer_source, standalone_question = run_knowledge_crew(
                 payload.question,
                 conversation_context,
                 available_forms=_form_catalog_entries(available_forms),
@@ -285,6 +299,9 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
             response_time_seconds=response_time_seconds,
             feedback_token=feedback_token,
             trace_id=current_trace_id(),
+            cache_question=standalone_question,
+            cache_citations=raw_citations,
+            cache_selected_forms=selected_form_names,
         )
         try:
             from backend.preprocessing.vectorstore import get_active_index_name
@@ -318,11 +335,12 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
 
 @app.post("/api/feedback", response_model=FeedbackResponse)
 def submit_chat_feedback(payload: FeedbackPayload) -> FeedbackResponse:
-    # Simpan feedback negatif user untuk log lokal dan Langfuse score.
-    clean_reason = payload.reason.strip()
+    # Simpan feedback user: thumbs_down -> log + Langfuse score, thumbs_up -> log + commit ke semantic cache.
     clean_conversation_id = payload.conversation_id.strip()
-    if len(clean_reason) < 5:
+    clean_reason = (payload.reason or "").strip()
+    if payload.rating == "thumbs_down" and len(clean_reason) < 5:
         raise HTTPException(status_code=422, detail="Reason must be at least 5 characters.")
+
     updated_log = update_activity_log_feedback(
         log_id=payload.feedback_id,
         feedback_token=payload.feedback_token,
@@ -337,12 +355,28 @@ def submit_chat_feedback(payload: FeedbackPayload) -> FeedbackResponse:
     feedback = details.get("feedback") if isinstance(details, dict) else {}
     if not isinstance(feedback, dict):
         feedback = {}
-    score_user_thumbs_down(
-        trace_id=str(details.get("trace_id") or ""),
-        feedback_id=payload.feedback_id,
-        reason=clean_reason,
-        conversation_id=clean_conversation_id,
-    )
+
+    if payload.rating == "thumbs_down":
+        score_user_thumbs_down(
+            trace_id=str(details.get("trace_id") or ""),
+            feedback_id=payload.feedback_id,
+            reason=clean_reason,
+            conversation_id=clean_conversation_id,
+        )
+    elif payload.rating == "thumbs_up":
+        cache_payload = details.get("cache_payload") if isinstance(details, dict) else None
+        already_cached = bool(details.get("cached_entry_id"))
+        if isinstance(cache_payload, dict) and not already_cached:
+            entry_id = store_semantic_cache(
+                str(cache_payload.get("question") or ""),
+                str(details.get("answer") or ""),
+                cache_payload.get("citations") or [],
+                cache_payload.get("selected_forms") or [],
+                trace_id=str(details.get("trace_id") or ""),
+            )
+            if entry_id:
+                mark_activity_log_cached(payload.feedback_id, entry_id)
+
     return FeedbackResponse(message="Feedback recorded.", feedback=feedback)
 
 

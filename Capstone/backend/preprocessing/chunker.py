@@ -346,8 +346,10 @@ def chunk_documents(documents: list[Document]) -> list[Document]:
         for source, pages, document_text, source_hash, key in sources:
             entries = _read_cache_entry(key, source, source_hash, model, prompt_version)
             if entries is not None:
+                print(f"[chunk] cache hit  | {source} ({len(entries)} chunks)")
                 source_chunks = _documents_from_entries(source, pages, entries)
             else:
+                print(f"[chunk] cache miss | {source}; requesting AI chunking...")
                 try:
                     response_text = _request_ai_chunks(document_text, source)
                     if not response_text.strip():

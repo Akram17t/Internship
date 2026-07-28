@@ -890,6 +890,46 @@ body[data-role="admin"] .account-action:hover {
   color: var(--paper);
 }
 
+.message-feedback-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  margin-top: 2px;
+}
+
+.message-feedback-row:empty {
+  display: none;
+}
+
+.message-feedback-label {
+  color: var(--muted);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.message-feedback-thanks {
+  color: var(--muted);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.message-feedback-button--up {
+  border-color: #167246;
+  color: #167246;
+}
+
+.message-feedback-button--up:hover,
+.message-feedback-button--up:focus-visible {
+  border-color: #167246;
+  background: #167246;
+  color: var(--paper);
+}
+
 .message-citations {
   display: flex;
   width: 100%;
@@ -2099,6 +2139,45 @@ body[data-reindex-state="running"] .document-reindex-panel {
 
 .admin-document-status.is-error {
   color: var(--red);
+}
+
+.guardrails-textarea {
+  width: 100%;
+  min-height: 360px;
+  margin-top: 24px;
+  padding: 16px;
+  border: 1px solid var(--ink);
+  border-radius: 12px;
+  background: var(--paper);
+  color: var(--ink);
+  font:
+    400 13px/1.6 "JetBrains Mono",
+    monospace;
+  resize: vertical;
+}
+
+.guardrails-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.guardrails-status {
+  min-height: 18px;
+  margin: 0;
+  color: var(--muted);
+  font:
+    400 11px/18px "JetBrains Mono",
+    monospace;
+}
+
+.guardrails-status.is-error {
+  color: var(--red);
+}
+
+.guardrails-status.is-success {
+  color: #237044;
 }
 
 .library-list {

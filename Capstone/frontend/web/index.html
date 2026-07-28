@@ -50,6 +50,10 @@
             <span class="material-symbols-outlined">policy</span
             ><span>Docs</span>
           </button>
+          <button class="nav-link" data-screen="guardrails" type="button" hidden>
+            <span class="material-symbols-outlined">shield</span
+            ><span>Guardrails</span>
+          </button>
           <button class="nav-link" data-screen="logs" type="button" hidden>
             <span class="material-symbols-outlined">receipt_long</span
             ><span>Logs</span>
@@ -352,6 +356,40 @@
             </div>
           </section>
 
+          <section class="screen guardrails-screen" data-screen-panel="guardrails">
+            <div class="policy-canvas">
+              <div class="policy-heading">
+                <div class="policy-intro">
+                  <span class="section-label">AI Behavior</span>
+                  <h2>Answer <span class="accent-text">Guardrails</span></h2>
+                  <p>
+                    Rules ini disuntikkan ke setiap jawaban AI: format sitasi,
+                    aturan pemilihan form, dan larangan halusinasi. Ubah dengan
+                    hati-hati.
+                  </p>
+                </div>
+              </div>
+              <form id="guardrailsForm">
+                <textarea
+                  id="guardrailsTextarea"
+                  class="guardrails-textarea"
+                  rows="20"
+                  spellcheck="false"
+                ></textarea>
+                <div class="guardrails-actions">
+                  <button
+                    class="admin-submit"
+                    id="guardrailsSaveButton"
+                    type="submit"
+                  >
+                    Save guardrails
+                  </button>
+                  <p class="guardrails-status" id="guardrailsStatus"></p>
+                </div>
+              </form>
+            </div>
+          </section>
+
           <section class="screen logs-screen" data-screen-panel="logs">
             <div class="logs-canvas">
               <div class="logs-heading">
@@ -484,6 +522,7 @@
           <div class="message-bubble"></div>
           <div class="message-citations" hidden></div>
           <div class="message-meta"></div>
+          <div class="message-feedback-row"></div>
         </div>
       </article>
     </template>
@@ -798,6 +837,7 @@
     <script src="/assets/js/markdown.js"></script>
     <script src="/assets/js/faq.js"></script>
     <script src="/assets/js/library.js"></script>
+    <script src="/assets/js/guardrails.js"></script>
     <script src="/assets/js/logs.js"></script>
     <script src="/assets/js/auth.js"></script>
     <script src="/assets/app.js"></script>

@@ -397,6 +397,7 @@ function renderMessages(scrollBehavior = "auto", options = {}) {
     const avatar = fragment.querySelector(".message-avatar");
     const bubble = fragment.querySelector(".message-bubble");
     const meta = fragment.querySelector(".message-meta");
+    const feedbackRow = fragment.querySelector(".message-feedback-row");
     const isAssistant = message.role === "assistant";
 
     article.classList.add(isAssistant ? "is-assistant" : "is-user");
@@ -437,7 +438,7 @@ function renderMessages(scrollBehavior = "auto", options = {}) {
       meta.append(" • ", duration);
     }
     if (isAssistant && !message.loading && !message.streaming) {
-      appendFeedbackAction(meta, message);
+      renderFeedbackRow(feedbackRow, message);
     }
     elements.chatThread.appendChild(fragment);
   });
@@ -455,23 +456,73 @@ function bindFeedbackModal() {
   });
 }
 
-function appendFeedbackAction(meta, message) {
+// TODO: sementara ditaruh di baris terpisah di bawah message-meta ("log" text).
+// Comment-out block ini (dan pemanggilannya di renderMessages) kalau UI ini sudah tidak dipakai.
+function renderFeedbackRow(row, message) {
+  if (!row) return;
+  row.innerHTML = "";
   if (!message.feedback_id || !message.feedback_token) return;
-  if (message.feedback?.rating === "thumbs_down") {
+
+  if (message.feedback?.rating) {
+    const thanks = document.createElement("span");
+    thanks.className = "message-feedback-thanks";
+    thanks.textContent = "Thanks for the feedback";
+    row.append(thanks);
     return;
   }
 
-  const button = document.createElement("button");
-  button.className = "message-feedback-button material-symbols-outlined";
-  button.type = "button";
-  button.title = "Report unsatisfying answer";
-  button.setAttribute("aria-label", "Report unsatisfying answer");
-  button.textContent = "thumb_down";
-  button.addEventListener("click", (event) => {
+  const label = document.createElement("span");
+  label.className = "message-feedback-label";
+  label.textContent = "Is this helpful?";
+
+  const upButton = document.createElement("button");
+  upButton.className = "message-feedback-button message-feedback-button--up material-symbols-outlined";
+  upButton.type = "button";
+  upButton.title = "Mark this answer as helpful";
+  upButton.setAttribute("aria-label", "Mark this answer as helpful");
+  upButton.textContent = "thumb_up";
+  upButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    void submitThumbsUp(message, row);
+  });
+
+  const downButton = document.createElement("button");
+  downButton.className = "message-feedback-button material-symbols-outlined";
+  downButton.type = "button";
+  downButton.title = "Report unsatisfying answer";
+  downButton.setAttribute("aria-label", "Report unsatisfying answer");
+  downButton.textContent = "thumb_down";
+  downButton.addEventListener("click", (event) => {
     event.preventDefault();
     openFeedbackModal(message);
   });
-  meta.append(" | ", button);
+
+  row.append(label, upButton, downButton);
+}
+
+async function submitThumbsUp(message, row) {
+  if (!message?.feedback_id || !message.feedback_token || message.feedback?.rating) return;
+  try {
+    const response = await fetch("/api/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        feedback_id: message.feedback_id,
+        feedback_token: message.feedback_token,
+        conversation_id: state.conversationId,
+        rating: "thumbs_up",
+      }),
+    });
+    const payload = await readJsonResponse(response);
+    if (!response.ok) {
+      throw new Error(formatApiError(payload.detail, "Feedback gagal dikirim."));
+    }
+    message.feedback = payload.feedback || { rating: "thumbs_up" };
+    persistMessages();
+    renderFeedbackRow(row, message);
+  } catch (error) {
+    console.warn("Thumbs-up feedback gagal dikirim.", error);
+  }
 }
 
 function openFeedbackModal(message) {

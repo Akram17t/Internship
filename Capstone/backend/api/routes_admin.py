@@ -26,6 +26,8 @@ from backend.api.models import (
     AdminDocumentResponse,
     AdminFAQPayload,
     AdminFAQResponse,
+    AdminGuardrailsPayload,
+    AdminGuardrailsResponse,
     AdminLoginPayload,
     AdminLoginResponse,
     AdminReindexResponse,
@@ -44,8 +46,10 @@ from backend.api.storage import (
 from backend.cache_db import (
     delete_activity_log,
     delete_activity_logs_for_conversation,
+    get_guardrails_rules,
     list_activity_log_sessions,
     list_activity_logs,
+    set_guardrails_rules,
     summarize_activity_logs,
 )
 
@@ -412,3 +416,21 @@ def reindex_documents(authorization: str = Header(default="")) -> AdminReindexRe
     if reindex_result == "cleared":
         return AdminReindexResponse(message="No source documents found.")
     return AdminReindexResponse(message="Changes finalized.")
+
+
+@app.get("/api/admin/guardrails", response_model=AdminGuardrailsResponse)
+def get_guardrails(authorization: str = Header(default="")) -> AdminGuardrailsResponse:
+    # Ambil rules guardrails yang sedang aktif.
+    _require_admin(authorization)
+    return AdminGuardrailsResponse(rules=get_guardrails_rules())
+
+
+@app.put("/api/admin/guardrails", response_model=AdminGuardrailsResponse)
+def update_guardrails(
+    payload: AdminGuardrailsPayload,
+    authorization: str = Header(default=""),
+) -> AdminGuardrailsResponse:
+    # Ganti rules guardrails yang disuntik ke setiap jawaban AI.
+    _require_admin(authorization)
+    set_guardrails_rules(payload.rules.strip())
+    return AdminGuardrailsResponse(rules=get_guardrails_rules())

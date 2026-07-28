@@ -20,7 +20,8 @@ from backend.answer_policy import (
     unsupported_answer_text_en,
 )
 from backend.settings import get_env, get_int_env, get_required_env, load_capstone_env
-from backend.semantic_cache import lookup_semantic_cache, store_semantic_cache
+from backend.cache_db import get_guardrails_rules
+from backend.semantic_cache import lookup_semantic_cache
 from backend.openai_compat import (
     openai_client_kwargs,
     openai_request_kwargs,
@@ -51,44 +52,6 @@ ANSWER_ROLE_PROMPT = (
     "dalam format, dan jujur ketika evidence tidak lengkap."
 )
 
-ANSWER_TASK_RULES = (
-    "Jawab pertanyaan user hanya memakai retrieved evidence yang diberikan.\n"
-    "Gunakan bahasa yang sama dengan pertanyaan terakhir user. Jika pertanyaan terakhir "
-    "berbahasa Inggris, jawab dalam bahasa Inggris; jika berbahasa Indonesia, jawab dalam bahasa Indonesia.\n\n"
-    "Gaya jawaban:\n"
-    "- Natural, jelas, dan membantu.\n"
-    "- Pilih format yang paling cocok: paragraf, bullet, numbered steps, tabel kecil, atau campuran.\n"
-    "- Jika membahas proses/SOP, jelaskan alur, aktor, form, approval, output, deadline, kondisi, dan pengecualian hanya jika didukung evidence.\n\n"
-    "Aturan sitasi:\n"
-    "- Pertahankan marker sitasi angka seperti [1] dan [2] di jawaban visible.\n"
-    "- Letakkan citation di akhir paragraf, bullet, atau baris tabel yang penting.\n"
-    "- Jangan pernah menaruh citation sebagai bullet/baris sendiri seperti '- [1]'; tempelkan ke kalimat sebelumnya.\n"
-    "- Jika satu langkah punya beberapa bullet, citation cukup ditempel di bullet berisi klaim utama; jangan buat bullet baru hanya untuk citation.\n"
-    "- Sebelum final, cek ulang: tidak boleh ada baris yang isinya hanya citation seperti '[1]', '- [1]', '* [1]', atau '1. [1]'.\n"
-    "- Jika membuat tabel, pastikan minimal kalimat pengantar atau heading tabel memiliki marker citation yang mendukung isi tabel.\n"
-    "- Jika membuat tabel markdown, setiap baris harus diawali dan diakhiri karakter |, termasuk baris terakhir.\n"
-    "- Jangan tulis nama file/source/section sebagai bagian jawaban visible kecuali user memang bertanya sumbernya.\n"
-    "- Hindari citation bertumpuk seperti [1] [2] [3]; pecah kalimat/bullet jika perlu.\n"
-    "- Jangan pakai marker generik seperti [n].\n"
-    "- Jangan buat bagian sources/references terpisah.\n\n"
-    "Aturan pemilihan form:\n"
-    "- Available downloadable forms yang diberikan sudah difilter hanya untuk SOP yang kamu kutip di jawaban ini; form dari SOP lain tidak akan pernah ada di daftar tersebut.\n"
-    "- Nilai sendiri apakah proses yang dijelaskan butuh salah satu form itu, walaupun nama formnya tidak disebut eksplisit di teks SOP.\n"
-    "- Pilih form hanya dari daftar available downloadable forms yang diberikan; jangan invent nama form yang tidak ada di daftar itu.\n"
-    "- Jangan menulis filename form atau section download form di jawaban visible; app akan render form terpisah.\n"
-    "- Jangan membuat heading/kalimat visible seperti 'Form yang digunakan', 'Form terkait', atau 'Form yang bisa diunduh'; cukup isi FORM_SELECTION.\n"
-    "- Jika evidence menjawab pertanyaan, di akhir jawaban tambahkan tepat satu baris machine-readable:\n"
-    "FORM_SELECTION: [\"exact form filename\"]\n"
-    "- Jika tidak perlu form, tulis tepat:\n"
-    "FORM_SELECTION: []\n\n"
-    "Aturan reliabilitas:\n"
-    "- Jangan invent detail policy, file, page, form number, approval, aktor, kalkulasi, requirement, pengecualian, atau rekomendasi.\n"
-    "- Jangan pernah output reasoning tersembunyi, chain-of-thought, atau tag <think>...</think>.\n"
-    "- Jika evidence tidak menjawab langsung dan pertanyaan berbahasa Indonesia, balas persis kalimat ini saja tanpa FORM_SELECTION:\n"
-    "\"Sistem tidak dapat menemukan informasi terkait hal tersebut di dalam dokumen SOP. Silakan lakukan eskalasi ke HR atau manajer terkait untuk instruksi manual.\""
-    "\n- Jika evidence tidak menjawab langsung dan pertanyaan berbahasa Inggris, balas persis kalimat ini saja tanpa FORM_SELECTION:\n"
-    "\"The system could not find information related to this in the SOP documents. Please escalate to HR or the relevant manager for manual instructions.\""
-)
 
 
 class ModelGenerationError(RuntimeError):
@@ -426,7 +389,7 @@ def _direct_answer_user_prompt(question: str, evidence: str, available_forms: st
         f"Pertanyaan terbaru:\n{question}\n\n"
         f"Retrieved evidence:\n{evidence}\n\n"
         f"Available downloadable forms (sudah difilter untuk SOP yang dikutip di evidence ini):\n{available_forms or '[]'}\n\n"
-        f"{ANSWER_TASK_RULES}\n\n"
+        f"{get_guardrails_rules()}\n\n"
         "Jawaban:"
     )
 
@@ -596,8 +559,10 @@ def _finalize_answer_citations(
 def _generate_faq_answer(question: str, evidence: str) -> str:
     # Buat jawaban FAQ yang ringkas, tetapi tetap memuat detail paling berguna.
     prompt = (
-        "Kamu adalah HR Assistant ICS Compute. Tulis jawaban FAQ dalam bahasa Indonesia "
-        "yang singkat, padat, dan informatif dengan hanya memakai evidence yang diberikan.\n\n"
+        "Kamu adalah HR Assistant ICS Compute. Tulis jawaban FAQ yang singkat, padat, "
+        "dan informatif dengan hanya memakai evidence yang diberikan.\n\n"
+        "Gunakan bahasa yang sama dengan pertanyaan. Jika pertanyaan berbahasa Inggris, "
+        "jawab dalam bahasa Inggris; jika berbahasa Indonesia, jawab dalam bahasa Indonesia.\n\n"
         "Aturan jawaban:\n"
         "1. Jawab inti pertanyaan langsung dalam 1-2 kalimat pembuka, tanpa pembuka generik.\n"
         "2. Jika ada tiga atau lebih detail penting, lanjutkan dengan 3-6 bullet menggunakan "
@@ -668,7 +633,7 @@ def run_knowledge_crew(
     conversation_context: str = "",
     available_forms: list[dict[str, Any]] | None = None,
     trace_id: str = "",
-) -> tuple[str, list[dict[str, object]], list[str], str]:
+) -> tuple[str, list[dict[str, object]], list[str], str, str]:
     """Ambil evidence dokumen lalu hasilkan jawaban lewat chat crew."""
     trace_label = trace_id or "chat"
     started_at = time.perf_counter()
@@ -727,7 +692,7 @@ def run_knowledge_crew(
                     "selected_form_count": len(cache_hit.selected_forms),
                 },
             )
-        return cached_answer, cached_citations, cache_hit.selected_forms, "cache"
+        return cached_answer, cached_citations, cache_hit.selected_forms, "cache", standalone_question
 
     with span(
         "retrieve-context",
@@ -748,7 +713,7 @@ def run_knowledge_crew(
         logger.info(
             "[%s] total   | %.2fs (tanpa sumber)", trace_label, time.perf_counter() - started_at
         )
-        return _unsupported_answer_for_question(standalone_question), [], [], "fallback"
+        return _unsupported_answer_for_question(standalone_question), [], [], "fallback", standalone_question
 
     scoped_forms = _forms_linked_to_citations(available_forms or [], citations)
     form_catalog = json.dumps(scoped_forms, ensure_ascii=False) if scoped_forms else "[]"
@@ -776,7 +741,7 @@ def run_knowledge_crew(
                 output=fallback_answer,
                 metadata={"answer_source": "fallback"},
             )
-            return fallback_answer, [], [], "fallback"
+            return fallback_answer, [], [], "fallback", standalone_question
         answer, citations = _finalize_answer_citations(answer, citations)
         update_observation(
             finalize_span,
@@ -786,15 +751,8 @@ def run_knowledge_crew(
                 "selected_form_count": len(selected_forms),
             },
         )
-    store_semantic_cache(
-        standalone_question,
-        answer,
-        citations,
-        selected_forms,
-        trace_id=trace_label,
-    )
     logger.info("[%s] total   | %.2fs", trace_label, time.perf_counter() - started_at)
-    return answer, citations, selected_forms, "model"
+    return answer, citations, selected_forms, "model", standalone_question
 
 
 def run_faq_crew(question: str) -> tuple[str, list[dict[str, object]]]:

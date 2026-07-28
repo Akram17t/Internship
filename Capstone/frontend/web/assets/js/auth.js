@@ -291,8 +291,9 @@ function syncAuth() {
     isAdmin ? "Logout admin" : "Login admin",
   );
   if (elements.policyNavLink) elements.policyNavLink.hidden = false;
+  if (elements.guardrailsNavLink) elements.guardrailsNavLink.hidden = !isAdmin;
   if (elements.logsNavLink) elements.logsNavLink.hidden = !isAdmin;
-  if (!isAdmin && state.activeScreen === "logs") {
+  if (!isAdmin && (state.activeScreen === "logs" || state.activeScreen === "guardrails")) {
     navigateTo("chat");
   }
   if (!isAdmin) resetFaqForm();

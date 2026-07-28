@@ -10,9 +10,10 @@ const screens = {
   chat: "Active Session",
   faq: "Frequently Asked Questions",
   policy: "Document Library",
+  guardrails: "Guardrails",
   logs: "Activity Logs",
 };
-const adminScreens = new Set(["logs"]);
+const adminScreens = new Set(["guardrails", "logs"]);
 
 const loadingStageLabels = [
   "Memahami pertanyaan...",
@@ -89,6 +90,11 @@ const elements = {
   librarySearch: document.getElementById("librarySearch"),
   policySearchWrap: document.getElementById("policySearchWrap"),
   policyNavLink: document.querySelector('.nav-link[data-screen="policy"]'),
+  guardrailsNavLink: document.querySelector('.nav-link[data-screen="guardrails"]'),
+  guardrailsForm: document.getElementById("guardrailsForm"),
+  guardrailsTextarea: document.getElementById("guardrailsTextarea"),
+  guardrailsSaveButton: document.getElementById("guardrailsSaveButton"),
+  guardrailsStatus: document.getElementById("guardrailsStatus"),
   logsNavLink: document.querySelector('.nav-link[data-screen="logs"]'),
   logsStartDate: document.getElementById("logsStartDate"),
   logsEndDate: document.getElementById("logsEndDate"),
@@ -182,6 +188,7 @@ function init() {
   bindPolicyActions();
   bindAuth();
   bindAdminDocuments();
+  bindGuardrails();
   bindAdminLogs();
   syncAuth();
   syncReindexState();
@@ -229,6 +236,7 @@ function syncScreenFromHash() {
     screen.classList.toggle("is-active", screen.dataset.screenPanel === target),
   );
   if (target === "logs") refreshActivityLogsIfVisible();
+  if (target === "guardrails") loadGuardrailsIfVisible();
   closeMobileNav();
 }
 

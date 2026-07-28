@@ -25,12 +25,52 @@ load_capstone_env()
 SCHEMA_VERSION = "4"
 MIGRATION_KEY = "conversations_json_migrated"
 ADMIN_SESSION_SECRET_KEY = "admin_session_secret"
+GUARDRAILS_RULES_KEY = "guardrails_rules_text"
 DEFAULT_ADMIN_EMAIL = "admin@gmail.com"
 DEFAULT_ADMIN_PASSWORD = "admin123"
 DEFAULT_ADMIN_NAME = "admin"
 ACTIVITY_LOG_RETENTION = timedelta(days=30)
 MAX_ACTIVITY_LOG_LIMIT = 1000
 STATE_DB_LOCK = threading.RLock()
+
+DEFAULT_GUARDRAILS_RULES = (
+    "Jawab pertanyaan user hanya memakai retrieved evidence yang diberikan.\n"
+    "Gunakan bahasa yang sama dengan pertanyaan terakhir user. Jika pertanyaan terakhir "
+    "berbahasa Inggris, jawab dalam bahasa Inggris; jika berbahasa Indonesia, jawab dalam bahasa Indonesia.\n\n"
+    "Gaya jawaban:\n"
+    "- Natural, jelas, dan membantu.\n"
+    "- Pilih format yang paling cocok: paragraf, bullet, numbered steps, tabel kecil, atau campuran.\n"
+    "- Jika membahas proses/SOP, jelaskan alur, aktor, form, approval, output, deadline, kondisi, dan pengecualian hanya jika didukung evidence.\n\n"
+    "Aturan sitasi:\n"
+    "- Pertahankan marker sitasi angka seperti [1] dan [2] di jawaban visible.\n"
+    "- Letakkan citation di akhir paragraf, bullet, atau baris tabel yang penting.\n"
+    "- Jangan pernah menaruh citation sebagai bullet/baris sendiri seperti '- [1]'; tempelkan ke kalimat sebelumnya.\n"
+    "- Jika satu langkah punya beberapa bullet, citation cukup ditempel di bullet berisi klaim utama; jangan buat bullet baru hanya untuk citation.\n"
+    "- Sebelum final, cek ulang: tidak boleh ada baris yang isinya hanya citation seperti '[1]', '- [1]', '* [1]', atau '1. [1]'.\n"
+    "- Jika membuat tabel, pastikan minimal kalimat pengantar atau heading tabel memiliki marker citation yang mendukung isi tabel.\n"
+    "- Jika membuat tabel markdown, setiap baris harus diawali dan diakhiri karakter |, termasuk baris terakhir.\n"
+    "- Jangan tulis nama file/source/section sebagai bagian jawaban visible kecuali user memang bertanya sumbernya.\n"
+    "- Hindari citation bertumpuk seperti [1] [2] [3]; pecah kalimat/bullet jika perlu.\n"
+    "- Jangan pakai marker generik seperti [n].\n"
+    "- Jangan buat bagian sources/references terpisah.\n\n"
+    "Aturan pemilihan form:\n"
+    "- Available downloadable forms yang diberikan sudah difilter hanya untuk SOP yang kamu kutip di jawaban ini; form dari SOP lain tidak akan pernah ada di daftar tersebut.\n"
+    "- Nilai sendiri apakah proses yang dijelaskan butuh salah satu form itu, walaupun nama formnya tidak disebut eksplisit di teks SOP.\n"
+    "- Pilih form hanya dari daftar available downloadable forms yang diberikan; jangan invent nama form yang tidak ada di daftar itu.\n"
+    "- Jangan menulis filename form atau section download form di jawaban visible; app akan render form terpisah.\n"
+    "- Jangan membuat heading/kalimat visible seperti 'Form yang digunakan', 'Form terkait', atau 'Form yang bisa diunduh'; cukup isi FORM_SELECTION.\n"
+    "- Jika evidence menjawab pertanyaan, di akhir jawaban tambahkan tepat satu baris machine-readable:\n"
+    "FORM_SELECTION: [\"exact form filename\"]\n"
+    "- Jika tidak perlu form, tulis tepat:\n"
+    "FORM_SELECTION: []\n\n"
+    "Aturan reliabilitas:\n"
+    "- Jangan invent detail policy, file, page, form number, approval, aktor, kalkulasi, requirement, pengecualian, atau rekomendasi.\n"
+    "- Jangan pernah output reasoning tersembunyi, chain-of-thought, atau tag <think>...</think>.\n"
+    "- Jika evidence tidak menjawab langsung dan pertanyaan berbahasa Indonesia, balas persis kalimat ini saja tanpa FORM_SELECTION:\n"
+    "\"Sistem tidak dapat menemukan informasi terkait hal tersebut di dalam dokumen SOP. Silakan lakukan eskalasi ke HR atau manajer terkait untuk instruksi manual.\""
+    "\n- Jika evidence tidak menjawab langsung dan pertanyaan berbahasa Inggris, balas persis kalimat ini saja tanpa FORM_SELECTION:\n"
+    "\"The system could not find information related to this in the SOP documents. Please escalate to HR or the relevant manager for manual instructions.\""
+)
 
 
 def _resolve_root_path(raw_path: str) -> Path:
@@ -341,6 +381,23 @@ def _ensure_admin_session_secret(connection: sqlite3.Connection) -> str:
     return next_secret
 
 
+def get_guardrails_rules() -> str:
+    with STATE_DB_LOCK:
+        init_state_db()
+        with closing(_connect()) as connection:
+            value = _get_meta(connection, GUARDRAILS_RULES_KEY)
+            connection.commit()
+    return value if value is not None else DEFAULT_GUARDRAILS_RULES
+
+
+def set_guardrails_rules(text: str) -> None:
+    with STATE_DB_LOCK:
+        init_state_db()
+        with closing(_connect()) as connection:
+            _set_meta(connection, GUARDRAILS_RULES_KEY, text)
+            connection.commit()
+
+
 def _ensure_default_admin(connection: sqlite3.Connection) -> None:
     existing_count = int(
         connection.execute("SELECT COUNT(*) AS count FROM admin_accounts").fetchone()["count"]
@@ -630,7 +687,7 @@ def update_activity_log_feedback(
     clean_conversation_id = conversation_id.strip()
     clean_reason = reason.strip()
     clean_token = feedback_token.strip()
-    if rating != "thumbs_down" or not clean_token or not clean_conversation_id:
+    if rating not in {"thumbs_down", "thumbs_up"} or not clean_token or not clean_conversation_id:
         return None
 
     with STATE_DB_LOCK:
@@ -677,6 +734,35 @@ def update_activity_log_feedback(
             connection.commit()
 
     return get_activity_log(log_id, event_type="chat")
+
+
+def mark_activity_log_cached(log_id: int, entry_id: str) -> None:
+    with STATE_DB_LOCK:
+        init_state_db()
+        with closing(_connect()) as connection:
+            row = connection.execute(
+                """
+                SELECT *
+                FROM activity_logs
+                WHERE id = ? AND event_type = 'chat'
+                """,
+                (log_id,),
+            ).fetchone()
+            if row is None:
+                connection.commit()
+                return
+
+            details = _activity_log_details(row)
+            details["cached_entry_id"] = entry_id
+            connection.execute(
+                """
+                UPDATE activity_logs
+                SET details_json = ?
+                WHERE id = ?
+                """,
+                (json.dumps(details, ensure_ascii=False), log_id),
+            )
+            connection.commit()
 
 
 def delete_activity_log(log_id: int, *, event_type: str | None = None) -> bool:
