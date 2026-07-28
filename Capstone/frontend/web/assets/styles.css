@@ -862,6 +862,18 @@ body[data-role="admin"] .account-action:hover {
   color: #846000;
 }
 
+.message-source--out_of_scope {
+  color: #846000;
+}
+
+.message-source--blocked {
+  color: #9b2c36;
+}
+
+.message-source--no_retrieval {
+  color: var(--muted);
+}
+
 .message-feedback-button {
   display: inline-grid;
   box-sizing: border-box;
@@ -4489,11 +4501,20 @@ body[data-role="admin"]
 }
 
 .log-feedback-icon {
-  display: inline-block;
-  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin-top: 2px;
+  border-radius: 50%;
   color: var(--red);
-  font-size: 24px;
+  font-size: 20px;
   line-height: 1;
+  transition:
+    background-color 220ms ease,
+    box-shadow 220ms ease;
+  transform-origin: 50% 20%;
 }
 
 .log-feedback-copy {
@@ -4514,7 +4535,7 @@ body[data-role="admin"]
   margin: 0;
   color: var(--ink);
   font:
-    500 19px/1.42 "Instrument Sans",
+    500 15px/1.5 "Instrument Sans",
     sans-serif;
   overflow-wrap: anywhere;
 }
@@ -4525,6 +4546,43 @@ body[data-role="admin"]
   background:
     linear-gradient(90deg, rgba(188, 24, 35, 0.055), transparent 58%),
     var(--paper-light);
+}
+
+@keyframes logFeedbackIconShake {
+  0%,
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+  20% {
+    transform: rotate(-16deg) scale(1.08);
+  }
+  40% {
+    transform: rotate(13deg) scale(1.08);
+  }
+  60% {
+    transform: rotate(-9deg) scale(1.04);
+  }
+  80% {
+    transform: rotate(5deg) scale(1.02);
+  }
+}
+
+.log-feedback-row .log-row-toggle:hover .log-feedback-icon,
+.log-feedback-row .log-row-toggle:focus-visible .log-feedback-icon {
+  background: rgba(188, 24, 35, 0.12);
+  box-shadow: 0 0 0 5px rgba(188, 24, 35, 0.08);
+  animation: logFeedbackIconShake 480ms ease;
+}
+
+.log-feedback-row .log-row-toggle:active .log-feedback-icon {
+  animation-duration: 220ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .log-feedback-row .log-row-toggle:hover .log-feedback-icon,
+  .log-feedback-row .log-row-toggle:focus-visible .log-feedback-icon {
+    animation: none;
+  }
 }
 
 .template-download-actions:has(#templateDownloadWordButton[hidden])
@@ -5432,21 +5490,16 @@ body.logout-open {
 }
 
 .logs-screen .log-feedback-icon {
-  display: inline-block;
-  width: auto;
-  height: auto;
-  margin-top: 6px;
+  margin-top: 2px;
   border: 0;
-  color: var(--red);
-  font-size: 24px;
-  line-height: 1;
+  font-size: 20px;
 }
 
 .logs-screen .log-feedback-reason {
   margin: 0;
   color: var(--ink);
   font:
-    500 19px/1.42 "Instrument Sans",
+    500 15px/1.5 "Instrument Sans",
     sans-serif;
   overflow-wrap: anywhere;
 }

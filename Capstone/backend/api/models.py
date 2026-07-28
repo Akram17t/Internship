@@ -34,7 +34,9 @@ class QueryResponse(BaseModel):
     citations: list[CitationResponse] = Field(default_factory=list)
     form_downloads: list[FormDownloadResponse] = Field(default_factory=list)
     conversation_id: str
-    answer_source: Literal["model", "cache", "fallback"] = "model"
+    answer_source: Literal[
+        "model", "cache", "fallback", "no_retrieval", "out_of_scope", "blocked"
+    ] = "model"
     feedback_id: int | None = None
     feedback_token: str | None = None
 

@@ -173,7 +173,8 @@ LANGFUSE_TRACE_IO_MODE=masked
 ```
 
 Each `/query` request creates one `chat-query` trace, grouped by conversation
-session. The trace includes rewrite, cache, retrieval, generation, semantic
+session. The trace includes context resolution (LangGraph-based, replacing
+follow-up query rewriting), cache, retrieval, generation, semantic
 cache store, and response finalization observations. `masked` mode redacts
 common secrets, contact details, and large image data before export.
 

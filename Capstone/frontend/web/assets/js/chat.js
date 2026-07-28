@@ -672,7 +672,10 @@ function normalizeAnswerSource(value) {
 
 function formatAnswerSource(source) {
   if (source === "cache") return "Hit cache";
-  if (source === "fallback") return "Fallback";
+  if (source === "fallback") return "No evidence";
+  if (source === "out_of_scope") return "Out of scope";
+  if (source === "blocked") return "Blocked";
+  if (source === "no_retrieval") return "No retrieval";
   return "Model";
 }
 

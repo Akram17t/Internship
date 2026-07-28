@@ -89,8 +89,8 @@
   {\Large ICS Compute\par}
   \vfill
   \begin{tabular}{>{\bfseries}rl}
-    Versi & 1.0 \\
-    Tanggal & 22 Juli 2026 \\
+    Versi & 1.1 \\
+    Tanggal & 28 Juli 2026 \\
     Akses & Internal HR / Admin \\
   \end{tabular}
   \vfill
@@ -175,6 +175,25 @@ Admin tetap dapat menggunakan chat seperti user biasa. Saat chatbot sedang mempr
 
 \notebox{Chatbot menjawab berdasarkan SOP/knowledge document yang sudah masuk embeddings. Jika informasi belum ada di dokumen, chatbot dapat memberikan jawaban fallback atau meminta eskalasi ke HR.}
 
+\Needspace{16\baselineskip}
+\section{Feedback Jawaban Chat}
+
+Setiap jawaban asisten menampilkan baris \textbf{Is this helpful?} dengan dua ikon jempol tepat di bawah info \textit{AI Assistant}, waktu, dan sumber jawaban.
+
+\screenshot[0.66\linewidth]{17-chat-feedback-row.png}{Baris feedback di bawah jawaban asisten.}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{0.92\linewidth}{@{}B{3.2cm}Y@{}}
+\toprule
+Ikon & Fungsi \\
+\midrule
+Jempol atas (hijau) & Menandai jawaban itu bagus. Klik langsung tersimpan tanpa perlu mengisi alasan. \\
+Jempol bawah (merah) & Melaporkan jawaban yang kurang memuaskan. Setelah diklik, muncul form kecil untuk mengisi alasan sebelum feedback terkirim. \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
 \Needspace{18\baselineskip}
 \section{FAQ}
 
@@ -231,40 +250,31 @@ Setiap baris dokumen memiliki tombol \textbf{Download}, \textbf{Update}, dan \te
 \screenshot[0.52\linewidth]{10-document-row-actions.png}{Aksi pada baris dokumen.}
 
 \Needspace{14\baselineskip}
-\subsection{Aturan SOP dan Form}
+\subsection{Menambahkan Form ke SOP}
 
-\begin{table}[H]
-\centering
-\small
-\renewcommand{\arraystretch}{1.22}
-\begin{tabularx}{0.92\linewidth}{@{}B{3.5cm}Y@{}}
-\toprule
-Kategori & Ketentuan \\
-\midrule
-SOP / Knowledge document & Dipakai sebagai sumber jawaban chatbot. Setelah insert, update, atau delete, wajib klik \textbf{Rebuild embeddings}. \\
-Form & Dipakai sebagai file download. Tidak perlu \textbf{Rebuild embeddings}. \\
-Nama Form & File form wajib diawali kata \texttt{Form}, contoh: \texttt{Form Exit Clearance.pdf}. \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-\notebox{Jika file Form tidak diawali \texttt{Form}, sistem dapat menganggapnya sebagai dokumen SOP. Hal ini berisiko membuat form ikut terbaca sebagai sumber jawaban chatbot.}
-
-\Needspace{12\baselineskip}
-\subsection{Rebuild Embeddings}
-
-Klik \textbf{Rebuild embeddings} setelah perubahan pada SOP/knowledge document agar chatbot memakai sumber terbaru.
+Form (Word/Excel/PDF) ditautkan langsung ke satu SOP.
 
 \begin{enumerate}
-  \item Upload, update, atau delete dokumen SOP.
-  \item Klik \textbf{Rebuild embeddings}.
-  \item Tunggu proses selesai.
+  \item Klik tombol \textbf{Forms} pada baris SOP yang dituju untuk membuka panel form terkait.
+  \item Klik \textbf{Insert form} (atau \textbf{Insert another form} jika sudah ada form sebelumnya).
+  \item Pilih file form, lalu tunggu proses upload selesai.
+\end{enumerate}
+
+\screenshot[0.62\linewidth]{18-document-insert-form.png}{Panel Forms pada baris SOP dengan tombol Insert another form.}
+
+\Needspace{12\baselineskip}
+\subsection{Finalize Perubahan}
+
+Klik \textbf{Finalize} setelah perubahan pada SOP/knowledge document agar chatbot memakai sumber terbaru.
+
+\begin{enumerate}
+  \item Insert, update, atau delete dokumen SOP.
+  \item Klik \textbf{Finalize}.
+  \item Tunggu proses selesai (Akan lebih lama jika ada banyak perubahan, bisa pindah ke pekerjaan lain sambil menunggu).
   \item Tes pertanyaan terkait SOP tersebut melalui chat.
 \end{enumerate}
 
-\notebox{Jika jawaban chatbot belum berubah setelah SOP di-update, lakukan \textbf{Rebuild embeddings} terlebih dahulu. Jika Form ikut muncul sebagai SOP, pastikan nama file diawali \texttt{Form}.}
-
-\screenshot[0.52\linewidth]{11-rebuild-embeddings.png}{Tombol Rebuild embeddings aktif setelah SOP diperbarui.}
+\screenshot[0.52\linewidth]{11-rebuild-embeddings.png}{Tombol Finalize aktif setelah SOP diperbarui.}
 
 \Needspace{18\baselineskip}
 \section{Logs}
@@ -287,6 +297,13 @@ Saat satu sesi dibuka, filter \textbf{Filtered session} akan aktif. Klik \textbf
 
 \screenshot[0.72\linewidth]{14-logs-session-filter.png}{Log sesi terpilih dengan tombol Clear dan detail jawaban.}
 
+\Needspace{20\baselineskip}
+\section{Guardrails}
+
+Menu \textbf{Guardrails} dipakai untuk mengatur batasan yang disuntikkan ke setiap jawaban AI: topik apa saja yang boleh dijawab, dan bagaimana chatbot harus bersikap saat pertanyaan di luar topik SOP atau saat ada percobaan mengubah/membocorkan instruksi sistemnya.
+
+\screenshot[0.78\linewidth]{15-guardrails-menu.png}{Menu Guardrails dengan daftar rules yang sedang aktif.}
+
 \Needspace{12\baselineskip}
 \section{Checklist Admin}
 
@@ -300,8 +317,8 @@ Saat satu sesi dibuka, filter \textbf{Filtered session} akan aktif. Klik \textbf
     \begin{tabularx}{\linewidth}{@{}p{0.8cm}Y@{}}
       \checkline{Login menggunakan akun admin sebelum mengelola data.}
       \checkline{Tambahkan admin baru jika akses perlu dibagi ke pengelola lain.}
-      \checkline{Setelah mengubah SOP, klik \textbf{Rebuild embeddings}.}
-      \checkline{Untuk Form, pastikan nama file diawali \texttt{Form}.}
+      \checkline{Setelah mengubah SOP, klik \textbf{Finalize}.}
+      \checkline{Tambahkan Form lewat panel \textbf{Forms} pada baris SOP terkait, bukan lewat \textbf{Insert files}.}
       \checkline{Cek Logs untuk melihat pertanyaan user, sesi chat, dan jawaban chatbot.}
     \end{tabularx}
   \end{minipage}

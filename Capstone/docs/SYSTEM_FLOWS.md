@@ -12,24 +12,40 @@ flowchart TD
   C --> D[routes_public.query_knowledge_base]
   D --> E[Ambil context dari app_state.db]
   E --> F[run_knowledge_crew]
-  F --> G{Ada context?}
-  G -->|Ya| H[Rewrite follow-up]
-  G -->|Tidak| I[Pakai pertanyaan asli]
-  H --> J[lookup_semantic_cache]
-  I --> J
+  F --> G[resolve_query_context: Context Resolution Graph]
+  G --> G1{Ada history?}
+  G1 -->|Tidak| G4[Pakai pertanyaan asli]
+  G1 -->|Ya| G2[LLM: NO_RETRIEVAL atau RETRIEVE]
+  G2 --> G3{Valid?}
+  G3 -->|Tidak, retry tersisa| G2
+  G3 -->|Ya / retry habis| G4
+  G4 --> H{Decision RETRIEVE?}
+  H -->|Tidak, NO_RETRIEVAL| P2[Generate jawaban ringan tanpa evidence]
+  H -->|Ya| J[lookup_semantic_cache pakai cache_query]
   J -->|Hit| K[Return cached answer]
-  J -->|Miss| L[retrieve_knowledge]
+  J -->|Miss| L[retrieve_knowledge pakai retrieval_query]
   L --> M[hybrid_search + rerank]
   M --> N{Citation ada?}
   N -->|Tidak| O[Jawab fallback]
   N -->|Ya| P[Generate answer]
   O --> Q[Finalisasi response]
   P --> Q
+  P2 --> Q
   Q --> R[Filter form_downloads]
   R --> S[Cari flowchart jika enabled]
   S --> T[Simpan turn]
   T --> U[Return answer + citations + forms + flowcharts]
 ```
+
+Context Resolution Graph (`backend/researcher_crew/src/researcher_crew/context_graph.py`)
+mengganti modul rewrite regex+LLM lama. Semua keputusan (perlu retrieval atau
+tidak, dan query apa yang dipakai) dibuat oleh satu LLM call per percobaan,
+tanpa regex sama sekali — implemented sebagai LangGraph `StateGraph` dengan
+node `check_history` -> `resolve_context` -> `validate` (retry loop heuristic,
+bukan regex) -> `passthrough`. Node ini menghasilkan dua query: `retrieval_query`
+(sintesis konteks yang lebih kaya, dipakai untuk pencarian dokumen) dan
+`cache_query` (pertanyaan mandiri pendek, dipakai sebagai kunci semantic cache
+dan disimpan sebagai `cache_question` untuk histori percakapan).
 
 ## 2. Admin Document dan Rebuild Embedding
 
@@ -118,6 +134,7 @@ flowchart TD
 | Kebutuhan cek | Mulai dari |
 |---|---|
 | Jawaban chat berubah topik | `backend/researcher_crew/src/researcher_crew/main.py` |
+| Follow-up tidak ter-resolve dengan benar | `backend/researcher_crew/src/researcher_crew/context_graph.py` |
 | Retrieval tidak menemukan sumber | `backend/preprocessing/vectorstore.py` |
 | Semantic cache hit/miss | `backend/semantic_cache.py` |
 | Cache lama hilang setelah reindex | `backend/preprocessing/ingest.py` dan `backend/semantic_cache.py` |
