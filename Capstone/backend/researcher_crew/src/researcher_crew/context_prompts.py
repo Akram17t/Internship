@@ -17,10 +17,10 @@ CONTEXT_RESOLUTION_PROMPT = """Kamu adalah asisten yang menentukan apakah pertan
 Tugasmu: baca riwayat percakapan dan pertanyaan terakhir, lalu hasilkan JSON dengan tiga field:
 
 1. "decision": salah satu dari:
-   - "NO_RETRIEVAL" — pertanyaan tidak butuh pencarian dokumen (basa-basi, ucapan terima kasih, atau follow-up murni seperti "maksudnya gimana?"/"jelasin lebih detail" yang bisa dijawab ulang dari jawaban sebelumnya di percakapan tanpa dokumen baru)
-   - "RETRIEVE" — pertanyaan butuh pencarian dokumen, baik itu topik baru, follow-up yang merujuk konteks sebelumnya (eksplisit seperti 'itu', 'tadi', 'tersebut', atau implisit seperti 'kalau luar negeri gimana?'), MAUPUN pertanyaan yang sama persis/mengulang pertanyaan substantif yang sudah pernah ditanyakan sebelumnya di percakapan ini — pengulangan pertanyaan SOP/prosedur BUKAN basa-basi, jadi tetap harus RETRIEVE supaya user dapat jawaban lengkap dengan evidence dan citation lagi, bukan cuma dirujuk ke jawaban lama
+   - "NO_RETRIEVAL" — HANYA untuk basa-basi atau ucapan terima kasih yang murni tidak menanyakan apa-apa (mis. "oke makasih ya", "sip, noted", "wokeh"). Selain kasus ini, JANGAN PERNAH pilih NO_RETRIEVAL.
+   - "RETRIEVE" — semua kondisi lain: topik baru, follow-up yang merujuk konteks sebelumnya (eksplisit seperti 'itu', 'tadi', 'tersebut', atau implisit seperti 'kalau luar negeri gimana?'), follow-up klarifikasi ("maksudnya gimana?", "jelasin lebih detail", "kok bisa gitu?"), pertanyaan yang sama persis/mengulang pertanyaan substantif yang sudah pernah ditanyakan sebelumnya, MAUPUN pertanyaan yang jawabannya kebetulan sempat disebut sepintas di jawaban sebelumnya (mis. muncul di tabel referensi level/kategori lain) — semua itu tetap harus RETRIEVE supaya user dapat jawaban lengkap dengan evidence dan citation, bukan cuma dirujuk balik ke teks chat sebelumnya
 
-2. "retrieval_query": query yang akan dipakai untuk mencari dokumen. Sintesiskan konteks yang relevan dari percakapan ke dalam query ini secara kaya — jangan hanya mengganti kata ganti, tapi sertakan detail penting (nama entitas, durasi, jumlah, jenis prosedur) yang disebut di percakapan supaya pencarian dokumen lebih akurat. Kalau decision adalah NO_RETRIEVAL, isi field ini dengan pertanyaan aslinya saja.
+2. "retrieval_query": query yang akan dipakai untuk mencari dokumen. Sintesiskan konteks yang RELEVAN dari percakapan ke dalam query ini secara kaya — jangan hanya mengganti kata ganti, tapi sertakan detail penting (nama entitas, durasi, jumlah, jenis prosedur) yang disebut di percakapan supaya pencarian dokumen lebih akurat. TAPI kalau pertanyaan terakhir ganti topik total dan tidak nyambung sama sekali dengan percakapan sebelumnya, JANGAN bawa-bawa detail topik lama ke retrieval_query — perlakukan sebagai pertanyaan baru yang berdiri sendiri, isi retrieval_query murni dari topik pertanyaan terakhir saja. Kalau decision adalah NO_RETRIEVAL, isi field ini dengan pertanyaan aslinya saja.
 
 3. "cache_query": versi ringkas dan mandiri dari pertanyaan (satu kalimat pendek), dipakai sebagai kunci cache. Berbeda dari retrieval_query yang bisa lebih panjang dan detail, cache_query harus tetap singkat.
 
@@ -54,15 +54,30 @@ Percakapan sebelumnya: membahas prosedur resign.
 Pertanyaan terakhir: HRIS tuh apa sih?
 Jawaban: {{"decision": "RETRIEVE", "retrieval_query": "HRIS itu apa", "cache_query": "HRIS itu apa"}}
 
-Contoh 6 (basa-basi, tidak butuh dokumen):
+Contoh 6 (pertanyaan substantif yang sama diulang lagi, bukan basa-basi):
+Percakapan sebelumnya: user sudah tanya "Gimana sih alurnya kalau mau rekrut orang baru buat suatu posisi?" dan sudah dijawab lengkap dengan evidence.
+Pertanyaan terakhir: Gimana sih alurnya klo misal mau rekrut orang baru gitu buat di suatu posisi
+Jawaban: {{"decision": "RETRIEVE", "retrieval_query": "alur rekrutmen karyawan baru untuk mengisi suatu posisi", "cache_query": "alur rekrutmen karyawan baru untuk suatu posisi"}}
+
+Contoh 7 (angka untuk kondisi/level lain sudah kesebut sepintas di tabel referensi jawaban sebelumnya, tapi TETAP RETRIEVE karena ini fakta spesifik baru yang ditanyakan):
+Percakapan sebelumnya: user tanya plafon penggantian frame kacamata untuk level Manager. Jawaban sebelumnya menyebutkan Rp 2.500.000 untuk Manager, plus tabel referensi singkat yang juga menyebut Staff Rp 1.000.000 dan Direktur Rp 10.000.000.
+Pertanyaan terakhir: Kalau Direktur?
+Jawaban: {{"decision": "RETRIEVE", "retrieval_query": "plafon penggantian frame kacamata untuk level Direktur", "cache_query": "plafon kacamata untuk Direktur"}}
+
+Contoh 8 (follow-up klarifikasi murni — TETAP RETRIEVE, bukan NO_RETRIEVAL):
+Percakapan sebelumnya: user sudah tanya plafon penggantian frame kacamata untuk level Manager dan sudah dijawab.
+Pertanyaan terakhir: Maksudnya gimana ya, bisa dijelasin lebih detail?
+Jawaban: {{"decision": "RETRIEVE", "retrieval_query": "penjelasan detail plafon penggantian frame kacamata untuk level Manager", "cache_query": "detail plafon kacamata Manager"}}
+
+Contoh 9 (basa-basi murni — satu-satunya kasus NO_RETRIEVAL):
 Percakapan sebelumnya: membahas prosedur resign.
 Pertanyaan terakhir: Oke makasih ya infonya.
 Jawaban: {{"decision": "NO_RETRIEVAL", "retrieval_query": "Oke makasih ya infonya.", "cache_query": "Oke makasih ya infonya."}}
 
-Contoh 7 (pertanyaan substantif yang sama diulang lagi, bukan basa-basi):
-Percakapan sebelumnya: user sudah tanya "Gimana sih alurnya kalau mau rekrut orang baru buat suatu posisi?" dan sudah dijawab lengkap dengan evidence.
-Pertanyaan terakhir: Gimana sih alurnya klo misal mau rekrut orang baru gitu buat di suatu posisi
-Jawaban: {{"decision": "RETRIEVE", "retrieval_query": "alur rekrutmen karyawan baru untuk mengisi suatu posisi", "cache_query": "alur rekrutmen karyawan baru untuk suatu posisi"}}
+Contoh 10 (ganti topik total — retrieval_query JANGAN dicampur sama topik lama):
+Percakapan sebelumnya: membahas perhitungan uang saku perjalanan dinas ke luar negeri.
+Pertanyaan terakhir: Siapa yang megang HR Personnel & GA?
+Jawaban: {{"decision": "RETRIEVE", "retrieval_query": "pemilik atau penanggung jawab fungsi HR Personnel dan General Affairs (GA)", "cache_query": "siapa yang megang HR Personnel dan GA"}}
 
 Percakapan sebelumnya:
 {conversation_context}
