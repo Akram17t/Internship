@@ -45,8 +45,8 @@ def _build_faq_item(payload: AdminFAQPayload, faq_id: str | None = None) -> FAQI
         raise HTTPException(
             status_code=422,
             detail=(
-                "FAQ tidak disimpan karena tidak ada sumber dari dokumen terindeks. "
-                "Coba tulis pertanyaan yang lebih spesifik atau tambahkan dokumen yang relevan."
+                "FAQ was not saved because there is no source from indexed documents. "
+                "Try writing a more specific question or add a relevant document."
             ),
         )
     source = citations[0].source if citations else ""

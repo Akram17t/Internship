@@ -73,7 +73,7 @@
           <div class="account-copy">
             <span id="accountRoleLabel">Guest access</span>
             <strong id="accountName">Guest</strong>
-            <small id="accountHint">Login admin untuk mode pengelola.</small>
+            <small id="accountHint">Log in as admin to enable manager mode.</small>
           </div>
           <button class="account-action" id="accountActionButton" type="button">
             <span
@@ -87,7 +87,7 @@
           <div class="account-popover" id="accountPopover" hidden>
             <span id="accountPopoverRole">Guest access</span>
             <strong id="accountPopoverName">Guest</strong>
-            <small id="accountPopoverHint">Klik ikon kanan untuk login.</small>
+            <small id="accountPopoverHint">Click the icon on the right to log in.</small>
           </div>
         </section>
       </aside>
@@ -539,7 +539,7 @@
             <div class="faq-citations" hidden></div>
             <div class="faq-actions">
               <a class="faq-source" target="_blank" rel="noopener"></a>
-              <button class="faq-ask" type="button">Tanyakan di chat</button>
+              <button class="faq-ask" type="button">Ask in chat</button>
               <button class="faq-edit admin-only" type="button">
                 <span class="material-symbols-outlined">edit_document</span>
                 Update
@@ -603,7 +603,7 @@
           close
         </button>
         <span class="auth-kicker">Admin Access</span>
-        <h2 id="authTitle">Masuk sebagai admin</h2>
+        <h2 id="authTitle">Log in as admin</h2>
         <form class="auth-form" id="authForm">
           <label>
             <span>Email</span>
@@ -695,14 +695,14 @@
     >
       <div class="logout-card">
         <span class="auth-kicker">Admin Session</span>
-        <h2 id="logoutTitle">Keluar dari admin?</h2>
+        <h2 id="logoutTitle">Log out of admin?</h2>
         <p>
-          Akses insert, update, dan delete dokumen akan disembunyikan sampai
-          kamu login admin lagi.
+          Insert, update, and delete access for documents will be hidden
+          until you log in as admin again.
         </p>
         <div class="logout-actions">
           <button class="logout-cancel" id="logoutCancelButton" type="button">
-            Batal
+            Cancel
           </button>
           <button class="logout-confirm" id="logoutConfirmButton" type="button">
             Logout
@@ -729,10 +729,10 @@
           close
         </button>
         <span class="auth-kicker">Admin Access</span>
-        <h2 id="newAdminTitle">Tambah admin baru</h2>
+        <h2 id="newAdminTitle">Add new admin</h2>
         <form class="auth-form" id="newAdminForm">
           <label>
-            <span>Nama</span>
+            <span>Name</span>
             <input
               id="newAdminName"
               type="text"
@@ -764,7 +764,7 @@
           <p class="auth-error" id="newAdminStatus" role="alert" hidden></p>
           <button class="auth-submit" type="submit">
             <span class="material-symbols-outlined">person_add</span>
-            Simpan admin
+            Save admin
           </button>
         </form>
       </div>
@@ -780,7 +780,7 @@
     >
       <div class="document-error-card">
         <span class="auth-kicker">Admin Notice</span>
-        <h2 id="documentErrorTitle">Upload belum selesai</h2>
+        <h2 id="documentErrorTitle">Upload not finished</h2>
         <p id="documentErrorSummary"></p>
         <ul id="documentErrorList"></ul>
         <button
@@ -802,8 +802,8 @@
       aria-labelledby="templateDownloadTitle"
     >
       <div class="template-download-card">
-        <span class="auth-kicker">Download Dokumen</span>
-        <h2 id="templateDownloadTitle">Pilih format</h2>
+        <span class="auth-kicker">Download Document</span>
+        <h2 id="templateDownloadTitle">Choose format</h2>
         <p id="templateDownloadName">Form template</p>
         <div class="template-download-actions">
           <button
@@ -825,9 +825,27 @@
             id="templateDownloadCancelButton"
             type="button"
           >
-            Batal
+            Cancel
           </button>
         </div>
+      </div>
+    </div>
+
+    <div
+      class="app-lock-overlay"
+      id="appLockOverlay"
+      role="alert"
+      aria-live="assertive"
+      aria-hidden="true"
+      hidden
+    >
+      <div class="app-lock-card">
+        <span class="linear-loader" aria-hidden="true"><span></span></span>
+        <strong>Finalizing changes</strong>
+        <p>
+          Don't close or navigate away, wait until the finalize process is
+          done.
+        </p>
       </div>
     </div>
 

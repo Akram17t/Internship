@@ -250,7 +250,7 @@ def _generate_with_model(
             from openai import OpenAI
     except ImportError as error:
         raise ModelGenerationError(
-            "Dependency OpenAI belum terpasang. Jalankan pip install -r requirements.txt."
+            "OpenAI dependency is not installed. Run pip install -r requirements.txt."
         ) from error
 
     try:
@@ -296,7 +296,7 @@ def _generate_with_model(
         completion = client.chat.completions.create(**request_payload)
     except Exception as error:
         raise ModelGenerationError(
-            f"OpenAI-compatible chat provider gagal membuat jawaban: {error}"
+            f"OpenAI-compatible chat provider failed to generate an answer: {error}"
         ) from error
 
     choices: Any = getattr(completion, "choices", None)
@@ -545,7 +545,7 @@ def _generate_faq_answer(question: str, evidence: str) -> str:
         trace_metadata={"evidence_chars": len(evidence)},
     )
     if not answer:
-        raise ModelGenerationError("Chat provider mengembalikan jawaban FAQ kosong.")
+        raise ModelGenerationError("Chat provider returned an empty FAQ answer.")
     return answer
 
 
@@ -663,32 +663,16 @@ def run_knowledge_crew(
             "[%s] context | %s kept (%.2fs)", trace_label, resolution["decision"], resolve_seconds
         )
 
-    if not is_retrieval_decision(resolution["decision"]):
-        with span(
-            "finalize-response",
-            input=question,
-            metadata={"answer_source": "no_retrieval"},
-        ) as finalize_span:
-            raw_answer = _generate_answer(cache_query, "", "[]")
-            answer, response_citations, selected_forms, answer_source = _finalize_generated_answer(
-                raw_answer, []
-            )
-            update_observation(
-                finalize_span,
-                output=answer,
-                metadata={"answer_source": answer_source},
-            )
-        logger.info(
-            "[%s] total   | %.2fs (%s)", trace_label, time.perf_counter() - started_at, answer_source
-        )
-        return answer, response_citations, selected_forms, answer_source, cache_query
-
     standalone_question = cache_query
 
+    # Cache dicek duluan terlepas dari keputusan retrieval: pertanyaan yang
+    # sudah pernah di-thumbs-up dan tersimpan di cache harus tetap kena hit
+    # walau context-resolution salah mengira pertanyaan ini basa-basi/
+    # NO_RETRIEVAL (lihat bug: jawaban cache "hilang" pada pertanyaan ulang).
     cache_hit = lookup_semantic_cache(cache_query, trace_id=trace_label)
     if cache_hit is not None:
         logger.info(
-            "[%s] total   | %.2fs (dari cache)", trace_label, time.perf_counter() - started_at
+            "[%s] total   | %.2fs (from cache)", trace_label, time.perf_counter() - started_at
         )
         with span(
             "finalize-response",
@@ -711,6 +695,26 @@ def run_knowledge_crew(
             )
         return cached_answer, cached_citations, cache_hit.selected_forms, "cache", standalone_question
 
+    if not is_retrieval_decision(resolution["decision"]):
+        with span(
+            "finalize-response",
+            input=question,
+            metadata={"answer_source": "no_retrieval"},
+        ) as finalize_span:
+            raw_answer = _generate_answer(cache_query, "", "[]")
+            answer, response_citations, selected_forms, answer_source = _finalize_generated_answer(
+                raw_answer, []
+            )
+            update_observation(
+                finalize_span,
+                output=answer,
+                metadata={"answer_source": answer_source},
+            )
+        logger.info(
+            "[%s] total   | %.2fs (%s)", trace_label, time.perf_counter() - started_at, answer_source
+        )
+        return answer, response_citations, selected_forms, answer_source, cache_query
+
     with span(
         "retrieve-context",
         input=retrieval_query,
@@ -728,7 +732,7 @@ def run_knowledge_crew(
         )
     if not citations:
         logger.info(
-            "[%s] total   | %.2fs (tanpa sumber)", trace_label, time.perf_counter() - started_at
+            "[%s] total   | %.2fs (no source)", trace_label, time.perf_counter() - started_at
         )
         return _unsupported_answer_for_question(standalone_question), [], [], "fallback", standalone_question
 

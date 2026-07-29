@@ -45,10 +45,10 @@ function wait(delayMs) {
 async function runAutoAskSequence(input, options = {}) {
   const questions = normalizeAutoAskQuestions(input);
   if (!questions.length) {
-    throw new Error("Daftar pertanyaan kosong.");
+    throw new Error("Question list is empty.");
   }
   if (state.activeAutoAskRun?.running) {
-    throw new Error("Auto-ask sedang berjalan.");
+    throw new Error("Auto-ask is already running.");
   }
 
   const config = {
@@ -78,7 +78,7 @@ async function runAutoAskSequence(input, options = {}) {
       if (run.stopped) break;
       run.index = index;
       console.info(
-        `[icsAutoAsk] Menjalankan ${index + 1}/${questions.length}: ${questions[index]}`,
+        `[icsAutoAsk] Running ${index + 1}/${questions.length}: ${questions[index]}`,
       );
       await submitQuestion(questions[index]);
       if (run.stopped || index === questions.length - 1) continue;
@@ -92,7 +92,7 @@ async function runAutoAskSequence(input, options = {}) {
   return {
     stopped: run.stopped,
     total: questions.length,
-    selesai: run.stopped ? run.index : questions.length,
+    completed: run.stopped ? run.index : questions.length,
   };
 }
 
@@ -235,11 +235,11 @@ async function submitQuestion(rawQuestion) {
     }
     const errorMessage = formatApiError(
       error?.message || error,
-      "Pastikan FastAPI, layanan AI, dan database embedding sedang berjalan.",
+      "Make sure FastAPI, the AI service, and the embedding database are running.",
     );
     replaceLoading({
       role: "assistant",
-      content: `Aku belum bisa menyelesaikan jawaban ini. ${errorMessage}`,
+      content: `I couldn't finish this answer. ${errorMessage}`,
       citations: [],
       answer_source: "fallback",
       feedback_id: error?.feedback_id || null,
@@ -278,7 +278,7 @@ function stopGeneration() {
   clearLoadingStages();
   replaceLoading({
     role: "assistant",
-    content: "Respons dihentikan.",
+    content: "Response stopped.",
     citations: [],
     duration_ms: durationMs,
     timestamp: "Just now",
@@ -515,13 +515,13 @@ async function submitThumbsUp(message, row) {
     });
     const payload = await readJsonResponse(response);
     if (!response.ok) {
-      throw new Error(formatApiError(payload.detail, "Feedback gagal dikirim."));
+      throw new Error(formatApiError(payload.detail, "Failed to send feedback."));
     }
     message.feedback = payload.feedback || { rating: "thumbs_up" };
     persistMessages();
     renderFeedbackRow(row, message);
   } catch (error) {
-    console.warn("Thumbs-up feedback gagal dikirim.", error);
+    console.warn("Failed to send thumbs-up feedback.", error);
   }
 }
 
@@ -557,7 +557,7 @@ async function submitFeedback(event) {
   if (!message?.feedback_id || !message.feedback_token) return;
   const reason = String(elements.feedbackReason?.value || "").trim();
   if (reason.length < 5) {
-    setFeedbackStatus("Tulis alasan minimal 5 karakter.");
+    setFeedbackStatus("Write a reason with at least 5 characters.");
     return;
   }
 
@@ -578,7 +578,7 @@ async function submitFeedback(event) {
     });
     const payload = await readJsonResponse(response);
     if (!response.ok) {
-      throw new Error(formatApiError(payload.detail, "Feedback gagal dikirim."));
+      throw new Error(formatApiError(payload.detail, "Failed to send feedback."));
     }
     message.feedback = payload.feedback || {
       rating: "thumbs_down",
@@ -590,7 +590,7 @@ async function submitFeedback(event) {
     renderMessages("none");
     refreshActivityLogsIfVisible();
   } catch (error) {
-    setFeedbackStatus(error.message || "Feedback gagal dikirim.");
+    setFeedbackStatus(error.message || "Failed to send feedback.");
   } finally {
     state.isSubmittingFeedback = false;
     elements.feedbackSubmitButton.disabled = false;
@@ -723,7 +723,7 @@ function renderFormDownloads(container, downloads = []) {
 
   const label = document.createElement("span");
   label.className = "form-downloads-label";
-  label.textContent = "Form yang bisa diunduh";
+  label.textContent = "Downloadable forms";
 
   const list = document.createElement("div");
   list.className = "form-downloads-list";
@@ -746,6 +746,7 @@ function createFormDownloadRow(item) {
   icon.className = "material-symbols-outlined form-download-icon";
   icon.setAttribute("aria-hidden", "true");
   icon.textContent = formDownloadIcon(item);
+  icon.dataset.docType = formDownloadTypeGroup(item);
   const text = document.createElement("span");
   text.textContent = item.label || item.name || "Form";
   name.append(icon, text);
@@ -756,8 +757,8 @@ function createFormDownloadRow(item) {
   const downloadButton = document.createElement("button");
   downloadButton.type = "button";
   downloadButton.className = "form-download-action is-primary";
-  downloadButton.textContent = "Download template";
-  downloadButton.title = "Unduh form kosong";
+  downloadButton.textContent = "Download";
+  downloadButton.title = "Download blank form";
   downloadButton.addEventListener("click", () => {
     openTemplateDownload(downloadUrl, fileName, item);
   });
@@ -775,7 +776,7 @@ function formDownloadUrl(item) {
 
 function openTemplateDownload(url, filename, item = null) {
   if (!url) {
-    window.openDocumentErrorModal?.("Link download form tidak tersedia.", [], "Download gagal");
+    window.openDocumentErrorModal?.("Form download link not available.", [], "Download failed");
     return;
   }
   if (typeof window.openTemplateDownloadModal === "function") {
@@ -800,6 +801,13 @@ function formDownloadIcon(item) {
   if (type === "docx") return "article";
   if (type === "xlsx" || type === "xls") return "table_chart";
   return "picture_as_pdf";
+}
+
+function formDownloadTypeGroup(item) {
+  const type = String(item?.doc_type || "").toLowerCase();
+  if (type === "doc" || type === "docx") return "word";
+  if (type === "xls" || type === "xlsx") return "excel";
+  return "pdf";
 }
 
 function formDownloadFormats(item, url, filename) {
@@ -912,7 +920,7 @@ function formatCitationLocation(citation) {
       formatCitationPageRange(citation),
     ]
       .filter(Boolean)
-      .join(" - ") || "Lokasi tidak tersedia"
+      .join(" - ") || "Location not available"
   );
 }
 
@@ -921,9 +929,9 @@ function formatCitationPageRange(citation) {
   const pageEnd = Number(citation?.page_end);
   if (!Number.isInteger(page) || page < 1) return null;
   if (Number.isInteger(pageEnd) && pageEnd > page) {
-    return `PDF halaman ${page}-${pageEnd}`;
+    return `PDF page ${page}-${pageEnd}`;
   }
-  return `PDF halaman ${page}`;
+  return `PDF page ${page}`;
 }
 
 function formatCitationLabel(citation, index) {

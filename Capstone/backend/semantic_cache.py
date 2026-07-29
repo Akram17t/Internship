@@ -300,5 +300,5 @@ def reset_semantic_cache(*, trace_id: str = "ingest") -> None:
         with _CACHE_LOCK:
             _get_cache_store().delete_collection()
     except Exception as error:
-        logger.warning("[%s] cache   | RESET vector store gagal | %s", trace_id, error)
-    logger.info("[%s] cache   | RESET | %s entri lama dihapus", trace_id, removed)
+        logger.warning("[%s] cache   | RESET vector store failed | %s", trace_id, error)
+    logger.info("[%s] cache   | RESET | %s old entries removed", trace_id, removed)

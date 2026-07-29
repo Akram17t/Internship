@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+import uuid
 from pathlib import Path
 from time import perf_counter
 
 from langchain_core.documents import Document
 
+from backend.observability import environment_name, trace_context
 from backend.preprocessing.chunker import chunk_documents
 from backend.preprocessing.loader import load_documents
 from backend.preprocessing.vectorstore import clear_vectorstore, get_chroma_dir, rebuild_vectorstore
@@ -74,25 +76,36 @@ def main() -> str:
     load_seconds = perf_counter() - stage_started_at
     print(f"[1/3] Loaded {len(documents)} page documents in {load_seconds:.2f}s.")
 
-    print("[2/3] Chunking documents...")
-    stage_started_at = perf_counter()
-    chunks = chunk_documents(documents)
-    chunk_seconds = perf_counter() - stage_started_at
-    print(f"[2/3] Created {len(chunks)} chunks in {chunk_seconds:.2f}s.")
-    print(f"[debug] Chunk debug written to {write_chunk_debug(chunks)}.")
+    # Chunking dan embedding dibungkus satu trace_context yang sama supaya
+    # panggilan embedding (Chroma.from_documents -> OpenAI-embedding) tetap
+    # nested sebagai child di bawah chain "chunk-documents", bukan jadi trace
+    # terpisah sendiri di Langfuse.
+    with trace_context(
+        name="chunk-documents",
+        session_id=uuid.uuid4().hex,
+        input={"page_count": len(documents)},
+        metadata={"environment": environment_name()},
+        tags=["capstone", "ingest", "chunking", environment_name()],
+    ):
+        print("[2/3] Chunking documents...")
+        stage_started_at = perf_counter()
+        chunks = chunk_documents(documents)
+        chunk_seconds = perf_counter() - stage_started_at
+        print(f"[2/3] Created {len(chunks)} chunks in {chunk_seconds:.2f}s.")
+        print(f"[debug] Chunk debug written to {write_chunk_debug(chunks)}.")
 
-    stage_started_at = perf_counter()
-    if not chunks:
-        print("[3/3] No source chunks found. Clearing vector database...")
-        removed_vectors = clear_vectorstore()
-        result = "cleared"
-        action = f"cleared ({removed_vectors} files/directories removed)"
-    else:
-        print("[3/3] Rebuilding vector database...")
-        rebuild_vectorstore(chunks)
-        (get_chroma_dir() / CITATION_SCHEMA_MARKER).write_text("1\n", encoding="ascii")
-        result = "rebuilt"
-        action = "rebuilt"
+        stage_started_at = perf_counter()
+        if not chunks:
+            print("[3/3] No source chunks found. Clearing vector database...")
+            removed_vectors = clear_vectorstore()
+            result = "cleared"
+            action = f"cleared ({removed_vectors} files/directories removed)"
+        else:
+            print("[3/3] Rebuilding vector database...")
+            rebuild_vectorstore(chunks)
+            (get_chroma_dir() / CITATION_SCHEMA_MARKER).write_text("1\n", encoding="ascii")
+            result = "rebuilt"
+            action = "rebuilt"
 
     from backend.semantic_cache import reset_semantic_cache
 

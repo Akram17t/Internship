@@ -16,9 +16,9 @@ const screens = {
 const adminScreens = new Set(["guardrails", "logs"]);
 
 const loadingStageLabels = [
-  "Memahami pertanyaan...",
-  "Mencari dokumen...",
-  "Menyusun jawaban...",
+  "Understanding the question...",
+  "Searching documents...",
+  "Composing the answer...",
 ];
 
 const state = {
@@ -173,6 +173,7 @@ const elements = {
   documentReplaceInput: document.getElementById("documentReplaceInput"),
   formFileInput: document.getElementById("formFileInput"),
   adminDocumentStatus: document.getElementById("adminDocumentStatus"),
+  appLockOverlay: document.getElementById("appLockOverlay"),
   messageTemplate: document.getElementById("messageTemplate"),
   faqTemplate: document.getElementById("faqTemplate"),
   libraryItemTemplate: document.getElementById("libraryItemTemplate"),
@@ -208,7 +209,7 @@ async function loadPublicConfig() {
     state.typingAnimationEnabled =
       payload.typing_animation_enabled !== false;
   } catch (error) {
-    console.warn("Frontend config gagal dimuat.", error);
+    console.warn("Failed to load frontend config.", error);
   }
 }
 

@@ -324,7 +324,7 @@ function appendFormattedText(container, text, citationMap, formDownloads = []) {
 }
 
 function findFormDownloadMatches() {
-  // Form downloads always render in the bottom "Form yang bisa diunduh" block.
+  // Form downloads always render in the bottom "Downloadable forms" block.
   // Returning no matches keeps them out of the answer text so their placement is
   // consistent regardless of whether the answer happens to use the word "form".
   return [];

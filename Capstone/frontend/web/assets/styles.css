@@ -1137,7 +1137,15 @@ body[data-role="admin"] .account-action:hover {
 }
 .form-download-name .form-download-icon {
   font-size: 18px;
-  color: #145c37;
+}
+.form-download-name .form-download-icon[data-doc-type="pdf"] {
+  color: var(--red);
+}
+.form-download-name .form-download-icon[data-doc-type="word"] {
+  color: #2563c9;
+}
+.form-download-name .form-download-icon[data-doc-type="excel"] {
+  color: #16844a;
 }
 
 .form-download-action {
@@ -3423,7 +3431,7 @@ body[data-role="admin"]
   align-items: center;
   justify-content: flex-end;
   padding: 0 24px;
-  border-bottom: 1px solid transparent;
+  border-bottom: 1px solid var(--line-soft);
 }
 
 .logs-session-filter {
@@ -4305,6 +4313,54 @@ body[data-role="admin"]
   pointer-events: auto;
 }
 
+.app-lock-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(10, 10, 10, 0.62);
+}
+
+.app-lock-overlay[hidden] {
+  display: none;
+}
+
+body[data-reindex-state="running"] .app-shell {
+  pointer-events: none;
+}
+
+.app-lock-overlay {
+  pointer-events: auto;
+}
+
+.app-lock-card {
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+  width: min(360px, 100%);
+  padding: 30px;
+  border: 1px solid var(--ink);
+  background: var(--paper-light);
+  box-shadow: 10px 10px 0 rgba(188, 24, 35, 0.24);
+  text-align: center;
+}
+
+.app-lock-card strong {
+  font:
+    600 18px/1.2 "Instrument Sans",
+    sans-serif;
+  color: var(--ink);
+}
+
+.app-lock-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .logout-card {
   width: min(390px, 100%);
   padding: 30px;
@@ -4538,6 +4594,11 @@ body[data-role="admin"]
     500 15px/1.5 "Instrument Sans",
     sans-serif;
   overflow-wrap: anywhere;
+  transition: color 220ms ease;
+}
+
+.log-feedback-row {
+  transition: border-bottom-color 220ms ease;
 }
 
 .log-feedback-row .log-row-toggle:hover,
@@ -4546,6 +4607,18 @@ body[data-role="admin"]
   background:
     linear-gradient(90deg, rgba(188, 24, 35, 0.055), transparent 58%),
     var(--paper-light);
+}
+
+.log-feedback-row:has(.log-row-toggle:hover),
+.log-feedback-row:has(.log-row-toggle:focus-visible),
+.log-feedback-row.is-open {
+  border-bottom-color: rgba(188, 24, 35, 0.32);
+}
+
+.log-feedback-row:has(.log-row-toggle:hover) .log-feedback-reason,
+.log-feedback-row:has(.log-row-toggle:focus-visible) .log-feedback-reason,
+.log-feedback-row.is-open .log-feedback-reason {
+  color: var(--red);
 }
 
 @keyframes logFeedbackIconShake {

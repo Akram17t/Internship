@@ -42,9 +42,9 @@ function renderFaqs() {
     askButton.addEventListener("click", () => {
       if (!hasFaqEvidence(item)) {
         openDocumentErrorModal(
-          "FAQ ini belum punya sumber dari dokumen terindeks, jadi belum bisa dipakai untuk bertanya di chat.",
+          "This FAQ doesn't have a source from indexed documents yet, so it can't be used to ask in chat.",
           [],
-          "FAQ tidak ada sumbernya",
+          "FAQ has no source",
         );
         return;
       }
@@ -168,9 +168,9 @@ function formatCitationPageRange(citation) {
   const pageEnd = Number(citation?.page_end);
   if (!Number.isInteger(page) || page < 1) return null;
   if (Number.isInteger(pageEnd) && pageEnd > page) {
-    return `PDF halaman ${page}-${pageEnd}`;
+    return `PDF page ${page}-${pageEnd}`;
   }
-  return `PDF halaman ${page}`;
+  return `PDF page ${page}`;
 }
 
 function bindAdminFaqs() {
@@ -210,7 +210,7 @@ function cancelFaqGeneration() {
   state.isMutatingFaq = false;
   hideFaqStop();
   resetFaqForm(false);
-  showFaqStatus("Generate dibatalkan.");
+  showFaqStatus("Generate cancelled.");
   updateFaqControls();
 }
 
@@ -223,7 +223,7 @@ async function saveFaq(event) {
     state.isReindexing
   ) {
     if (state.needsReindex || state.isReindexing) {
-      showFaqStatus("Finalize dulu sebelum mengubah FAQ.", true);
+      showFaqStatus("Finalize first before changing the FAQ.", true);
     }
     return;
   }
@@ -233,7 +233,7 @@ async function saveFaq(event) {
     question: elements.faqQuestionInput.value.trim(),
   };
   if (!payload.question) {
-    showFaqStatus("Pertanyaan wajib diisi.", true);
+    showFaqStatus("Question is required.", true);
     return;
   }
 
@@ -278,7 +278,7 @@ async function saveFaq(event) {
       !hasFaqEvidence(normalizeFaq(responsePayload.item))
     ) {
       throw new Error(
-        "FAQ tidak disimpan karena tidak ada sumber dari dokumen terindeks.",
+        "FAQ was not saved because there is no source from indexed documents.",
       );
     }
 
@@ -288,11 +288,11 @@ async function saveFaq(event) {
   } catch (error) {
     if (generation.cancelled) return;
     const message = formatFaqSaveError(error);
-    showFaqStatus("FAQ tidak disimpan.", true);
+    showFaqStatus("FAQ was not saved.", true);
     openDocumentErrorModal(
       message,
       [],
-      faqId ? "FAQ tidak diupdate" : "FAQ tidak dibuat",
+      faqId ? "FAQ not updated" : "FAQ not created",
     );
   } finally {
     // Only clear state if this generation is still the active one; a cancel (or
@@ -310,32 +310,32 @@ function formatFaqSaveError(error) {
   const status = Number(error?.status) || 0;
   const rawMessage = String(error?.message || "").trim();
 
-  // 422: backend sudah memvalidasi bahwa pertanyaan tidak punya sumber
-  // relevan di dokumen terindeks (mis. pertanyaan di luar topik).
+  // 422: the backend already validated that the question has no relevant
+  // source in the indexed documents (e.g. an off-topic question).
   if (status === 422) {
-    return "FAQ tidak dibuat karena pertanyaan ini tidak punya sumber yang relevan di dokumen terindeks. Coba pertanyaan lain atau tambahkan dokumen terkait.";
+    return "FAQ was not created because this question has no relevant source in the indexed documents. Try another question or add the related document.";
   }
 
-  // 5xx: layanan AI mati atau gagal membuat jawaban.
+  // 5xx: the AI service is down or failed to produce an answer.
   if (status >= 500) {
     console.warn("FAQ generation detail:", rawMessage);
-    return "FAQ belum bisa dibuat karena layanan AI gagal merespons. Periksa konfigurasi provider lalu coba lagi.";
+    return "FAQ couldn't be created because the AI service failed to respond. Check the provider configuration and try again.";
   }
 
-  // Error dari sisi klien (tanpa status HTTP) — fallback ke isi pesannya.
+  // Client-side error (no HTTP status) — fall back to the message content.
   if (!rawMessage) {
-    return "FAQ belum bisa dibuat. Coba lagi sebentar lagi.";
+    return "FAQ couldn't be created. Try again shortly.";
   }
   const noSourcePatterns = [
-    /tidak ada sumber/i,
-    /belum punya sumber/i,
-    /tidak tersedia dalam dokumen/i,
-    /tidak ditemukan dalam dokumen/i,
+    /no source/i,
+    /no relevant source/i,
+    /not available in the document/i,
+    /not found in the document/i,
     /citation/i,
     /evidence/i,
   ];
   if (noSourcePatterns.some((pattern) => pattern.test(rawMessage))) {
-    return "FAQ tidak dibuat karena tidak ada sumber yang relevan di dokumen terindeks.";
+    return "FAQ was not created because there is no relevant source in the indexed documents.";
   }
 
   return rawMessage;

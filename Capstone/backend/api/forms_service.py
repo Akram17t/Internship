@@ -14,7 +14,7 @@ DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.docu
 
 def form_docx_template_path(pdf_path: Path) -> Path:
     if pdf_path.suffix.lower() != ".pdf":
-        raise HTTPException(status_code=400, detail="Template form harus berupa PDF.")
+        raise HTTPException(status_code=400, detail="Template form must be a PDF.")
     return pdf_path.with_suffix(".docx")
 
 
@@ -22,7 +22,7 @@ def _validate_form_pdf(pdf_path: Path) -> None:
     if not pdf_path.exists() or not pdf_path.is_file():
         raise HTTPException(status_code=404, detail="Form not found.")
     if pdf_path.suffix.lower() != ".pdf" or _document_kind_for_path(pdf_path) != "form":
-        raise HTTPException(status_code=400, detail="Dokumen ini bukan template form PDF.")
+        raise HTTPException(status_code=400, detail="This document is not a PDF template form.")
 
 
 def _convert_pdf_to_docx_file(pdf_path: Path, docx_path: Path) -> None:
@@ -31,7 +31,7 @@ def _convert_pdf_to_docx_file(pdf_path: Path, docx_path: Path) -> None:
     except ImportError as error:
         raise HTTPException(
             status_code=500,
-            detail="Converter Word belum terpasang. Jalankan pip install -r requirements.txt.",
+            detail="Word converter is not installed. Run pip install -r requirements.txt.",
         ) from error
 
     docx_path.parent.mkdir(parents=True, exist_ok=True)
@@ -42,7 +42,7 @@ def _convert_pdf_to_docx_file(pdf_path: Path, docx_path: Path) -> None:
         converter.close()
 
     if not docx_path.exists() or docx_path.stat().st_size <= 0:
-        raise HTTPException(status_code=500, detail="Template Word gagal dibuat.")
+        raise HTTPException(status_code=500, detail="Failed to create Word template.")
 
 
 def ensure_form_docx_template(pdf_path: Path, *, replace: bool = False) -> Path:

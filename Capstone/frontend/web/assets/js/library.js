@@ -22,7 +22,7 @@ function bindAdminDocuments() {
     event.preventDefault();
     const files = Array.from(elements.documentFileInput.files || []);
     if (!files.length) {
-      showDocumentStatus("Pilih dokumen dulu.", true);
+      showDocumentStatus("Choose a document first.", true);
       return;
     }
     await saveDocuments(files);
@@ -107,7 +107,7 @@ async function saveDocuments(files) {
       requires_reindex: true,
     });
     markReindexRequired(
-      `${embeddableCount} dokumen knowledge diperbarui. Finalize sebelum lanjut.`,
+      `${embeddableCount} knowledge document${embeddableCount === 1 ? "" : "s"} updated. Finalize before continuing.`,
     );
   } else if (successCount > 0) {
     pushDocumentChange({
@@ -117,7 +117,7 @@ async function saveDocuments(files) {
       requires_reindex: false,
     });
     showDocumentStatus(
-      `${successCount} file berhasil diunggah. Tidak perlu finalize.`,
+      `${successCount} file${successCount === 1 ? "" : "s"} uploaded successfully. No finalize needed.`,
     );
   }
   updateDocumentControls();
@@ -146,7 +146,7 @@ async function saveDocument(file, replacePath = "", options = {}) {
         requires_reindex: true,
       });
       markReindexRequired(
-        `${payload.message || "Document saved."} Finalize sebelum lanjut.`,
+        `${payload.message || "Document saved."} Finalize before continuing.`,
       );
     } else {
       pushDocumentChange({
@@ -214,7 +214,7 @@ async function saveFormDocumentsForSop(files, linkedSopPath) {
     openDocumentErrorModal(summary, failures);
   } else if (successCount > 0) {
     showDocumentStatus(
-      `${successCount} form${successCount === 1 ? "" : "s"} berhasil diunggah. Tidak perlu finalize.`,
+      `${successCount} form${successCount === 1 ? "" : "s"} uploaded successfully. No finalize needed.`,
     );
   }
   updateDocumentControls();
@@ -242,7 +242,7 @@ function getDocumentSaveStatus(file, replacePath = "") {
 
 function formatDocumentSaveMessage(payload, isFormPdf = false) {
   const baseMessage = payload.message || "File saved.";
-  return `${baseMessage} Tidak perlu finalize.`;
+  return `${baseMessage} No finalize needed.`;
 }
 
 async function saveDocumentRequest(file, replacePath = "", options = {}) {
@@ -297,7 +297,7 @@ async function deleteDocument(item) {
         requires_reindex: true,
       });
       markReindexRequired(
-        `${payload.message || "Document deleted."} Finalize sebelum lanjut.`,
+        `${payload.message || "Document deleted."} Finalize before continuing.`,
       );
     } else {
       pushDocumentChange({
@@ -307,7 +307,7 @@ async function deleteDocument(item) {
         requires_reindex: false,
       });
       showDocumentStatus(
-        `${payload.message || "File deleted."} Tidak perlu finalize.`,
+        `${payload.message || "File deleted."} No finalize needed.`,
       );
     }
   } catch (error) {
@@ -390,7 +390,7 @@ function findDocumentByPath(relativePath) {
 
 async function createDocumentSnapshot(item) {
   if (!item?.download_url || !item.relative_path) {
-    throw new Error("Snapshot dokumen gagal dibuat.");
+    throw new Error("Failed to create document snapshot.");
   }
   return {
     name: item.name || item.relative_path.split("/").pop() || "document",
@@ -407,7 +407,7 @@ async function fetchDocumentBase64(url) {
     headers: adminAuthHeaders(),
   });
   if (!response.ok)
-    throw new Error(`Snapshot dokumen gagal: HTTP ${response.status}`);
+    throw new Error(`Document snapshot failed: HTTP ${response.status}`);
   return blobToBase64(await response.blob());
 }
 
@@ -491,14 +491,14 @@ async function undoDocumentChange() {
     state.documentChanges = [];
     state.documentUndo = null;
     if (touchedEmbeddings) {
-      clearReindexRequired("Semua perubahan dokumen dibatalkan.");
+      clearReindexRequired("All document changes undone.");
     } else {
       showDocumentStatus(
-        "Semua perubahan dokumen dibatalkan. Tidak perlu finalize.",
+        "All document changes undone. No finalize needed.",
       );
     }
   } catch (error) {
-    showDocumentStatus(error.message || "Undo dokumen gagal.", true);
+    showDocumentStatus(error.message || "Document undo failed.", true);
   } finally {
     state.isMutatingDocument = false;
     updateDocumentControls();
@@ -556,6 +556,11 @@ function syncReindexState() {
     : state.needsReindex
       ? "required"
       : "clean";
+  elements.appLockOverlay.hidden = !state.isReindexing;
+  elements.appLockOverlay.setAttribute(
+    "aria-hidden",
+    state.isReindexing ? "false" : "true",
+  );
   if (!isAdminSession()) return;
   if (state.isReindexing) {
     clearDocumentStatus();
@@ -686,7 +691,7 @@ function renderLibrary() {
   if (!visibleItems.length) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    empty.textContent = "Tidak ada dokumen yang cocok dengan filter ini.";
+    empty.textContent = "No documents match this filter.";
     elements.libraryList.appendChild(empty);
     return;
   }
@@ -697,7 +702,7 @@ function renderLibrary() {
   if (!documentItems.length) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    empty.textContent = "Tidak ada dokumen yang cocok dengan filter ini.";
+    empty.textContent = "No documents match this filter.";
     elements.libraryList.appendChild(empty);
     updateDocumentControls();
     return;
@@ -1104,7 +1109,7 @@ async function downloadDocument(url, filename = "document") {
     window.AppApi.downloadBlob(blob, responseFilename);
   } catch (error) {
     console.error(error);
-    showDocumentStatus("Download dokumen gagal.", true);
+    showDocumentStatus("Document download failed.", true);
   }
 }
 

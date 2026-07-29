@@ -6,13 +6,12 @@ import logging
 import os
 import re
 import tempfile
-import uuid
 from pathlib import Path
 from typing import Any
 
 from langchain_core.documents import Document
 
-from backend.observability import environment_name, openai_client_class, openai_observation_kwargs, trace_context
+from backend.observability import openai_client_class, openai_observation_kwargs
 from backend.openai_compat import (
     extract_chat_message_content,
     openai_client_kwargs,
@@ -336,33 +335,26 @@ def chunk_documents(documents: list[Document]) -> list[Document]:
 
     _prune_stale_cache({key for _, _, _, _, key in sources})
     chunks: list[Document] = []
-    with trace_context(
-        name="chunk-documents",
-        session_id=uuid.uuid4().hex,
-        input=[source for source, *_ in sources],
-        metadata={"document_count": len(sources), "environment": environment_name()},
-        tags=["capstone", "ingest", "chunking", environment_name()],
-    ):
-        for source, pages, document_text, source_hash, key in sources:
-            entries = _read_cache_entry(key, source, source_hash, model, prompt_version)
-            if entries is not None:
-                print(f"[chunk] cache hit  | {source} ({len(entries)} chunks)")
+    for source, pages, document_text, source_hash, key in sources:
+        entries = _read_cache_entry(key, source, source_hash, model, prompt_version)
+        if entries is not None:
+            print(f"[chunk] cache hit  | {source} ({len(entries)} chunks)")
+            source_chunks = _documents_from_entries(source, pages, entries)
+        else:
+            print(f"[chunk] cache miss | {source}; requesting AI chunking...")
+            try:
+                response_text = _request_ai_chunks(document_text, source)
+                if not response_text.strip():
+                    raise ValueError("AI returned empty output")
+                entries = _parse_ai_chunks(response_text)
                 source_chunks = _documents_from_entries(source, pages, entries)
-            else:
-                print(f"[chunk] cache miss | {source}; requesting AI chunking...")
-                try:
-                    response_text = _request_ai_chunks(document_text, source)
-                    if not response_text.strip():
-                        raise ValueError("AI returned empty output")
-                    entries = _parse_ai_chunks(response_text)
-                    source_chunks = _documents_from_entries(source, pages, entries)
-                    _write_cache_entry(
-                        key, source, source_hash, model, prompt_version, entries
-                    )
-                except Exception as error:
-                    LOGGER.warning("AI chunking failed for %s; using local fallback: %s", source, error)
-                    source_chunks = _fallback_documents(source, pages)
-            chunks.extend(source_chunks)
+                _write_cache_entry(
+                    key, source, source_hash, model, prompt_version, entries
+                )
+            except Exception as error:
+                LOGGER.warning("AI chunking failed for %s; using local fallback: %s", source, error)
+                source_chunks = _fallback_documents(source, pages)
+        chunks.extend(source_chunks)
 
     for chunk_id, chunk in enumerate(chunks, start=1):
         chunk.metadata["chunk_id"] = chunk_id

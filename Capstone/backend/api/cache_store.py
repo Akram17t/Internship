@@ -33,13 +33,13 @@ def _add_admin_config(email: str, password: str, name: str) -> dict[str, str]:
             return add_admin_account(email=email, password=password, name=name)
         except ValueError as error:
             if str(error) == "duplicate_email":
-                raise HTTPException(status_code=409, detail="Email admin sudah terdaftar.") from error
+                raise HTTPException(status_code=409, detail="Admin email is already registered.") from error
             if str(error) == "missing_credentials":
                 raise HTTPException(
                     status_code=422,
-                    detail="Email dan password admin wajib diisi.",
+                    detail="Admin email and password are required.",
                 ) from error
-            raise HTTPException(status_code=409, detail="Email admin sudah terdaftar.")
+            raise HTTPException(status_code=409, detail="Admin email is already registered.")
 
 
 def _clean_conversation_id(value: str | None) -> str:

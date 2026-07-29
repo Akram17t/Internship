@@ -133,7 +133,7 @@ function closeLogoutModal() {
 function openDocumentErrorModal(
   summary,
   failures = [],
-  title = "Upload belum selesai",
+  title = "Upload not finished",
 ) {
   elements.documentErrorTitle.textContent = title;
   elements.documentErrorSummary.textContent = summary;
@@ -177,7 +177,7 @@ async function handleAdminLogin(event) {
       throw new Error(
         formatApiError(
           payload.detail,
-          "Email atau password admin belum cocok.",
+          "Admin email or password doesn't match.",
         ),
       );
     }
@@ -190,10 +190,10 @@ async function handleAdminLogin(event) {
       expires_at: payload.expires_at || "",
     };
     if (!isAdminSession()) {
-      throw new Error("Sesi admin tidak valid. Coba login ulang.");
+      throw new Error("Admin session is invalid. Try logging in again.");
     }
   } catch (error) {
-    showAuthError(error.message || "Email atau password admin belum cocok.");
+    showAuthError(error.message || "Admin email or password doesn't match.");
     elements.adminPassword.select();
     return;
   }
@@ -207,7 +207,7 @@ async function handleAdminLogin(event) {
 async function handleNewAdminSubmit(event) {
   event.preventDefault();
   if (!isAdminSession()) {
-    showNewAdminStatus("Sesi admin tidak valid. Login ulang dulu.", true);
+    showNewAdminStatus("Admin session is invalid. Log in again first.", true);
     return;
   }
 
@@ -228,13 +228,13 @@ async function handleNewAdminSubmit(event) {
     });
     const data = await readJsonResponse(response);
     if (!response.ok) {
-      throw new Error(formatApiError(data.detail, "Admin baru belum tersimpan."));
+      throw new Error(formatApiError(data.detail, "New admin was not saved."));
     }
 
     elements.newAdminForm.reset();
-    showNewAdminStatus(`Admin ${data.email || payload.email} tersimpan.`, false);
+    showNewAdminStatus(`Admin ${data.email || payload.email} saved.`, false);
   } catch (error) {
-    showNewAdminStatus(error.message || "Admin baru belum tersimpan.", true);
+    showNewAdminStatus(error.message || "New admin was not saved.", true);
     elements.newAdminPassword.select();
   }
 }
@@ -273,7 +273,7 @@ function syncAuth() {
   elements.accountName.textContent = isAdmin
     ? state.session.name || state.session.email
     : "Guest";
-  elements.accountHint.textContent = isAdmin ? "Admin" : "Login admin";
+  elements.accountHint.textContent = isAdmin ? "Admin" : "Log in as admin";
   elements.accountPopoverRole.textContent = isAdmin
     ? "Admin mode"
     : "Guest access";
@@ -281,8 +281,8 @@ function syncAuth() {
     ? state.session.email || state.session.name
     : "Guest";
   elements.accountPopoverHint.textContent = isAdmin
-    ? "Klik ikon kanan untuk logout."
-    : "Klik ikon kanan untuk login admin.";
+    ? "Click the icon on the right to log out."
+    : "Click the icon on the right to log in as admin.";
   elements.newAdminButton.hidden = !isAdmin;
   elements.accountActionIcon.textContent = isAdmin ? "logout" : "login";
   elements.accountActionText.textContent = isAdmin ? "Logout" : "Admin login";

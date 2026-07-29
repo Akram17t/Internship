@@ -81,9 +81,9 @@ def _activity_date_range(
         start = datetime.fromisoformat(start_date).date() if start_date else default_start
         end = datetime.fromisoformat(end_date).date() if end_date else today
     except ValueError as error:
-        raise HTTPException(status_code=422, detail="Format tanggal harus YYYY-MM-DD.") from error
+        raise HTTPException(status_code=422, detail="Date format must be YYYY-MM-DD.") from error
     if end < start:
-        raise HTTPException(status_code=422, detail="Tanggal akhir harus setelah tanggal mulai.")
+        raise HTTPException(status_code=422, detail="End date must be after start date.")
     start_at = datetime.combine(start, datetime.min.time(), tzinfo=display_tz)
     end_at = datetime.combine(end, datetime.max.time(), tzinfo=display_tz)
     return (
@@ -98,14 +98,14 @@ def login_admin(payload: AdminLoginPayload) -> AdminLoginResponse:
     if not _has_configured_admin():
         raise HTTPException(
             status_code=503,
-            detail="Admin belum dikonfigurasi. Tambahkan admin ke database aplikasi.",
+            detail="Admin not configured yet. Add an admin to the application database.",
         )
 
     email = payload.email.strip().lower()
     password = payload.password
     admin = _find_admin(email)
     if admin is None or not hmac.compare_digest(str(admin.get("password") or ""), password):
-        raise HTTPException(status_code=401, detail="Email atau password admin salah.")
+        raise HTTPException(status_code=401, detail="Admin email or password is incorrect.")
 
     token, expires_at = _create_admin_token(email)
     return AdminLoginResponse(
@@ -198,7 +198,7 @@ def get_activity_logs(
     # Kembalikan activity log chat untuk dashboard pemakaian chatbot.
     _require_admin(authorization)
     if feedback not in {None, "", "all", "negative"}:
-        raise HTTPException(status_code=422, detail="Filter feedback tidak valid.")
+        raise HTTPException(status_code=422, detail="Invalid feedback filter.")
     start_at, end_at = _activity_date_range(start_date, end_date, tz)
     return [
         ActivityLogItem(**item)
@@ -305,7 +305,7 @@ def save_document(
             requested_kind = _document_kind_for_path(existing_path)
     is_form_upload = requested_kind == "form"
     if suffix in {".xlsx", ".xls"} and not is_form_upload:
-        raise HTTPException(status_code=400, detail="Excel hanya didukung untuk upload form.")
+        raise HTTPException(status_code=400, detail="Excel is only supported for form uploads.")
     if is_form_upload and suffix not in FORM_EXTENSIONS:
         raise HTTPException(status_code=400, detail="Unsupported form type.")
 
@@ -329,7 +329,7 @@ def save_document(
                 or not sop_path.is_file()
                 or _document_kind_for_path(sop_path) == "form"
             ):
-                raise HTTPException(status_code=400, detail="Linked document tidak valid.")
+                raise HTTPException(status_code=400, detail="Invalid linked document.")
             target_dir = _form_upload_dir_for_sop(data_dir, sop_path)
             target_dir.mkdir(parents=True, exist_ok=True)
             target_path = (target_dir / filename).resolve()
@@ -346,7 +346,7 @@ def save_document(
     target_path.write_bytes(content)
     if suffix == ".pdf" and _document_kind_for_path(target_path) == "form":
         logger.info(
-            "[admin-documents] Form PDF %s tersimpan, mulai buat template Word",
+            "[admin-documents] Form PDF %s saved, generating Word template",
             target_path.name,
         )
         ensure_form_docx_template(target_path, replace=True)

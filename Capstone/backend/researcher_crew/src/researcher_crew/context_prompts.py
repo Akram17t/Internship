@@ -17,8 +17,8 @@ CONTEXT_RESOLUTION_PROMPT = """Kamu adalah asisten yang menentukan apakah pertan
 Tugasmu: baca riwayat percakapan dan pertanyaan terakhir, lalu hasilkan JSON dengan tiga field:
 
 1. "decision": salah satu dari:
-   - "NO_RETRIEVAL" — pertanyaan tidak butuh pencarian dokumen (basa-basi, ucapan terima kasih, atau bisa dijawab dari percakapan itu sendiri tanpa dokumen baru)
-   - "RETRIEVE" — pertanyaan butuh pencarian dokumen, baik itu topik baru maupun follow-up yang merujuk konteks sebelumnya (eksplisit seperti 'itu', 'tadi', 'tersebut', atau implisit seperti 'kalau luar negeri gimana?')
+   - "NO_RETRIEVAL" — pertanyaan tidak butuh pencarian dokumen (basa-basi, ucapan terima kasih, atau follow-up murni seperti "maksudnya gimana?"/"jelasin lebih detail" yang bisa dijawab ulang dari jawaban sebelumnya di percakapan tanpa dokumen baru)
+   - "RETRIEVE" — pertanyaan butuh pencarian dokumen, baik itu topik baru, follow-up yang merujuk konteks sebelumnya (eksplisit seperti 'itu', 'tadi', 'tersebut', atau implisit seperti 'kalau luar negeri gimana?'), MAUPUN pertanyaan yang sama persis/mengulang pertanyaan substantif yang sudah pernah ditanyakan sebelumnya di percakapan ini — pengulangan pertanyaan SOP/prosedur BUKAN basa-basi, jadi tetap harus RETRIEVE supaya user dapat jawaban lengkap dengan evidence dan citation lagi, bukan cuma dirujuk ke jawaban lama
 
 2. "retrieval_query": query yang akan dipakai untuk mencari dokumen. Sintesiskan konteks yang relevan dari percakapan ke dalam query ini secara kaya — jangan hanya mengganti kata ganti, tapi sertakan detail penting (nama entitas, durasi, jumlah, jenis prosedur) yang disebut di percakapan supaya pencarian dokumen lebih akurat. Kalau decision adalah NO_RETRIEVAL, isi field ini dengan pertanyaan aslinya saja.
 
@@ -58,6 +58,11 @@ Contoh 6 (basa-basi, tidak butuh dokumen):
 Percakapan sebelumnya: membahas prosedur resign.
 Pertanyaan terakhir: Oke makasih ya infonya.
 Jawaban: {{"decision": "NO_RETRIEVAL", "retrieval_query": "Oke makasih ya infonya.", "cache_query": "Oke makasih ya infonya."}}
+
+Contoh 7 (pertanyaan substantif yang sama diulang lagi, bukan basa-basi):
+Percakapan sebelumnya: user sudah tanya "Gimana sih alurnya kalau mau rekrut orang baru buat suatu posisi?" dan sudah dijawab lengkap dengan evidence.
+Pertanyaan terakhir: Gimana sih alurnya klo misal mau rekrut orang baru gitu buat di suatu posisi
+Jawaban: {{"decision": "RETRIEVE", "retrieval_query": "alur rekrutmen karyawan baru untuk mengisi suatu posisi", "cache_query": "alur rekrutmen karyawan baru untuk suatu posisi"}}
 
 Percakapan sebelumnya:
 {conversation_context}

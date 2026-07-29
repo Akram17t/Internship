@@ -118,7 +118,7 @@ def _record_chat_activity(
             details=details,
         )
     except Exception as log_error:
-        logger.warning("[activity-log] gagal menyimpan log chat: %s", log_error)
+        logger.warning("[activity-log] failed to save chat log: %s", log_error)
         return None
 
 
@@ -163,13 +163,13 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
     logger.info('[chat:%s] POST /query | "%s"', conversation_id, payload.question)
     conversation_context = _get_conversation_context(conversation_id)
     logger.debug(
-        "[chat:%s] Context percakapan dimuat (%s karakter)",
+        "[chat:%s] Conversation context loaded (%s characters)",
         conversation_id,
         len(conversation_context),
     )
     available_forms = _iter_form_downloads()
     logger.debug(
-        "[chat:%s] Katalog form dimuat (%s item)",
+        "[chat:%s] Form catalog loaded (%s items)",
         conversation_id,
         len(available_forms),
     )
@@ -196,7 +196,7 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
                 trace_id=f"chat:{conversation_id}",
             )
         except ModelGenerationError as error:
-            logger.exception("[chat:%s] Request gagal", conversation_id)
+            logger.exception("[chat:%s] Request failed", conversation_id)
             activity_log_id = _record_chat_activity(
                 status="error",
                 conversation_id=conversation_id,
@@ -226,7 +226,7 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
                 ),
             ) from error
         except Exception as error:
-            logger.exception("[chat:%s] Request gagal", conversation_id)
+            logger.exception("[chat:%s] Request failed", conversation_id)
             activity_log_id = _record_chat_activity(
                 status="error",
                 conversation_id=conversation_id,
@@ -249,14 +249,14 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
             raise HTTPException(
                 status_code=500,
                 detail=_query_error_detail(
-                    message="Request gagal diproses.",
+                    message="Request failed to process.",
                     conversation_id=conversation_id,
                     feedback_id=activity_log_id,
                     feedback_token=feedback_token,
                 ),
             ) from error
         _append_conversation_turn(conversation_id, payload.question, answer)
-        logger.debug("[chat:%s] Riwayat percakapan tersimpan", conversation_id)
+        logger.debug("[chat:%s] Conversation history saved", conversation_id)
         citations = [
             CitationResponse(
                 **citation,
@@ -282,7 +282,7 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
                 seen_form_urls.add(form_download.download_url)
         response_time_seconds = time.perf_counter() - request_started
         logger.debug(
-            "[chat:%s] Request selesai dalam %.2fs, citation=%s, form=%s",
+            "[chat:%s] Request completed in %.2fs, citation=%s, form=%s",
             conversation_id,
             response_time_seconds,
             len(citations),
@@ -419,7 +419,7 @@ def download_document(
     output_format = format.strip().lower()
     if output_format == "docx":
         if document_kind != "form" or resolved_path.suffix.lower() != ".pdf":
-            raise HTTPException(status_code=400, detail="Dokumen ini tidak bisa diunduh sebagai Word.")
+            raise HTTPException(status_code=400, detail="This document cannot be downloaded as Word.")
         docx_path = get_form_docx_template(resolved_path)
         return FileResponse(
             path=docx_path,
