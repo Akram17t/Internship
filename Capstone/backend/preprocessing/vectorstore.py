@@ -158,7 +158,7 @@ def _rerank_documents(
 
 def hybrid_search(query: str, k: int = 4) -> list[Document]:
     """Retrieve semantically relevant chunks, rerank, and drop off-topic matches."""
-    fetch_k = get_int_env("RERANK_CANDIDATES", max(k + 2, 6))
+    fetch_k = get_int_env("RERANK_CANDIDATES", max(k * 3, 12))
     try:
         vectorstore = get_vectorstore()
         vector_results = vectorstore.similarity_search(query, k=fetch_k)

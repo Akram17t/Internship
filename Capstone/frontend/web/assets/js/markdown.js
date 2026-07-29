@@ -19,6 +19,19 @@ function formatMessage(content, citations = [], formDownloads = []) {
   };
 
   for (let index = 0; index < lines.length; index += 1) {
+    const codeFenceRange = getCodeFenceRange(lines, index);
+    if (codeFenceRange) {
+      list = null;
+      listType = null;
+      wrapper.appendChild(
+        createMarkdownCodeBlock(
+          lines.slice(codeFenceRange.contentStart, codeFenceRange.contentEnd),
+        ),
+      );
+      index = codeFenceRange.end - 1;
+      continue;
+    }
+
     const tableRange = getMarkdownTableRange(lines, index);
     if (tableRange) {
       list = null;
@@ -129,6 +142,27 @@ function appendCitationToPreviousBlock(wrapper, text, citationMap) {
   if (!marker || !target || target.textContent.includes(marker)) return;
   target.append(document.createTextNode(" "));
   appendFormattedText(target, marker, citationMap);
+}
+
+function getCodeFenceRange(lines, start) {
+  if (!/^```/.test(lines[start].trim())) return null;
+
+  let end = start + 1;
+  while (end < lines.length && lines[end].trim() !== "```") {
+    end += 1;
+  }
+  if (end >= lines.length) return null;
+
+  return { start, contentStart: start + 1, contentEnd: end, end: end + 1 };
+}
+
+function createMarkdownCodeBlock(contentLines) {
+  const pre = document.createElement("pre");
+  pre.className = "message-code";
+  const code = document.createElement("code");
+  code.textContent = contentLines.join("\n");
+  pre.appendChild(code);
+  return pre;
 }
 
 function getMarkdownTableRange(lines, start) {

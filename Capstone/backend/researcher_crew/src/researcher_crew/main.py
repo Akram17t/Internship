@@ -73,9 +73,18 @@ FIXED_SYSTEM_RULES = (
     "GUARDRAIL: NO_EVIDENCE\n"
     "- Selalu sertakan baris ini di SETIAP balasan, jangan pernah dilewatkan.\n\n"
     "Gaya jawaban:\n"
+    "- Gunakan bahasa yang sama dengan pertanyaan terbaru user. Jika pertanyaan berbahasa "
+    "Inggris, jawab dalam bahasa Inggris; jika berbahasa Indonesia, jawab dalam bahasa "
+    "Indonesia -- walaupun evidence/dokumen sumbernya berbahasa Indonesia, terjemahkan "
+    "isinya ke bahasa pertanyaan, jangan ikut bahasa evidence.\n"
     "- Natural, jelas, dan membantu.\n"
     "- Pilih format yang paling cocok: paragraf, bullet, numbered steps, tabel kecil, atau campuran.\n"
-    "- Jika membahas proses/SOP, jelaskan alur, aktor, form, approval, output, deadline, kondisi, dan pengecualian hanya jika didukung evidence.\n\n"
+    "- Jika membahas proses/SOP, jelaskan alur, aktor, form, approval, output, deadline, kondisi, dan pengecualian hanya jika didukung evidence.\n"
+    "- Jika menjelaskan rumus/formula perhitungan (proration, konversi, dsb), bungkus rumusnya dalam code "
+    "block markdown (diapit tiga backtick di baris sendiri-sendiri sebelum dan sesudah rumus), contoh:\n"
+    "```\n(5 / 12) x (Gaji Pokok + Tunjangan Tetap)\n```\n"
+    "Jangan taruh marker citation seperti [1] di dalam code block; taruh di kalimat pengantar sebelum "
+    "rumusnya.\n\n"
     "Aturan sitasi:\n"
     "- Pertahankan marker sitasi angka seperti [1] dan [2] di jawaban visible.\n"
     "- Letakkan citation di akhir paragraf, bullet, atau baris tabel yang penting.\n"
@@ -306,8 +315,24 @@ def _generate_with_model(
     return _strip_thinking_blocks(str(getattr(message, "content", "") or ""))
 
 
-def _direct_answer_user_prompt(question: str, evidence: str, available_forms: str) -> str:
+def _direct_answer_user_prompt(
+    question: str, evidence: str, available_forms: str, conversation_context: str = ""
+) -> str:
+    context_block = (
+        f"Riwayat percakapan sebelumnya (konteks tambahan). Detail spesifik yang "
+        f"disebut user di sini -- masa kerja, tanggal, jumlah, level jabatan, dsb -- "
+        f"HARUS dipakai untuk menilai kondisi/kelayakan user, bukan cuma menjawab "
+        f"pertanyaan terbaru secara harfiah. Kalau retrieved evidence menyebut suatu "
+        f"syarat/ketentuan (mis. minimal masa kerja) dan kondisi user di riwayat ini "
+        f"TIDAK memenuhi syarat itu, jawaban WAJIB menyatakan dengan jelas bahwa user "
+        f"belum/tidak memenuhi syarat beserta alasannya -- jangan tetap menjawab dengan "
+        f"angka/ketentuan seolah-olah user memenuhi syarat tersebut.\n"
+        f"{conversation_context}\n\n"
+        if conversation_context.strip()
+        else ""
+    )
     return (
+        f"{context_block}"
         f"Pertanyaan terbaru:\n{question}\n\n"
         f"Retrieved evidence:\n{evidence}\n\n"
         f"Available downloadable forms (sudah difilter untuk SOP yang dikutip di evidence ini):\n{available_forms or '[]'}\n\n"
@@ -317,14 +342,21 @@ def _direct_answer_user_prompt(question: str, evidence: str, available_forms: st
     )
 
 
-def _direct_answer_prompt(question: str, evidence: str, available_forms: str) -> str:
-    return f"{ANSWER_ROLE_PROMPT}\n\n{_direct_answer_user_prompt(question, evidence, available_forms)}"
+def _direct_answer_prompt(
+    question: str, evidence: str, available_forms: str, conversation_context: str = ""
+) -> str:
+    return (
+        f"{ANSWER_ROLE_PROMPT}\n\n"
+        f"{_direct_answer_user_prompt(question, evidence, available_forms, conversation_context)}"
+    )
 
 
-def _generate_answer(question: str, evidence: str, available_forms: str) -> str:
+def _generate_answer(
+    question: str, evidence: str, available_forms: str, conversation_context: str = ""
+) -> str:
     # Generate jawaban akhir langsung lewat provider aktif.
     return _generate_with_model(
-        _direct_answer_user_prompt(question, evidence, available_forms),
+        _direct_answer_user_prompt(question, evidence, available_forms, conversation_context),
         num_predict=get_int_env("MODEL_NUM_PREDICT", 1100),
         temperature=0.05,
         system_prompt=ANSWER_ROLE_PROMPT,
@@ -332,6 +364,7 @@ def _generate_answer(question: str, evidence: str, available_forms: str) -> str:
         trace_metadata={
             "evidence_chars": len(evidence),
             "available_forms_chars": len(available_forms),
+            "conversation_context_chars": len(conversation_context),
         },
     )
 
@@ -701,7 +734,7 @@ def run_knowledge_crew(
             input=question,
             metadata={"answer_source": "no_retrieval"},
         ) as finalize_span:
-            raw_answer = _generate_answer(cache_query, "", "[]")
+            raw_answer = _generate_answer(question, "", "[]", conversation_context)
             answer, response_citations, selected_forms, answer_source = _finalize_generated_answer(
                 raw_answer, []
             )
@@ -740,7 +773,7 @@ def run_knowledge_crew(
     form_catalog = json.dumps(scoped_forms, ensure_ascii=False) if scoped_forms else "[]"
 
     crew_started = time.perf_counter()
-    raw_answer = _generate_answer(standalone_question, evidence, form_catalog)
+    raw_answer = _generate_answer(question, evidence, form_catalog, conversation_context)
     logger.info("[%s] crew    | %.2fs", trace_label, time.perf_counter() - crew_started)
 
     with span(

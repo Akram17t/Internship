@@ -771,6 +771,29 @@ body[data-role="admin"] .account-action:hover {
 .message-bubble h4.message-heading {
   font-size: 15px;
 }
+.message-bubble .message-code {
+  margin: 12px 0 0;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--paper-deep);
+  overflow-x: auto;
+}
+.message-bubble .message-code code {
+  display: block;
+  color: var(--ink);
+  font:
+    500 14px/1.6 "JetBrains Mono",
+    monospace;
+  white-space: pre;
+}
+.message.is-user .message-bubble .message-code {
+  border-color: rgba(250, 248, 242, 0.3);
+  background: rgba(10, 10, 10, 0.18);
+}
+.message.is-user .message-bubble .message-code code {
+  color: var(--paper);
+}
 .message-bubble.is-streaming {
   white-space: pre-wrap;
 }
