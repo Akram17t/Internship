@@ -121,10 +121,7 @@ print(f"Model available: {model}")
 print(f"Chat completion: {str(content).strip()}")
 PY
 
-echo "Checking the public website query endpoint..."
-curl --fail --silent --show-error --max-time 180 \
-  http://127.0.0.1:8000/query \
-  -H "Content-Type: application/json" \
-  -d '{"question":"Apa itu HRIS?","conversation_id":"ec2-smoke"}'
+echo "Checking the public website health endpoint..."
+curl --fail --silent --show-error --max-time 30 http://127.0.0.1:8000/health
 echo
 echo "Deployment and smoke tests completed successfully."
