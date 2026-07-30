@@ -20,10 +20,6 @@ class CitationResponse(BaseModel):
     download_url: str | None = None
 
 
-class DownloadTicketResponse(BaseModel):
-    ticket: str
-
-
 class FormDownloadResponse(BaseModel):
     name: str
     display_name: str

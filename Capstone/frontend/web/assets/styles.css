@@ -2275,15 +2275,17 @@ body[data-reindex-state="running"] .document-reindex-panel {
 }
 
 .related-form-button {
-  display: grid;
-  width: 32px;
-  height: 32px;
-  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
   border: 1px solid var(--line);
-  border-radius: 50%;
-  place-items: center;
+  border-radius: 100px;
   background: transparent;
   color: var(--ink);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .related-form-row {
@@ -2322,7 +2324,7 @@ body[data-reindex-state="running"] .document-reindex-panel {
 }
 
 .related-form-button .material-symbols-outlined {
-  font-size: 17px;
+  font-size: 14px;
 }
 
 .related-form-button:hover,
@@ -2475,10 +2477,6 @@ body[data-reindex-state="running"] .document-reindex-panel {
 
 body[data-role="admin"] .admin-only {
   display: flex;
-}
-
-body[data-role="admin"] .related-form-button.admin-only {
-  display: grid;
 }
 
 body[data-role="admin"]

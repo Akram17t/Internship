@@ -68,63 +68,12 @@ function sessionAuthHeaders(extraHeaders = {}) {
   };
 }
 
-const DOWNLOAD_TICKET_PREFIXES = ["/api/citations/", "/api/documents/"];
-
-// Ambil ticket sekali-pakai berumur pendek dari backend dan tempelkan ke URL,
-// alih-alih menempelkan session token penuh (yang berumur 12 jam dan berlaku
-// untuk semua endpoint) ke query string -- lihat create-download-ticket di
-// routes_public.py. Return null kalau gagal (caller wajib menangani ini).
-async function withDownloadTicket(url) {
+function withSessionToken(url) {
   if (!url || !isLoggedIn()) return url;
   const [base, hash] = url.split("#");
-  const prefix = DOWNLOAD_TICKET_PREFIXES.find((candidate) => base.startsWith(candidate));
-  if (!prefix) return url;
-
-  const separatorIndex = base.indexOf("?");
-  const path = separatorIndex === -1 ? base : base.slice(0, separatorIndex);
-  const query = separatorIndex === -1 ? "" : base.slice(separatorIndex);
-
-  try {
-    const response = await fetch(`${path}/download-ticket`, {
-      method: "POST",
-      headers: sessionAuthHeaders(),
-    });
-    const data = await readJsonResponse(response);
-    if (!response.ok || !data.ticket) return null;
-
-    const separator = query ? "&" : "?";
-    const withTicket = `${path}${query}${separator}ticket=${encodeURIComponent(data.ticket)}`;
-    return hash ? `${withTicket}#${hash}` : withTicket;
-  } catch (error) {
-    console.warn("Failed to obtain download ticket", error);
-    return null;
-  }
-}
-
-// Ganti href statis sebuah <a> dengan fetch ticket on-click. Kalau anchor
-// pakai target="_blank", buka tab kosong dulu secara synchronous (di dalam
-// gesture klik) supaya popup blocker tidak menahannya, baru isi location-nya
-// setelah ticket didapat.
-function bindTicketedLink(anchor, url) {
-  if (!anchor || !url) return;
-  anchor.href = "#";
-  anchor.addEventListener("click", async (event) => {
-    event.preventDefault();
-    const openInNewTab = anchor.target === "_blank";
-    const popup = openInNewTab ? window.open("", "_blank", "noopener,noreferrer") : null;
-    const ticketedUrl = await withDownloadTicket(url);
-    if (!ticketedUrl) {
-      popup?.close();
-      window.openDocumentErrorModal?.(
-        "Could not open this document. Please try again.",
-        [],
-        "Document unavailable",
-      );
-      return;
-    }
-    if (popup) popup.location = ticketedUrl;
-    else window.location.href = ticketedUrl;
-  });
+  const separator = base.includes("?") ? "&" : "?";
+  const withToken = `${base}${separator}token=${encodeURIComponent(state.session.token)}`;
+  return hash ? `${withToken}#${hash}` : withToken;
 }
 
 function showSignInGate() {

@@ -851,12 +851,7 @@ function createLibraryRow(item, options = {}) {
     expandButton.hidden = true;
   }
   if (item.download_url) {
-    // Klik biasa selalu ditangkap di bawah dan diarahkan lewat
-    // downloadDocument(), yang sudah otentikasi pakai header Authorization
-    // (bukan token di URL) -- href di sini cuma fallback non-JS, jadi
-    // sengaja dibiarkan tanpa token supaya tidak ada session token yang
-    // menempel lama di DOM/riwayat browser.
-    link.href = item.download_url;
+    link.href = withSessionToken(item.download_url);
     link.addEventListener("click", (event) => {
       event.preventDefault();
       openTemplateDownloadModal(item.download_url, item.name || item.display_name, {
@@ -904,7 +899,8 @@ function createRelatedFormRow(item) {
   downloadButton.type = "button";
   downloadButton.title = "Download form";
   downloadButton.setAttribute("aria-label", `Download ${item.display_name || item.name || "form"}`);
-  downloadButton.innerHTML = '<span class="material-symbols-outlined">download</span>';
+  downloadButton.innerHTML =
+    '<span class="material-symbols-outlined">download</span>Download';
   downloadButton.addEventListener("click", () => {
     openTemplateDownloadModal(item.download_url, item.name || item.display_name, {
       formats: downloadFormatsForDocument(item),
@@ -917,7 +913,8 @@ function createRelatedFormRow(item) {
   deleteButton.type = "button";
   deleteButton.title = "Delete form";
   deleteButton.setAttribute("aria-label", `Delete ${item.display_name || item.name || "form"}`);
-  deleteButton.innerHTML = '<span class="material-symbols-outlined">delete</span>';
+  deleteButton.innerHTML =
+    '<span class="material-symbols-outlined">delete</span>Delete';
   deleteButton.addEventListener("click", () => deleteDocument(item));
   actions.appendChild(deleteButton);
 

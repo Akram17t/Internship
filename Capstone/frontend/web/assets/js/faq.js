@@ -21,9 +21,9 @@ function renderFaqs() {
       source.textContent = item.source;
       const browserUrl = citationBrowserUrl(item);
       if (browserUrl) {
+        source.href = withSessionToken(browserUrl);
         source.target = "_blank";
         source.rel = "noopener noreferrer";
-        bindTicketedLink(source, browserUrl);
       } else {
         source.removeAttribute("href");
         source.removeAttribute("target");
@@ -148,9 +148,9 @@ function renderFaqCitations(container, citations) {
     source.className = "faq-citation-link";
     source.textContent = formatCitationText(citation);
     if (canOpenDocument) {
+      source.href = withSessionToken(citationBrowserUrl(citation));
       source.target = "_blank";
       source.rel = "noopener noreferrer";
-      bindTicketedLink(source, citationBrowserUrl(citation));
     }
     list.appendChild(source);
   });

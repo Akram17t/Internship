@@ -138,6 +138,15 @@ def _require_user(authorization: str) -> dict[str, object]:
     return _verify_session_token(authorization)
 
 
+def _require_user_from_header_or_query(authorization: str, token: str) -> dict[str, object]:
+    # Endpoint download dibuka lewat navigasi <a href> biasa oleh browser,
+    # yang tidak bisa menyertakan header Authorization -- terima token sesi
+    # lewat query param sebagai fallback untuk kasus itu saja.
+    if authorization:
+        return _verify_session_token(authorization)
+    return _verify_session_token(f"Bearer {token}" if token else "")
+
+
 def _require_admin(authorization: str) -> dict[str, object]:
     # Lindungi endpoint dengan verifikasi sesi admin.
     user = _require_user(authorization)
@@ -146,92 +155,12 @@ def _require_admin(authorization: str) -> dict[str, object]:
     return user
 
 
-DOWNLOAD_TICKET_TTL_SECONDS = 60
-
-
-def _download_ticket_secret() -> str:
-    # Kunci HMAC terpisah dari yang menandatangani session token, supaya
-    # sebuah download ticket yang bocor tidak bisa dipakai ulang sebagai
-    # bearer token biasa (_verify_session_token pakai secret yang beda).
-    return hmac.new(
-        _session_secret().encode("utf-8"),
-        b"download-ticket",
-        hashlib.sha256,
-    ).hexdigest()
-
-
-def _sign_download_ticket_payload(payload: str) -> str:
-    return hmac.new(
-        _download_ticket_secret().encode("utf-8"),
-        payload.encode("ascii"),
-        hashlib.sha256,
-    ).hexdigest()
-
-
-def _create_download_ticket(email: str, document_path: str, kind: str) -> str:
-    # Ticket sekali-pakai berumur pendek (default 60 detik) yang cuma berlaku
-    # untuk satu document_path + kind ("citation" atau "document") tertentu --
-    # dipakai lewat query param di <a href> supaya bocor lewat access log/
-    # browser history tidak sekritis session token 12 jam yang bisa dipakai
-    # untuk semua endpoint.
-    expires_at = int(time.time()) + DOWNLOAD_TICKET_TTL_SECONDS
-    payload = _base64url_encode(
-        json.dumps(
-            {"email": email, "path": document_path, "kind": kind, "exp": expires_at},
-            separators=(",", ":"),
-        ).encode("utf-8")
-    )
-    return f"{payload}.{_sign_download_ticket_payload(payload)}"
-
-
-def _verify_download_ticket(ticket: str, document_path: str, kind: str) -> dict[str, object]:
-    payload, separator, signature = ticket.partition(".")
-    if not separator or not payload or not signature:
-        raise HTTPException(status_code=401, detail="Invalid or expired download link.")
-    if not hmac.compare_digest(signature, _sign_download_ticket_payload(payload)):
-        raise HTTPException(status_code=401, detail="Invalid or expired download link.")
-
-    try:
-        data = json.loads(_base64url_decode(payload).decode("utf-8"))
-    except (ValueError, json.JSONDecodeError, binascii.Error) as error:
-        raise HTTPException(status_code=401, detail="Invalid or expired download link.") from error
-
-    expires_at = int(data.get("exp", 0))
-    if (
-        str(data.get("path", "")) != document_path
-        or str(data.get("kind", "")) != kind
-        or expires_at <= int(time.time())
-    ):
-        raise HTTPException(status_code=401, detail="Invalid or expired download link.")
-
-    email = str(data.get("email", "")).strip().lower()
-    user = get_user_by_email(email)
-    if user is None:
-        raise HTTPException(status_code=401, detail="Invalid or expired download link.")
-    return {"id": user["id"], "email": email, "name": user["name"]}
-
-
-def _require_user_or_ticket(
-    authorization: str, ticket: str, document_path: str, kind: str
-) -> dict[str, object]:
-    # Endpoint download dibuka lewat navigasi <a href> biasa oleh browser,
-    # yang tidak bisa menyertakan header Authorization -- terima download
-    # ticket khusus lewat query param sebagai fallback untuk kasus itu saja.
-    if authorization:
-        return _verify_session_token(authorization)
-    if not ticket:
-        raise HTTPException(status_code=401, detail="Login required.")
-    return _verify_download_ticket(ticket, document_path, kind)
-
-
 __all__ = [
     "_verify_google_id_token",
     "_create_session_token",
     "_verify_session_token",
     "_require_user",
     "_require_admin",
-    "_create_download_ticket",
-    "_require_user_or_ticket",
     "_allowed_email_domain",
     "_is_allowed_login_email",
     "is_admin_email",
