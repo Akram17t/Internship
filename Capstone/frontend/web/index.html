@@ -15,6 +15,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/assets/styles.css" />
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>
   <body data-active-screen="chat">
     <div class="app-shell">
@@ -59,6 +60,11 @@
             ><span>Guardrails</span>
           </button>
         </nav>
+
+        <section class="conversation-history" aria-label="Chat history">
+          <div class="conversation-history-heading">Recent chats</div>
+          <div class="conversation-history-list" id="conversationList"></div>
+        </section>
 
         <section class="account-panel" aria-label="Current access">
           <button
@@ -554,6 +560,31 @@
       </article>
     </template>
 
+    <template id="conversationItemTemplate">
+      <div class="conversation-row">
+        <button class="conversation-open" type="button">
+          <span class="material-symbols-outlined conversation-icon"
+            >chat_bubble</span
+          >
+          <span class="conversation-title"></span>
+        </button>
+        <button
+          class="conversation-rename"
+          type="button"
+          aria-label="Rename conversation"
+        >
+          <span class="material-symbols-outlined">edit</span>
+        </button>
+        <button
+          class="conversation-delete"
+          type="button"
+          aria-label="Delete conversation"
+        >
+          <span class="material-symbols-outlined">delete</span>
+        </button>
+      </div>
+    </template>
+
     <template id="libraryItemTemplate">
       <article class="document-row">
         <div class="document-info">
@@ -586,51 +617,23 @@
     </template>
 
     <div
-      class="auth-modal"
-      id="authModal"
+      class="signin-gate"
+      id="signInGate"
       aria-hidden="true"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="authTitle"
+      aria-labelledby="signInTitle"
+      hidden
     >
-      <div class="auth-card">
-        <button
-          class="auth-close material-symbols-outlined"
-          id="authCloseButton"
-          type="button"
-          aria-label="Close admin login"
-        >
-          close
-        </button>
-        <span class="auth-kicker">Admin Access</span>
-        <h2 id="authTitle">Log in as admin</h2>
-        <form class="auth-form" id="authForm">
-          <label>
-            <span>Email</span>
-            <input
-              id="adminEmail"
-              type="email"
-              autocomplete="username"
-              placeholder="admin@icscompute.com"
-              required
-            />
-          </label>
-          <label>
-            <span>Password</span>
-            <input
-              id="adminPassword"
-              type="password"
-              autocomplete="current-password"
-              placeholder="Enter password"
-              required
-            />
-          </label>
-          <p class="auth-error" id="authError" role="alert" hidden></p>
-          <button class="auth-submit" type="submit">
-            <span class="material-symbols-outlined">admin_panel_settings</span>
-            Login admin
-          </button>
-        </form>
+      <div class="auth-card signin-card">
+        <img class="signin-logo" src="/assets/logo.jpg" alt="ICS Compute logo" />
+        <span class="auth-kicker" id="signInTitle">HR Assistant ICS Compute</span>
+        <p class="signin-copy">
+          Use your <strong>@icscompute.com</strong> Google Workspace account to
+          access the HR Assistant.
+        </p>
+        <div class="signin-google-button" id="googleSignInButton"></div>
+        <p class="auth-error" id="signInError" role="alert" hidden></p>
       </div>
     </div>
 
@@ -694,11 +697,11 @@
       aria-labelledby="logoutTitle"
     >
       <div class="logout-card">
-        <span class="auth-kicker">Admin Session</span>
-        <h2 id="logoutTitle">Log out of admin?</h2>
+        <span class="auth-kicker">Session</span>
+        <h2 id="logoutTitle">Log out?</h2>
         <p>
-          Insert, update, and delete access for documents will be hidden
-          until you log in as admin again.
+          You'll need to sign in again with your Google Workspace account to
+          use the HR Assistant.
         </p>
         <div class="logout-actions">
           <button class="logout-cancel" id="logoutCancelButton" type="button">
@@ -732,16 +735,6 @@
         <h2 id="newAdminTitle">Add new admin</h2>
         <form class="auth-form" id="newAdminForm">
           <label>
-            <span>Name</span>
-            <input
-              id="newAdminName"
-              type="text"
-              autocomplete="name"
-              placeholder="Admin HR"
-              required
-            />
-          </label>
-          <label>
             <span>Email</span>
             <input
               id="newAdminEmail"
@@ -751,16 +744,10 @@
               required
             />
           </label>
-          <label>
-            <span>Password</span>
-            <input
-              id="newAdminPassword"
-              type="password"
-              autocomplete="new-password"
-              placeholder="Set password"
-              required
-            />
-          </label>
+          <p class="signin-hint">
+            Admin access applies to this exact Google Workspace email as soon
+            as they sign in.
+          </p>
           <p class="auth-error" id="newAdminStatus" role="alert" hidden></p>
           <button class="auth-submit" type="submit">
             <span class="material-symbols-outlined">person_add</span>
@@ -858,6 +845,8 @@
     <script src="/assets/js/guardrails.js"></script>
     <script src="/assets/js/logs.js"></script>
     <script src="/assets/js/auth.js"></script>
+    <script src="/assets/js/googleAuth.js"></script>
+    <script src="/assets/js/sidebar.js"></script>
     <script src="/assets/app.js"></script>
   </body>
 </html>

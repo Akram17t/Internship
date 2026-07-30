@@ -6,11 +6,7 @@ function bindAuth() {
   elements.accountActionButton.addEventListener("click", (event) => {
     event.stopPropagation();
     closeAccountPopover();
-    if (state.session.role === "admin") {
-      openLogoutModal();
-      return;
-    }
-    openAuthModal();
+    openLogoutModal();
   });
   elements.newAdminButton.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -18,16 +14,12 @@ function bindAuth() {
     openNewAdminModal();
   });
 
-  elements.authCloseButton.addEventListener("click", closeAuthModal);
-  elements.authModal.addEventListener("click", (event) => {
-    if (event.target === elements.authModal) closeAuthModal();
-  });
   elements.newAdminCloseButton.addEventListener("click", closeNewAdminModal);
   elements.newAdminModal.addEventListener("click", (event) => {
     if (event.target === elements.newAdminModal) closeNewAdminModal();
   });
   elements.logoutCancelButton.addEventListener("click", closeLogoutModal);
-  elements.logoutConfirmButton.addEventListener("click", logoutAdmin);
+  elements.logoutConfirmButton.addEventListener("click", logout);
   elements.logoutModal.addEventListener("click", (event) => {
     if (event.target === elements.logoutModal) closeLogoutModal();
   });
@@ -38,12 +30,10 @@ function bindAuth() {
   elements.documentErrorModal.addEventListener("click", (event) => {
     if (event.target === elements.documentErrorModal) closeDocumentErrorModal();
   });
-  elements.authForm.addEventListener("submit", handleAdminLogin);
   elements.newAdminForm.addEventListener("submit", handleNewAdminSubmit);
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
     closeAccountPopover();
-    if (elements.authModal.classList.contains("is-open")) closeAuthModal();
     if (elements.newAdminModal.classList.contains("is-open")) {
       closeNewAdminModal();
     }
@@ -59,6 +49,41 @@ function bindAuth() {
     if (elements.accountPanel.contains(event.target)) return;
     closeAccountPopover();
   });
+}
+
+function isLoggedIn() {
+  return (
+    (state.session.role === "admin" || state.session.role === "user") &&
+    Boolean(state.session.email) &&
+    Boolean(state.session.token) &&
+    !isSessionExpired(state.session)
+  );
+}
+
+function sessionAuthHeaders(extraHeaders = {}) {
+  if (!isLoggedIn()) return { ...extraHeaders };
+  return {
+    ...extraHeaders,
+    Authorization: `Bearer ${state.session.token}`,
+  };
+}
+
+function withSessionToken(url) {
+  if (!url || !isLoggedIn()) return url;
+  const [base, hash] = url.split("#");
+  const separator = base.includes("?") ? "&" : "?";
+  const withToken = `${base}${separator}token=${encodeURIComponent(state.session.token)}`;
+  return hash ? `${withToken}#${hash}` : withToken;
+}
+
+function showSignInGate() {
+  elements.signInGate.hidden = false;
+  elements.signInGate.setAttribute("aria-hidden", "false");
+}
+
+function hideSignInGate() {
+  elements.signInGate.hidden = true;
+  elements.signInGate.setAttribute("aria-hidden", "true");
 }
 
 function toggleAccountPopover() {
@@ -79,34 +104,14 @@ function closeAccountPopover() {
   elements.accountAvatar.setAttribute("aria-expanded", "false");
 }
 
-function openAuthModal() {
-  closeAccountPopover();
-  clearAuthError();
-  elements.authForm.reset();
-  elements.authModal.classList.add("is-open");
-  elements.authModal.setAttribute("aria-hidden", "false");
-  elements.body.classList.add("auth-open");
-  window.setTimeout(() => elements.adminEmail.focus(), 0);
-}
-
-function closeAuthModal() {
-  elements.authModal.classList.remove("is-open");
-  elements.authModal.setAttribute("aria-hidden", "true");
-  elements.body.classList.remove("auth-open");
-  clearAuthError();
-}
-
 function openNewAdminModal() {
-  if (!isAdminSession()) {
-    openAuthModal();
-    return;
-  }
+  if (!isAdminSession()) return;
   clearNewAdminStatus();
   elements.newAdminForm.reset();
   elements.newAdminModal.classList.add("is-open");
   elements.newAdminModal.setAttribute("aria-hidden", "false");
   elements.body.classList.add("new-admin-open");
-  window.setTimeout(() => elements.newAdminName.focus(), 0);
+  window.setTimeout(() => elements.newAdminEmail.focus(), 0);
 }
 
 function closeNewAdminModal() {
@@ -161,69 +166,26 @@ function closeDocumentErrorModal() {
   elements.body.classList.remove("document-error-open");
 }
 
-async function handleAdminLogin(event) {
-  event.preventDefault();
-  const email = elements.adminEmail.value.trim().toLowerCase();
-  const password = elements.adminPassword.value;
-
-  try {
-    const response = await fetch("/api/admin/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    const payload = await readJsonResponse(response);
-    if (!response.ok) {
-      throw new Error(
-        formatApiError(
-          payload.detail,
-          "Admin email or password doesn't match.",
-        ),
-      );
-    }
-
-    state.session = {
-      role: "admin",
-      email: payload.email || email,
-      name: payload.name || "Admin",
-      token: payload.token || "",
-      expires_at: payload.expires_at || "",
-    };
-    if (!isAdminSession()) {
-      throw new Error("Admin session is invalid. Try logging in again.");
-    }
-  } catch (error) {
-    showAuthError(error.message || "Admin email or password doesn't match.");
-    elements.adminPassword.select();
-    return;
-  }
-
-  window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(state.session));
-  syncAuth();
-  closeAuthModal();
-  closeMobileNav();
-}
-
 async function handleNewAdminSubmit(event) {
   event.preventDefault();
   if (!isAdminSession()) {
-    showNewAdminStatus("Admin session is invalid. Log in again first.", true);
+    showNewAdminStatus("Your session is invalid. Log in again first.", true);
     return;
   }
 
-  const payload = {
-    name: elements.newAdminName.value.trim() || "Admin",
-    email: elements.newAdminEmail.value.trim().toLowerCase(),
-    password: elements.newAdminPassword.value,
-  };
+  const email = elements.newAdminEmail.value.trim().toLowerCase();
+  if (!email.endsWith("@icscompute.com")) {
+    showNewAdminStatus("Email must be an @icscompute.com address.", true);
+    elements.newAdminEmail.focus();
+    return;
+  }
+
+  const payload = { email };
 
   try {
     const response = await fetch("/api/admin/admins", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${state.session.token}`,
-      },
+      headers: sessionAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(payload),
     });
     const data = await readJsonResponse(response);
@@ -235,15 +197,14 @@ async function handleNewAdminSubmit(event) {
     showNewAdminStatus(`Admin ${data.email || payload.email} saved.`, false);
   } catch (error) {
     showNewAdminStatus(error.message || "New admin was not saved.", true);
-    elements.newAdminPassword.select();
   }
 }
 
-function logoutAdmin() {
+function logout() {
   state.session = {
-    role: "guest",
+    role: "",
     email: "",
-    name: "Guest",
+    name: "",
     token: "",
     expires_at: "",
   };
@@ -254,42 +215,31 @@ function logoutAdmin() {
 }
 
 function syncAuth() {
-  const isAdmin = isAdminSession();
-  if (!isAdmin && state.session.role === "admin") {
-    state.session = {
-      role: "guest",
-      email: "",
-      name: "Guest",
-      token: "",
-      expires_at: "",
-    };
-    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+  if (!isLoggedIn()) {
+    showSignInGate();
+    elements.body.dataset.role = "";
+    state.conversations = [];
+    renderSidebarConversations();
+    return;
   }
-  elements.body.dataset.role = isAdmin ? "admin" : "guest";
-  elements.accountAvatar.textContent = isAdmin ? "A" : "G";
-  elements.accountRoleLabel.textContent = isAdmin
-    ? "Admin mode"
-    : "Guest access";
-  elements.accountName.textContent = isAdmin
-    ? state.session.name || state.session.email
-    : "Guest";
-  elements.accountHint.textContent = isAdmin ? "Admin" : "Log in as admin";
-  elements.accountPopoverRole.textContent = isAdmin
-    ? "Admin mode"
-    : "Guest access";
-  elements.accountPopoverName.textContent = isAdmin
-    ? state.session.email || state.session.name
-    : "Guest";
-  elements.accountPopoverHint.textContent = isAdmin
-    ? "Click the icon on the right to log out."
-    : "Click the icon on the right to log in as admin.";
+
+  hideSignInGate();
+  const isAdmin = isAdminSession();
+  elements.body.dataset.role = isAdmin ? "admin" : "user";
+  elements.accountAvatar.textContent = (state.session.name || state.session.email || "?")
+    .trim()
+    .charAt(0)
+    .toUpperCase() || "?";
+  elements.accountRoleLabel.textContent = isAdmin ? "Admin mode" : "Signed in";
+  elements.accountName.textContent = state.session.name || state.session.email;
+  elements.accountHint.textContent = isAdmin ? "Admin" : "User";
+  elements.accountPopoverRole.textContent = isAdmin ? "Admin mode" : "Signed in";
+  elements.accountPopoverName.textContent = state.session.email || state.session.name;
+  elements.accountPopoverHint.textContent = "Click the icon on the right to log out.";
   elements.newAdminButton.hidden = !isAdmin;
-  elements.accountActionIcon.textContent = isAdmin ? "logout" : "login";
-  elements.accountActionText.textContent = isAdmin ? "Logout" : "Admin login";
-  elements.accountActionButton.setAttribute(
-    "aria-label",
-    isAdmin ? "Logout admin" : "Login admin",
-  );
+  elements.accountActionIcon.textContent = "logout";
+  elements.accountActionText.textContent = "Logout";
+  elements.accountActionButton.setAttribute("aria-label", "Log out");
   if (elements.policyNavLink) elements.policyNavLink.hidden = false;
   if (elements.guardrailsNavLink) elements.guardrailsNavLink.hidden = !isAdmin;
   if (elements.logsNavLink) elements.logsNavLink.hidden = !isAdmin;
@@ -301,6 +251,8 @@ function syncAuth() {
   syncReindexState();
   updateFaqControls();
   void loadLibrary();
+  void loadFaqs();
+  void loadConversations();
   if (isAdmin) {
     void loadActivityLogs();
   } else {
@@ -309,16 +261,6 @@ function syncAuth() {
     state.logError = "";
     renderActivityLogs();
   }
-}
-
-function showAuthError(message) {
-  elements.authError.textContent = message;
-  elements.authError.hidden = false;
-}
-
-function clearAuthError() {
-  elements.authError.textContent = "";
-  elements.authError.hidden = true;
 }
 
 function showNewAdminStatus(message, isError) {

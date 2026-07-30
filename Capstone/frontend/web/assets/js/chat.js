@@ -130,6 +130,7 @@ function resetChat() {
   window.localStorage.setItem(CONVERSATION_STORAGE_KEY, state.conversationId);
   elements.chatInput.value = "";
   renderMessages("smooth");
+  renderSidebarConversations();
   navigateTo("chat");
   window.setTimeout(() => elements.chatInput.focus(), 0);
 }
@@ -162,7 +163,7 @@ async function submitQuestion(rawQuestion) {
   try {
     const response = await fetch("/query", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: sessionAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({
         question,
         conversation_id: state.conversationId,
@@ -258,6 +259,7 @@ async function submitQuestion(rawQuestion) {
     persistMessages();
     renderMessages("smooth", { forceScroll: true });
     refreshActivityLogsIfVisible();
+    void loadConversations();
   }
 }
 
@@ -505,7 +507,7 @@ async function submitThumbsUp(message, row) {
   try {
     const response = await fetch("/api/feedback", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: sessionAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({
         feedback_id: message.feedback_id,
         feedback_token: message.feedback_token,
@@ -567,7 +569,7 @@ async function submitFeedback(event) {
   try {
     const response = await fetch("/api/feedback", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: sessionAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({
         feedback_id: message.feedback_id,
         feedback_token: message.feedback_token,
@@ -689,7 +691,7 @@ function createCitationChip(citation, index, isInline = false) {
   chip.title = formatCitationLabel(citation, index);
 
   if (browserUrl) {
-    chip.href = browserUrl;
+    chip.href = withSessionToken(browserUrl);
     chip.target = "_blank";
     chip.rel = "noopener noreferrer";
   }

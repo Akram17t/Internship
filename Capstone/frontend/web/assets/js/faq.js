@@ -21,7 +21,7 @@ function renderFaqs() {
       source.textContent = item.source;
       const browserUrl = citationBrowserUrl(item);
       if (browserUrl) {
-        source.href = browserUrl;
+        source.href = withSessionToken(browserUrl);
         source.target = "_blank";
         source.rel = "noopener noreferrer";
       } else {
@@ -72,8 +72,13 @@ function stripCitationMarkers(value) {
 }
 
 async function loadFaqs() {
+  if (!isLoggedIn()) {
+    state.faqItems = [];
+    renderFaqs();
+    return;
+  }
   try {
-    const response = await fetch("/api/faq");
+    const response = await fetch("/api/faq", { headers: sessionAuthHeaders() });
     if (!response.ok) {
       state.faqItems = [];
       renderFaqs();
@@ -143,7 +148,7 @@ function renderFaqCitations(container, citations) {
     source.className = "faq-citation-link";
     source.textContent = formatCitationText(citation);
     if (canOpenDocument) {
-      source.href = citationBrowserUrl(citation);
+      source.href = withSessionToken(citationBrowserUrl(citation));
       source.target = "_blank";
       source.rel = "noopener noreferrer";
     }

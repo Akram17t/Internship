@@ -5695,3 +5695,193 @@ body.logout-open {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Google Workspace sign-in gate */
+.signin-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(188, 24, 35, 0.28), transparent 55%),
+    linear-gradient(160deg, #151515 0%, #060606 55%, #130607 100%);
+}
+
+.signin-card {
+  width: min(400px, 100%);
+  padding: 44px 38px 38px;
+  text-align: center;
+  animation: signin-card-in 0.4s ease;
+}
+
+@keyframes signin-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.signin-logo {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 18px;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  object-fit: cover;
+}
+
+.signin-card .auth-kicker {
+  display: block;
+  margin-bottom: 20px;
+  font-size: 11px;
+}
+
+.signin-copy {
+  margin: 0 0 30px;
+  color: var(--muted);
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+
+.signin-copy strong {
+  color: var(--ink);
+}
+
+.signin-google-button {
+  display: flex;
+  min-height: 44px;
+  justify-content: center;
+  margin: 0 auto;
+}
+
+.signin-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+#signInError.auth-error {
+  margin: 18px 0 0;
+  padding: 10px 14px;
+  border: 1px solid rgba(188, 24, 35, 0.3);
+  border-radius: 8px;
+  background: rgba(188, 24, 35, 0.06);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+/* Sidebar chat history */
+.conversation-history {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  margin-top: 8px;
+  padding: 0 16px 12px;
+  overflow: hidden;
+}
+
+.conversation-history-heading {
+  padding: 8px 4px;
+  color: rgba(244, 241, 234, 0.4);
+  font:
+    400 10px/16px "JetBrains Mono",
+    monospace;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.conversation-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+}
+
+.conversation-history-empty {
+  padding: 10px 8px;
+  color: rgba(244, 241, 234, 0.4);
+  font-size: 12px;
+}
+
+.conversation-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 6px;
+}
+
+.conversation-row:hover,
+.conversation-row.is-active {
+  background: rgba(244, 241, 234, 0.06);
+}
+
+.conversation-open {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  min-width: 0;
+  gap: 10px;
+  padding: 9px 8px;
+  border: 0;
+  background: transparent;
+  color: rgba(244, 241, 234, 0.72);
+  text-align: left;
+}
+
+.conversation-row.is-active .conversation-open {
+  color: var(--paper);
+}
+
+.conversation-icon {
+  font-size: 17px;
+  opacity: 0.7;
+}
+
+.conversation-title {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversation-rename,
+.conversation-delete {
+  display: none;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: rgba(244, 241, 234, 0.5);
+}
+
+.conversation-rename .material-symbols-outlined,
+.conversation-delete .material-symbols-outlined {
+  font-size: 16px;
+}
+
+.conversation-row:hover .conversation-rename,
+.conversation-row:hover .conversation-delete {
+  display: flex;
+}
+
+.conversation-rename:hover,
+.conversation-delete:hover {
+  background: rgba(244, 241, 234, 0.12);
+  color: var(--paper);
+}

@@ -611,9 +611,14 @@ function formatSelectedFiles(files) {
 }
 
 async function loadLibrary() {
+  if (!isLoggedIn()) {
+    state.documents = [];
+    renderLibrary();
+    return;
+  }
   try {
     const response = await fetch("/api/library", {
-      headers: adminAuthHeaders(),
+      headers: sessionAuthHeaders(),
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const documents = await response.json();
@@ -846,7 +851,7 @@ function createLibraryRow(item, options = {}) {
     expandButton.hidden = true;
   }
   if (item.download_url) {
-    link.href = item.download_url;
+    link.href = withSessionToken(item.download_url);
     link.addEventListener("click", (event) => {
       event.preventDefault();
       openTemplateDownloadModal(item.download_url, item.name || item.display_name, {
@@ -1098,7 +1103,7 @@ async function downloadDocument(url, filename = "document") {
   try {
     const response = await fetch(url, {
       cache: "no-store",
-      headers: adminAuthHeaders(),
+      headers: sessionAuthHeaders(),
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const blob = await response.blob();

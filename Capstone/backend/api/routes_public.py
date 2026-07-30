@@ -4,9 +4,10 @@ import logging
 import secrets
 import time
 
-from fastapi import HTTPException
+from fastapi import Header, HTTPException
 from fastapi.responses import FileResponse, Response
 
+from backend.api.auth import _require_user, _require_user_from_header_or_query
 from backend.api.cache_store import _append_conversation_turn, _clean_conversation_id, _get_conversation_context, _load_faqs
 from backend.api.core import FAQ_LOCK, FRONTEND_DIR, app
 from backend.api.forms_service import (
@@ -15,10 +16,15 @@ from backend.api.forms_service import (
 )
 from backend.api.models import (
     CitationResponse,
+    ConversationMessage,
+    ConversationMessagesResponse,
+    ConversationRenamePayload,
+    ConversationSummary,
     FAQItem,
     FeedbackPayload,
     FeedbackResponse,
     FormDownloadResponse,
+    MessageResponse,
     PublicConfigResponse,
     QueryRequest,
     QueryResponse,
@@ -36,8 +42,14 @@ from backend.api.storage import (
     _selected_form_downloads,
 )
 from backend.cache_db import (
+    create_conversation,
+    delete_conversation,
+    get_conversation_messages,
+    get_conversation_owner,
     insert_activity_log,
+    list_conversations_for_user,
     mark_activity_log_cached,
+    rename_conversation,
     update_activity_log_feedback,
 )
 from backend.observability import (
@@ -48,7 +60,7 @@ from backend.observability import (
     update_observation,
 )
 from backend.semantic_cache import store_semantic_cache
-from backend.settings import get_bool_env
+from backend.settings import get_bool_env, get_env
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -147,19 +159,31 @@ def health_check() -> dict[str, str]:
 
 @app.get("/api/config", response_model=PublicConfigResponse)
 def public_config() -> PublicConfigResponse:
-    # Config frontend yang aman dibuka ke browser.
+    # Config frontend yang aman dibuka ke browser -- harus tetap publik (tanpa
+    # login) karena frontend butuh google_client_id ini untuk merender tombol
+    # Google Sign-In sebelum user login.
     return PublicConfigResponse(
         typing_animation_enabled=get_bool_env("TYPING_ANIMATION_ENABLED", False),
+        google_client_id=get_env("GOOGLE_CLIENT_ID", ""),
     )
 
 
 @app.post("/query", response_model=QueryResponse)
-def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
+def query_knowledge_base(
+    payload: QueryRequest,
+    authorization: str = Header(default=""),
+) -> QueryResponse:
     # Jawab query chat dengan citation dan form pilihan AI.
     from researcher_crew.main import ModelGenerationError, run_knowledge_crew
 
+    user = _require_user(authorization)
     request_started = time.perf_counter()
     conversation_id = _clean_conversation_id(payload.conversation_id)
+    owner_id = get_conversation_owner(conversation_id)
+    if owner_id is not None and owner_id != user["id"]:
+        raise HTTPException(status_code=403, detail="This conversation does not belong to you.")
+    if owner_id is None:
+        create_conversation(conversation_id, user["id"], title=payload.question)
     logger.info('[chat:%s] POST /query | "%s"', conversation_id, payload.question)
     conversation_context = _get_conversation_context(conversation_id)
     logger.debug(
@@ -334,8 +358,12 @@ def query_knowledge_base(payload: QueryRequest) -> QueryResponse:
 
 
 @app.post("/api/feedback", response_model=FeedbackResponse)
-def submit_chat_feedback(payload: FeedbackPayload) -> FeedbackResponse:
+def submit_chat_feedback(
+    payload: FeedbackPayload,
+    authorization: str = Header(default=""),
+) -> FeedbackResponse:
     # Simpan feedback user: thumbs_down -> log + Langfuse score, thumbs_up -> log + commit ke semantic cache.
+    _require_user(authorization)
     clean_conversation_id = payload.conversation_id.strip()
     clean_reason = (payload.reason or "").strip()
     if payload.rating == "thumbs_down" and len(clean_reason) < 5:
@@ -381,15 +409,23 @@ def submit_chat_feedback(payload: FeedbackPayload) -> FeedbackResponse:
 
 
 @app.get("/api/faq", response_model=list[FAQItem])
-def get_faq() -> list[FAQItem]:
-    # Kembalikan daftar FAQ tersimpan.
+def get_faq(authorization: str = Header(default="")) -> list[FAQItem]:
+    # Kembalikan daftar FAQ tersimpan untuk user yang sudah login.
+    _require_user(authorization)
     with FAQ_LOCK:
         return _load_faqs()
 
 
 @app.get("/api/citations/{document_path:path}")
-def download_citation_document(document_path: str) -> FileResponse:
-    # Buka dokumen yang memang boleh menjadi sumber citation untuk guest.
+def download_citation_document(
+    document_path: str,
+    token: str = "",
+    authorization: str = Header(default=""),
+) -> FileResponse:
+    # Buka dokumen yang boleh menjadi sumber citation untuk user yang login.
+    # Link ini dibuka lewat <a href> biasa oleh browser (bukan fetch), jadi
+    # terima token sesi via query param sebagai fallback dari header.
+    _require_user_from_header_or_query(authorization, token)
     resolved_path = _resolve_citation_document_path(document_path)
 
     if not resolved_path.exists() or not resolved_path.is_file():
@@ -409,8 +445,13 @@ def download_citation_document(document_path: str) -> FileResponse:
 def download_document(
     document_path: str,
     format: str = "pdf",
+    token: str = "",
+    authorization: str = Header(default=""),
 ) -> Response:
-    # Unduh dokumen tersimpan untuk library publik.
+    # Unduh dokumen tersimpan untuk user yang login. Link ini juga dibuka
+    # lewat <a href> biasa, jadi terima token sesi via query param sebagai
+    # fallback dari header.
+    _require_user_from_header_or_query(authorization, token)
     resolved_path = _resolve_document_path(document_path)
 
     if not resolved_path.exists() or not resolved_path.is_file():
@@ -433,6 +474,63 @@ def download_document(
         filename=resolved_path.name,
         headers={"Cache-Control": "no-store"},
     )
+
+
+@app.get("/api/conversations", response_model=list[ConversationSummary])
+def list_conversations(
+    limit: int = 30,
+    offset: int = 0,
+    authorization: str = Header(default=""),
+) -> list[ConversationSummary]:
+    # Daftar percakapan milik user yang login, terbaru dulu, untuk sidebar chat.
+    user = _require_user(authorization)
+    return [
+        ConversationSummary(**item)
+        for item in list_conversations_for_user(user["id"], limit=limit, offset=offset)
+    ]
+
+
+@app.get("/api/conversations/{conversation_id}/messages", response_model=ConversationMessagesResponse)
+def get_conversation(
+    conversation_id: str,
+    authorization: str = Header(default=""),
+) -> ConversationMessagesResponse:
+    # Buka kembali satu percakapan lama milik user yang login.
+    user = _require_user(authorization)
+    owner_id = get_conversation_owner(conversation_id)
+    if owner_id is None or owner_id != user["id"]:
+        raise HTTPException(status_code=404, detail="Conversation not found.")
+    messages = [ConversationMessage(**item) for item in get_conversation_messages(conversation_id)]
+    return ConversationMessagesResponse(id=conversation_id, messages=messages)
+
+
+@app.patch("/api/conversations/{conversation_id}", response_model=MessageResponse)
+def rename_conversation_title(
+    conversation_id: str,
+    payload: ConversationRenamePayload,
+    authorization: str = Header(default=""),
+) -> MessageResponse:
+    # Ganti judul satu percakapan milik user yang login.
+    user = _require_user(authorization)
+    owner_id = get_conversation_owner(conversation_id)
+    if owner_id is None or owner_id != user["id"]:
+        raise HTTPException(status_code=404, detail="Conversation not found.")
+    rename_conversation(conversation_id, payload.title)
+    return MessageResponse(message="Conversation renamed.")
+
+
+@app.delete("/api/conversations/{conversation_id}", response_model=MessageResponse)
+def delete_conversation_item(
+    conversation_id: str,
+    authorization: str = Header(default=""),
+) -> MessageResponse:
+    # Hapus satu percakapan milik user yang login.
+    user = _require_user(authorization)
+    owner_id = get_conversation_owner(conversation_id)
+    if owner_id is None or owner_id != user["id"]:
+        raise HTTPException(status_code=404, detail="Conversation not found.")
+    delete_conversation(conversation_id)
+    return MessageResponse(message="Conversation deleted.")
 
 
 @app.get("/", response_class=FileResponse, include_in_schema=False)

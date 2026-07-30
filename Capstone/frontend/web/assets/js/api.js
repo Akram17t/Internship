@@ -8,7 +8,7 @@
 
     authHeaders(session, extraHeaders = {}) {
       if (
-        session?.role !== "admin" ||
+        (session?.role !== "admin" && session?.role !== "user") ||
         !session.email ||
         !session.token ||
         AppApi.isSessionExpired(session)

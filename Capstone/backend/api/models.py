@@ -56,6 +56,7 @@ class FeedbackResponse(BaseModel):
 
 class PublicConfigResponse(BaseModel):
     typing_animation_enabled: bool
+    google_client_id: str = ""
 
 
 class FAQItem(BaseModel):
@@ -79,27 +80,51 @@ class AdminFAQResponse(BaseModel):
     item: FAQItem | None = None
 
 
-class AdminLoginPayload(BaseModel):
-    email: str = Field(..., min_length=3)
-    password: str = Field(..., min_length=1)
+class GoogleLoginPayload(BaseModel):
+    id_token: str = Field(..., min_length=1)
 
 
-class AdminLoginResponse(BaseModel):
+class GoogleLoginResponse(BaseModel):
     email: str
     name: str
+    role: Literal["admin", "user"]
     token: str
     expires_at: str
 
 
 class AdminCreatePayload(BaseModel):
     email: str = Field(..., min_length=3)
-    password: str = Field(..., min_length=1)
-    name: str = Field(default="Admin", min_length=1)
 
 
 class AdminAccountResponse(BaseModel):
     email: str
     name: str
+
+
+class ConversationSummary(BaseModel):
+    id: str
+    title: str
+    created_at: str
+    updated_at: str
+
+
+class ConversationMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+    created_at: str
+
+
+class ConversationMessagesResponse(BaseModel):
+    id: str
+    messages: list[ConversationMessage] = Field(default_factory=list)
+
+
+class ConversationRenamePayload(BaseModel):
+    title: str = Field(..., min_length=1, max_length=120)
+
+
+class MessageResponse(BaseModel):
+    message: str
 
 
 class LibraryItem(BaseModel):

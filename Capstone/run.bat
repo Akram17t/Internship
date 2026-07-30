@@ -18,14 +18,11 @@ set "PYTHONUTF8="
 
 call :stop_servers
 
-set "API_PORT="
-for /f "usebackq delims=" %%P in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$port = 8000; while ($port -lt 9000) { $busy = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue; if (-not $busy) { $port; exit 0 }; $port++ }; exit 1"`) do (
-  set "API_PORT=%%P"
-)
-if not defined API_PORT (
-  echo Could not find a free API port starting from 8000.
-  goto :fail
-)
+rem Fixed port so the URL matches what's registered as an Authorized
+rem JavaScript origin for Google Sign-In (Google requires an exact
+rem host+port match, so this can't float). :stop_servers above already
+rem frees this port from any previous run of this app.
+set "API_PORT=8000"
 
 "%PYTHON%" -X utf8 -c "import dotenv, fastapi, openai, yaml, langchain_chroma, langchain_community, langchain_text_splitters, pypdf, docx2txt, pdf2docx" >nul 2>&1
 if errorlevel 1 (
@@ -62,14 +59,14 @@ if not defined HAS_DB (
 )
 
 echo Opening frontend in your browser...
-start "" "http://127.0.0.1:%API_PORT%"
+start "" "http://localhost:%API_PORT%"
 
 echo.
 echo Starting FastAPI app in this terminal.
-echo - App: http://127.0.0.1:%API_PORT%
+echo - App: http://localhost:%API_PORT%
 echo - Press Ctrl+C to stop the server.
 echo.
-"%PYTHON%" -X utf8 -m uvicorn backend.api.main:app --host 127.0.0.1 --port %API_PORT% --timeout-keep-alive 1 --timeout-graceful-shutdown 3 --no-access-log
+"%PYTHON%" -X utf8 -m uvicorn backend.api.main:app --host localhost --port %API_PORT% --timeout-keep-alive 1 --timeout-graceful-shutdown 3 --no-access-log
 set "APP_EXIT=%ERRORLEVEL%"
 endlocal & exit /b %APP_EXIT%
 

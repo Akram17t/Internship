@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 import secrets
 import sqlite3
@@ -12,26 +13,22 @@ from pathlib import Path
 from typing import Any
 
 from backend.api.core import (
-    CONVERSATION_TTL,
     MAX_CONVERSATION_CONTEXT_CHARS,
     MAX_CONVERSATION_MESSAGES,
-    MAX_CONVERSATIONS,
     ROOT_DIR,
 )
 from backend.settings import get_env, load_capstone_env
 
 load_capstone_env()
 
-SCHEMA_VERSION = "4"
+SCHEMA_VERSION = "5"
 MIGRATION_KEY = "conversations_json_migrated"
 ADMIN_SESSION_SECRET_KEY = "admin_session_secret"
 GUARDRAILS_RULES_KEY = "guardrails_rules_text"
-DEFAULT_ADMIN_EMAIL = "admin@gmail.com"
-DEFAULT_ADMIN_PASSWORD = "admin123"
-DEFAULT_ADMIN_NAME = "admin"
 ACTIVITY_LOG_RETENTION = timedelta(days=30)
 MAX_ACTIVITY_LOG_LIMIT = 1000
 STATE_DB_LOCK = threading.RLock()
+logger = logging.getLogger("uvicorn.error")
 
 # Layer 1 -- Editable Guardrails. Admin bisa CRUD teks ini lewat panel admin.
 # Isinya SENGAJA dibatasi ke scope/safety, batasan SOP, dan deskripsi 3 kondisi
@@ -174,12 +171,32 @@ def _init_schema(connection: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS admin_accounts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             email TEXT NOT NULL UNIQUE,
-            password TEXT NOT NULL,
+            password TEXT NOT NULL DEFAULT '',
             name TEXT NOT NULL DEFAULT 'Admin',
             created_at TEXT NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_admin_accounts_email
             ON admin_accounts (email);
+
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT NOT NULL UNIQUE,
+            name TEXT NOT NULL DEFAULT '',
+            is_admin INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            last_login_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
+
+        CREATE TABLE IF NOT EXISTS conversations (
+            id TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            title TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_conversations_user
+            ON conversations (user_id, updated_at DESC);
 
         CREATE TABLE IF NOT EXISTS faq_items (
             id TEXT PRIMARY KEY,
@@ -409,20 +426,29 @@ def set_guardrails_rules(text: str) -> None:
             connection.commit()
 
 
-def _ensure_default_admin(connection: sqlite3.Connection) -> None:
+def _ensure_initial_admin(connection: sqlite3.Connection) -> None:
     existing_count = int(
         connection.execute("SELECT COUNT(*) AS count FROM admin_accounts").fetchone()["count"]
     )
     if existing_count:
         return
 
+    initial_admin_email = get_env("INITIAL_ADMIN_EMAIL", "").strip().lower()
+    if not initial_admin_email:
+        logger.warning(
+            "No admin account exists yet and INITIAL_ADMIN_EMAIL is not set. "
+            "Set INITIAL_ADMIN_EMAIL in .env and restart, or insert a row into "
+            "admin_accounts manually, before anyone can access the admin panel."
+        )
+        return
+
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
     connection.execute(
         """
         INSERT OR IGNORE INTO admin_accounts(email, password, name, created_at)
-        VALUES (?, ?, ?, ?)
+        VALUES (?, '', ?, ?)
         """,
-        (DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD, DEFAULT_ADMIN_NAME, now),
+        (initial_admin_email, initial_admin_email.split("@")[0], now),
     )
 
 
@@ -438,16 +464,14 @@ def init_state_db(
                 _migrate_legacy_conversations(connection, legacy_conversations_path)
                 _set_meta(connection, MIGRATION_KEY, "1")
             _ensure_admin_session_secret(connection)
-            _ensure_default_admin(connection)
+            _ensure_initial_admin(connection)
             _cleanup_activity_logs(connection)
-            _cleanup_conversations(connection)
             connection.commit()
 
 
 def _admin_account_from_row(row: sqlite3.Row) -> dict[str, str]:
     return {
         "email": str(row["email"]),
-        "password": str(row["password"]),
         "name": str(row["name"]) or "Admin",
     }
 
@@ -458,12 +482,26 @@ def list_admin_accounts() -> list[dict[str, str]]:
         with closing(_connect()) as connection:
             rows = connection.execute(
                 """
-                SELECT email, password, name
+                SELECT email, name
                 FROM admin_accounts
                 ORDER BY id ASC
                 """
             ).fetchall()
     return [_admin_account_from_row(row) for row in rows]
+
+
+def is_admin_email(email: str) -> bool:
+    clean_email = email.strip().lower()
+    if not clean_email:
+        return False
+    with STATE_DB_LOCK:
+        init_state_db()
+        with closing(_connect()) as connection:
+            row = connection.execute(
+                "SELECT 1 FROM admin_accounts WHERE email = ? LIMIT 1",
+                (clean_email,),
+            ).fetchone()
+    return row is not None
 
 
 def get_admin_session_secret() -> str:
@@ -475,19 +513,13 @@ def get_admin_session_secret() -> str:
             return secret
 
 
-def load_admin_config() -> dict[str, object]:
-    return {
-        "admins": list_admin_accounts(),
-        "session_secret": get_admin_session_secret(),
-    }
-
-
-def add_admin_account(*, email: str, password: str, name: str) -> dict[str, str]:
+def add_admin_by_email(*, email: str, name: str = "") -> dict[str, str]:
     clean_email = email.strip().lower()
-    clean_password = password
-    clean_name = name.strip() or "Admin"
-    if not clean_email or not clean_password:
-        raise ValueError("missing_credentials")
+    # The real name gets filled in from Google's profile the first time this
+    # person actually signs in (see upsert_user); this is just a placeholder.
+    clean_name = name.strip() or clean_email.split("@")[0]
+    if not clean_email:
+        raise ValueError("missing_email")
 
     with STATE_DB_LOCK:
         init_state_db()
@@ -497,85 +529,190 @@ def add_admin_account(*, email: str, password: str, name: str) -> dict[str, str]
                 connection.execute(
                     """
                     INSERT INTO admin_accounts(email, password, name, created_at)
-                    VALUES (?, ?, ?, ?)
+                    VALUES (?, '', ?, ?)
                     """,
-                    (clean_email, clean_password, clean_name, now),
+                    (clean_email, clean_name, now),
                 )
             except sqlite3.IntegrityError as error:
                 raise ValueError("duplicate_email") from error
+            connection.execute(
+                "UPDATE users SET is_admin = 1 WHERE email = ?",
+                (clean_email,),
+            )
             connection.commit()
     return {
         "email": clean_email,
-        "password": clean_password,
         "name": clean_name,
     }
 
 
-def _cleanup_conversations(connection: sqlite3.Connection, now: datetime | None = None) -> None:
-    cutoff = (now or datetime.now(timezone.utc)) - CONVERSATION_TTL
-    cutoff_value = cutoff.isoformat(timespec="seconds")
+def _user_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "id": int(row["id"]),
+        "email": str(row["email"]),
+        "name": str(row["name"]),
+        "is_admin": bool(row["is_admin"]),
+    }
 
-    expired_ids = [
-        str(row["conversation_id"])
-        for row in connection.execute(
-            """
-            SELECT conversation_id
-            FROM conversation_messages
-            GROUP BY conversation_id
-            HAVING MAX(created_at) < ?
-            """,
-            (cutoff_value,),
-        )
-    ]
-    for conversation_id in expired_ids:
-        connection.execute(
-            "DELETE FROM conversation_messages WHERE conversation_id = ?",
-            (conversation_id,),
-        )
 
-    conversation_ids = [
-        str(row["conversation_id"])
-        for row in connection.execute(
-            """
-            SELECT conversation_id
-            FROM conversation_messages
-            GROUP BY conversation_id
-            ORDER BY MAX(created_at) DESC
-            """
-        )
-    ]
-    for conversation_id in conversation_ids:
-        keep_ids = [
-            int(row["id"])
-            for row in connection.execute(
-                """
-                SELECT id
-                FROM conversation_messages
-                WHERE conversation_id = ?
-                ORDER BY created_at DESC, id DESC
-                LIMIT ?
-                """,
-                (conversation_id, MAX_CONVERSATION_MESSAGES),
-            )
-        ]
-        if keep_ids:
-            placeholders = ",".join("?" for _ in keep_ids)
+def upsert_user(*, email: str, name: str) -> dict[str, Any]:
+    clean_email = email.strip().lower()
+    clean_name = name.strip() or clean_email.split("@")[0]
+    if not clean_email:
+        raise ValueError("missing_email")
+
+    with STATE_DB_LOCK:
+        init_state_db()
+        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        admin_flag = 1 if is_admin_email(clean_email) else 0
+        with closing(_connect()) as connection:
             connection.execute(
-                f"""
-                DELETE FROM conversation_messages
-                WHERE conversation_id = ?
-                AND id NOT IN ({placeholders})
+                """
+                INSERT INTO users(email, name, is_admin, created_at, last_login_at)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(email) DO UPDATE SET
+                    name = excluded.name,
+                    is_admin = excluded.is_admin,
+                    last_login_at = excluded.last_login_at
                 """,
-                (conversation_id, *keep_ids),
+                (clean_email, clean_name, admin_flag, now, now),
             )
+            row = connection.execute(
+                "SELECT id, email, name, is_admin FROM users WHERE email = ?",
+                (clean_email,),
+            ).fetchone()
+            connection.commit()
+    return _user_from_row(row)
 
-    keep_conversation_ids = set(conversation_ids[:MAX_CONVERSATIONS])
-    for conversation_id in conversation_ids[MAX_CONVERSATIONS:]:
-        if conversation_id not in keep_conversation_ids:
+
+def get_user_by_email(email: str) -> dict[str, Any] | None:
+    clean_email = email.strip().lower()
+    if not clean_email:
+        return None
+    with STATE_DB_LOCK:
+        init_state_db()
+        with closing(_connect()) as connection:
+            row = connection.execute(
+                "SELECT id, email, name, is_admin FROM users WHERE email = ?",
+                (clean_email,),
+            ).fetchone()
+    return _user_from_row(row) if row is not None else None
+
+
+def create_conversation(conversation_id: str, user_id: int, title: str) -> None:
+    with STATE_DB_LOCK:
+        init_state_db()
+        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        with closing(_connect()) as connection:
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO conversations(id, user_id, title, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (conversation_id, user_id, title.strip()[:120], now, now),
+            )
+            connection.commit()
+
+
+def touch_conversation(conversation_id: str, updated_at: str | None = None) -> None:
+    with STATE_DB_LOCK:
+        init_state_db()
+        now = updated_at or datetime.now(timezone.utc).isoformat(timespec="seconds")
+        with closing(_connect()) as connection:
+            connection.execute(
+                "UPDATE conversations SET updated_at = ? WHERE id = ?",
+                (now, conversation_id),
+            )
+            connection.commit()
+
+
+def get_conversation_owner(conversation_id: str) -> int | None:
+    with STATE_DB_LOCK:
+        init_state_db()
+        with closing(_connect()) as connection:
+            row = connection.execute(
+                "SELECT user_id FROM conversations WHERE id = ?",
+                (conversation_id,),
+            ).fetchone()
+    return int(row["user_id"]) if row is not None else None
+
+
+def list_conversations_for_user(
+    user_id: int, *, limit: int = 30, offset: int = 0
+) -> list[dict[str, Any]]:
+    bounded_limit = max(1, min(limit, 100))
+    bounded_offset = max(0, offset)
+    with STATE_DB_LOCK:
+        init_state_db()
+        with closing(_connect()) as connection:
+            rows = connection.execute(
+                """
+                SELECT id, title, created_at, updated_at
+                FROM conversations
+                WHERE user_id = ?
+                ORDER BY updated_at DESC
+                LIMIT ? OFFSET ?
+                """,
+                (user_id, bounded_limit, bounded_offset),
+            ).fetchall()
+    return [
+        {
+            "id": str(row["id"]),
+            "title": str(row["title"]),
+            "created_at": str(row["created_at"]),
+            "updated_at": str(row["updated_at"]),
+        }
+        for row in rows
+    ]
+
+
+def rename_conversation(conversation_id: str, title: str) -> None:
+    with STATE_DB_LOCK:
+        init_state_db()
+        with closing(_connect()) as connection:
+            connection.execute(
+                "UPDATE conversations SET title = ? WHERE id = ?",
+                (title.strip()[:120], conversation_id),
+            )
+            connection.commit()
+
+
+def delete_conversation(conversation_id: str) -> None:
+    with STATE_DB_LOCK:
+        init_state_db()
+        with closing(_connect()) as connection:
             connection.execute(
                 "DELETE FROM conversation_messages WHERE conversation_id = ?",
                 (conversation_id,),
             )
+            connection.execute(
+                "DELETE FROM conversations WHERE id = ?",
+                (conversation_id,),
+            )
+            connection.commit()
+
+
+def get_conversation_messages(conversation_id: str) -> list[dict[str, Any]]:
+    with STATE_DB_LOCK:
+        init_state_db()
+        with closing(_connect()) as connection:
+            rows = connection.execute(
+                """
+                SELECT role, content, created_at
+                FROM conversation_messages
+                WHERE conversation_id = ?
+                ORDER BY created_at ASC, id ASC
+                """,
+                (conversation_id,),
+            ).fetchall()
+    return [
+        {
+            "role": str(row["role"]),
+            "content": str(row["content"]),
+            "created_at": str(row["created_at"]),
+        }
+        for row in rows
+    ]
 
 
 def _cleanup_activity_logs(connection: sqlite3.Connection, now: datetime | None = None) -> None:
@@ -590,7 +727,6 @@ def get_conversation_context(conversation_id: str) -> str:
     with STATE_DB_LOCK:
         init_state_db()
         with closing(_connect()) as connection:
-            _cleanup_conversations(connection)
             rows = list(
                 connection.execute(
                     """
@@ -619,7 +755,6 @@ def append_conversation_turn(conversation_id: str, question: str, answer: str) -
         init_state_db()
         now = datetime.now(timezone.utc).isoformat(timespec="seconds")
         with closing(_connect()) as connection:
-            _cleanup_conversations(connection)
             connection.executemany(
                 """
                 INSERT INTO conversation_messages(
@@ -632,7 +767,10 @@ def append_conversation_turn(conversation_id: str, question: str, answer: str) -
                     (conversation_id, "assistant", answer.strip(), now),
                 ),
             )
-            _cleanup_conversations(connection)
+            connection.execute(
+                "UPDATE conversations SET updated_at = ? WHERE id = ?",
+                (now, conversation_id),
+            )
             connection.commit()
 
 
@@ -1100,7 +1238,6 @@ def load_conversations() -> dict[str, list[dict[str, object]]]:
     with STATE_DB_LOCK:
         init_state_db()
         with closing(_connect()) as connection:
-            _cleanup_conversations(connection)
             rows = connection.execute(
                 """
                 SELECT conversation_id, role, content, created_at
@@ -1145,7 +1282,6 @@ def replace_conversations(conversations: dict[str, list[dict[str, object]]]) -> 
                         """,
                         (str(conversation_id), role, content, created_at),
                     )
-            _cleanup_conversations(connection)
             connection.commit()
 
 

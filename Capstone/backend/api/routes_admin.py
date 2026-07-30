@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hmac
 import logging
 import shutil
 from datetime import datetime, timedelta, timezone, tzinfo
@@ -11,8 +10,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import Header, HTTPException, Query
 
-from backend.api.auth import _create_admin_token, _find_admin, _has_configured_admin, _require_admin
-from backend.api.cache_store import _add_admin_config, _find_faq_index, _load_faqs, _save_faqs
+from backend.api.auth import _allowed_email_domain, _is_allowed_login_email, _require_admin, _require_user
+from backend.api.cache_store import _add_admin_by_email, _find_faq_index, _load_faqs, _save_faqs
 from backend.api.core import FAQ_LOCK, FORM_EXTENSIONS, LIBRARY_EXTENSIONS, REINDEX_LOCK, app
 from backend.api.faq_service import _build_faq_item
 from backend.api.forms_service import delete_form_docx_template, ensure_form_docx_template
@@ -28,8 +27,6 @@ from backend.api.models import (
     AdminFAQResponse,
     AdminGuardrailsPayload,
     AdminGuardrailsResponse,
-    AdminLoginPayload,
-    AdminLoginResponse,
     AdminReindexResponse,
     LibraryItem,
 )
@@ -92,42 +89,19 @@ def _activity_date_range(
     )
 
 
-@app.post("/api/admin/login", response_model=AdminLoginResponse)
-def login_admin(payload: AdminLoginPayload) -> AdminLoginResponse:
-    # Autentikasi admin lalu buat token sesi.
-    if not _has_configured_admin():
-        raise HTTPException(
-            status_code=503,
-            detail="Admin not configured yet. Add an admin to the application database.",
-        )
-
-    email = payload.email.strip().lower()
-    password = payload.password
-    admin = _find_admin(email)
-    if admin is None or not hmac.compare_digest(str(admin.get("password") or ""), password):
-        raise HTTPException(status_code=401, detail="Admin email or password is incorrect.")
-
-    token, expires_at = _create_admin_token(email)
-    return AdminLoginResponse(
-        email=email,
-        name=admin.get("name") or "Admin",
-        token=token,
-        expires_at=expires_at.isoformat(timespec="seconds"),
-    )
-
-
 @app.post("/api/admin/admins", response_model=AdminAccountResponse)
 def create_admin_account(
     payload: AdminCreatePayload,
     authorization: str = Header(default=""),
 ) -> AdminAccountResponse:
-    # Tambahkan akun admin baru dari sesi admin yang sudah login.
+    # Tambahkan akun admin baru (by email) dari sesi admin yang sudah login.
     _require_admin(authorization)
-    admin = _add_admin_config(
-        email=payload.email,
-        password=payload.password,
-        name=payload.name,
-    )
+    if not _is_allowed_login_email(payload.email):
+        raise HTTPException(
+            status_code=422,
+            detail=f"Email must be a @{_allowed_email_domain()} address.",
+        )
+    admin = _add_admin_by_email(email=payload.email)
     return AdminAccountResponse(email=admin["email"], name=admin["name"])
 
 
@@ -179,8 +153,9 @@ def delete_faq(
 
 
 @app.get("/api/library", response_model=list[LibraryItem])
-def get_library() -> list[LibraryItem]:
-    # Kembalikan daftar library dokumen yang bisa dilihat guest dan admin.
+def get_library(authorization: str = Header(default="")) -> list[LibraryItem]:
+    # Kembalikan daftar library dokumen untuk user yang sudah login.
+    _require_user(authorization)
     return _iter_library_items()
 
 

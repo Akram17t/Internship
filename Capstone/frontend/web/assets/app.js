@@ -36,6 +36,9 @@ const state = {
   documents: [],
   filter: "",
   session: loadSession(),
+  googleClientId: "",
+  conversations: [],
+  isLoadingConversations: false,
   faqItems: [],
   editingFaqId: "",
   isMutatingFaq: false,
@@ -79,6 +82,8 @@ const elements = {
   chatInput: document.getElementById("chatInput"),
   sendButton: document.getElementById("sendButton"),
   newChatButton: document.getElementById("newChatButton"),
+  conversationList: document.getElementById("conversationList"),
+  conversationItemTemplate: document.getElementById("conversationItemTemplate"),
   faqList: document.getElementById("faqList"),
   faqForm: document.getElementById("faqForm"),
   faqIdInput: document.getElementById("faqIdInput"),
@@ -130,12 +135,9 @@ const elements = {
   accountPopoverName: document.getElementById("accountPopoverName"),
   accountPopoverHint: document.getElementById("accountPopoverHint"),
   newAdminButton: document.getElementById("newAdminButton"),
-  authModal: document.getElementById("authModal"),
-  authForm: document.getElementById("authForm"),
-  adminEmail: document.getElementById("adminEmail"),
-  adminPassword: document.getElementById("adminPassword"),
-  authError: document.getElementById("authError"),
-  authCloseButton: document.getElementById("authCloseButton"),
+  signInGate: document.getElementById("signInGate"),
+  googleSignInButton: document.getElementById("googleSignInButton"),
+  signInError: document.getElementById("signInError"),
   feedbackModal: document.getElementById("feedbackModal"),
   feedbackForm: document.getElementById("feedbackForm"),
   feedbackReason: document.getElementById("feedbackReason"),
@@ -145,9 +147,7 @@ const elements = {
   feedbackSubmitButton: document.getElementById("feedbackSubmitButton"),
   newAdminModal: document.getElementById("newAdminModal"),
   newAdminForm: document.getElementById("newAdminForm"),
-  newAdminName: document.getElementById("newAdminName"),
   newAdminEmail: document.getElementById("newAdminEmail"),
-  newAdminPassword: document.getElementById("newAdminPassword"),
   newAdminStatus: document.getElementById("newAdminStatus"),
   newAdminCloseButton: document.getElementById("newAdminCloseButton"),
   logoutModal: document.getElementById("logoutModal"),
@@ -191,13 +191,14 @@ function init() {
   bindAdminDocuments();
   bindGuardrails();
   bindAdminLogs();
+  bindSidebarConversations();
   syncAuth();
   syncReindexState();
   updateComposer();
   renderMessages();
   renderFaqs();
   syncScreenFromHash();
-  void loadFaqs();
+  void publicConfigPromise.then(() => initGoogleSignIn());
   window.addEventListener("resize", updateComposer);
 }
 
@@ -208,6 +209,7 @@ async function loadPublicConfig() {
     const payload = await response.json();
     state.typingAnimationEnabled =
       payload.typing_animation_enabled !== false;
+    state.googleClientId = String(payload.google_client_id || "");
   } catch (error) {
     console.warn("Failed to load frontend config.", error);
   }
@@ -293,28 +295,29 @@ function loadReindexRequired() {
 }
 
 function loadSession() {
-  const guest = {
-    role: "guest",
+  const signedOut = {
+    role: "",
     email: "",
-    name: "Guest",
+    name: "",
     token: "",
     expires_at: "",
   };
   const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
-  if (!raw) return guest;
+  if (!raw) return signedOut;
 
   try {
     const parsed = JSON.parse(raw);
+    if (parsed.role !== "admin" && parsed.role !== "user") return signedOut;
     const session = {
-      role: parsed.role === "admin" ? "admin" : "guest",
+      role: parsed.role,
       email: String(parsed.email || "").toLowerCase(),
-      name: String(parsed.name || "Admin"),
+      name: String(parsed.name || ""),
       token: String(parsed.token || ""),
       expires_at: String(parsed.expires_at || ""),
     };
-    return isSessionExpired(session) || !session.token ? guest : session;
+    return isSessionExpired(session) || !session.token ? signedOut : session;
   } catch {
-    return guest;
+    return signedOut;
   }
 }
 

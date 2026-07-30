@@ -5,11 +5,10 @@ import uuid
 from fastapi import HTTPException
 
 from backend.cache_db import (
-    add_admin_account,
+    add_admin_by_email,
     append_conversation_turn,
     get_conversation_context,
     list_faq_items,
-    load_admin_config,
     replace_faq_items,
 )
 from backend.api.core import (
@@ -20,24 +19,18 @@ from backend.api.models import CitationResponse, FAQItem
 from backend.api.storage import _citation_download_url
 
 
-def _load_admin_config() -> dict[str, object]:
-    # Muat config admin dari app_state DB.
-    with ADMIN_CONFIG_LOCK:
-        return load_admin_config()
-
-
-def _add_admin_config(email: str, password: str, name: str) -> dict[str, str]:
-    # Tambahkan admin baru ke app_state DB dan cegah email duplikat.
+def _add_admin_by_email(email: str, name: str = "") -> dict[str, str]:
+    # Tambahkan admin baru (by email) ke app_state DB dan cegah email duplikat.
     with ADMIN_CONFIG_LOCK:
         try:
-            return add_admin_account(email=email, password=password, name=name)
+            return add_admin_by_email(email=email, name=name)
         except ValueError as error:
             if str(error) == "duplicate_email":
                 raise HTTPException(status_code=409, detail="Admin email is already registered.") from error
-            if str(error) == "missing_credentials":
+            if str(error) == "missing_email":
                 raise HTTPException(
                     status_code=422,
-                    detail="Admin email and password are required.",
+                    detail="Admin email is required.",
                 ) from error
             raise HTTPException(status_code=409, detail="Admin email is already registered.")
 
