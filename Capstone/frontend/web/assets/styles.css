@@ -3702,6 +3702,18 @@ body[data-role="admin"]
     sans-serif;
 }
 
+.log-question-meta {
+  display: block;
+  overflow: hidden;
+  padding-left: 18px;
+  color: var(--muted);
+  font:
+    400 12px/19px "Instrument Sans",
+    sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .log-row-toggle time {
   display: flex;
   flex-direction: column;
@@ -4608,6 +4620,13 @@ body[data-reindex-state="running"] .app-shell {
     monospace;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+}
+
+.log-feedback-user {
+  color: var(--muted);
+  font:
+    500 12px/1.4 "Instrument Sans",
+    sans-serif;
 }
 
 .log-feedback-reason {
@@ -5802,7 +5821,9 @@ body.logout-open {
 
 .conversation-history-list {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
+  min-height: 0;
   gap: 2px;
   overflow-y: auto;
 }
@@ -5843,16 +5864,26 @@ body.logout-open {
   color: var(--paper);
 }
 
-.conversation-icon {
-  font-size: 17px;
-  opacity: 0.7;
-}
-
 .conversation-title {
   overflow: hidden;
   font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.conversation-title-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 8px 8px;
+  border: 1px solid var(--red);
+  border-radius: 4px;
+  background: rgba(244, 241, 234, 0.06);
+  color: var(--paper);
+  font-size: 13px;
+}
+
+.conversation-title-input:focus {
+  outline: none;
 }
 
 .conversation-rename,

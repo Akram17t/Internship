@@ -11,10 +11,7 @@ from backend.cache_db import (
     list_faq_items,
     replace_faq_items,
 )
-from backend.api.core import (
-    ADMIN_CONFIG_LOCK,
-    CONVERSATION_LOCK,
-)
+from backend.api.core import ADMIN_CONFIG_LOCK
 from backend.api.models import CitationResponse, FAQItem
 from backend.api.storage import _citation_download_url
 
@@ -48,14 +45,14 @@ def _clean_conversation_id(value: str | None) -> str:
 
 def _get_conversation_context(conversation_id: str) -> str:
     # Ubah turn terbaru menjadi context teks untuk rewrite query.
-    with CONVERSATION_LOCK:
-        return get_conversation_context(conversation_id)
+    # get_conversation_context() sudah pakai STATE_DB_LOCK sendiri di cache_db.py,
+    # jadi tidak perlu lock kedua di sini.
+    return get_conversation_context(conversation_id)
 
 
 def _append_conversation_turn(conversation_id: str, question: str, answer: str) -> None:
     # Tambahkan satu pasangan turn user/assistant ke cache percakapan.
-    with CONVERSATION_LOCK:
-        append_conversation_turn(conversation_id, question, answer)
+    append_conversation_turn(conversation_id, question, answer)
 
 
 def _normalize_citation(raw_item: object, index: int) -> CitationResponse | None:

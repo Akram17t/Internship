@@ -691,9 +691,9 @@ function createCitationChip(citation, index, isInline = false) {
   chip.title = formatCitationLabel(citation, index);
 
   if (browserUrl) {
-    chip.href = withSessionToken(browserUrl);
     chip.target = "_blank";
     chip.rel = "noopener noreferrer";
+    bindTicketedLink(chip, browserUrl);
   }
 
   const icon = document.createElement("span");

@@ -40,6 +40,7 @@ function renderSidebarConversations() {
     const row = fragment.querySelector(".conversation-row");
     const openButton = fragment.querySelector(".conversation-open");
     const titleEl = fragment.querySelector(".conversation-title");
+    const titleInput = fragment.querySelector(".conversation-title-input");
     const renameButton = fragment.querySelector(".conversation-rename");
     const deleteButton = fragment.querySelector(".conversation-delete");
 
@@ -48,7 +49,7 @@ function renderSidebarConversations() {
     openButton.addEventListener("click", () => void openConversation(item.id));
     renameButton.addEventListener("click", (event) => {
       event.stopPropagation();
-      void renameConversationPrompt(item);
+      beginInlineRename(item, titleEl, titleInput);
     });
     deleteButton.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -95,11 +96,42 @@ function formatHistoryTimestamp(value) {
   return parsed.toLocaleString();
 }
 
-async function renameConversationPrompt(item) {
-  const nextTitle = window.prompt("Rename chat", item.title || "");
-  const cleanTitle = (nextTitle || "").trim();
-  if (!cleanTitle || cleanTitle === item.title) return;
+function beginInlineRename(item, titleEl, inputEl) {
+  inputEl.value = item.title || "";
+  titleEl.hidden = true;
+  inputEl.hidden = false;
+  inputEl.focus();
+  inputEl.select();
 
+  let settled = false;
+  const finish = (commit) => {
+    if (settled) return;
+    settled = true;
+    inputEl.removeEventListener("keydown", onKeydown);
+    inputEl.removeEventListener("blur", onBlur);
+    titleEl.hidden = false;
+    inputEl.hidden = true;
+    const cleanTitle = inputEl.value.trim();
+    if (commit && cleanTitle && cleanTitle !== item.title) {
+      void submitRename(item, cleanTitle);
+    }
+  };
+  const onKeydown = (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      finish(true);
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      finish(false);
+    }
+  };
+  const onBlur = () => finish(true);
+
+  inputEl.addEventListener("keydown", onKeydown);
+  inputEl.addEventListener("blur", onBlur);
+}
+
+async function submitRename(item, cleanTitle) {
   try {
     const response = await fetch(
       `/api/conversations/${encodeURIComponent(item.id)}`,

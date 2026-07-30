@@ -851,7 +851,12 @@ function createLibraryRow(item, options = {}) {
     expandButton.hidden = true;
   }
   if (item.download_url) {
-    link.href = withSessionToken(item.download_url);
+    // Klik biasa selalu ditangkap di bawah dan diarahkan lewat
+    // downloadDocument(), yang sudah otentikasi pakai header Authorization
+    // (bukan token di URL) -- href di sini cuma fallback non-JS, jadi
+    // sengaja dibiarkan tanpa token supaya tidak ada session token yang
+    // menempel lama di DOM/riwayat browser.
+    link.href = item.download_url;
     link.addEventListener("click", (event) => {
       event.preventDefault();
       openTemplateDownloadModal(item.download_url, item.name || item.display_name, {

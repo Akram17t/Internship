@@ -465,6 +465,16 @@
                     <h3>Recent questions</h3>
                   </div>
                   <div class="logs-list-actions">
+                    <label class="logs-search-field">
+                      <span class="material-symbols-outlined" aria-hidden="true">
+                        search
+                      </span>
+                      <input
+                        id="logsNameSearch"
+                        type="search"
+                        placeholder="Search by name..."
+                      />
+                    </label>
                     <div
                       class="logs-date-range"
                       aria-label="Activity date range"
@@ -563,11 +573,14 @@
     <template id="conversationItemTemplate">
       <div class="conversation-row">
         <button class="conversation-open" type="button">
-          <span class="material-symbols-outlined conversation-icon"
-            >chat_bubble</span
-          >
           <span class="conversation-title"></span>
         </button>
+        <input
+          class="conversation-title-input"
+          type="text"
+          maxlength="120"
+          hidden
+        />
         <button
           class="conversation-rename"
           type="button"

@@ -7,7 +7,7 @@ import time
 from fastapi import Header, HTTPException
 from fastapi.responses import FileResponse, Response
 
-from backend.api.auth import _require_user, _require_user_from_header_or_query
+from backend.api.auth import _create_download_ticket, _require_user, _require_user_or_ticket
 from backend.api.cache_store import _append_conversation_turn, _clean_conversation_id, _get_conversation_context, _load_faqs
 from backend.api.core import FAQ_LOCK, FRONTEND_DIR, app
 from backend.api.forms_service import (
@@ -20,6 +20,7 @@ from backend.api.models import (
     ConversationMessagesResponse,
     ConversationRenamePayload,
     ConversationSummary,
+    DownloadTicketResponse,
     FAQItem,
     FeedbackPayload,
     FeedbackResponse,
@@ -80,6 +81,8 @@ def _record_chat_activity(
     conversation_id: str,
     question: str,
     response_time_seconds: float,
+    user_email: str = "",
+    user_name: str = "",
     answer: str = "",
     answer_source: str = "",
     citations: list[CitationResponse] | None = None,
@@ -100,6 +103,8 @@ def _record_chat_activity(
             break
     details: dict[str, object] = {
         "conversation_id": conversation_id,
+        "user_email": user_email,
+        "user_name": user_name,
         "question": question.strip(),
         "answer": answer.strip(),
         "answer_preview": _truncate(answer),
@@ -226,6 +231,8 @@ def query_knowledge_base(
                 conversation_id=conversation_id,
                 question=payload.question,
                 response_time_seconds=time.perf_counter() - request_started,
+                user_email=str(user["email"]),
+                user_name=str(user["name"]),
                 answer_source="fallback",
                 error=error,
                 feedback_token=feedback_token,
@@ -256,6 +263,8 @@ def query_knowledge_base(
                 conversation_id=conversation_id,
                 question=payload.question,
                 response_time_seconds=time.perf_counter() - request_started,
+                user_email=str(user["email"]),
+                user_name=str(user["name"]),
                 answer_source="fallback",
                 error=error,
                 feedback_token=feedback_token,
@@ -316,6 +325,8 @@ def query_knowledge_base(
             status="success",
             conversation_id=conversation_id,
             question=payload.question,
+            user_email=str(user["email"]),
+            user_name=str(user["name"]),
             answer=answer,
             answer_source=answer_source,
             citations=citations,
@@ -416,16 +427,29 @@ def get_faq(authorization: str = Header(default="")) -> list[FAQItem]:
         return _load_faqs()
 
 
+@app.post("/api/citations/{document_path:path}/download-ticket")
+def create_citation_download_ticket(
+    document_path: str,
+    authorization: str = Header(default=""),
+) -> DownloadTicketResponse:
+    # Terbitkan ticket sekali-pakai berumur pendek untuk dipakai di href <a>,
+    # supaya link citation tidak perlu bawa session token penuh.
+    user = _require_user(authorization)
+    return DownloadTicketResponse(
+        ticket=_create_download_ticket(str(user["email"]), document_path, "citation")
+    )
+
+
 @app.get("/api/citations/{document_path:path}")
 def download_citation_document(
     document_path: str,
-    token: str = "",
+    ticket: str = "",
     authorization: str = Header(default=""),
 ) -> FileResponse:
     # Buka dokumen yang boleh menjadi sumber citation untuk user yang login.
     # Link ini dibuka lewat <a href> biasa oleh browser (bukan fetch), jadi
-    # terima token sesi via query param sebagai fallback dari header.
-    _require_user_from_header_or_query(authorization, token)
+    # terima download ticket via query param sebagai fallback dari header.
+    _require_user_or_ticket(authorization, ticket, document_path, "citation")
     resolved_path = _resolve_citation_document_path(document_path)
 
     if not resolved_path.exists() or not resolved_path.is_file():
@@ -441,17 +465,29 @@ def download_citation_document(
     )
 
 
+@app.post("/api/documents/{document_path:path}/download-ticket")
+def create_document_download_ticket(
+    document_path: str,
+    authorization: str = Header(default=""),
+) -> DownloadTicketResponse:
+    # Terbitkan ticket sekali-pakai berumur pendek untuk link download dokumen.
+    user = _require_user(authorization)
+    return DownloadTicketResponse(
+        ticket=_create_download_ticket(str(user["email"]), document_path, "document")
+    )
+
+
 @app.get("/api/documents/{document_path:path}")
 def download_document(
     document_path: str,
     format: str = "pdf",
-    token: str = "",
+    ticket: str = "",
     authorization: str = Header(default=""),
 ) -> Response:
     # Unduh dokumen tersimpan untuk user yang login. Link ini juga dibuka
-    # lewat <a href> biasa, jadi terima token sesi via query param sebagai
-    # fallback dari header.
-    _require_user_from_header_or_query(authorization, token)
+    # lewat <a href> biasa, jadi terima download ticket via query param
+    # sebagai fallback dari header.
+    _require_user_or_ticket(authorization, ticket, document_path, "document")
     resolved_path = _resolve_document_path(document_path)
 
     if not resolved_path.exists() or not resolved_path.is_file():

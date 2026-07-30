@@ -452,12 +452,24 @@ def _ensure_initial_admin(connection: sqlite3.Connection) -> None:
     )
 
 
+_initialized_db_paths: set[str] = set()
+
+
 def init_state_db(
     *,
     db_path: Path | None = None,
     legacy_conversations_path: Path | None = None,
 ) -> None:
+    # Semua fungsi publik di bawah memanggil ini sebelum tiap operasi DB, tapi
+    # schema/migration/admin-seed hanya perlu jalan sekali per file DB -- bukan
+    # di setiap request -- supaya STATE_DB_LOCK tidak menahan kerjaan berat ini
+    # berulang kali untuk tiap query/append/list yang masuk. Di-key by path
+    # (bukan flag tunggal) supaya tetap benar kalau APP_STATE_DB berpindah
+    # (mis. tiap test pakai temp DB sendiri).
+    resolved_path = str(db_path or get_state_db_path())
     with STATE_DB_LOCK:
+        if resolved_path in _initialized_db_paths and legacy_conversations_path is None:
+            return
         with closing(_connect(db_path)) as connection:
             _init_schema(connection)
             if _get_meta(connection, MIGRATION_KEY) != "1":
@@ -467,6 +479,8 @@ def init_state_db(
             _ensure_initial_admin(connection)
             _cleanup_activity_logs(connection)
             connection.commit()
+        _initialized_db_paths.add(resolved_path)
+        _state_db_initialized = True
 
 
 def _admin_account_from_row(row: sqlite3.Row) -> dict[str, str]:
@@ -1192,6 +1206,8 @@ def list_activity_log_sessions(
             conversation_id,
             {
                 "conversation_id": conversation_id,
+                "user_email": "",
+                "user_name": "",
                 "question_count": 0,
                 "fallback_or_error": 0,
                 "_first_id": row_id,
@@ -1206,6 +1222,10 @@ def list_activity_log_sessions(
         item["question_count"] += 1
         if _activity_log_is_fallback_or_error(row):
             item["fallback_or_error"] += 1
+        if not item["user_email"] and details.get("user_email"):
+            item["user_email"] = str(details.get("user_email") or "").strip()
+        if not item["user_name"] and details.get("user_name"):
+            item["user_name"] = str(details.get("user_name") or "").strip()
         question = str(details.get("question") or row["summary"] or "").strip()
         if (created_at, row_id) < (item["first_at"], item["_first_id"]):
             item["_first_id"] = row_id

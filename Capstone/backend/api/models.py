@@ -20,6 +20,10 @@ class CitationResponse(BaseModel):
     download_url: str | None = None
 
 
+class DownloadTicketResponse(BaseModel):
+    ticket: str
+
+
 class FormDownloadResponse(BaseModel):
     name: str
     display_name: str
@@ -162,6 +166,8 @@ class ActivityLogSummaryResponse(BaseModel):
 
 class ActivityLogSessionItem(BaseModel):
     conversation_id: str
+    user_email: str = ""
+    user_name: str = ""
     question_count: int = 0
     fallback_or_error: int = 0
     first_at: str = ""

@@ -101,6 +101,7 @@ const elements = {
   guardrailsSaveButton: document.getElementById("guardrailsSaveButton"),
   guardrailsStatus: document.getElementById("guardrailsStatus"),
   logsNavLink: document.querySelector('.nav-link[data-screen="logs"]'),
+  logsNameSearch: document.getElementById("logsNameSearch"),
   logsStartDate: document.getElementById("logsStartDate"),
   logsEndDate: document.getElementById("logsEndDate"),
   logsActivityPanel: document.querySelector(".logs-activity-panel"),

@@ -2,6 +2,12 @@ function bindAdminLogs() {
   if (!elements.logsList) return;
   setDefaultLogDateRange();
 
+  elements.logsNameSearch?.addEventListener("input", () => {
+    state.logNameQuery = (elements.logsNameSearch.value || "").trim().toLowerCase();
+    resetLogPage();
+    renderActivityLogs();
+  });
+
   [elements.logsStartDate, elements.logsEndDate].forEach((input) => {
     input?.addEventListener("change", () => {
       state.logDateRange = {
@@ -189,7 +195,9 @@ function renderActivityLogQuestions() {
   const visibleItems = getVisibleQuestionLogs();
   clampLogPage(visibleItems.length);
   if (!visibleItems.length) {
-    elements.logsStatus.textContent = "No chatbot activity in the selected date range.";
+    elements.logsStatus.textContent = state.logNameQuery
+      ? "No questions match that name."
+      : "No chatbot activity in the selected date range.";
     elements.logsList.appendChild(createLogsEmptyState("forum", "No questions yet"));
     return;
   }
@@ -202,11 +210,11 @@ function renderActivityLogQuestions() {
 }
 
 function renderActivityLogSessions() {
-  const sessions = Array.isArray(state.activityLogSessions)
-    ? state.activityLogSessions
-    : [];
+  const sessions = getVisibleSessionLogs();
   if (!sessions.length) {
-    elements.logsStatus.textContent = "No chatbot sessions in the selected date range.";
+    elements.logsStatus.textContent = state.logNameQuery
+      ? "No chatbot sessions match that name."
+      : "No chatbot sessions in the selected date range.";
     elements.logsList.appendChild(createLogsEmptyState("forum", "No sessions yet"));
     return;
   }
@@ -219,7 +227,9 @@ function renderActivityLogFeedback() {
   const feedbackItems = getVisibleFeedbackLogs();
   clampLogPage(feedbackItems.length);
   if (!feedbackItems.length) {
-    elements.logsStatus.textContent = "No feedback in the selected date range.";
+    elements.logsStatus.textContent = state.logNameQuery
+      ? "No feedback matches that name."
+      : "No feedback in the selected date range.";
     elements.logsList.appendChild(createLogsEmptyState("thumb_down", "No feedback yet"));
     return;
   }
@@ -231,21 +241,40 @@ function renderActivityLogFeedback() {
   renderLogPagination(feedbackItems.length, "feedback");
 }
 
+function logDisplayName(name, email) {
+  return (name || "").trim() || (email || "").trim() || "Unknown user";
+}
+
+function matchesLogNameQuery(name, email) {
+  const query = (state.logNameQuery || "").trim();
+  if (!query) return true;
+  const haystack = `${name || ""} ${email || ""}`.toLowerCase();
+  return haystack.includes(query);
+}
+
 function getVisibleQuestionLogs() {
-  return Array.isArray(state.activityLogs) ? state.activityLogs : [];
+  const items = Array.isArray(state.activityLogs) ? state.activityLogs : [];
+  return items.filter((item) =>
+    matchesLogNameQuery(item.details?.user_name, item.details?.user_email),
+  );
 }
 
 function getVisibleFeedbackLogs() {
-  return (Array.isArray(state.activityLogs) ? state.activityLogs : []).filter(
-    (item) => hasNegativeFeedback(item),
+  return getVisibleQuestionLogs().filter((item) => hasNegativeFeedback(item));
+}
+
+function getVisibleSessionLogs() {
+  const sessions = Array.isArray(state.activityLogSessions)
+    ? state.activityLogSessions
+    : [];
+  return sessions.filter((item) =>
+    matchesLogNameQuery(item.user_name, item.user_email),
   );
 }
 
 function getActiveLogItemCount() {
   if (state.activeLogsView === "sessions") {
-    return Array.isArray(state.activityLogSessions)
-      ? state.activityLogSessions.length
-      : 0;
+    return getVisibleSessionLogs().length;
   }
   if (state.activeLogsView === "feedback") {
     return getVisibleFeedbackLogs().length;
@@ -316,9 +345,10 @@ function createLogSessionRow(item, index) {
 
   const meta = document.createElement("small");
   meta.className = "logs-session-meta";
-  meta.textContent = `${formatLogNumber(item.question_count)} ${
+  const questionCountText = `${formatLogNumber(item.question_count)} ${
     Number(item.question_count) === 1 ? "question" : "questions"
   }`;
+  meta.textContent = `${questionCountText} · ${logDisplayName(item.user_name, item.user_email)}`;
   detail.append(topLine, meta);
 
   const timestamp = createLogTimestamp(item.last_at);
@@ -381,7 +411,10 @@ function createLogRow(item, index) {
   question.className = "log-question";
   question.textContent = item.details?.question || item.summary || "Chat question";
   questionLine.append(statusDot, question);
-  detail.append(questionLine);
+  const user = document.createElement("span");
+  user.className = "log-question-meta";
+  user.textContent = logDisplayName(item.details?.user_name, item.details?.user_email);
+  detail.append(questionLine, user);
 
   const timestamp = createLogTimestamp(item.created_at);
   const deleteButton = createLogDeleteButton(item);
@@ -413,10 +446,13 @@ function createLogFeedbackRow(item, index) {
   copy.className = "log-feedback-copy";
   const kicker = document.createElement("span");
   kicker.textContent = "User feedback";
+  const user = document.createElement("small");
+  user.className = "log-feedback-user";
+  user.textContent = logDisplayName(item.details?.user_name, item.details?.user_email);
   const reason = document.createElement("p");
   reason.className = "log-feedback-reason";
   reason.textContent = feedbackReasonText(item);
-  copy.append(kicker, reason);
+  copy.append(kicker, user, reason);
 
   toggle.append(icon, copy);
   attachLogPanel(row, toggle, createLogFeedbackPanel(item), index);
