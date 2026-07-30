@@ -122,6 +122,17 @@ print(f"Chat completion: {str(content).strip()}")
 PY
 
 echo "Checking the public website health endpoint..."
-curl --fail --silent --show-error --max-time 30 http://127.0.0.1:8000/health
-echo
+health_ready=false
+for attempt in $(seq 1 30); do
+  if curl --fail --silent --show-error --max-time 5 http://127.0.0.1:8000/health; then
+    echo
+    health_ready=true
+    break
+  fi
+  sleep 2
+done
+if [ "$health_ready" != true ]; then
+  echo "App did not become healthy within the expected time." >&2
+  exit 1
+fi
 echo "Deployment and smoke tests completed successfully."
