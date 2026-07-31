@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+:root {
+  --ink: #0a0a0a;
+  --ink-soft: #1a1a1a;
+  --muted: #5a5852;
+  --paper: #f4f1ea;
+  --paper-deep: #ebe7dd;
+  --paper-light: #faf8f2;
+  --red: #bc1823;
+  --deep-red: #97121b;
+}
+
+body {
+  margin: 0;
+  font-family: "Instrument Sans", "Inter", sans-serif;
+  background-color: var(--paper);
+  color: var(--ink);
+}

@@ -15,6 +15,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/assets/styles.css" />
+    <link rel="stylesheet" href="/assets/dashboard/dashboard.css" />
     <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>
   <body data-active-screen="chat">
@@ -54,6 +55,10 @@
           <button class="nav-link" data-screen="logs" type="button" hidden>
             <span class="material-symbols-outlined">receipt_long</span
             ><span>Logs</span>
+          </button>
+          <button class="nav-link" data-screen="analytics" type="button" hidden>
+            <span class="material-symbols-outlined">monitoring</span
+            ><span>Analytics</span>
           </button>
           <button class="nav-link" data-screen="guardrails" type="button" hidden>
             <span class="material-symbols-outlined">policy</span
@@ -522,6 +527,10 @@
               </section>
             </div>
           </section>
+
+          <section class="screen analytics-screen" data-screen-panel="analytics">
+            <div id="analyticsDashboardRoot"></div>
+          </section>
         </div>
       </main>
     </div>
@@ -857,6 +866,8 @@
     <script src="/assets/js/library.js"></script>
     <script src="/assets/js/guardrails.js"></script>
     <script src="/assets/js/logs.js"></script>
+    <script src="/assets/js/analytics.js"></script>
+    <script type="module" src="/assets/dashboard/dashboard.js"></script>
     <script src="/assets/js/auth.js"></script>
     <script src="/assets/js/googleAuth.js"></script>
     <script src="/assets/js/sidebar.js"></script>

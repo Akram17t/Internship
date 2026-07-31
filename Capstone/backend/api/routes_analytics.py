@@ -23,6 +23,7 @@ from backend.analytics.refresh import refresh_daily_aggregates
 from backend.analytics.topics import topic_display_name
 from backend.api.auth import _require_admin
 from backend.api.core import app
+from backend.api.models import ActivityLogItem
 from backend.settings import get_env
 
 
@@ -49,6 +50,30 @@ class AnalyticsSummaryResponse(BaseModel):
 class AnalyticsTopicsResponse(BaseModel):
     refreshed_at: str | None
     topics: list[TopicSummaryItem]
+
+
+class TrendPointItem(BaseModel):
+    date: str
+    interaction_count: int
+    negative_feedback_count: int
+    error_or_fallback_count: int
+
+
+class AnalyticsTrendResponse(BaseModel):
+    refreshed_at: str | None
+    points: list[TrendPointItem]
+
+
+class ActiveUserItem(BaseModel):
+    pseudonymous_user_id: str
+    display_name: str
+    interaction_count: int
+    negative_feedback_count: int
+
+
+class AnalyticsActiveUsersResponse(BaseModel):
+    refreshed_at: str | None
+    users: list[ActiveUserItem]
 
 
 def _require_postgres_backend() -> None:
@@ -159,3 +184,166 @@ def get_analytics_topics(authorization: str = Header(default="")) -> AnalyticsTo
         refreshed_at=refreshed_at.isoformat() if refreshed_at else None,
         topics=topics,
     )
+
+
+@app.get("/api/admin/analytics/trend", response_model=AnalyticsTrendResponse)
+def get_analytics_trend(authorization: str = Header(default="")) -> AnalyticsTrendResponse:
+    # Daily time-series (summed across topics) for the dashboard's line/bar
+    # combo chart, sourced from the same analytics.daily_topic_aggregates
+    # table as /summary and /topics - no separate storage needed.
+    _require_admin(authorization)
+    _require_postgres_backend()
+    rows = _aggregate_rows()
+
+    by_date: dict[date, dict[str, int]] = {}
+    for row in rows:
+        bucket = by_date.setdefault(
+            row.bucket_date,
+            {
+                "interaction_count": 0,
+                "negative_feedback_count": 0,
+                "error_or_fallback_count": 0,
+            },
+        )
+        bucket["interaction_count"] += row.interaction_count
+        bucket["negative_feedback_count"] += row.negative_feedback_count
+        bucket["error_or_fallback_count"] += row.error_or_fallback_count
+
+    points = [
+        TrendPointItem(date=bucket_date.isoformat(), **counts)
+        for bucket_date, counts in sorted(by_date.items())
+    ]
+
+    refreshed_at = max((row.refreshed_at for row in rows), default=None)
+    return AnalyticsTrendResponse(
+        refreshed_at=refreshed_at.isoformat() if refreshed_at else None,
+        points=points,
+    )
+
+
+@app.get("/api/admin/analytics/active-users", response_model=AnalyticsActiveUsersResponse)
+def get_analytics_active_users(
+    authorization: str = Header(default=""),
+) -> AnalyticsActiveUsersResponse:
+    # Most-active users by interaction count, with a human-readable email
+    # resolved from the linked activity_logs row - admins already see this
+    # same email on the Logs screen, so this is not a new PII exposure, just
+    # a ranked summary of who is asking the most questions.
+    _require_admin(authorization)
+    _require_postgres_backend()
+
+    from backend.db.engine import get_session
+    from backend.db.models import ActivityLog, CanonicalInteraction
+
+    session = get_session()
+    try:
+        rows = session.execute(
+            select(
+                CanonicalInteraction.pseudonymous_user_id,
+                CanonicalInteraction.feedback_rating,
+                CanonicalInteraction.activity_log_id,
+            ).where(CanonicalInteraction.pseudonymous_user_id.is_not(None))
+        ).all()
+
+        activity_log_ids = [row[2] for row in rows if row[2] is not None]
+        email_by_log_id: dict[int, str] = {}
+        if activity_log_ids:
+            log_rows = session.execute(
+                select(ActivityLog.id, ActivityLog.details_json).where(
+                    ActivityLog.id.in_(activity_log_ids)
+                )
+            ).all()
+            for log_id, details in log_rows:
+                if isinstance(details, dict):
+                    email = str(details.get("user_email") or "").strip()
+                    if email:
+                        email_by_log_id[log_id] = email
+    finally:
+        session.close()
+
+    by_user: dict[str, dict[str, object]] = {}
+    for pseudonymous_user_id, feedback_rating, activity_log_id in rows:
+        bucket = by_user.setdefault(
+            pseudonymous_user_id,
+            {"interaction_count": 0, "negative_feedback_count": 0, "email": ""},
+        )
+        bucket["interaction_count"] = int(bucket["interaction_count"]) + 1
+        if feedback_rating == "thumbs_down":
+            bucket["negative_feedback_count"] = int(bucket["negative_feedback_count"]) + 1
+        if not bucket["email"] and activity_log_id in email_by_log_id:
+            bucket["email"] = email_by_log_id[activity_log_id]
+
+    users = [
+        ActiveUserItem(
+            pseudonymous_user_id=pseudonymous_user_id,
+            display_name=str(bucket["email"]) or f"User {pseudonymous_user_id[:8]}",
+            interaction_count=int(bucket["interaction_count"]),
+            negative_feedback_count=int(bucket["negative_feedback_count"]),
+        )
+        for pseudonymous_user_id, bucket in by_user.items()
+    ]
+    users.sort(key=lambda item: item.interaction_count, reverse=True)
+
+    aggregate_rows = _aggregate_rows()
+    refreshed_at = max((row.refreshed_at for row in aggregate_rows), default=None)
+    return AnalyticsActiveUsersResponse(
+        refreshed_at=refreshed_at.isoformat() if refreshed_at else None,
+        users=users[:20],
+    )
+
+
+@app.get("/api/admin/analytics/logs-by-topic", response_model=list[ActivityLogItem])
+def get_logs_by_topic(
+    topic: str,
+    limit: int = 200,
+    authorization: str = Header(default=""),
+) -> list[ActivityLogItem]:
+    # Accurate topic filter for the Logs screen (drill-through from the
+    # dashboard): joins analytics.canonical_interactions.topic_code back to
+    # app.activity_logs by activity_log_id, instead of guessing from
+    # keywords in the question text.
+    _require_admin(authorization)
+    _require_postgres_backend()
+
+    from backend.db.engine import get_session
+    from backend.db.models import ActivityLog, CanonicalInteraction
+
+    session = get_session()
+    try:
+        activity_log_ids = [
+            row[0]
+            for row in session.execute(
+                select(CanonicalInteraction.activity_log_id).where(
+                    CanonicalInteraction.topic_code == topic,
+                    CanonicalInteraction.activity_log_id.is_not(None),
+                )
+            )
+        ]
+        if not activity_log_ids:
+            return []
+
+        rows = session.execute(
+            select(ActivityLog)
+            .where(ActivityLog.id.in_(activity_log_ids))
+            .order_by(ActivityLog.created_at.desc())
+            .limit(max(1, min(limit, 1000)))
+        ).scalars().all()
+    finally:
+        session.close()
+
+    results: list[ActivityLogItem] = []
+    for row in rows:
+        details = dict(row.details_json) if isinstance(row.details_json, dict) else {}
+        details.pop("feedback_token", None)
+        results.append(
+            ActivityLogItem(
+                id=row.id,
+                event_type=row.event_type,
+                action=row.action,
+                status=row.status,
+                summary=row.summary,
+                details=details,
+                created_at=row.created_at.isoformat(),
+            )
+        )
+    return results

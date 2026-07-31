@@ -243,6 +243,7 @@ function syncAuth() {
   if (elements.policyNavLink) elements.policyNavLink.hidden = false;
   if (elements.guardrailsNavLink) elements.guardrailsNavLink.hidden = !isAdmin;
   if (elements.logsNavLink) elements.logsNavLink.hidden = !isAdmin;
+  if (elements.analyticsNavLink) elements.analyticsNavLink.hidden = !isAdmin;
   if (!isAdmin && (state.activeScreen === "logs" || state.activeScreen === "guardrails")) {
     navigateTo("chat");
   }

@@ -12,8 +12,9 @@ const screens = {
   policy: "Document Library",
   guardrails: "Guardrails",
   logs: "Activity Logs",
+  analytics: "Usage Analytics",
 };
-const adminScreens = new Set(["guardrails", "logs"]);
+const adminScreens = new Set(["guardrails", "logs", "analytics"]);
 
 const loadingStageLabels = [
   "Understanding the question...",
@@ -119,6 +120,7 @@ const elements = {
   logsTotalChat: document.getElementById("logsTotalChat"),
   logsTotalSessions: document.getElementById("logsTotalSessions"),
   logsNegativeFeedback: document.getElementById("logsNegativeFeedback"),
+  analyticsNavLink: document.querySelector('.nav-link[data-screen="analytics"]'),
   filterButton: document.getElementById("filterButton"),
   chatLink: document.getElementById("chatLink"),
   menuToggle: document.getElementById("menuToggle"),
@@ -240,6 +242,7 @@ function syncScreenFromHash() {
     screen.classList.toggle("is-active", screen.dataset.screenPanel === target),
   );
   if (target === "logs") refreshActivityLogsIfVisible();
+  if (target === "analytics") refreshAnalyticsIfVisible();
   if (target === "guardrails") loadGuardrailsIfVisible();
   closeMobileNav();
 }
@@ -249,6 +252,30 @@ function navigateTo(screen) {
     adminScreens.has(screen) && !isAdminSession() ? "chat" : screen || "chat";
   window.location.hash = target;
 }
+
+// Bridge called from the embedded React analytics dashboard (separate
+// bundle, see frontend-dashboard/) so clicking a user or topic there can
+// jump into the existing vanilla Logs screen with a filter applied,
+// without the two bundles needing to share any framework/state directly.
+window.navigateToLogsWithFilter = function navigateToLogsWithFilter(type, value, label) {
+  if (!isAdminSession()) return;
+  state.logNameQuery = "";
+  state.activeTopicFilter = null;
+  if (elements.logsNameSearch) elements.logsNameSearch.value = "";
+
+  if (type === "user" && value) {
+    state.logNameQuery = String(value).trim().toLowerCase();
+    if (elements.logsNameSearch) elements.logsNameSearch.value = value;
+  } else if (type === "topic" && value) {
+    state.activeTopicFilter = { code: value, name: label || value };
+  }
+
+  state.activeLogsView = "questions";
+  state.selectedLogSessionId = "";
+  resetLogPage();
+  navigateTo("logs");
+  void loadActivityLogs();
+};
 
 function openMobileNav() {
   elements.sidebar.scrollTop = 0;

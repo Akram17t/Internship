@@ -38,8 +38,9 @@ function bindAdminLogs() {
     void loadActivityLogs();
   });
   elements.logsClearSessionButton?.addEventListener("click", () => {
-    if (!state.selectedLogSessionId) return;
+    if (!state.selectedLogSessionId && !state.activeTopicFilter) return;
     state.selectedLogSessionId = "";
+    state.activeTopicFilter = null;
     state.activeLogsView = "questions";
     resetLogPage();
     void loadActivityLogs();
@@ -73,6 +74,30 @@ async function loadActivityLogs() {
   state.isLoadingLogs = true;
   state.logError = "";
   renderActivityLogs();
+
+  if (state.activeTopicFilter) {
+    try {
+      const response = await fetch(
+        `/api/admin/analytics/logs-by-topic?topic=${encodeURIComponent(state.activeTopicFilter.code)}`,
+        { cache: "no-store", headers: adminAuthHeaders() },
+      );
+      const payload = await readJsonResponse(response);
+      if (!response.ok) {
+        throw new Error(formatApiError(payload.detail, "Unable to load topic logs."));
+      }
+      state.activityLogs = Array.isArray(payload) ? payload : [];
+      state.activityLogSessions = [];
+      state.activityLogSummary = null;
+      clampLogPage(getActiveLogItemCount());
+    } catch (error) {
+      state.activityLogs = [];
+      state.logError = error.message || "Unable to load topic logs.";
+    } finally {
+      state.isLoadingLogs = false;
+      renderActivityLogs();
+    }
+    return;
+  }
 
   const logsParams = buildLogQueryParams({
     feedbackOnly: state.activeLogsView === "feedback",
@@ -806,6 +831,13 @@ function syncLogDateInputs() {
 
 function renderActiveSessionFilter() {
   if (!elements.logsSessionFilter) return;
+  if (state.activeTopicFilter) {
+    elements.logsSessionFilter.hidden = false;
+    if (elements.logsActiveSessionLabel) {
+      elements.logsActiveSessionLabel.textContent = `Filtered by topic: ${state.activeTopicFilter.name}`;
+    }
+    return;
+  }
   const sessionId =
     state.activeLogsView === "questions" ? state.selectedLogSessionId || "" : "";
   elements.logsSessionFilter.hidden = !sessionId;

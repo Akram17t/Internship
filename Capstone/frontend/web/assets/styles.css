@@ -5914,3 +5914,6 @@ body.logout-open {
   background: rgba(244, 241, 234, 0.12);
   color: var(--paper);
 }
+
+/* Analytics dashboard is embedded via /assets/dashboard/dashboard.css
+   (built from frontend-dashboard/), not styled here. */
