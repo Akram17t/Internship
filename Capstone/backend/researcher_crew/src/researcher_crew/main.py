@@ -318,23 +318,58 @@ def _generate_with_model(
 def _direct_answer_user_prompt(
     question: str, evidence: str, available_forms: str, conversation_context: str = ""
 ) -> str:
-    context_block = (
-        f"Riwayat percakapan sebelumnya (konteks tambahan). Detail spesifik yang "
-        f"disebut user di sini -- masa kerja, tanggal, jumlah, level jabatan, dsb -- "
-        f"HARUS dipakai untuk menilai kondisi/kelayakan user, bukan cuma menjawab "
-        f"pertanyaan terbaru secara harfiah. Kalau retrieved evidence menyebut suatu "
-        f"syarat/ketentuan (mis. minimal masa kerja) dan kondisi user di riwayat ini "
-        f"TIDAK memenuhi syarat itu, jawaban WAJIB menyatakan dengan jelas bahwa user "
-        f"belum/tidak memenuhi syarat beserta alasannya -- jangan tetap menjawab dengan "
-        f"angka/ketentuan seolah-olah user memenuhi syarat tersebut.\n"
-        f"{conversation_context}\n\n"
-        if conversation_context.strip()
-        else ""
+    context_block = ""
+    if conversation_context.strip():
+        if evidence.strip():
+            context_block = (
+                f"Riwayat percakapan sebelumnya (konteks tambahan). Detail spesifik yang "
+                f"disebut user di sini -- masa kerja, tanggal, jumlah, level jabatan, dsb -- "
+                f"HARUS dipakai untuk menilai kondisi/kelayakan user, bukan cuma menjawab "
+                f"pertanyaan terbaru secara harfiah. Kalau retrieved evidence menyebut suatu "
+                f"syarat/ketentuan (mis. minimal masa kerja) dan kondisi user di riwayat ini "
+                f"TIDAK memenuhi syarat itu, jawaban WAJIB menyatakan dengan jelas bahwa user "
+                f"belum/tidak memenuhi syarat beserta alasannya -- jangan tetap menjawab dengan "
+                f"angka/ketentuan seolah-olah user memenuhi syarat tersebut.\n"
+                f"{conversation_context}\n\n"
+            )
+        else:
+            # Evidence kosong karena sistem memutuskan tidak menjalankan
+            # pencarian dokumen ulang untuk giliran bicara ini (NO_RETRIEVAL)
+            # -- bukan berarti dokumennya tidak ada. Kalau riwayat percakapan
+            # ini sudah memuat jawaban relevan (termasuk pertanyaan yang
+            # diulang persis sama), izinkan model menyampaikan ulang jawaban
+            # itu alih-alih menolak seolah-olah topiknya benar-benar belum
+            # pernah terjawab.
+            context_block = (
+                f"Riwayat percakapan sebelumnya (konteks tambahan). Retrieved evidence untuk "
+                f"pertanyaan terbaru ini KOSONG karena sistem tidak menjalankan pencarian "
+                f"dokumen ulang untuk giliran bicara ini -- BUKAN berarti dokumennya tidak "
+                f"ada. Sebelum menolak: cek dulu apakah riwayat percakapan ini SUDAH memuat "
+                f"jawaban asisten yang relevan untuk pertanyaan/topik yang sama dengan "
+                f"pertanyaan terbaru (termasuk kalau pertanyaannya diulang persis sama "
+                f"seperti sebelumnya). Kalau iya, sampaikan ulang jawaban tersebut -- boleh "
+                f"diringkas atau memakai kata-katamu sendiri, tidak perlu identik -- sebagai "
+                f"jawaban normal (GUARDRAIL: NONE), TANPA marker citation [n] karena tidak "
+                f"ada evidence baru di prompt ini. Kalau riwayat percakapan ini TIDAK memuat "
+                f"jawaban relevan untuk pertanyaan terbaru -- ini pertanyaan/topik yang "
+                f"memang belum pernah benar-benar dijawab di percakapan ini -- JANGAN "
+                f"mengarang jawaban dari pengetahuan umum; kondisi (3) di aturan guardrail "
+                f"di bawah (evidence tidak menjawab) tetap berlaku, tulis GUARDRAIL: "
+                f"NO_EVIDENCE seperti biasa.\n"
+                f"{conversation_context}\n\n"
+            )
+    evidence_block = (
+        evidence
+        if evidence.strip()
+        else (
+            "(kosong -- tidak ada pencarian dokumen baru untuk giliran bicara ini; "
+            "lihat instruksi riwayat percakapan sebelumnya di atas)"
+        )
     )
     return (
         f"{context_block}"
         f"Pertanyaan terbaru:\n{question}\n\n"
-        f"Retrieved evidence:\n{evidence}\n\n"
+        f"Retrieved evidence:\n{evidence_block}\n\n"
         f"Available downloadable forms (sudah difilter untuk SOP yang dikutip di evidence ini):\n{available_forms or '[]'}\n\n"
         f"{get_guardrails_rules()}\n\n"
         f"{FIXED_SYSTEM_RULES}\n\n"
@@ -656,8 +691,11 @@ def run_knowledge_crew(
     # Context resolution graph (LangGraph) menggantikan regex+LLM rewrite lama.
     # Semua keputusan (perlu retrieval atau tidak, dan query apa yang dipakai)
     # dibuat oleh LLM secara semantic, tanpa regex. retrieval_query adalah
-    # sintesis konteks yang lebih kaya untuk pencarian dokumen; cache_query
-    # adalah pertanyaan mandiri pendek untuk kunci semantic cache.
+    # sintesis konteks yang lebih kaya untuk pencarian dokumen. cache_query
+    # (hasil simplifikasi LLM) sekarang cuma dipakai buat logging/observability
+    # -- kunci semantic cache yang sebenarnya dipakai adalah pertanyaan literal
+    # (lihat standalone_question di bawah), supaya predictable: apa yang user
+    # ketik itu juga yang jadi kunci cache-nya.
     resolve_started = time.perf_counter()
     with span(
         "context-resolution",
@@ -696,13 +734,16 @@ def run_knowledge_crew(
             "[%s] context | %s kept (%.2fs)", trace_label, resolution["decision"], resolve_seconds
         )
 
-    standalone_question = cache_query
+    # Kunci cache pakai pertanyaan literal apa adanya (bukan cache_query hasil
+    # simplifikasi LLM) -- lebih predictable dan gampang ditelusuri: apa yang
+    # user ketik itu juga yang jadi kunci cache-nya, titik.
+    standalone_question = question
 
     # Cache dicek duluan terlepas dari keputusan retrieval: pertanyaan yang
     # sudah pernah di-thumbs-up dan tersimpan di cache harus tetap kena hit
     # walau context-resolution salah mengira pertanyaan ini basa-basi/
     # NO_RETRIEVAL (lihat bug: jawaban cache "hilang" pada pertanyaan ulang).
-    cache_hit = lookup_semantic_cache(cache_query, trace_id=trace_label)
+    cache_hit = lookup_semantic_cache(standalone_question, trace_id=trace_label)
     if cache_hit is not None:
         logger.info(
             "[%s] total   | %.2fs (from cache)", trace_label, time.perf_counter() - started_at
@@ -746,7 +787,7 @@ def run_knowledge_crew(
         logger.info(
             "[%s] total   | %.2fs (%s)", trace_label, time.perf_counter() - started_at, answer_source
         )
-        return answer, response_citations, selected_forms, answer_source, cache_query
+        return answer, response_citations, selected_forms, answer_source, standalone_question
 
     with span(
         "retrieve-context",

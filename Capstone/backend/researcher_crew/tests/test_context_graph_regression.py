@@ -147,3 +147,33 @@ class TestRegressionFalsePositiveRegexCase:
         assert result["decision"] in {"NO_RETRIEVAL", "RETRIEVE", "REUSE_EVIDENCE"}
         assert result["retrieval_query"].strip() != ""
         assert result["cache_query"].strip() != ""
+
+
+class TestRegressionRepeatedFactualQuestion:
+    """Reproduces a production bug: user re-asks the exact same specific,
+    factual, already-answered question verbatim (or near-verbatim) in the
+    same conversation. Per the grounding invariant + tiebreaker, this must
+    still be RETRIEVE -- the prior assistant answer in conversation_context
+    is not a valid substitute for freshly retrieved evidence."""
+
+    def test_verbatim_repeat_of_answered_specific_question(self):
+        result = _resolve(
+            "Berapa lama masa cuti melahirkan yang diberikan perusahaan?",
+            "User: Berapa lama masa cuti melahirkan yang diberikan perusahaan?\n"
+            "Assistant: Cuti melahirkan diberikan selama 3 bulan sesuai ketentuan "
+            "perusahaan, dengan pembagian sebelum dan sesudah persalinan.",
+        )
+        assert is_retrieval_decision(result["decision"])
+        assert result["decision"] != "NO_RETRIEVAL"
+        rq = result["retrieval_query"].lower()
+        assert "cuti" in rq and "melahirkan" in rq
+
+    def test_near_verbatim_repeat_of_answered_question(self):
+        result = _resolve(
+            "Berapa lama cuti melahirkan?",
+            "User: Berapa lama masa cuti melahirkan yang diberikan perusahaan?\n"
+            "Assistant: Cuti melahirkan diberikan selama 3 bulan sesuai ketentuan "
+            "perusahaan, dengan pembagian sebelum dan sesudah persalinan.",
+        )
+        assert is_retrieval_decision(result["decision"])
+        assert result["decision"] != "NO_RETRIEVAL"
