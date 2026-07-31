@@ -1516,3 +1516,58 @@ def state_counts() -> dict[str, int]:
         "admin_accounts": admin_rows,
         "faq_items": faq_rows,
     }
+
+
+# --------------------------------------------------------------------------
+# Optional PostgreSQL backend switch.
+#
+# Every function above is the original SQLite implementation and remains the
+# default. When DATABASE_BACKEND=postgres, we rebind the same public names to
+# backend/db/repository.py's implementations below, so every existing caller
+# (backend/api/*.py, backend/api/cache_store.py, backend/api/auth.py, ...)
+# keeps working unmodified regardless of which backend is active.
+#
+# This module still exposes DEFAULT_GUARDRAILS_RULES, get_state_db_path, and
+# other SQLite-only helpers used by the migrator script
+# (backend/scripts/migrate_to_postgres.py) even when postgres is active.
+# --------------------------------------------------------------------------
+if get_env("DATABASE_BACKEND", "sqlite").strip().lower() == "postgres":
+    from backend.db import repository as _pg_repo
+
+    init_state_db = _pg_repo.init_state_db
+    get_guardrails_rules = _pg_repo.get_guardrails_rules
+    set_guardrails_rules = _pg_repo.set_guardrails_rules
+    get_admin_session_secret = _pg_repo.get_admin_session_secret
+    list_admin_accounts = _pg_repo.list_admin_accounts
+    is_admin_email = _pg_repo.is_admin_email
+    add_admin_by_email = _pg_repo.add_admin_by_email
+    upsert_user = _pg_repo.upsert_user
+    get_user_by_email = _pg_repo.get_user_by_email
+    create_conversation = _pg_repo.create_conversation
+    touch_conversation = _pg_repo.touch_conversation
+    get_conversation_owner = _pg_repo.get_conversation_owner
+    list_conversations_for_user = _pg_repo.list_conversations_for_user
+    rename_conversation = _pg_repo.rename_conversation
+    delete_conversation = _pg_repo.delete_conversation
+    get_conversation_messages = _pg_repo.get_conversation_messages
+    get_conversation_context = _pg_repo.get_conversation_context
+    append_conversation_turn = _pg_repo.append_conversation_turn
+    insert_activity_log = _pg_repo.insert_activity_log
+    get_activity_log = _pg_repo.get_activity_log
+    update_activity_log_feedback = _pg_repo.update_activity_log_feedback
+    mark_activity_log_cached = _pg_repo.mark_activity_log_cached
+    delete_activity_log = _pg_repo.delete_activity_log
+    delete_activity_logs_for_conversation = _pg_repo.delete_activity_logs_for_conversation
+    list_activity_logs = _pg_repo.list_activity_logs
+    summarize_activity_logs = _pg_repo.summarize_activity_logs
+    list_activity_log_sessions = _pg_repo.list_activity_log_sessions
+    load_conversations = _pg_repo.load_conversations
+    replace_conversations = _pg_repo.replace_conversations
+    list_faq_items = _pg_repo.list_faq_items
+    replace_faq_items = _pg_repo.replace_faq_items
+    insert_semantic_cache_entry = _pg_repo.insert_semantic_cache_entry
+    get_semantic_cache_entry = _pg_repo.get_semantic_cache_entry
+    get_semantic_cache_entry_by_question = _pg_repo.get_semantic_cache_entry_by_question
+    mark_semantic_cache_hit = _pg_repo.mark_semantic_cache_hit
+    clear_semantic_cache = _pg_repo.clear_semantic_cache
+    state_counts = _pg_repo.state_counts
