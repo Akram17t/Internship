@@ -191,7 +191,7 @@ export default function App() {
               <KpiCard
                 label="Active Users"
                 value={String(summary?.total_unique_users ?? 0)}
-                subtext="Best-effort across selected range"
+                subtext="Distinct users across all questions"
                 icon={<UsersIcon />}
                 accent="muted"
               />

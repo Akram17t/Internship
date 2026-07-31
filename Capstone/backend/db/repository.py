@@ -69,6 +69,14 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _datetime_bound(value: str | datetime | None) -> datetime | None:
+    """Convert shared SQLite-style ISO bounds into PostgreSQL datetime values."""
+    if value is None or value == "":
+        return None
+    parsed = value if isinstance(value, datetime) else datetime.fromisoformat(value)
+    return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=timezone.utc)
+
+
 # --------------------------------------------------------------------------
 # metadata / guardrails / admin session secret
 # --------------------------------------------------------------------------
@@ -574,10 +582,12 @@ def list_activity_logs(
         stmt = select(ActivityLog)
         if event_type in {"chat", "document"}:
             stmt = stmt.where(ActivityLog.event_type == event_type)
-        if start_at:
-            stmt = stmt.where(ActivityLog.created_at >= start_at)
-        if end_at:
-            stmt = stmt.where(ActivityLog.created_at <= end_at)
+        start_bound = _datetime_bound(start_at)
+        end_bound = _datetime_bound(end_at)
+        if start_bound is not None:
+            stmt = stmt.where(ActivityLog.created_at >= start_bound)
+        if end_bound is not None:
+            stmt = stmt.where(ActivityLog.created_at <= end_bound)
         stmt = stmt.order_by(ActivityLog.created_at.desc(), ActivityLog.id.desc())
         if not (selected_conversation_id or negative_feedback_only):
             stmt = stmt.limit(bounded_limit).offset(bounded_offset)
@@ -614,10 +624,12 @@ def summarize_activity_logs(
         stmt = select(ActivityLog.status, ActivityLog.details_json)
         if event_type in {"chat", "document"}:
             stmt = stmt.where(ActivityLog.event_type == event_type)
-        if start_at:
-            stmt = stmt.where(ActivityLog.created_at >= start_at)
-        if end_at:
-            stmt = stmt.where(ActivityLog.created_at <= end_at)
+        start_bound = _datetime_bound(start_at)
+        end_bound = _datetime_bound(end_at)
+        if start_bound is not None:
+            stmt = stmt.where(ActivityLog.created_at >= start_bound)
+        if end_bound is not None:
+            stmt = stmt.where(ActivityLog.created_at <= end_bound)
         rows = session.execute(stmt).all()
 
     sessions: set[str] = set()
@@ -661,10 +673,12 @@ def list_activity_log_sessions(
         stmt = select(ActivityLog)
         if event_type in {"chat", "document"}:
             stmt = stmt.where(ActivityLog.event_type == event_type)
-        if start_at:
-            stmt = stmt.where(ActivityLog.created_at >= start_at)
-        if end_at:
-            stmt = stmt.where(ActivityLog.created_at <= end_at)
+        start_bound = _datetime_bound(start_at)
+        end_bound = _datetime_bound(end_at)
+        if start_bound is not None:
+            stmt = stmt.where(ActivityLog.created_at >= start_bound)
+        if end_bound is not None:
+            stmt = stmt.where(ActivityLog.created_at <= end_bound)
         stmt = stmt.order_by(ActivityLog.created_at.asc(), ActivityLog.id.asc())
         rows = session.execute(stmt).scalars().all()
 

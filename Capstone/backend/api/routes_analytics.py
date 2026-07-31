@@ -14,13 +14,14 @@ working unaffected.
 """
 
 from datetime import date, datetime, timezone
+from typing import Annotated
 
-from fastapi import Header, HTTPException
+from fastapi import Header, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from backend.analytics.refresh import refresh_daily_aggregates
-from backend.analytics.topics import topic_display_name
+from backend.analytics.topics import KNOWN_TOPIC_CODES, topic_display_name
 from backend.api.auth import _require_admin
 from backend.api.core import app
 from backend.api.models import ActivityLogItem
@@ -95,6 +96,30 @@ def _aggregate_rows():
         session.close()
 
 
+def _canonical_unique_user_counts() -> tuple[int, dict[str, int]]:
+    """Return exact all-time distinct-user counts overall and per topic."""
+    from backend.db.engine import get_session
+    from backend.db.models import CanonicalInteraction
+
+    session = get_session()
+    try:
+        user_column = CanonicalInteraction.pseudonymous_user_id
+        total = session.execute(
+            select(func.count(func.distinct(user_column))).where(user_column.is_not(None))
+        ).scalar_one()
+        rows = session.execute(
+            select(
+                CanonicalInteraction.topic_code,
+                func.count(func.distinct(user_column)),
+            )
+            .where(user_column.is_not(None))
+            .group_by(CanonicalInteraction.topic_code)
+        ).all()
+        return int(total or 0), {str(topic_code): int(count or 0) for topic_code, count in rows}
+    finally:
+        session.close()
+
+
 @app.post("/api/admin/analytics/refresh")
 def refresh_analytics(authorization: str = Header(default="")) -> dict[str, int | str]:
     # Recompute analytics.daily_topic_aggregates from canonical_interactions.
@@ -116,10 +141,7 @@ def get_analytics_summary(authorization: str = Header(default="")) -> AnalyticsS
     unclassified_interactions = sum(
         row.interaction_count for row in rows if row.topic_code == "unclassified"
     )
-    # unique_user_count is per (date, topic) bucket and cannot be summed
-    # exactly across buckets without double counting; expose it per-topic in
-    # the /topics endpoint instead, and report a best-effort max here.
-    total_unique_users = max((row.unique_user_count for row in rows), default=0)
+    total_unique_users, _unique_users_by_topic = _canonical_unique_user_counts()
 
     dates = [row.bucket_date for row in rows]
     refreshed_at = max((row.refreshed_at for row in rows), default=None)
@@ -146,6 +168,7 @@ def get_analytics_topics(authorization: str = Header(default="")) -> AnalyticsTo
     _require_admin(authorization)
     _require_postgres_backend()
     rows = _aggregate_rows()
+    _total_unique_users, unique_users_by_topic = _canonical_unique_user_counts()
 
     by_topic: dict[str, dict[str, int]] = {}
     for row in rows:
@@ -159,11 +182,7 @@ def get_analytics_topics(authorization: str = Header(default="")) -> AnalyticsTo
             },
         )
         bucket["interaction_count"] += row.interaction_count
-        # unique_user_count is summed across daily buckets here as a simple
-        # approximation (a user active on multiple days is counted once per
-        # day); exact all-time distinct-user counts are out of scope for
-        # this simplified aggregate table.
-        bucket["unique_user_count"] += row.unique_user_count
+        bucket["unique_user_count"] = unique_users_by_topic.get(row.topic_code, 0)
         bucket["negative_feedback_count"] += row.negative_feedback_count
         bucket["error_or_fallback_count"] += row.error_or_fallback_count
 
@@ -294,8 +313,8 @@ def get_analytics_active_users(
 
 @app.get("/api/admin/analytics/logs-by-topic", response_model=list[ActivityLogItem])
 def get_logs_by_topic(
-    topic: str,
-    limit: int = 200,
+    topic: Annotated[str, Query(min_length=1, max_length=100)],
+    limit: Annotated[int, Query(ge=1, le=1000)] = 200,
     authorization: str = Header(default=""),
 ) -> list[ActivityLogItem]:
     # Accurate topic filter for the Logs screen (drill-through from the
@@ -305,28 +324,24 @@ def get_logs_by_topic(
     _require_admin(authorization)
     _require_postgres_backend()
 
+    selected_topic = topic.strip()
+    if selected_topic not in KNOWN_TOPIC_CODES:
+        raise HTTPException(status_code=422, detail="Invalid analytics topic.")
+
     from backend.db.engine import get_session
     from backend.db.models import ActivityLog, CanonicalInteraction
 
     session = get_session()
     try:
-        activity_log_ids = [
-            row[0]
-            for row in session.execute(
-                select(CanonicalInteraction.activity_log_id).where(
-                    CanonicalInteraction.topic_code == topic,
-                    CanonicalInteraction.activity_log_id.is_not(None),
-                )
-            )
-        ]
-        if not activity_log_ids:
-            return []
-
         rows = session.execute(
             select(ActivityLog)
-            .where(ActivityLog.id.in_(activity_log_ids))
+            .join(
+                CanonicalInteraction,
+                CanonicalInteraction.activity_log_id == ActivityLog.id,
+            )
+            .where(CanonicalInteraction.topic_code == selected_topic)
             .order_by(ActivityLog.created_at.desc())
-            .limit(max(1, min(limit, 1000)))
+            .limit(limit)
         ).scalars().all()
     finally:
         session.close()

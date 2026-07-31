@@ -32,6 +32,31 @@ if errorlevel 1 (
   goto :fail
 )
 
+rem Analytics uses PostgreSQL when DATABASE_BACKEND=postgres. Keep these
+rem pinned runtime packages in the exact venv used below, not whichever
+rem global Python happens to be first on PATH.
+"%PYTHON%" -X utf8 -c "import sqlalchemy, psycopg, alembic" >nul 2>&1
+if errorlevel 1 (
+  echo PostgreSQL runtime dependencies are missing. Installing pinned versions...
+  "%PYTHON%" -X utf8 -m pip install --disable-pip-version-check "SQLAlchemy==2.0.36" "psycopg[binary]==3.2.3" "alembic==1.14.0"
+  if errorlevel 1 (
+    echo Failed to install PostgreSQL runtime dependencies.
+    echo Run manually:
+    echo   backend\researcher_crew\.venv\Scripts\python -m pip install -r requirements.txt
+    goto :fail
+  )
+)
+
+call :ensure_database
+if errorlevel 1 (
+  echo.
+  echo Database preflight failed. FastAPI was not started.
+  echo Start Docker Desktop, then retry run.bat.
+  echo To apply missing migrations manually:
+  echo   backend\researcher_crew\.venv\Scripts\python -m alembic -c backend\db\alembic.ini upgrade head
+  goto :fail
+)
+
 "%PYTHON%" -X utf8 -m backend.scripts.storage_status vector-db >nul 2>&1
 if errorlevel 1 (
   set "HAS_DB="
@@ -69,6 +94,39 @@ echo.
 "%PYTHON%" -X utf8 -m uvicorn backend.api.main:app --host localhost --port %API_PORT% --timeout-keep-alive 1 --timeout-graceful-shutdown 3 --no-access-log
 set "APP_EXIT=%ERRORLEVEL%"
 endlocal & exit /b %APP_EXIT%
+
+:ensure_database
+"%PYTHON%" -X utf8 -m backend.scripts.storage_status database >nul 2>&1
+if not errorlevel 1 (
+  "%PYTHON%" -X utf8 -m backend.scripts.storage_status database
+  exit /b 0
+)
+
+where docker >nul 2>&1
+if errorlevel 1 (
+  "%PYTHON%" -X utf8 -m backend.scripts.storage_status database
+  exit /b 1
+)
+
+echo PostgreSQL is not ready. Starting the local development database...
+set "COMPOSE_DISABLE_ENV_FILE=1"
+docker compose -f docker-compose.dev-db.yml up -d
+if errorlevel 1 (
+  "%PYTHON%" -X utf8 -m backend.scripts.storage_status database
+  exit /b 1
+)
+
+for /l %%I in (1,1,15) do (
+  "%PYTHON%" -X utf8 -m backend.scripts.storage_status database >nul 2>&1
+  if not errorlevel 1 (
+    "%PYTHON%" -X utf8 -m backend.scripts.storage_status database
+    exit /b 0
+  )
+  timeout /t 1 /nobreak >nul
+)
+
+"%PYTHON%" -X utf8 -m backend.scripts.storage_status database
+exit /b 1
 
 :stop_servers
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^

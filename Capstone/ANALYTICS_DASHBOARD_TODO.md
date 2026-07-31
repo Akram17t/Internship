@@ -1,19 +1,31 @@
 # Analytics Dashboard — Sisa Pekerjaan
 
-## Sudah selesai
-- Migrasi SQLite → PostgreSQL (schema `app` + `analytics`), migrator script idempoten, sudah dijalankan di lokal dan di EC2 (data production ter-migrasi, app tetap jalan di SQLite — belum cutover).
-- Backend analytics: klasifikasi topik rule-based, tabel `canonical_interactions` + `daily_topic_aggregates`, endpoint `summary`, `topics`, `trend`, `active-users`, `logs-by-topic`.
-- Dashboard React (Vite + Tailwind + Recharts) di-build jadi bundle statis, ditanam ke dalam `frontend/web/index.html` (nav "Analytics"), gaya visual disamakan dengan tema utama (ink/paper/red, JetBrains Mono/Instrument Sans).
-- Metrik direvisi jadi HR-relevant: Total Questions, Active Users, Most Discussed Topic, Negative Feedback (KPI error/fallback dihapus).
-- Klik topik/user di dashboard sudah dikabelkan untuk lompat ke halaman Logs dengan filter (lewat `window.navigateToLogsWithFilter`).
-- Keamanan: port Postgres di EC2 sudah ditutup lagi ke `127.0.0.1` (tidak exposed ke internet), rencana Data Studio dibatalkan.
+Status terakhir: server dari `run.bat` hidup dan `/health` mengembalikan HTTP 200. Dua defect runtime sudah diperbaiki di working tree, tetapi validasi final setelah defect kedua belum selesai karena sesi testing terpotong.
 
-## Belum selesai / perlu verifikasi
-1. **Verifikasi visual & fungsional end-to-end** — belum ada konfirmasi bahwa build terbaru (setelah restyle + fitur klik-filter) benar-benar tampil bagus dan berfungsi di browser. Sesi terakhir kepotong sebelum restart server + testing selesai.
-2. **Testing tombol klik topik → Logs** dan **klik user → Logs** — kode sudah ditulis tapi belum dicoba klik langsung di browser.
-3. **Cek ulang endpoint `logs-by-topic`** dengan data nyata (baru dibuat, belum pernah dipanggil).
-4. **Bersihkan file dev/testing sementara** (`_dev_inject_session.html`, log uvicorn/vite, dll) sebelum commit.
-5. **Commit + push** — belum dilakukan sama sekali untuk perubahan dashboard (menunggu approval visual dari user sesuai kesepakatan awal).
-6. **Deploy ke EC2** — ditahan total, termasuk build dashboard React di server produksi (belum ada Dockerfile/CI step untuk build Vite di sana).
-7. **Keputusan cutover SQLite → Postgres di production** — belum diambil, masih murni data mirror untuk analytics.
-8. Opsional/belum dibahas lagi: apakah "Active Users" perlu tampilkan nama asli atau tetap pseudonymous di level UI (sudah pakai email asli sesuai keputusan terakhir, tapi belum direview user).
+## P0 — wajib sebelum dianggap selesai
+
+- [ ] **Ulangi end-to-end dari `run.bat` setelah patch timestamp.** Jalankan aplikasi melalui `run.bat`, bukan Python global atau TestClient.
+- [ ] **Uji seluruh halaman Logs dengan date range melalui HTTP nyata.** Endpoint yang wajib 200: `/api/admin/logs`, `/api/admin/logs/summary`, dan `/api/admin/logs/sessions`. Pastikan tidak muncul lagi error `TIMESTAMPTZ >= VARCHAR`.
+- [ ] **Uji Analytics → Logs di Chrome terhadap server/API nyata.** Klik active user, topic row, bar chart, dan donut; pastikan filter Logs tampil dan data berhasil dimuat tanpa mock `fetch`.
+- [ ] **Periksa log Uvicorn setelah semua klik.** Tidak boleh ada `Exception in ASGI application`, `ModuleNotFoundError`, atau SQLAlchemy/PostgreSQL error baru.
+- [ ] **Jalankan full backend suite memakai interpreter yang sama dengan `run.bat`.** Command: `backend\researcher_crew\.venv\Scripts\python -m pytest backend\tests backend\researcher_crew\tests -q`.
+- [ ] **Ulangi lint dan production build dashboard.** Jalankan `npm run lint` dan `npm run build` dari `frontend-dashboard`, lalu pastikan bundle embedded terbaru tetap dipakai aplikasi utama.
+- [ ] **Bersihkan artefak E2E.** Hapus `.run-e2e.*`, harness/token sementara, dan file output template Vite yang tidak dipakai.
+
+## Sudah diperbaiki, menunggu validasi final P0
+
+- [x] `run.bat` sekarang mendeteksi dan memasang dependency PostgreSQL pinned ke `backend\researcher_crew\.venv` (`SQLAlchemy`, `psycopg`, `alembic`).
+- [x] `run.bat` sekarang melakukan preflight koneksi dan schema PostgreSQL sebelum membuka FastAPI; database dev lokal dicoba dinyalakan melalui Docker Compose bila belum siap.
+- [x] Missing `psycopg` sudah diperbaiki pada venv asli `run.bat`; startup terbaru menunjukkan PostgreSQL/schema ready dan Uvicorn running.
+- [x] Filter tanggal repository PostgreSQL sudah mengubah ISO string menjadi `datetime` timezone-aware sebelum membandingkan kolom `TIMESTAMPTZ`.
+- [x] Regression test timestamp ditambahkan; targeted suite pada venv `run.bat` lulus **9 passed**.
+- [x] Endpoint analytics nyata sebelumnya lulus: refresh/summary/topics/trend/active-users/logs-by-topic HTTP 200, invalid topic HTTP 422.
+- [x] Perhitungan distinct users, tipe `bucket_date`, validasi topik, SQL join drill-through, dan payload Recharts sudah diperbaiki.
+
+## Keputusan user / production (bukan bagian validasi lokal)
+
+- [ ] Review visual manusia terhadap tampilan akhir.
+- [ ] Putuskan apakah Active Users tetap menampilkan email asli atau pseudonymous label.
+- [ ] Commit dan push perubahan (belum dilakukan).
+- [ ] Deploy ke EC2 (perlu persetujuan eksplisit karena mengubah production).
+- [ ] Putuskan cutover production SQLite → PostgreSQL secara terpisah.

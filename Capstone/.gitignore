@@ -17,3 +17,6 @@ backend/cache/*
 !backend/cache/.gitkeep
 backend/debug/chunks.md
 docs/admin-guide/assets/
+
+# Local development process markers
+*_pid.txt

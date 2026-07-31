@@ -261,6 +261,8 @@ window.navigateToLogsWithFilter = function navigateToLogsWithFilter(type, value,
   if (!isAdminSession()) return;
   state.logNameQuery = "";
   state.activeTopicFilter = null;
+  state.logDateRange = { start: "", end: "" };
+  syncLogDateInputs();
   if (elements.logsNameSearch) elements.logsNameSearch.value = "";
 
   if (type === "user" && value) {

@@ -60,8 +60,14 @@ export function TopicBarChart({ topics }: TopicBarChartProps) {
           barSize={18}
           cursor="pointer"
           onClick={(entry) => {
-            const point = entry as unknown as { code?: string; name?: string };
-            if (point.code) navigateToLogsWithFilter("topic", point.code, point.name);
+            const point = entry as unknown as {
+              code?: string;
+              name?: string;
+              payload?: { code?: string; name?: string };
+            };
+            const code = point.code ?? point.payload?.code;
+            const name = point.name ?? point.payload?.name;
+            if (code) navigateToLogsWithFilter("topic", code, name);
           }}
         >
           {data.map((entry, index) => (

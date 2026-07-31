@@ -8,12 +8,13 @@ reduced-scope implementation: no migration/audit/taxonomy-history schemas
 from the full design doc.
 """
 
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     Integer,
@@ -190,7 +191,7 @@ class DailyTopicAggregate(Base):
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    bucket_date: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
+    bucket_date: Mapped[date] = mapped_column(Date, nullable=False)
     topic_code: Mapped[str] = mapped_column(String, nullable=False)
     interaction_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     unique_user_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

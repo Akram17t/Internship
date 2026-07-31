@@ -60,13 +60,61 @@ def has_valid_vector_db() -> bool:
     return (chroma_base / CITATION_SCHEMA_MARKER).exists()
 
 
+def has_runtime_database() -> bool:
+    """Check the configured database and required PostgreSQL app/analytics tables."""
+    backend = get_env("DATABASE_BACKEND", "sqlite").strip().lower()
+    if backend != "postgres":
+        print(f"Database preflight: {backend} backend (PostgreSQL check skipped).")
+        return True
+
+    required_tables = (
+        "app.users",
+        "app.activity_logs",
+        "analytics.canonical_interactions",
+        "analytics.daily_topic_aggregates",
+    )
+    try:
+        from sqlalchemy import text
+
+        from backend.db.engine import get_engine
+
+        with get_engine().connect() as connection:
+            missing = [
+                table_name
+                for table_name in required_tables
+                if connection.scalar(
+                    text("SELECT to_regclass(:table_name)"),
+                    {"table_name": table_name},
+                )
+                is None
+            ]
+    except Exception as error:
+        print(
+            f"Database preflight error: {error.__class__.__name__}: {error}",
+            file=sys.stderr,
+        )
+        return False
+
+    if missing:
+        print(
+            "Database preflight error: missing required tables: " + ", ".join(missing),
+            file=sys.stderr,
+        )
+        return False
+
+    print("Database preflight: PostgreSQL connection and analytics schema ready.")
+    return True
+
+
 def main() -> int:
-    # Sediakan cek CLI sederhana untuk source docs dan vector DB.
+    # Sediakan cek CLI sederhana untuk source docs, vector DB, dan runtime DB.
     command = sys.argv[1] if len(sys.argv) > 1 else "vector-db"
     if command == "vector-db":
         return 0 if has_valid_vector_db() else 1
     if command == "source-docs":
         return 0 if has_source_documents() else 1
+    if command == "database":
+        return 0 if has_runtime_database() else 1
     if command == "app-state":
         counts = state_counts()
         print(
@@ -77,7 +125,10 @@ def main() -> int:
         )
         return 0
 
-    print("Usage: python -m backend.scripts.storage_status [vector-db|source-docs|app-state]")
+    print(
+        "Usage: python -m backend.scripts.storage_status "
+        "[vector-db|source-docs|database|app-state]"
+    )
     return 2
 
 

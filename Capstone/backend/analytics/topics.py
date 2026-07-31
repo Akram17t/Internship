@@ -80,6 +80,8 @@ _TOPIC_RULES: list[tuple[str, str, list[str]]] = [
         ],
     ),
 ]
+TOPIC_CODES = frozenset(code for code, _display_name, _keywords in _TOPIC_RULES)
+KNOWN_TOPIC_CODES = TOPIC_CODES | {UNCLASSIFIED_TOPIC}
 
 
 @dataclass(frozen=True)
