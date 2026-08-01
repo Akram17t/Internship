@@ -1,9 +1,25 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
+
+// index.html is only the entry point for `npm run dev`; in production the
+// bundle is embedded into frontend/web/index.html by <script>/<link> tags.
+// Shipping the generated copy would expose a second, standalone
+// /assets/dashboard/index.html page that renders the dashboard outside the
+// host app's sign-in gate, so drop it from the build output.
+function dropDevEntryHtml(): Plugin {
+  return {
+    name: "drop-dev-entry-html",
+    enforce: "post",
+    apply: "build",
+    generateBundle(_options, bundle) {
+      delete bundle["index.html"];
+    },
+  };
+}
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), dropDevEntryHtml()],
   // Served from the main app's existing /assets static mount
   // (backend/api/core.py mounts frontend/web/assets at /assets), so the
   // dashboard is embedded into the same origin/tab as the rest of the app,

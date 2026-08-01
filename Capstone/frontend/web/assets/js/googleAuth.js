@@ -82,6 +82,13 @@ async function handleGoogleCredentialResponse(response) {
     if (!isLoggedIn()) {
       throw new Error("Session is invalid. Try signing in again.");
     }
+    // Unconditional, not just for a different account: CHAT_STORAGE_KEY is
+    // one global key, so even a same-browser session that expired silently
+    // (no explicit logout) leaves the previous transcript rendered as soon
+    // as *anyone* next authenticates, before logout()'s own reset ever runs.
+    // Nothing is lost -- each account's real history still lists correctly
+    // in the sidebar via loadConversations(), scoped server-side per user.
+    resetChat();
     window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(state.session));
     syncAuth();
   } catch (error) {

@@ -1021,9 +1021,15 @@ function templateDownloadFormats(url, filename, availableFormats) {
     };
   }
   if (availableFormats.includes("docx")) {
+    // ?format=docx only means something to the backend when the stored file
+    // is a PDF with a Word template sidecar (the "pdf" branch above) -- it
+    // converts PDF -> docx. When docx is the only format, the file is
+    // already a native .docx, so the backend 400s on that query param;
+    // fetch it as-is instead.
+    const needsConversion = availableFormats.includes("pdf");
     formats.docx = {
       label: "Word",
-      url: withDownloadFormat(url, "docx"),
+      url: needsConversion ? withDownloadFormat(url, "docx") : url,
       filename: withFileExtension(filename, "docx"),
     };
   }

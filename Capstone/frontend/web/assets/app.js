@@ -2,6 +2,7 @@ const CHAT_STORAGE_KEY = "ics-hr-ai-chat-v3";
 const AUTH_STORAGE_KEY = "ics-hr-ai-auth-v1";
 const CONVERSATION_STORAGE_KEY = "ics-hr-ai-conversation-v1";
 const REINDEX_STORAGE_KEY = "ics-hr-ai-reindex-required-v1";
+const SIDEBAR_COLLAPSED_STORAGE_KEY = "ics-hr-ai-sidebar-collapsed-v1";
 const MOBILE_QUERY = "(max-width: 640px)";
 
 const initialMessages = [];
@@ -76,6 +77,7 @@ const elements = {
   screenTitle: document.getElementById("screenTitle"),
   sidebar: document.getElementById("sidebar"),
   navLinks: Array.from(document.querySelectorAll(".nav-link")),
+  screenStack: document.querySelector(".screen-stack"),
   screens: Array.from(document.querySelectorAll(".screen")),
   chatScreen: document.querySelector('[data-screen-panel="chat"]'),
   chatThread: document.getElementById("chatThread"),
@@ -124,6 +126,7 @@ const elements = {
   filterButton: document.getElementById("filterButton"),
   chatLink: document.getElementById("chatLink"),
   menuToggle: document.getElementById("menuToggle"),
+  sidebarCollapseButton: document.getElementById("sidebarCollapseButton"),
   pageBackdrop: document.getElementById("pageBackdrop"),
   accountPanel: document.querySelector(".account-panel"),
   accountAvatar: document.getElementById("accountAvatar"),
@@ -195,6 +198,8 @@ function init() {
   bindGuardrails();
   bindAdminLogs();
   bindSidebarConversations();
+  applySidebarCollapsed(loadSidebarCollapsed());
+  syncScrollbarWidth();
   syncAuth();
   syncReindexState();
   updateComposer();
@@ -203,6 +208,7 @@ function init() {
   syncScreenFromHash();
   void publicConfigPromise.then(() => initGoogleSignIn());
   window.addEventListener("resize", updateComposer);
+  window.addEventListener("resize", syncScrollbarWidth);
 }
 
 async function loadPublicConfig() {
@@ -225,6 +231,41 @@ function bindNavigation() {
   });
   elements.menuToggle.addEventListener("click", openMobileNav);
   elements.pageBackdrop.addEventListener("click", closeMobileNav);
+  elements.sidebarCollapseButton.addEventListener("click", toggleSidebarCollapsed);
+}
+
+// The topbar sits outside .screen-stack's scroll box, so it has to be padded by
+// the same amount the scrollbar gutter takes out of it -- otherwise a centred
+// page (sidebar collapsed, panel wider than --page-max) sits half a scrollbar
+// left of the centred topbar above it. Overlay scrollbars report 0 here, which
+// is correct: they take no layout width.
+function syncScrollbarWidth() {
+  const stack = elements.screenStack;
+  if (!stack) return;
+  const width = Math.max(0, stack.offsetWidth - stack.clientWidth);
+  elements.body.style.setProperty("--scrollbar-width", `${width}px`);
+}
+
+function loadSidebarCollapsed() {
+  return window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "1";
+}
+
+function applySidebarCollapsed(collapsed) {
+  elements.body.classList.toggle("sidebar-collapsed", collapsed);
+  const button = elements.sidebarCollapseButton;
+  button.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  const label = collapsed ? "Expand sidebar" : "Collapse sidebar";
+  button.setAttribute("aria-label", label);
+  button.title = label;
+  button.querySelector(".material-symbols-outlined").textContent = collapsed
+    ? "left_panel_open"
+    : "left_panel_close";
+}
+
+function toggleSidebarCollapsed() {
+  const collapsed = !elements.body.classList.contains("sidebar-collapsed");
+  window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, collapsed ? "1" : "0");
+  applySidebarCollapsed(collapsed);
 }
 
 function syncScreenFromHash() {
@@ -241,6 +282,9 @@ function syncScreenFromHash() {
   elements.screens.forEach((screen) =>
     screen.classList.toggle("is-active", screen.dataset.screenPanel === target),
   );
+  // All screens share one scroll container, so without this a screen opened
+  // after scrolling down another one starts mid-page.
+  elements.screenStack.scrollTop = 0;
   if (target === "logs") refreshActivityLogsIfVisible();
   if (target === "analytics") refreshAnalyticsIfVisible();
   if (target === "guardrails") loadGuardrailsIfVisible();
@@ -257,11 +301,17 @@ function navigateTo(screen) {
 // bundle, see frontend-dashboard/) so clicking a user or topic there can
 // jump into the existing vanilla Logs screen with a filter applied,
 // without the two bundles needing to share any framework/state directly.
-window.navigateToLogsWithFilter = function navigateToLogsWithFilter(type, value, label) {
+// `range`, when passed, carries over the date range the admin had selected
+// on the Analytics dashboard so the Logs view they land on matches what
+// they were just looking at, instead of resetting to Logs' own default.
+window.navigateToLogsWithFilter = function navigateToLogsWithFilter(type, value, label, range) {
   if (!isAdminSession()) return;
   state.logNameQuery = "";
   state.activeTopicFilter = null;
-  state.logDateRange = { start: "", end: "" };
+  state.logDateRange =
+    range && (range.start || range.end)
+      ? { start: range.start || "", end: range.end || "" }
+      : { start: "", end: "" };
   syncLogDateInputs();
   if (elements.logsNameSearch) elements.logsNameSearch.value = "";
 
@@ -282,10 +332,12 @@ window.navigateToLogsWithFilter = function navigateToLogsWithFilter(type, value,
 function openMobileNav() {
   elements.sidebar.scrollTop = 0;
   elements.body.classList.add("nav-open");
+  elements.menuToggle.setAttribute("aria-expanded", "true");
 }
 
 function closeMobileNav() {
   elements.body.classList.remove("nav-open");
+  elements.menuToggle.setAttribute("aria-expanded", "false");
 }
 
 function loadMessages() {

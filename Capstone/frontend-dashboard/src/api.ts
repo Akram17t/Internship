@@ -3,7 +3,19 @@ import type {
   AnalyticsSummary,
   AnalyticsTopicsResponse,
   AnalyticsTrendResponse,
+  DateRange,
 } from "./types";
+
+const LOCAL_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+function rangeQuery(range?: DateRange): string {
+  if (!range || (!range.start && !range.end)) return "";
+  const params = new URLSearchParams();
+  if (range.start) params.set("start_date", range.start);
+  if (range.end) params.set("end_date", range.end);
+  if (LOCAL_TIME_ZONE) params.set("tz", LOCAL_TIME_ZONE);
+  return `?${params.toString()}`;
+}
 
 const AUTH_STORAGE_KEY = "ics-hr-ai-auth-v1";
 
@@ -57,31 +69,39 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function fetchSummary(): Promise<AnalyticsSummary> {
-  return request<AnalyticsSummary>("/api/admin/analytics/summary");
+export function fetchSummary(range?: DateRange): Promise<AnalyticsSummary> {
+  return request<AnalyticsSummary>(`/api/admin/analytics/summary${rangeQuery(range)}`);
 }
 
-export function fetchTopics(): Promise<AnalyticsTopicsResponse> {
-  return request<AnalyticsTopicsResponse>("/api/admin/analytics/topics");
+export function fetchTopics(range?: DateRange): Promise<AnalyticsTopicsResponse> {
+  return request<AnalyticsTopicsResponse>(`/api/admin/analytics/topics${rangeQuery(range)}`);
 }
 
-export function fetchTrend(): Promise<AnalyticsTrendResponse> {
-  return request<AnalyticsTrendResponse>("/api/admin/analytics/trend");
+export function fetchTrend(range?: DateRange): Promise<AnalyticsTrendResponse> {
+  return request<AnalyticsTrendResponse>(`/api/admin/analytics/trend${rangeQuery(range)}`);
 }
 
-export function fetchActiveUsers(): Promise<AnalyticsActiveUsersResponse> {
-  return request<AnalyticsActiveUsersResponse>("/api/admin/analytics/active-users");
+export function fetchActiveUsers(range?: DateRange): Promise<AnalyticsActiveUsersResponse> {
+  return request<AnalyticsActiveUsersResponse>(
+    `/api/admin/analytics/active-users${rangeQuery(range)}`,
+  );
 }
 
 export function navigateToLogsWithFilter(
   type: "user" | "topic",
   value: string,
   label?: string,
+  range?: DateRange,
 ): void {
   const bridge = (window as unknown as {
-    navigateToLogsWithFilter?: (type: string, value: string, label?: string) => void;
+    navigateToLogsWithFilter?: (
+      type: string,
+      value: string,
+      label?: string,
+      range?: DateRange,
+    ) => void;
   }).navigateToLogsWithFilter;
-  bridge?.(type, value, label);
+  bridge?.(type, value, label, range);
 }
 
 export function refreshAnalytics(): Promise<{ buckets_written: number }> {

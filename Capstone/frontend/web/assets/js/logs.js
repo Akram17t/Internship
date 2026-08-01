@@ -87,10 +87,16 @@ async function loadActivityLogs() {
       }
       state.activityLogs = Array.isArray(payload) ? payload : [];
       state.activityLogSessions = [];
-      state.activityLogSummary = null;
+      // /api/admin/analytics/logs-by-topic has no summary counterpart, and
+      // leaving this null made the Total Chat/Session/Feedback cards read 0
+      // whenever a topic filter was active (e.g. drilling in from the
+      // Analytics dashboard) even though the filtered list below was
+      // correct -- derive the same three counts from that list instead.
+      state.activityLogSummary = summarizeTopicFilteredLogs(state.activityLogs);
       clampLogPage(getActiveLogItemCount());
     } catch (error) {
       state.activityLogs = [];
+      state.activityLogSummary = null;
       state.logError = error.message || "Unable to load topic logs.";
     } finally {
       state.isLoadingLogs = false;
@@ -631,6 +637,21 @@ function createLogFeedbackPanel(item) {
 
 function hasNegativeFeedback(item) {
   return item?.details?.feedback?.rating === "thumbs_down";
+}
+
+function summarizeTopicFilteredLogs(items) {
+  const sessionIds = new Set();
+  let negativeFeedback = 0;
+  items.forEach((item) => {
+    const conversationId = item.conversation_id || item.details?.conversation_id;
+    if (conversationId) sessionIds.add(conversationId);
+    if (hasNegativeFeedback(item)) negativeFeedback += 1;
+  });
+  return {
+    total_chat: items.length,
+    total_sessions: sessionIds.size,
+    negative_feedback: negativeFeedback,
+  };
 }
 
 function feedbackReasonText(item) {

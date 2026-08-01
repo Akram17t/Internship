@@ -210,6 +210,11 @@ function logout() {
   };
   clearDocumentUndo();
   window.localStorage.removeItem(AUTH_STORAGE_KEY);
+  // CHAT_STORAGE_KEY is one global key, not scoped per user -- without this,
+  // the next person to sign in on this browser (a real risk on shared/kiosk
+  // machines) would see this account's chat transcript rendered immediately,
+  // including any sensitive HR answers, before sending a message of their own.
+  resetChat();
   closeLogoutModal();
   syncAuth();
 }
@@ -230,12 +235,16 @@ function syncAuth() {
     .trim()
     .charAt(0)
     .toUpperCase() || "?";
+  // The only identity cue left when the sidebar is collapsed to its icon rail.
+  elements.accountAvatar.title = state.session.email || state.session.name || "";
   elements.accountRoleLabel.textContent = isAdmin ? "Admin mode" : "Signed in";
   elements.accountName.textContent = state.session.name || state.session.email;
   elements.accountHint.textContent = isAdmin ? "Admin" : "User";
   elements.accountPopoverRole.textContent = isAdmin ? "Admin mode" : "Signed in";
   elements.accountPopoverName.textContent = state.session.email || state.session.name;
-  elements.accountPopoverHint.textContent = "Click the icon on the right to log out.";
+  // Not "the icon on the right": collapsed to the icon rail, the logout button
+  // sits under the avatar rather than beside it.
+  elements.accountPopoverHint.textContent = "Use the logout icon to sign out.";
   elements.newAdminButton.hidden = !isAdmin;
   elements.accountActionIcon.textContent = "logout";
   elements.accountActionText.textContent = "Logout";

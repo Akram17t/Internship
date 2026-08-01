@@ -39,35 +39,80 @@
             <strong>HR Assistant</strong>
             <span>ICS Compute</span>
           </div>
+          <button
+            class="sidebar-collapse"
+            id="sidebarCollapseButton"
+            type="button"
+            aria-controls="sidebar"
+            aria-expanded="true"
+            aria-label="Collapse sidebar"
+            title="Collapse sidebar"
+          >
+            <span class="material-symbols-outlined" aria-hidden="true"
+              >left_panel_close</span
+            >
+          </button>
         </div>
 
+        <!-- title= on every nav-link so the labels are still reachable when the
+             sidebar is collapsed to its icon rail and .nav-link-label is hidden. -->
         <nav class="sidebar-nav" aria-label="Primary navigation">
-          <button class="nav-link is-active" data-screen="chat" type="button">
-            <span class="material-symbols-outlined">chat</span><span>Chat</span>
+          <button
+            class="nav-link is-active"
+            data-screen="chat"
+            type="button"
+            title="Chat"
+          >
+            <span class="material-symbols-outlined">chat</span
+            ><span class="nav-link-label">Chat</span>
           </button>
-          <button class="nav-link" data-screen="faq" type="button">
-            <span class="material-symbols-outlined">quiz</span><span>FAQ</span>
+          <button class="nav-link" data-screen="faq" type="button" title="FAQ">
+            <span class="material-symbols-outlined">quiz</span
+            ><span class="nav-link-label">FAQ</span>
           </button>
-          <button class="nav-link" data-screen="policy" type="button">
+          <button
+            class="nav-link"
+            data-screen="policy"
+            type="button"
+            title="Docs"
+          >
             <span class="material-symbols-outlined">folder_open</span
-            ><span>Docs</span>
+            ><span class="nav-link-label">Docs</span>
           </button>
-          <button class="nav-link" data-screen="logs" type="button" hidden>
+          <button
+            class="nav-link"
+            data-screen="logs"
+            type="button"
+            title="Logs"
+            hidden
+          >
             <span class="material-symbols-outlined">receipt_long</span
-            ><span>Logs</span>
+            ><span class="nav-link-label">Logs</span>
           </button>
-          <button class="nav-link" data-screen="analytics" type="button" hidden>
+          <button
+            class="nav-link"
+            data-screen="analytics"
+            type="button"
+            title="Analytics"
+            hidden
+          >
             <span class="material-symbols-outlined">monitoring</span
-            ><span>Analytics</span>
+            ><span class="nav-link-label">Analytics</span>
           </button>
-          <button class="nav-link" data-screen="guardrails" type="button" hidden>
+          <button
+            class="nav-link"
+            data-screen="guardrails"
+            type="button"
+            title="Guardrails"
+            hidden
+          >
             <span class="material-symbols-outlined">policy</span
-            ><span>Guardrails</span>
+            ><span class="nav-link-label">Guardrails</span>
           </button>
         </nav>
 
         <section class="conversation-history" aria-label="Chat history">
-          <div class="conversation-history-heading">Recent chats</div>
+          <div class="conversation-history-heading">Chats</div>
           <div class="conversation-history-list" id="conversationList"></div>
         </section>
 
@@ -111,32 +156,41 @@
       ></button>
 
       <main class="main-panel">
+        <!-- .topbar-inner carries the same max-width + gutter as every page
+             canvas (--page-max / --page-gutter) so the screen title lines up
+             with the headings underneath it on all screens. -->
         <header class="topbar">
-          <div class="topbar-title">
-            <button
-              class="menu-toggle material-symbols-outlined"
-              id="menuToggle"
-              type="button"
-              aria-label="Open navigation"
-            >
-              menu
-            </button>
-            <h1 id="screenTitle">Active Session</h1>
-          </div>
-          <div class="topbar-actions">
-            <button
-              class="new-admin-button"
-              id="newAdminButton"
-              type="button"
-              hidden
-            >
-              <span class="material-symbols-outlined">person_add</span>
-              <span class="new-admin-label">New admin</span>
-            </button>
-            <button class="new-chat-button" id="newChatButton" type="button">
-              <span class="material-symbols-outlined">add_comment</span>
-              <span class="new-chat-label">New chat</span>
-            </button>
+          <div class="topbar-inner">
+            <div class="topbar-title">
+              <button
+                class="menu-toggle"
+                id="menuToggle"
+                type="button"
+                aria-controls="sidebar"
+                aria-expanded="false"
+                aria-label="Open navigation"
+              >
+                <span class="material-symbols-outlined" aria-hidden="true"
+                  >menu</span
+                >
+              </button>
+              <h1 id="screenTitle">Active Session</h1>
+            </div>
+            <div class="topbar-actions">
+              <button
+                class="new-admin-button"
+                id="newAdminButton"
+                type="button"
+                hidden
+              >
+                <span class="material-symbols-outlined">person_add</span>
+                <span class="new-admin-label">New admin</span>
+              </button>
+              <button class="new-chat-button" id="newChatButton" type="button">
+                <span class="material-symbols-outlined">add_comment</span>
+                <span class="new-chat-label">New chat</span>
+              </button>
+            </div>
           </div>
         </header>
 
@@ -182,6 +236,7 @@
           <section class="screen faq-screen" data-screen-panel="faq">
             <div class="faq-canvas">
               <div class="page-intro">
+                <span class="section-label">FAQ</span>
                 <h2>FAQ <span class="accent-text">HR</span></h2>
                 <p>
                   Common questions from ICS Compute SOPs and internal documents.
@@ -237,8 +292,10 @@
               <div class="faq-list" id="faqList"></div>
             </div>
             <footer class="faq-footer">
-              <span>(C) 2026 ICS Compute &bull; Internal Documents</span>
-              <strong>HR AGENT</strong>
+              <div class="faq-footer-inner">
+                <span>(C) 2026 ICS Compute &bull; Internal Documents</span>
+                <strong>HR AGENT</strong>
+              </div>
             </footer>
           </section>
 

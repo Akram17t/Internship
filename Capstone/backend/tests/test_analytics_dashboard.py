@@ -52,7 +52,7 @@ def test_summary_uses_exact_canonical_distinct_user_count(monkeypatch: pytest.Mo
     monkeypatch.setattr(
         routes_analytics,
         "_aggregate_rows",
-        lambda: [
+        lambda start=None, end=None: [
             _aggregate(date(2026, 7, 30), "leave_and_attendance", interactions=4, users=2),
             _aggregate(date(2026, 7, 31), "payroll_and_benefits", interactions=3, users=2),
         ],
@@ -62,10 +62,10 @@ def test_summary_uses_exact_canonical_distinct_user_count(monkeypatch: pytest.Mo
     monkeypatch.setattr(
         routes_analytics,
         "_canonical_unique_user_counts",
-        lambda: (3, {"leave_and_attendance": 2, "payroll_and_benefits": 2}),
+        lambda start=None, end=None: (3, {"leave_and_attendance": 2, "payroll_and_benefits": 2}),
     )
 
-    response = routes_analytics.get_analytics_summary("Bearer test")
+    response = routes_analytics.get_analytics_summary(authorization="Bearer test")
 
     assert response.total_interactions == 7
     assert response.total_unique_users == 3
@@ -78,7 +78,7 @@ def test_topics_do_not_double_count_users_across_days(monkeypatch: pytest.Monkey
     monkeypatch.setattr(
         routes_analytics,
         "_aggregate_rows",
-        lambda: [
+        lambda start=None, end=None: [
             _aggregate(date(2026, 7, 30), "leave_and_attendance", interactions=2, users=2),
             _aggregate(date(2026, 7, 31), "leave_and_attendance", interactions=3, users=2),
         ],
@@ -86,14 +86,72 @@ def test_topics_do_not_double_count_users_across_days(monkeypatch: pytest.Monkey
     monkeypatch.setattr(
         routes_analytics,
         "_canonical_unique_user_counts",
-        lambda: (2, {"leave_and_attendance": 2}),
+        lambda start=None, end=None: (2, {"leave_and_attendance": 2}),
     )
 
-    response = routes_analytics.get_analytics_topics("Bearer test")
+    response = routes_analytics.get_analytics_topics(authorization="Bearer test")
 
     assert len(response.topics) == 1
     assert response.topics[0].interaction_count == 5
+
+
+def test_topics_excludes_unclassified(monkeypatch: pytest.MonkeyPatch) -> None:
+    _disable_route_guards(monkeypatch)
+    monkeypatch.setattr(
+        routes_analytics,
+        "_aggregate_rows",
+        lambda start=None, end=None: [
+            _aggregate(date(2026, 7, 30), "leave_and_attendance", interactions=2, users=2),
+            _aggregate(date(2026, 7, 30), "unclassified", interactions=9, users=4),
+        ],
+    )
+    monkeypatch.setattr(
+        routes_analytics,
+        "_canonical_unique_user_counts",
+        lambda start=None, end=None: (6, {"leave_and_attendance": 2, "unclassified": 4}),
+    )
+
+    response = routes_analytics.get_analytics_topics(authorization="Bearer test")
+
+    assert [topic.topic_code for topic in response.topics] == ["leave_and_attendance"]
     assert response.topics[0].unique_user_count == 2
+
+
+def test_summary_rejects_malformed_date_range(monkeypatch: pytest.MonkeyPatch) -> None:
+    _disable_route_guards(monkeypatch)
+
+    with pytest.raises(HTTPException) as error:
+        routes_analytics.get_analytics_summary(
+            start_date="not-a-date", authorization="Bearer test"
+        )
+
+    assert error.value.status_code == 422
+
+
+def test_summary_passes_resolved_range_to_aggregate_queries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _disable_route_guards(monkeypatch)
+    seen: dict[str, tuple] = {}
+
+    def fake_aggregate_rows(start=None, end=None):
+        seen["aggregate_rows"] = (start, end)
+        return []
+
+    def fake_unique_user_counts(start=None, end=None):
+        seen["unique_user_counts"] = (start, end)
+        return (0, {})
+
+    monkeypatch.setattr(routes_analytics, "_aggregate_rows", fake_aggregate_rows)
+    monkeypatch.setattr(routes_analytics, "_canonical_unique_user_counts", fake_unique_user_counts)
+
+    routes_analytics.get_analytics_summary(
+        start_date="2026-07-01", end_date="2026-07-31", authorization="Bearer test"
+    )
+
+    assert seen["aggregate_rows"][0].date().isoformat() == "2026-07-01"
+    assert seen["aggregate_rows"][1].date().isoformat() == "2026-07-31"
+    assert seen["aggregate_rows"] == seen["unique_user_counts"]
 
 
 def test_logs_by_topic_rejects_unknown_topic_before_query(

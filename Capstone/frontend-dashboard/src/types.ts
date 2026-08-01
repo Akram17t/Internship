@@ -46,3 +46,8 @@ export interface AnalyticsActiveUsersResponse {
   refreshed_at: string | null;
   users: ActiveUserItem[];
 }
+
+export interface DateRange {
+  start: string;
+  end: string;
+}

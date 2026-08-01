@@ -1,5 +1,12 @@
 @import "tailwindcss";
+/* Same icon set as the host app (styles.css) so Analytics doesn't fall back
+   to custom SVGs while the rest of the admin panel uses Material Symbols. */
+@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@300,0&display=swap");
 
+/* Mirrors :root in frontend/web/assets/styles.css so the embedded
+   dashboard renders identically whether these tokens come from this
+   stylesheet (standalone `vite dev`) or the host app's global one
+   (production, loaded on the same page before dashboard.css). */
 :root {
   --ink: #0a0a0a;
   --ink-soft: #1a1a1a;
@@ -9,11 +16,47 @@
   --paper-light: #faf8f2;
   --red: #bc1823;
   --deep-red: #97121b;
+  --line: rgba(10, 10, 10, 0.22);
+  --line-soft: rgba(10, 10, 10, 0.12);
+  /* Shared container system -- see the same two tokens in styles.css. Defined
+     here as well so `vite dev` renders at the production width. */
+  --page-max: 1280px;
+  --page-gutter: clamp(24px, 4vw, 56px);
 }
 
-body {
-  margin: 0;
+/* Everything below is scoped to .analytics-dashboard (the class on App's root
+   element).
+   In production this stylesheet is loaded into the host page *after*
+   styles.css, so any unscoped selector here silently wins the cascade for the
+   whole vanilla app. That is not hypothetical: an earlier unscoped
+   `.material-symbols-outlined { display: inline-block; max-width: 1em }` beat
+   `.menu-toggle { display: none }` in styles.css and left a dead hamburger
+   button showing on desktop, and capped the width of every icon in the app.
+   Tailwind's own preflight is safe because it sits in @layer base, which the
+   host's unlayered rules outrank -- these hand-written rules were not.
+   Keep every new global-looking rule inside this block. */
+.analytics-dashboard {
   font-family: "Instrument Sans", "Inter", sans-serif;
   background-color: var(--paper);
   color: var(--ink);
+}
+
+.analytics-dashboard .font-mono {
+  font-family: "JetBrains Mono", monospace;
+}
+
+.analytics-dashboard .material-symbols-outlined {
+  display: inline-block;
+  max-width: 1em;
+  overflow: hidden;
+  font-family: "Material Symbols Outlined";
+  font-size: 21px;
+  font-variation-settings:
+    "FILL" 0,
+    "wght" 300,
+    "GRAD" 0,
+    "opsz" 24;
+  line-height: 1;
+  text-transform: none;
+  white-space: nowrap;
 }

@@ -20,3 +20,18 @@ docs/admin-guide/assets/
 
 # Local development process markers
 *_pid.txt
+/.run-e2e.*
+
+# Editor / tooling state
+.vscode/
+
+# Node
+node_modules/
+*.tsbuildinfo
+
+# Local dev + QA output. Screenshots taken while checking the UI belong in a
+# scratch dir, not the repo -- only the images the app actually serves (under
+# frontend/**/assets and frontend-dashboard/src/assets) are committed.
+/*.png
+/*.log
+/.playwright-mcp/

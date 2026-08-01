@@ -10,7 +10,17 @@
   --line: rgba(10, 10, 10, 0.22);
   --line-soft: rgba(10, 10, 10, 0.12);
   --sidebar-width: 280px;
+  --sidebar-width-collapsed: 76px;
   --topbar-height: 72px;
+  /* One container system for every screen. The topbar, each page canvas, the
+     page footers and the embedded React dashboard all use these two values, so
+     a heading, the content under it and the footer below it share one left and
+     right edge no matter which screen you are on. Before this, each screen had
+     its own width (FAQ 1000px centred, Logs max 1600px + 84px, Docs a 6vw
+     gutter, Analytics max 1280px + 24px, topbar a flat 40px) and nothing
+     lined up. */
+  --page-max: 1280px;
+  --page-gutter: clamp(24px, 4vw, 56px);
 }
 
 * {
@@ -23,8 +33,8 @@
 
 html,
 body {
+  height: 100%;
   margin: 0;
-  min-height: 100%;
 }
 
 body {
@@ -32,7 +42,11 @@ body {
   color: var(--ink);
   font-family: "Inter", sans-serif;
   font-size: 16px;
-  overflow-x: hidden;
+  /* The app shell owns its own scroll region (.screen-stack); the document
+     itself never scrolls. Without this the page grew its own scrollbar on top
+     of the panel's, so the bar on the right belonged to the document and ran
+     past the fixed topbar instead of belonging to the content. */
+  overflow: hidden;
 }
 
 button,
@@ -84,24 +98,139 @@ textarea:focus-visible {
   border: 0;
 }
 
+/* The shell is a fixed-height row: sidebar column + main column. Both are
+   exactly one viewport tall and each scrolls internally, so the sidebar can
+   never drift out of sync with the content next to it. */
 .app-shell {
-  min-height: 100vh;
+  display: flex;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 /* Shared shell */
 .sidebar {
-  position: fixed;
-  inset: 0 auto 0 0;
+  position: relative;
   z-index: 30;
   display: flex;
   width: var(--sidebar-width);
-  min-height: 100vh;
+  height: 100%;
+  flex: 0 0 var(--sidebar-width);
   flex-direction: column;
   overflow: hidden;
   border-right: 1px solid rgba(244, 241, 234, 0.15);
   background: linear-gradient(160deg, #151515 0%, #060606 48%, #130607 100%);
   color: var(--paper);
   isolation: isolate;
+  transition:
+    width 0.22s ease,
+    flex-basis 0.22s ease;
+}
+
+/* Collapsed rail: icons only. The labels stay in the DOM (screen readers and
+   the title= tooltips still use them), they are just not laid out. */
+body.sidebar-collapsed .sidebar {
+  width: var(--sidebar-width-collapsed);
+  flex-basis: var(--sidebar-width-collapsed);
+}
+
+/* The rail is only 76px wide, so the brand row trades the logo lockup for the
+   toggle itself -- that keeps one obvious, centred control to expand again. */
+body.sidebar-collapsed .brand-mark-link,
+body.sidebar-collapsed .brand-copy,
+body.sidebar-collapsed .nav-link-label,
+body.sidebar-collapsed .conversation-history,
+body.sidebar-collapsed .account-copy,
+body.sidebar-collapsed .sidebar::after {
+  display: none;
+}
+
+body.sidebar-collapsed .brand {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+body.sidebar-collapsed .sidebar-nav {
+  padding-inline: 12px;
+}
+
+body.sidebar-collapsed .nav-link {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+/* .conversation-history is the flex:1 spacer that normally pushes this panel to
+   the bottom; hiding it in the rail means the account panel needs its own
+   margin-top:auto or it rides up under the nav. The grid also has to drop to a
+   single column -- justify-content does nothing to a grid whose template still
+   declares three tracks. Avatar and logout stack vertically rather than the
+   logout being dropped: hiding it would have left no way to sign out without
+   expanding the sidebar first. */
+body.sidebar-collapsed .account-panel {
+  grid-template-columns: 42px;
+  justify-content: center;
+  gap: 6px;
+  margin-top: auto;
+  margin-inline: auto;
+  padding: 8px;
+}
+
+body.sidebar-collapsed .account-action {
+  width: 42px;
+  height: 32px;
+  justify-self: center;
+}
+
+/* The rail has no scrolling content left (history and the watermark are both
+   hidden), so it can drop the clip that .sidebar carries for the expanded
+   state -- otherwise the account popover, which has to escape a 76px column to
+   be readable, gets cut off at the rail's edge. */
+body.sidebar-collapsed .sidebar {
+  overflow: visible;
+}
+
+body.sidebar-collapsed .account-popover {
+  left: calc(100% + 10px);
+  bottom: 0;
+  width: 210px;
+}
+
+body.sidebar-collapsed .account-popover::after {
+  left: -5px;
+  top: auto;
+  bottom: 18px;
+  transform: rotate(45deg);
+}
+
+.sidebar-collapse {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  margin-left: auto;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(244, 241, 234, 0.6);
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.sidebar-collapse:hover {
+  border-color: rgba(244, 241, 234, 0.16);
+  background: rgba(244, 241, 234, 0.1);
+  color: var(--paper-light);
+}
+
+.sidebar-collapse .material-symbols-outlined {
+  font-size: 20px;
+}
+
+body.sidebar-collapsed .sidebar-collapse {
+  margin-left: 0;
 }
 
 .sidebar::before {
@@ -127,16 +256,17 @@ textarea:focus-visible {
   position: relative;
   z-index: 1;
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
-  gap: 16px;
-  min-height: 136px;
-  padding: 36px 30px 38px;
+  gap: 14px;
+  min-height: 88px;
+  padding: 20px 26px;
   border-bottom: 1px solid rgba(244, 241, 234, 0.15);
 }
 
 .brand-mark-link {
   display: block;
-  flex: 0 0 54px;
+  flex: 0 0 42px;
   line-height: 0;
 }
 
@@ -147,14 +277,14 @@ textarea:focus-visible {
 
 .brand-mark {
   display: block;
-  width: 54px;
-  height: 54px;
-  flex: 0 0 54px;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
   border: 1px solid rgba(244, 241, 234, 0.24);
   border-radius: 0;
   object-fit: cover;
   box-shadow:
-    0 16px 36px rgba(0, 0, 0, 0.28),
+    0 12px 26px rgba(0, 0, 0, 0.28),
     inset 0 0 0 1px rgba(244, 241, 234, 0.08);
 }
 
@@ -166,10 +296,10 @@ textarea:focus-visible {
 
 .brand-copy strong {
   font-family: "Instrument Sans", sans-serif;
-  font-size: 23px;
+  font-size: 19px;
   font-weight: 700;
   letter-spacing: 0;
-  line-height: 26px;
+  line-height: 22px;
 }
 
 .brand-copy span {
@@ -185,19 +315,24 @@ textarea:focus-visible {
   position: relative;
   z-index: 1;
   display: flex;
-  flex: 1;
+  /* Fixed to its content height — NOT flex:1. It used to share flex:1 with
+     .conversation-history-list below, so the two fought over the sidebar's
+     vertical space and the chat history lost, capping visible rows at ~2
+     regardless of window height. Nav is a short fixed list; only the chat
+     history should grow to fill the rest. */
+  flex: 0 0 auto;
   flex-direction: column;
-  padding-top: 28px;
+  padding-top: 14px;
 }
 
 .nav-link {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   width: 100%;
-  min-height: 54px;
-  padding: 14px 32px;
+  min-height: 42px;
+  padding: 9px 32px;
   border: 0;
   border-left: 3px solid transparent;
   background: transparent;
@@ -211,13 +346,17 @@ textarea:focus-visible {
     border-color 0.18s ease;
 }
 
+.nav-link .material-symbols-outlined {
+  font-size: 19px;
+}
+
 .nav-link::before {
   display: none;
 }
 
 .nav-link span:last-child {
   font-family: "Instrument Sans", sans-serif;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   letter-spacing: -0.01em;
 }
@@ -242,12 +381,15 @@ textarea:focus-visible {
   position: relative;
   z-index: 1;
   display: grid;
+  flex: 0 0 auto;
   grid-template-columns: 42px minmax(0, 1fr) 34px;
   align-items: center;
   gap: 12px;
-  min-height: 64px;
-  margin: auto 16px 22px;
-  padding: 11px 10px 11px 12px;
+  min-height: 56px;
+  /* Fixed top margin, not auto — auto would also fight
+     .conversation-history-list's flex-grow for the same leftover space. */
+  margin: 10px 14px 14px;
+  padding: 9px 10px 9px 12px;
   overflow: visible;
   border: 1px solid rgba(244, 241, 234, 0.055);
   border-radius: 8px;
@@ -455,35 +597,44 @@ body[data-role="admin"] .account-action:hover {
   color: var(--paper-light);
 }
 
+/* Second column of .app-shell: a fixed-height flex column holding a static
+   topbar and one scrollable content region beneath it. The topbar used to be
+   position:fixed and the content compensated with padding-top, which meant the
+   page scrolled underneath a translucent bar and the document owned the
+   scrollbar. */
 .main-panel {
+  display: flex;
   min-width: 0;
-  min-height: 100vh;
-  margin-left: var(--sidebar-width);
+  height: 100%;
+  flex: 1;
+  flex-direction: column;
   background: var(--paper);
 }
 
 .topbar {
-  position: fixed;
-  inset: 0 0 auto var(--sidebar-width);
+  position: relative;
   z-index: 20;
   display: flex;
   height: var(--topbar-height);
+  flex: 0 0 auto;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 40px;
+  /* Mirrors the scrollbar gutter that .screen-stack reserves below, so the two
+     share one content box and their centred children line up exactly.
+     --scrollbar-width is measured once at startup in app.js. */
+  padding-right: var(--scrollbar-width, 0px);
   border-bottom: 1px solid var(--line);
-  background: rgba(244, 241, 234, 0.96);
-  backdrop-filter: blur(12px);
+  background: var(--paper);
 }
 
-.topbar::after {
-  position: absolute;
-  right: 0;
-  bottom: -1px;
-  width: clamp(80px, 9vw, 140px);
-  height: 2px;
-  background: var(--red);
-  content: "";
+.topbar-inner {
+  display: flex;
+  width: 100%;
+  max-width: var(--page-max);
+  height: 100%;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 auto;
+  padding: 0 var(--page-gutter);
 }
 
 .topbar-title,
@@ -492,6 +643,7 @@ body[data-role="admin"] .account-action:hover {
   align-items: center;
 }
 .topbar-title {
+  min-width: 0;
   gap: 16px;
 }
 
@@ -602,29 +754,60 @@ body[data-role="admin"] .account-action:hover {
   height: 36px;
 }
 
+/* The app's single scroll region. Every screen lives inside it, so the
+   scrollbar always belongs to the content and stops below the topbar. */
 .screen-stack {
-  min-height: 100vh;
-  padding-top: var(--topbar-height);
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow-y: auto;
+  /* Always reserve the scrollbar gutter, so the content box is the same width
+     whether or not a screen happens to overflow -- switching screens no longer
+     shifts the layout sideways. .topbar matches it with an equal padding-right
+     (see below) so both end up with an identical content box and a centred page
+     lines up with the centred topbar. */
+  scrollbar-gutter: stable;
+  scrollbar-color: var(--line) transparent;
+  scrollbar-width: thin;
 }
 .screen {
   display: none;
-  min-height: calc(100vh - var(--topbar-height));
+  min-height: 100%;
 }
 .screen.is-active {
   display: flex;
+  flex: 1;
   animation: screen-in 0.35s ease both;
+}
+
+/* Chat is the exception: its thread scrolls on its own and the composer stays
+   pinned, so the screen itself must not add a second scrollbar. */
+.screen-stack:has(> .chat-screen.is-active) {
+  overflow-y: hidden;
+}
+
+/* Every screen stacks its content vertically. Without this the analytics
+   screen stayed a row container, so the embedded dashboard was a row flex item
+   that shrink-to-fit its 1280px max-width instead of stretching -- leaving its
+   own mx-auto no leftover space to distribute, which pinned the whole page to
+   the left edge whenever the sidebar was collapsed and the panel got wider
+   than 1280px. Every other screen already sets this. */
+.analytics-screen {
+  flex-direction: column;
 }
 
 /* Chat */
 .chat-screen {
   position: relative;
+  min-height: 0;
   flex-direction: column;
+  overflow: hidden;
   transition: background 0.28s ease;
 }
 
 .chat-screen.is-empty {
   justify-content: center;
-  min-height: calc(100vh - var(--topbar-height));
   padding: clamp(24px, 4vh, 48px) 0 clamp(30px, 5vh, 58px);
 }
 
@@ -654,12 +837,15 @@ body[data-role="admin"] .account-action:hover {
 .chat-thread {
   position: relative;
   display: flex;
+  width: 100%;
+  max-width: var(--page-max);
   min-height: 0;
   flex: 1;
   flex-direction: column;
   gap: 34px;
+  margin: 0 auto;
   overflow-y: auto;
-  padding: 48px clamp(40px, 6vw, 88px) 28px;
+  padding: 48px var(--page-gutter) 28px;
   scrollbar-color: var(--red) transparent;
   scrollbar-width: thin;
 }
@@ -1315,8 +1501,11 @@ body[data-role="admin"] .account-action:hover {
   position: sticky;
   bottom: 0;
   z-index: 12;
+  width: 100%;
+  max-width: var(--page-max);
   flex: 0 0 auto;
-  padding: 18px clamp(40px, 6vw, 88px) 20px;
+  margin: 0 auto;
+  padding: 18px var(--page-gutter) 20px;
   border-top: 0;
   background:
     linear-gradient(180deg, rgba(244, 241, 234, 0), var(--paper) 28%),
@@ -1394,7 +1583,14 @@ body[data-role="admin"] .account-action:hover {
 .composer textarea::placeholder {
   color: rgba(90, 88, 82, 0.75);
 }
-.send-button {
+#sendButton.send-button {
+  /* #sendButton (not just .send-button) so this box sizing always wins over
+     any later, equal-specificity `.material-symbols-outlined { max-width: 1em }`
+     rule -- the embedded analytics dashboard bundle (dashboard.css) ships its
+     own copy of that class for standalone use, loaded after this stylesheet,
+     and previously re-imposed the 1em cap here, shrinking the button to a
+     sliver (and to 0 width, i.e. invisible, once .is-stopping zeroes the
+     font-size that 1em is relative to). */
   position: absolute;
   right: 12px;
   top: 12px;
@@ -1424,7 +1620,12 @@ body[data-role="admin"] .account-action:hover {
   background: var(--ink);
   transform: translateX(2px);
 }
-.send-button.is-stopping {
+/* #sendButton.send-button above wins on ID specificity, so the stopping state
+   has to match it or the button keeps the red send background while it is
+   actually a stop control. Hover stays dark for the same reason it is dark at
+   rest -- the cursor is already sitting on the button the moment Send turns
+   into Stop, so a red hover made it look red essentially all of the time. */
+#sendButton.send-button.is-stopping {
   background: var(--ink);
   color: transparent;
   font-size: 0;
@@ -1441,8 +1642,8 @@ body[data-role="admin"] .account-action:hover {
   content: "";
   transform: translate(-50%, -50%);
 }
-.send-button.is-stopping:hover {
-  background: var(--red);
+#sendButton.send-button.is-stopping:hover {
+  background: var(--ink-soft);
   transform: scale(0.96);
 }
 .send-button:disabled {
@@ -1465,10 +1666,11 @@ body[data-role="admin"] .account-action:hover {
   flex-direction: column;
 }
 .faq-canvas {
-  width: min(1000px, calc(100% - 96px));
+  width: 100%;
+  max-width: var(--page-max);
   flex: 1;
   margin: 0 auto;
-  padding: 72px 0 96px;
+  padding: 72px var(--page-gutter) 96px;
 }
 .page-intro {
   max-width: 820px;
@@ -1485,12 +1687,17 @@ body[data-role="admin"] .account-action:hover {
   content: "";
 }
 
-.page-intro::before,
-.policy-intro::before {
+/* The kicker text comes from the .section-label element in the markup, not
+   from a CSS content: string. It used to be hardcoded here ("FAQ", overridden
+   to "OFFICIAL DOCUMENTATION" for .policy-intro), which meant the Guardrails
+   screen -- which reuses .policy-canvas -- was captioned "OFFICIAL
+   DOCUMENTATION" while its own markup said "AI Behavior". */
+.page-intro .section-label,
+.policy-intro .section-label,
+.logs-intro .section-label {
   display: block;
   margin-bottom: 20px;
   color: var(--red);
-  content: "FAQ";
   font:
     400 10px/16px "JetBrains Mono",
     monospace;
@@ -1498,8 +1705,11 @@ body[data-role="admin"] .account-action:hover {
   text-transform: uppercase;
 }
 
-.policy-intro::before {
-  content: "HR AGENT";
+.page-intro .section-label::before,
+.policy-intro .section-label::before,
+.logs-intro .section-label::before {
+  margin-right: 8px;
+  content: "\25CF";
 }
 
 .page-intro h2,
@@ -1844,19 +2054,29 @@ body[data-faq-state="running"] #faqStatus {
   color: var(--paper);
 }
 
+/* The rule spans the panel, its text lines up with .faq-canvas above it. */
 .faq-footer {
   display: flex;
   min-height: 82px;
   flex: 0 0 auto;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 48px;
   border-top: 1px solid var(--ink);
   color: var(--muted);
   font-family: "JetBrains Mono", monospace;
   font-size: 10px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+}
+
+.faq-footer-inner {
+  display: flex;
+  width: 100%;
+  max-width: var(--page-max);
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 0 auto;
+  padding: 0 var(--page-gutter);
 }
 
 .faq-footer strong {
@@ -1871,13 +2091,19 @@ body[data-faq-state="running"] #faqStatus {
 .policy-canvas {
   display: flex;
   width: 100%;
+  max-width: var(--page-max);
   flex-direction: column;
   gap: 40px;
-  padding: 72px clamp(48px, 6vw, 88px) 64px;
+  margin: 0 auto;
+  padding: 72px var(--page-gutter) 64px;
 }
+/* flex-start, not flex-end: the intro block is ~370px tall once the title
+   wraps, and bottom-aligning the actions left the Filter button stranded
+   beside the last line of body copy instead of reading as a page-header
+   control. */
 .policy-heading {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 48px;
   padding-bottom: 40px;
@@ -1886,14 +2112,8 @@ body[data-faq-state="running"] #faqStatus {
 .policy-intro {
   max-width: 760px;
 }
-.policy-intro::before {
-  content: "● OFFICIAL DOCUMENTATION";
-}
 .policy-intro::after {
   margin-top: 28px;
-}
-.section-label {
-  display: none;
 }
 .policy-intro h2 {
   font-size: clamp(52px, 6vw, 78px);
@@ -2655,9 +2875,11 @@ body[data-role="admin"]
 .logs-canvas {
   display: flex;
   width: 100%;
+  max-width: var(--page-max);
   flex-direction: column;
   gap: 28px;
-  padding: clamp(46px, 6vw, 84px);
+  margin: 0 auto;
+  padding: 72px var(--page-gutter) 64px;
 }
 
 .logs-heading {
@@ -2671,18 +2893,6 @@ body[data-role="admin"]
 
 .logs-intro {
   max-width: 760px;
-}
-
-.logs-intro::before {
-  display: block;
-  margin-bottom: 20px;
-  color: var(--red);
-  content: "● ADMIN MONITORING";
-  font:
-    400 10px/16px "JetBrains Mono",
-    monospace;
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
 }
 
 .logs-intro::after {
@@ -2895,11 +3105,6 @@ body[data-role="admin"]
 /* Chat activity dashboard overrides */
 .logs-canvas {
   gap: 30px;
-}
-
-.logs-intro::before {
-  content: "• DASHBOARD / LOG CHATBOT";
-  font-weight: 400;
 }
 
 .logs-heading {
@@ -3123,8 +3328,6 @@ body[data-role="admin"]
 
 .logs-canvas {
   gap: 38px;
-  max-width: 1600px;
-  margin: 0 auto;
 }
 
 .logs-heading {
@@ -3142,11 +3345,6 @@ body[data-role="admin"]
   height: 3px;
   background: var(--red);
   content: "";
-}
-
-.logs-intro::before {
-  content: "• DASHBOARD / LOG CHATBOT";
-  letter-spacing: 0.16em;
 }
 
 .logs-intro h2 {
@@ -3237,10 +3435,11 @@ body[data-role="admin"]
   transform: translateY(-2px);
 }
 
+/* 44px square to match the search field and the date inputs it sits beside. */
 .logs-refresh-button {
   display: grid;
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   border: 1px solid var(--ink);
   place-items: center;
@@ -3348,8 +3547,18 @@ body[data-role="admin"]
   gap: 18px;
 }
 
+/* Matches the KPI label treatment on the Analytics screen (KpiCard.tsx):
+   15px sentence case, not 10px uppercase mono. The two screens sit next to
+   each other in the admin nav and show the same three metrics, so they should
+   not read as two different design systems. */
 .logs-summary-card .logs-summary-topline > span:first-child {
   margin: 0;
+  color: var(--ink);
+  font:
+    400 15px/1.2 "Instrument Sans",
+    sans-serif;
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 .logs-summary-topline .material-symbols-outlined {
@@ -3404,10 +3613,14 @@ body[data-role="admin"]
   box-shadow: none;
 }
 
+/* flex-end, not center: the START/END fields stack a caption above their input,
+   so centring the row put those inputs ~7px below the search field and the
+   refresh button and nothing in the bar shared a baseline. Aligning to the
+   bottom edge lines every control up and lets the captions float above. */
 .logs-list-toolbar {
   display: flex;
   min-height: 104px;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 28px;
   padding: 22px 24px;
@@ -3442,7 +3655,7 @@ body[data-role="admin"]
 
 .logs-list-actions {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 14px;
 }
 
@@ -4948,24 +5161,44 @@ body.logout-open {
 }
 
 @media (max-width: 960px) {
+  /* Below this width the sidebar leaves the flex row and becomes an overlay
+     drawer, so the main panel gets the full width. The collapse rail is a
+     desktop-only affordance -- on a drawer there is nothing to collapse. */
   .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    flex-basis: var(--sidebar-width);
     overflow-x: hidden;
     overflow-y: auto;
     transform: translateX(-100%);
     transition: transform 0.22s ease;
+  }
+  body.sidebar-collapsed .sidebar {
+    width: var(--sidebar-width);
+    flex-basis: var(--sidebar-width);
+  }
+  body.sidebar-collapsed .brand-mark-link,
+  body.sidebar-collapsed .brand-copy,
+  body.sidebar-collapsed .nav-link-label,
+  body.sidebar-collapsed .conversation-history,
+  body.sidebar-collapsed .account-copy,
+  body.sidebar-collapsed .account-action {
+    display: revert;
+  }
+  body.sidebar-collapsed .brand,
+  body.sidebar-collapsed .nav-link,
+  body.sidebar-collapsed .account-panel {
+    justify-content: revert;
+    padding-inline: revert;
+  }
+  .sidebar-collapse {
+    display: none;
   }
   .nav-link:hover {
     transform: none;
   }
   body.nav-open .sidebar {
     transform: translateX(0);
-  }
-  .main-panel {
-    margin-left: 0;
-  }
-  .topbar {
-    left: 0;
-    padding: 0 24px;
   }
   .menu-toggle {
     display: grid;
@@ -4990,9 +5223,7 @@ body.logout-open {
 @media (max-width: 640px) {
   :root {
     --topbar-height: 64px;
-  }
-  .topbar {
-    padding: 0 16px;
+    --page-gutter: 16px;
   }
   .topbar-title {
     gap: 8px;
@@ -5087,7 +5318,7 @@ body.logout-open {
     min-height: 58px;
     padding: 15px 58px 15px 16px;
   }
-  .send-button {
+  #sendButton.send-button {
     width: 38px;
     height: 38px;
   }
@@ -5102,8 +5333,9 @@ body.logout-open {
   .page-intro {
     margin-bottom: 46px;
   }
-  .page-intro::before,
-  .policy-intro::before {
+  .page-intro .section-label,
+  .policy-intro .section-label,
+  .logs-intro .section-label {
     margin-bottom: 16px;
     font-size: 9px;
   }
@@ -5273,10 +5505,6 @@ body.logout-open {
   display: none;
 }
 
-.logs-screen .logs-intro::before {
-  content: "DASHBOARD / CHATBOT LOGS";
-}
-
 .logs-screen .logs-live-indicator,
 .logs-screen .logs-filter-form,
 .logs-screen .logs-filter-group,
@@ -5299,7 +5527,7 @@ body.logout-open {
 
 .logs-screen .logs-date-range {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 10px;
 }
 
@@ -5801,14 +6029,18 @@ body.logout-open {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
-  min-height: 0;
-  margin-top: 8px;
-  padding: 0 16px 12px;
+  min-height: 60px;
+  margin-top: 4px;
+  /* 12px here + 23px on the rows below lands their content on 35px, the same
+     left edge as .nav-link (3px transparent border + 32px padding), so the
+     chat list and the nav buttons share one vertical line. */
+  padding: 0 12px 8px;
   overflow: hidden;
+  border-top: 1px solid rgba(244, 241, 234, 0.1);
 }
 
 .conversation-history-heading {
-  padding: 8px 4px;
+  padding: 10px 6px 6px 23px;
   color: rgba(244, 241, 234, 0.4);
   font:
     400 10px/16px "JetBrains Mono",
@@ -5817,6 +6049,9 @@ body.logout-open {
   text-transform: uppercase;
 }
 
+/* Scrolls, but shows no scrollbar at all -- the same treatment ChatGPT, Claude
+   and Gemini give their chat history rails. The list still scrolls by wheel,
+   trackpad, keyboard and touch; only the indicator is gone. */
 .conversation-history-list {
   display: flex;
   flex: 1 1 auto;
@@ -5824,6 +6059,43 @@ body.logout-open {
   min-height: 0;
   gap: 2px;
   overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.conversation-history-list::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+/* Thin, near-invisible scrollbar that brightens on hover/scroll — the
+   Claude/ChatGPT sidebar pattern. scrollbar-color above covers Firefox;
+   these cover Chromium/WebKit, which ignore scrollbar-color's thumb hue
+   at this alpha reliably enough to need the explicit pseudo-elements. */
+.conversation-history-list::-webkit-scrollbar,
+.sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+.conversation-history-list::-webkit-scrollbar-track,
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.conversation-history-list::-webkit-scrollbar-thumb,
+.sidebar::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background-color: rgba(244, 241, 234, 0.14);
+  background-clip: padding-box;
+  border: 1.5px solid transparent;
+  transition: background-color 0.15s ease;
+}
+.conversation-history-list:hover::-webkit-scrollbar-thumb,
+.sidebar:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(244, 241, 234, 0.3);
+}
+.conversation-history-list::-webkit-scrollbar-thumb:hover,
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(244, 241, 234, 0.45);
 }
 
 .conversation-history-empty {
@@ -5851,7 +6123,7 @@ body.logout-open {
   align-items: center;
   min-width: 0;
   gap: 10px;
-  padding: 9px 8px;
+  padding: 9px 8px 9px 23px;
   border: 0;
   background: transparent;
   color: rgba(244, 241, 234, 0.72);
