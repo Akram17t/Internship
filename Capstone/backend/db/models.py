@@ -98,6 +98,21 @@ class ConversationMessage(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
+    # Answer provenance, kept so reopening an old conversation still shows the
+    # same "Model"/"Hit cache" badge and working feedback buttons the message
+    # had when it was live. Without these the frontend could only restore
+    # role/content and every restored answer lost its badge and feedback row.
+    # All nullable: user turns never carry them, and rows written before this
+    # column existed have nothing to backfill from.
+    answer_source: Mapped[str | None] = mapped_column(String, nullable=True)
+    feedback_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    feedback_token: Mapped[str | None] = mapped_column(String, nullable=True)
+    duration_ms: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    # Citations and form downloads too, otherwise a reopened answer renders its
+    # inline [1]/[2] markers as bare text instead of clickable source chips.
+    citations_json: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    form_downloads_json: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+
     conversation: Mapped[Conversation | None] = relationship(back_populates="messages")
 
 

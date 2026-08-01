@@ -50,9 +50,33 @@ def _get_conversation_context(conversation_id: str) -> str:
     return get_conversation_context(conversation_id)
 
 
-def _append_conversation_turn(conversation_id: str, question: str, answer: str) -> None:
-    # Tambahkan satu pasangan turn user/assistant ke cache percakapan.
-    append_conversation_turn(conversation_id, question, answer)
+def _append_conversation_turn(
+    conversation_id: str,
+    question: str,
+    answer: str,
+    *,
+    answer_source: str | None = None,
+    feedback_id: int | None = None,
+    feedback_token: str | None = None,
+    duration_ms: int | None = None,
+    citations: list | None = None,
+    form_downloads: list | None = None,
+) -> None:
+    # Tambahkan satu pasangan turn user/assistant ke cache percakapan, lengkap
+    # dengan asal jawaban, referensi feedback, dan citation supaya percakapan
+    # lama tetap menampilkan badge, tombol feedback, dan chip sumber saat
+    # dibuka kembali.
+    append_conversation_turn(
+        conversation_id,
+        question,
+        answer,
+        answer_source=answer_source,
+        feedback_id=feedback_id,
+        feedback_token=feedback_token,
+        duration_ms=duration_ms,
+        citations=citations,
+        form_downloads=form_downloads,
+    )
 
 
 def _normalize_citation(raw_item: object, index: int) -> CitationResponse | None:

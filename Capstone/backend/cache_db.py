@@ -215,6 +215,27 @@ def _init_schema(connection: sqlite3.Connection) -> None:
             ON faq_items (sort_order, created_at, id);
         """
     )
+    # Answer provenance for stored assistant turns, so reopening a conversation
+    # keeps its "Model"/"Hit cache" badge and feedback row. Added by ALTER for
+    # databases created before these columns existed.
+    message_columns = {
+        str(row["name"])
+        for row in connection.execute("PRAGMA table_info(conversation_messages)")
+    }
+    for column, ddl in (
+        ("answer_source", "ALTER TABLE conversation_messages ADD COLUMN answer_source TEXT"),
+        ("feedback_id", "ALTER TABLE conversation_messages ADD COLUMN feedback_id INTEGER"),
+        ("feedback_token", "ALTER TABLE conversation_messages ADD COLUMN feedback_token TEXT"),
+        ("duration_ms", "ALTER TABLE conversation_messages ADD COLUMN duration_ms INTEGER"),
+        ("citations_json", "ALTER TABLE conversation_messages ADD COLUMN citations_json TEXT"),
+        (
+            "form_downloads_json",
+            "ALTER TABLE conversation_messages ADD COLUMN form_downloads_json TEXT",
+        ),
+    ):
+        if column not in message_columns:
+            connection.execute(ddl)
+
     semantic_columns = {
         str(row["name"])
         for row in connection.execute("PRAGMA table_info(semantic_cache_entries)")
@@ -712,18 +733,38 @@ def get_conversation_messages(conversation_id: str) -> list[dict[str, Any]]:
         with closing(_connect()) as connection:
             rows = connection.execute(
                 """
-                SELECT role, content, created_at
+                SELECT role, content, created_at,
+                       answer_source, feedback_id, feedback_token, duration_ms,
+                       citations_json, form_downloads_json
                 FROM conversation_messages
                 WHERE conversation_id = ?
                 ORDER BY created_at ASC, id ASC
                 """,
                 (conversation_id,),
             ).fetchall()
+
+    def _json_list(raw: object) -> list:
+        # Stored as a TEXT blob on SQLite; a malformed row should degrade to "no
+        # citations" rather than break the whole conversation from loading.
+        if not raw:
+            return []
+        try:
+            parsed = json.loads(str(raw))
+        except (TypeError, ValueError):
+            return []
+        return parsed if isinstance(parsed, list) else []
+
     return [
         {
             "role": str(row["role"]),
             "content": str(row["content"]),
             "created_at": str(row["created_at"]),
+            "answer_source": row["answer_source"],
+            "feedback_id": row["feedback_id"],
+            "feedback_token": row["feedback_token"],
+            "duration_ms": row["duration_ms"],
+            "citations": _json_list(row["citations_json"]),
+            "form_downloads": _json_list(row["form_downloads_json"]),
         }
         for row in rows
     ]
@@ -764,7 +805,18 @@ def get_conversation_context(conversation_id: str) -> str:
     return "\n".join(context_lines)[-MAX_CONVERSATION_CONTEXT_CHARS:]
 
 
-def append_conversation_turn(conversation_id: str, question: str, answer: str) -> None:
+def append_conversation_turn(
+    conversation_id: str,
+    question: str,
+    answer: str,
+    *,
+    answer_source: str | None = None,
+    feedback_id: int | None = None,
+    feedback_token: str | None = None,
+    duration_ms: int | None = None,
+    citations: list | None = None,
+    form_downloads: list | None = None,
+) -> None:
     with STATE_DB_LOCK:
         init_state_db()
         now = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -772,13 +824,31 @@ def append_conversation_turn(conversation_id: str, question: str, answer: str) -
             connection.executemany(
                 """
                 INSERT INTO conversation_messages(
-                    conversation_id, role, content, created_at
+                    conversation_id, role, content, created_at,
+                    answer_source, feedback_id, feedback_token, duration_ms,
+                    citations_json, form_downloads_json
                 )
-                VALUES (?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    (conversation_id, "user", question.strip(), now),
-                    (conversation_id, "assistant", answer.strip(), now),
+                    # Provenance rides on the assistant turn only -- it is the
+                    # one that carries a badge and a feedback row in the UI.
+                    (
+                        conversation_id, "user", question.strip(), now,
+                        None, None, None, None, None, None,
+                    ),
+                    (
+                        conversation_id,
+                        "assistant",
+                        answer.strip(),
+                        now,
+                        answer_source,
+                        feedback_id,
+                        feedback_token,
+                        duration_ms,
+                        json.dumps(citations) if citations else None,
+                        json.dumps(form_downloads) if form_downloads else None,
+                    ),
                 ),
             )
             connection.execute(

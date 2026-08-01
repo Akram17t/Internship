@@ -426,7 +426,11 @@ function renderMessages(scrollBehavior = "auto", options = {}) {
       );
     }
 
-    meta.textContent = `${isAssistant ? "AI Assistant" : "You"} • ${message.timestamp || "Just now"}`;
+    // No timestamp: the thread is already in chronological order, and a
+    // restored conversation rendered a raw locale string ("8/1/2026, 2:03:08 PM")
+    // next to live messages saying "Just now", which read as two different
+    // formats for the same field.
+    meta.textContent = isAssistant ? "AI Assistant" : "You";
     if (isAssistant && message.answer_source) {
       const source = document.createElement("span");
       source.className = `message-source message-source--${message.answer_source}`;
@@ -504,6 +508,12 @@ function renderFeedbackRow(row, message) {
 
 async function submitThumbsUp(message, row) {
   if (!message?.feedback_id || !message.feedback_token || message.feedback?.rating) return;
+
+  // Optimistic update: tampilkan "Thanks" seketika, kirim request di background.
+  message.feedback = { rating: "thumbs_up" };
+  persistMessages();
+  renderFeedbackRow(row, message);
+
   try {
     const response = await fetch("/api/feedback", {
       method: "POST",
@@ -519,9 +529,11 @@ async function submitThumbsUp(message, row) {
     if (!response.ok) {
       throw new Error(formatApiError(payload.detail, "Failed to send feedback."));
     }
-    message.feedback = payload.feedback || { rating: "thumbs_up" };
-    persistMessages();
-    renderFeedbackRow(row, message);
+    // Sync dengan response server kalau ada data tambahan.
+    if (payload.feedback) {
+      message.feedback = payload.feedback;
+      persistMessages();
+    }
   } catch (error) {
     console.warn("Failed to send thumbs-up feedback.", error);
   }

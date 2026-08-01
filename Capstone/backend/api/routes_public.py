@@ -287,8 +287,6 @@ def query_knowledge_base(
                     feedback_token=feedback_token,
                 ),
             ) from error
-        _append_conversation_turn(conversation_id, payload.question, answer)
-        logger.debug("[chat:%s] Conversation history saved", conversation_id)
         citations = [
             CitationResponse(
                 **citation,
@@ -337,6 +335,21 @@ def query_knowledge_base(
             cache_citations=raw_citations,
             cache_selected_forms=selected_form_names,
         )
+        # Saved after _record_chat_activity, not before it: feedback_id is the
+        # activity log's own id, so the turn cannot store a working feedback
+        # reference until that row exists.
+        _append_conversation_turn(
+            conversation_id,
+            payload.question,
+            answer,
+            answer_source=answer_source,
+            feedback_id=activity_log_id,
+            feedback_token=feedback_token if activity_log_id is not None else None,
+            duration_ms=int(response_time_seconds * 1000),
+            citations=[citation.model_dump() for citation in citations],
+            form_downloads=[form.model_dump() for form in form_downloads],
+        )
+        logger.debug("[chat:%s] Conversation history saved", conversation_id)
         try:
             from backend.preprocessing.vectorstore import get_active_index_name
 

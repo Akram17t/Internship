@@ -112,6 +112,14 @@ class ConversationMessage(BaseModel):
     role: Literal["user", "assistant"]
     content: str
     created_at: str
+    # Assistant turns only; None on user turns and on rows stored before these
+    # were persisted.
+    answer_source: str | None = None
+    feedback_id: int | None = None
+    feedback_token: str | None = None
+    duration_ms: int | None = None
+    citations: list[CitationResponse] = Field(default_factory=list)
+    form_downloads: list[FormDownloadResponse] = Field(default_factory=list)
 
 
 class ConversationMessagesResponse(BaseModel):

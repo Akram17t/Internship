@@ -76,10 +76,19 @@ async function openConversation(conversationId) {
 
     state.conversationId = conversationId;
     window.localStorage.setItem(CONVERSATION_STORAGE_KEY, conversationId);
+    // Carry the answer provenance through, not just role/content -- otherwise a
+    // reopened conversation loses its "Model"/"Hit cache" badge and its feedback
+    // buttons, which is what made restored answers look different from live ones.
     state.messages = messages.map((message) => ({
       role: message.role,
       content: message.content,
-      timestamp: formatHistoryTimestamp(message.created_at),
+      answer_source: message.answer_source || "",
+      feedback_id: message.feedback_id ?? null,
+      feedback_token: message.feedback_token || "",
+      feedback: message.feedback ?? null,
+      duration_ms: Number.isFinite(message.duration_ms) ? message.duration_ms : undefined,
+      citations: Array.isArray(message.citations) ? message.citations : [],
+      form_downloads: Array.isArray(message.form_downloads) ? message.form_downloads : [],
     }));
     persistMessages();
     navigateTo("chat");
@@ -88,12 +97,6 @@ async function openConversation(conversationId) {
   } catch (error) {
     console.warn("Failed to open conversation.", error);
   }
-}
-
-function formatHistoryTimestamp(value) {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "";
-  return parsed.toLocaleString();
 }
 
 function beginInlineRename(item, titleEl, inputEl) {

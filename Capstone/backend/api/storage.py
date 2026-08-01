@@ -347,13 +347,17 @@ def _content_matches_form(form: FormDownloadResponse, text: str) -> bool:
     if not text_key:
         return False
     text_tokens = set(text_key.split())
-    has_form_intent = bool(text_tokens.intersection(FORM_INTENT_TERMS))
     form_tokens = {
         token
         for token in _relation_key(f"{form.name} {form.display_name}").split()
         if len(token) > 2 and token not in {"template", "form"}
     }
-    return has_form_intent or bool(text_tokens.intersection(form_tokens))
+    # Form token harus cocok dengan teks pertanyaan/jawaban -- "ada intent form
+    # di teks" saja tidak cukup karena kata generik seperti "form", "procedure",
+    # atau "request" muncul di hampir semua jawaban dan bisa mentrigger form
+    # yang sama sekali tidak berkaitan (misal: form perjalanan dinas muncul
+    # saat user tanya tentang organogram).
+    return bool(text_tokens.intersection(form_tokens))
 
 
 def _related_form_downloads_for_citations(

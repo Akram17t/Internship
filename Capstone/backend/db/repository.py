@@ -327,6 +327,12 @@ def get_conversation_messages(conversation_id: str) -> list[dict[str, Any]]:
                 "role": row.role,
                 "content": row.content,
                 "created_at": row.created_at.isoformat(timespec="seconds"),
+                "answer_source": row.answer_source,
+                "feedback_id": row.feedback_id,
+                "feedback_token": row.feedback_token,
+                "duration_ms": row.duration_ms,
+                "citations": row.citations_json or [],
+                "form_downloads": row.form_downloads_json or [],
             }
             for row in rows
         ]
@@ -350,7 +356,18 @@ def get_conversation_context(conversation_id: str) -> str:
     return "\n".join(context_lines)[-MAX_CONVERSATION_CONTEXT_CHARS:]
 
 
-def append_conversation_turn(conversation_id: str, question: str, answer: str) -> None:
+def append_conversation_turn(
+    conversation_id: str,
+    question: str,
+    answer: str,
+    *,
+    answer_source: str | None = None,
+    feedback_id: int | None = None,
+    feedback_token: str | None = None,
+    duration_ms: int | None = None,
+    citations: list | None = None,
+    form_downloads: list | None = None,
+) -> None:
     with _session() as session:
         now = _now()
         session.add_all(
@@ -361,11 +378,19 @@ def append_conversation_turn(conversation_id: str, question: str, answer: str) -
                     content=question.strip(),
                     created_at=now,
                 ),
+                # Provenance rides on the assistant turn only -- it is the one
+                # that carries a badge and a feedback row in the UI.
                 ConversationMessage(
                     conversation_id=conversation_id,
                     role="assistant",
                     content=answer.strip(),
                     created_at=now,
+                    answer_source=answer_source,
+                    feedback_id=feedback_id,
+                    feedback_token=feedback_token,
+                    duration_ms=duration_ms,
+                    citations_json=citations or None,
+                    form_downloads_json=form_downloads or None,
                 ),
             ]
         )

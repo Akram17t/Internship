@@ -70,10 +70,15 @@ textarea:focus-visible {
   outline-offset: 3px;
 }
 
+/* No max-width/overflow cap here. Material Symbols glyphs advance wider than
+   1em, so capping them sliced the right edge off every icon in the app (28 of
+   them measured: `chat` rendered 19px of a 24px glyph, `person_add` 17 of 24).
+   The cap was only ever guarding against the ligature name flashing as text
+   before the icon font loads -- `&display=block` on the font URL in index.html
+   handles that properly by keeping the glyph invisible until the font is
+   ready, instead of mutilating it forever after. */
 .material-symbols-outlined {
   display: inline-block;
-  max-width: 1em;
-  overflow: hidden;
   font-family: "Material Symbols Outlined";
   font-size: 21px;
   font-variation-settings:
@@ -259,8 +264,8 @@ body.sidebar-collapsed .sidebar-collapse {
   flex: 0 0 auto;
   align-items: center;
   gap: 14px;
-  min-height: 88px;
-  padding: 20px 26px;
+  height: var(--topbar-height);
+  padding: 0 26px;
   border-bottom: 1px solid rgba(244, 241, 234, 0.15);
 }
 
@@ -332,7 +337,9 @@ body.sidebar-collapsed .sidebar-collapse {
   gap: 12px;
   width: 100%;
   min-height: 42px;
-  padding: 9px 32px;
+  /* 3px active-marker border + 23px = content on 26px, the same left edge as
+     the logo in .brand above, so the whole rail reads on one vertical line. */
+  padding: 9px 32px 9px 23px;
   border: 0;
   border-left: 3px solid transparent;
   background: transparent;
@@ -905,7 +912,11 @@ body[data-role="admin"] .account-action:hover {
   font-size: 16px;
   line-height: 1.62;
   box-shadow: 0 16px 40px rgba(10, 10, 10, 0.035);
-  word-break: break-word;
+  /* overflow-wrap, not `word-break: break-word`: the latter is free to split a
+     word mid-character even when a space is available, which chopped table
+     headings into "Penanggun / g Jawab". This only breaks a token that genuinely
+     cannot fit on its own line (a long URL or filename). */
+  overflow-wrap: break-word;
 }
 
 .message.is-assistant .message-bubble {
@@ -931,19 +942,36 @@ body[data-role="admin"] .account-action:hover {
 
 .message-bubble p {
   margin: 0;
+  line-height: 1.65;
 }
 .message-bubble p + p {
-  margin-top: 12px;
+  margin-top: 10px;
+}
+.message-bubble ul,
+.message-bubble ol {
+  margin: 8px 0 4px;
+  padding-left: 24px;
+  line-height: 1.65;
 }
 .message-bubble ul {
-  margin: 12px 0 0;
-  padding-left: 20px;
+  list-style-type: disc;
 }
 .message-bubble ol {
-  margin: 12px 0 0;
-  padding-left: 22px;
+  list-style-type: decimal;
 }
-.message-bubble .message-list li + li {
+.message-bubble ul ul,
+.message-bubble ol ul {
+  list-style-type: circle;
+  margin: 4px 0;
+}
+.message-bubble li {
+  margin-top: 5px;
+}
+.message-bubble li:first-child {
+  margin-top: 0;
+}
+.message-bubble p + ul,
+.message-bubble p + ol {
   margin-top: 6px;
 }
 .message-bubble .message-heading {
@@ -1084,38 +1112,37 @@ body[data-role="admin"] .account-action:hover {
 }
 
 .message-feedback-button {
-  display: inline-grid;
-  box-sizing: border-box;
-  width: 30px;
-  height: 30px;
-  min-width: 30px;
-  aspect-ratio: 1 / 1;
-  margin: -6px 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  margin: 0;
   padding: 0;
-  border: 1px solid var(--red);
-  border-radius: 50%;
+  border: none;
+  border-radius: 0;
   appearance: none;
-  place-items: center;
   background: transparent;
   color: var(--red);
   font-family: "Material Symbols Outlined";
   font-size: 18px;
   line-height: 1;
   vertical-align: middle;
+  cursor: pointer;
 }
 
 .message-feedback-button:hover,
 .message-feedback-button:focus-visible {
-  border-color: var(--red);
-  background: var(--red);
-  color: var(--paper);
+  color: var(--ink);
+  outline: none;
 }
 
 .message-feedback-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-height: 30px;
+  gap: 6px;
+  min-height: 20px;
   margin-top: 2px;
 }
 
@@ -1140,15 +1167,13 @@ body[data-role="admin"] .account-action:hover {
 }
 
 .message-feedback-button--up {
-  border-color: #167246;
   color: #167246;
 }
 
 .message-feedback-button--up:hover,
 .message-feedback-button--up:focus-visible {
-  border-color: #167246;
-  background: #167246;
-  color: var(--paper);
+  color: #0f4f30;
+  outline: none;
 }
 
 .message-citations {
@@ -2525,8 +2550,10 @@ body[data-reindex-state="running"] .document-reindex-panel {
   gap: 10px;
 }
 
-.related-form-icon {
-  font-size: 18px;
+.related-form-info > .related-form-icon {
+  width: 1em;
+  flex: 0 0 1em;
+  font-size: 16px;
 }
 
 .related-form-title {
@@ -2638,9 +2665,13 @@ body[data-reindex-state="running"] .document-reindex-panel {
   gap: 24px;
   margin-right: auto;
 }
+/* 1em, not a hardcoded 18px: a Material Symbols glyph advances exactly 1em, so
+   pinning the box narrower than the font-size sliced 6px off the right of the
+   PDF/Word/Excel marks. Sizing in em keeps the box correct whatever font-size
+   this icon ends up rendering at. */
 .document-icon {
-  width: 18px;
-  flex: 0 0 18px;
+  width: 1em;
+  flex: 0 0 1em;
   color: var(--red);
   font-size: 20px;
 }
@@ -3913,7 +3944,12 @@ body[data-role="admin"]
     sans-serif;
 }
 
-.log-question-meta {
+/* Scoped under .log-detail so it outranks the catch-all `.log-detail span`
+   (0,1,1) above -- unscoped, this rule lost the cascade and the asker's name
+   rendered at that catch-all's 15px full-ink, nearly as loud as the 17px
+   question itself. It is metadata, so it matches the timestamp beside it in the
+   same row rather than competing with the question. */
+.log-detail .log-question-meta {
   display: block;
   overflow: hidden;
   padding-left: 18px;
@@ -5442,7 +5478,8 @@ body.logout-open {
   }
   .document-meta {
     margin-top: 4px;
-    word-break: break-word;
+    /* See .message-bubble: break only what cannot fit, never mid-word. */
+    overflow-wrap: break-word;
   }
   .document-download {
     align-self: flex-end;
@@ -6031,16 +6068,16 @@ body.logout-open {
   flex-direction: column;
   min-height: 60px;
   margin-top: 4px;
-  /* 12px here + 23px on the rows below lands their content on 35px, the same
-     left edge as .nav-link (3px transparent border + 32px padding), so the
-     chat list and the nav buttons share one vertical line. */
+  /* 12px here + 14px on the rows below lands their content on 26px, the same
+     left edge as .nav-link and the logo, so the chat list, the nav buttons and
+     the brand all share one vertical line. */
   padding: 0 12px 8px;
   overflow: hidden;
   border-top: 1px solid rgba(244, 241, 234, 0.1);
 }
 
 .conversation-history-heading {
-  padding: 10px 6px 6px 23px;
+  padding: 10px 6px 6px 14px;
   color: rgba(244, 241, 234, 0.4);
   font:
     400 10px/16px "JetBrains Mono",
@@ -6123,7 +6160,7 @@ body.logout-open {
   align-items: center;
   min-width: 0;
   gap: 10px;
-  padding: 9px 8px 9px 23px;
+  padding: 9px 8px 9px 14px;
   border: 0;
   background: transparent;
   color: rgba(244, 241, 234, 0.72);

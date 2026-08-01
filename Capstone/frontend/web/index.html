@@ -11,10 +11,10 @@
       rel="stylesheet"
     />
     <link
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@300,0&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@300,0&display=block"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/assets/styles.css" />
+    <link rel="stylesheet" href="/assets/styles.css?v=20260801-forms-icons-v3" />
     <link rel="stylesheet" href="/assets/dashboard/dashboard.css" />
     <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>
@@ -915,6 +915,11 @@
       </div>
     </div>
 
+    <!-- Vendored locally (no bundler in this app, and no CDN at runtime so the
+         app keeps working offline and cannot be affected by a third-party host).
+         Both must load before markdown.js, which renders answers with them. -->
+    <script src="/assets/vendor/marked.umd.js"></script>
+    <script src="/assets/vendor/purify.min.js"></script>
     <script src="/assets/js/api.js"></script>
     <script src="/assets/js/citations.js"></script>
     <script src="/assets/js/chat.js"></script>

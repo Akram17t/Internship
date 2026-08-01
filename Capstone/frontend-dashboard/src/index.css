@@ -1,7 +1,7 @@
 @import "tailwindcss";
 /* Same icon set as the host app (styles.css) so Analytics doesn't fall back
    to custom SVGs while the rest of the admin panel uses Material Symbols. */
-@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@300,0&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@300,0&display=block");
 
 /* Mirrors :root in frontend/web/assets/styles.css so the embedded
    dashboard renders identically whether these tokens come from this
@@ -45,10 +45,11 @@
   font-family: "JetBrains Mono", monospace;
 }
 
+/* No max-width/overflow cap -- see the matching note in styles.css: it clipped
+   the right edge off every icon. `&display=block` above prevents the ligature
+   name flashing before the font loads. */
 .analytics-dashboard .material-symbols-outlined {
   display: inline-block;
-  max-width: 1em;
-  overflow: hidden;
   font-family: "Material Symbols Outlined";
   font-size: 21px;
   font-variation-settings:
