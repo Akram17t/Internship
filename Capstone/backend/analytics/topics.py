@@ -15,17 +15,25 @@ UNCLASSIFIED_TOPIC = "unclassified"
 CONFIDENCE_THRESHOLD = 0.34
 
 # (topic_code, display name, keywords) - HR/SOP domain relevant to this app.
+#
+# Display names are Indonesian and follow the wording of the SOP documents
+# themselves ("Permintaan Tenaga Kerja", "Tata Tertib ... Area Kantor",
+# "Perjalanan Dinas"), so a reader recognises the dashboard label as the same
+# thing the source document is called. topic_code stays as-is on purpose: it is
+# the stable identifier persisted in analytics.canonical_interactions and used
+# for the Logs filter, so renaming a label never rewrites stored data.
+#
 # Keywords are matched against a normalized (casefolded, punctuation-stripped)
 # version of the question text.
 _TOPIC_RULES: list[tuple[str, str, list[str]]] = [
     (
         "leave_and_attendance",
-        "Leave & Attendance",
+        "Cuti & Kehadiran",
         ["cuti", "izin", "absen", "kehadiran", "leave", "attendance", "lembur", "overtime"],
     ),
     (
         "payroll_and_benefits",
-        "Payroll & Benefits",
+        "Penggajian & Tunjangan",
         [
             "gaji", "payroll", "tunjangan", "bonus", "bpjs", "asuransi", "benefit",
             "reimburse", "reimbursement", "pajak", "pph21", "slip gaji",
@@ -33,7 +41,7 @@ _TOPIC_RULES: list[tuple[str, str, list[str]]] = [
     ),
     (
         "recruitment_and_onboarding",
-        "Recruitment & Onboarding",
+        "Permintaan Tenaga Kerja",
         [
             "rekrutmen", "recruitment", "onboarding", "interview", "wawancara",
             "kontrak kerja", "probation", "masa percobaan", "tenaga kerja",
@@ -41,7 +49,7 @@ _TOPIC_RULES: list[tuple[str, str, list[str]]] = [
     ),
     (
         "performance_and_discipline",
-        "Performance & Discipline",
+        "Kinerja & Kedisiplinan",
         [
             "kinerja", "performance", "penilaian", "sanksi", "sp1", "sp2", "sp3",
             "peringatan", "pelanggaran", "disiplin",
@@ -49,7 +57,7 @@ _TOPIC_RULES: list[tuple[str, str, list[str]]] = [
     ),
     (
         "exit_and_termination",
-        "Exit & Termination",
+        "Pengunduran Diri & PHK",
         [
             "resign", "pengunduran diri", "phk", "pemutusan hubungan kerja",
             "exit interview", "exit clearance", "pesangon",
@@ -57,7 +65,7 @@ _TOPIC_RULES: list[tuple[str, str, list[str]]] = [
     ),
     (
         "workplace_policy_and_facilities",
-        "Workplace Policy & Facilities",
+        "Tata Tertib & Fasilitas Kantor",
         [
             "kebersihan", "kerapihan", "fasilitas", "kantor", "dress code",
             "seragam", "keselamatan kerja", "k3", "tata tertib",
@@ -65,7 +73,7 @@ _TOPIC_RULES: list[tuple[str, str, list[str]]] = [
     ),
     (
         "travel_and_expense",
-        "Travel & Expense",
+        "Perjalanan Dinas",
         [
             "perjalanan dinas", "dinas", "uang muka", "spd", "tiket", "hotel",
             "travel", "business trip",
@@ -73,7 +81,7 @@ _TOPIC_RULES: list[tuple[str, str, list[str]]] = [
     ),
     (
         "it_and_system_access",
-        "IT & System Access",
+        "Akses Sistem & IT",
         [
             "akses sistem", "system access", "password", "akun", "login",
             "email kantor", "vpn", "it support",
@@ -130,4 +138,4 @@ def topic_display_name(topic_code: str) -> str:
     for code, display_name, _keywords in _TOPIC_RULES:
         if code == topic_code:
             return display_name
-    return "Unclassified"
+    return "Tidak Terklasifikasi"
