@@ -15,6 +15,17 @@ show_failure_logs() {
 }
 trap show_failure_logs ERR
 
+echo "Backing up .env.production and docker-compose.yml..."
+BACKUP_DIR="$PROJECT_DIR/deploy/backups"
+mkdir -p "$BACKUP_DIR"
+timestamp="$(date +%Y%m%d-%H%M%S)"
+cp .env.production "$BACKUP_DIR/.env.production.bak.$timestamp"
+cp docker-compose.yml "$BACKUP_DIR/docker-compose.yml.bak.$timestamp"
+# Keep only the 5 most recent backups of each file so these don't pile up.
+for pattern in ".env.production.bak." "docker-compose.yml.bak."; do
+  ls -1t "$BACKUP_DIR"/${pattern}* 2>/dev/null | tail -n +6 | xargs -r rm --
+done
+
 echo "Validating Docker Compose configuration..."
 docker compose config --quiet
 

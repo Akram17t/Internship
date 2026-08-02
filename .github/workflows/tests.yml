@@ -1,0 +1,50 @@
+name: Capstone backend tests
+
+on:
+  push:
+    branches: [main]
+    paths: ["Capstone/**"]
+  pull_request:
+    branches: [main]
+    paths: ["Capstone/**"]
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: hr_agent
+          POSTGRES_PASSWORD: hr_agent_ci_password
+          POSTGRES_DB: hr_agent_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hr_agent -d hr_agent_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://hr_agent:hr_agent_ci_password@localhost:5432/hr_agent_test
+      GOOGLE_CLIENT_ID: ci-placeholder-client-id
+      MODEL: ci-placeholder-model
+      EMBED_MODEL: ci-placeholder-embed-model
+      NSCALE_SERVICE_TOKEN: ci-placeholder-token
+      RERANK_MODEL: ci-placeholder-rerank-model
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        working-directory: Capstone
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests
+        working-directory: Capstone
+        run: python -m pytest -q

@@ -58,7 +58,9 @@ For a single-container VPS deployment, use the provided Dockerfile and
 `docker-compose.yml`. Runtime data is stored in the named Docker volume
 `app_storage`, mounted at `/app/storage` inside the container.
 
-1. Copy the production env template and fill in the API keys:
+1. Copy the production env template and fill in the API keys. `.env.production`
+   is git-ignored -- it holds real secrets, so it's created locally per
+   environment (dev machine, EC2) and never committed:
 
 ```bash
 cp .env.production.example .env.production

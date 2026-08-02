@@ -1,6 +1,7 @@
 .env
-!.env.production
+.env.production
 !.env.production.example
+/deploy/backups/
 .venv/
 __pycache__/
 *.pyc
