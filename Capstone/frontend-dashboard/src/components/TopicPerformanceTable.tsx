@@ -52,7 +52,8 @@ export function TopicPerformanceTable({ topics, dateRange }: TopicPerformanceTab
                   sortKey === "unique_user_count" ? "text-[var(--ink)]" : ""
                 }`}
               >
-                Users asking {sortKey === "unique_user_count" ? "▼" : ""}
+                Users asking{" "}
+                <span className={sortKey === "unique_user_count" ? "" : "invisible"}>▼</span>
               </button>
             </th>
             <th className="border-b border-[var(--line)] py-2.5 pr-3 text-right font-normal">
@@ -63,7 +64,8 @@ export function TopicPerformanceTable({ topics, dateRange }: TopicPerformanceTab
                   sortKey === "interaction_count" ? "text-[var(--ink)]" : ""
                 }`}
               >
-                Questions {sortKey === "interaction_count" ? "▼" : ""}
+                Questions{" "}
+                <span className={sortKey === "interaction_count" ? "" : "invisible"}>▼</span>
               </button>
             </th>
           </tr>
@@ -86,10 +88,15 @@ export function TopicPerformanceTable({ topics, dateRange }: TopicPerformanceTab
                 </td>
                 <td className="py-3 pr-3">
                   <div className="flex items-center gap-2">
-                    <div className="h-2 flex-1 bg-[var(--paper-deep)]">
+                    <div className="h-2 flex-1 rounded-full bg-[var(--paper-deep)]">
                       <div
                         className="h-2"
-                        style={{ width: `${barWidth}%`, backgroundColor: "#bc1823" }}
+                        style={{
+                          width: `${barWidth}%`,
+                          backgroundColor: "var(--red)",
+                          borderTopRightRadius: 4,
+                          borderBottomRightRadius: 4,
+                        }}
                       />
                     </div>
                     <span className="font-mono w-10 shrink-0 text-right tabular-nums text-[var(--ink)]">
