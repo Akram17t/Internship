@@ -150,7 +150,7 @@ async function submitQuestion(rawQuestion) {
     {
       role: "assistant",
       loading: true,
-      loading_text: loadingStageLabels[0],
+      loading_text: getLoadingStageLabels()[0],
       timestamp: "thinking",
     },
   );
@@ -198,7 +198,7 @@ async function submitQuestion(rawQuestion) {
       );
     }
 
-    const fullText = payload.answer || "No answer was returned.";
+    const fullText = payload.answer || I18N.t("chat.noAnswer");
     if (publicConfigPromise) {
       await publicConfigPromise;
     }
@@ -236,11 +236,11 @@ async function submitQuestion(rawQuestion) {
     }
     const errorMessage = formatApiError(
       error?.message || error,
-      "Make sure FastAPI, the AI service, and the embedding database are running.",
+      I18N.t("chat.answerErrorFallback"),
     );
     replaceLoading({
       role: "assistant",
-      content: `I couldn't finish this answer. ${errorMessage}`,
+      content: I18N.t("chat.answerError", { message: errorMessage }),
       citations: [],
       answer_source: "fallback",
       feedback_id: error?.feedback_id || null,
@@ -280,7 +280,7 @@ function stopGeneration() {
   clearLoadingStages();
   replaceLoading({
     role: "assistant",
-    content: "Response stopped.",
+    content: I18N.t("chat.responseStopped"),
     citations: [],
     duration_ms: durationMs,
     timestamp: "Just now",
@@ -369,8 +369,8 @@ function clearLoadingStages() {
 function setLoadingStage(index) {
   const loadingMessage = state.messages.find((item) => item.loading);
   if (!loadingMessage) return;
-  loadingMessage.loading_text =
-    loadingStageLabels[index] || loadingStageLabels.at(-1);
+  const labels = getLoadingStageLabels();
+  loadingMessage.loading_text = labels[index] || labels.at(-1);
   renderMessages("none");
 }
 
@@ -404,13 +404,13 @@ function renderMessages(scrollBehavior = "auto", options = {}) {
 
     article.classList.add(isAssistant ? "is-assistant" : "is-user");
     if (isAssistant) {
-      avatar.alt = "AI Assistant";
+      avatar.alt = I18N.t("chat.assistant");
     } else {
       avatar.remove();
     }
     if (message.loading) {
       article.classList.add("message--loading");
-      bubble.innerHTML = `<span class="loading-dots"><span></span><span></span><span></span></span>${message.loading_text || loadingStageLabels[0]}`;
+      bubble.innerHTML = `<span class="loading-dots"><span></span><span></span><span></span></span>${message.loading_text || getLoadingStageLabels()[0]}`;
     } else if (message.streaming) {
       article.classList.add("message--streaming");
       bubble.classList.add("is-streaming");
@@ -430,7 +430,7 @@ function renderMessages(scrollBehavior = "auto", options = {}) {
     // restored conversation rendered a raw locale string ("8/1/2026, 2:03:08 PM")
     // next to live messages saying "Just now", which read as two different
     // formats for the same field.
-    meta.textContent = isAssistant ? "AI Assistant" : "You";
+    meta.textContent = isAssistant ? I18N.t("chat.assistant") : I18N.t("chat.you");
     if (isAssistant && message.answer_source) {
       const source = document.createElement("span");
       source.className = `message-source message-source--${message.answer_source}`;
@@ -472,20 +472,20 @@ function renderFeedbackRow(row, message) {
   if (message.feedback?.rating) {
     const thanks = document.createElement("span");
     thanks.className = "message-feedback-thanks";
-    thanks.textContent = "Thanks for the feedback";
+    thanks.textContent = I18N.t("chat.feedback.thanks");
     row.append(thanks);
     return;
   }
 
   const label = document.createElement("span");
   label.className = "message-feedback-label";
-  label.textContent = "Is this helpful?";
+  label.textContent = I18N.t("chat.feedback.question");
 
   const upButton = document.createElement("button");
   upButton.className = "message-feedback-button message-feedback-button--up material-symbols-outlined";
   upButton.type = "button";
-  upButton.title = "Mark this answer as helpful";
-  upButton.setAttribute("aria-label", "Mark this answer as helpful");
+  upButton.title = I18N.t("chat.feedback.up");
+  upButton.setAttribute("aria-label", I18N.t("chat.feedback.up"));
   upButton.textContent = "thumb_up";
   upButton.addEventListener("click", (event) => {
     event.preventDefault();
@@ -495,8 +495,8 @@ function renderFeedbackRow(row, message) {
   const downButton = document.createElement("button");
   downButton.className = "message-feedback-button material-symbols-outlined";
   downButton.type = "button";
-  downButton.title = "Report unsatisfying answer";
-  downButton.setAttribute("aria-label", "Report unsatisfying answer");
+  downButton.title = I18N.t("chat.feedback.down");
+  downButton.setAttribute("aria-label", I18N.t("chat.feedback.down"));
   downButton.textContent = "thumb_down";
   downButton.addEventListener("click", (event) => {
     event.preventDefault();
@@ -527,7 +527,7 @@ async function submitThumbsUp(message, row) {
     });
     const payload = await readJsonResponse(response);
     if (!response.ok) {
-      throw new Error(formatApiError(payload.detail, "Failed to send feedback."));
+      throw new Error(formatApiError(payload.detail, I18N.t("feedbackModal.failed")));
     }
     // Sync dengan response server kalau ada data tambahan.
     if (payload.feedback) {
@@ -571,7 +571,7 @@ async function submitFeedback(event) {
   if (!message?.feedback_id || !message.feedback_token) return;
   const reason = String(elements.feedbackReason?.value || "").trim();
   if (reason.length < 5) {
-    setFeedbackStatus("Write a reason with at least 5 characters.");
+    setFeedbackStatus(I18N.t("feedbackModal.reasonTooShort"));
     return;
   }
 
@@ -592,7 +592,7 @@ async function submitFeedback(event) {
     });
     const payload = await readJsonResponse(response);
     if (!response.ok) {
-      throw new Error(formatApiError(payload.detail, "Failed to send feedback."));
+      throw new Error(formatApiError(payload.detail, I18N.t("feedbackModal.failed")));
     }
     message.feedback = payload.feedback || {
       rating: "thumbs_down",
@@ -604,7 +604,7 @@ async function submitFeedback(event) {
     renderMessages("none");
     refreshActivityLogsIfVisible();
   } catch (error) {
-    setFeedbackStatus(error.message || "Failed to send feedback.");
+    setFeedbackStatus(error.message || I18N.t("feedbackModal.failed"));
   } finally {
     state.isSubmittingFeedback = false;
     elements.feedbackSubmitButton.disabled = false;
@@ -671,12 +671,12 @@ function normalizeAnswerSource(value) {
 }
 
 function formatAnswerSource(source) {
-  if (source === "cache") return "Hit cache";
-  if (source === "fallback") return "No evidence";
-  if (source === "out_of_scope") return "Out of scope";
-  if (source === "blocked") return "Blocked";
-  if (source === "no_retrieval") return "No retrieval";
-  return "Model";
+  if (source === "cache") return I18N.t("chat.source.cache");
+  if (source === "fallback") return I18N.t("chat.source.fallback");
+  if (source === "out_of_scope") return I18N.t("chat.source.outOfScope");
+  if (source === "blocked") return I18N.t("chat.source.blocked");
+  if (source === "no_retrieval") return I18N.t("chat.source.noRetrieval");
+  return I18N.t("chat.source.model");
 }
 
 function createCitationChip(citation, index, isInline = false) {
@@ -704,7 +704,7 @@ function createCitationChip(citation, index, isInline = false) {
   tooltip.setAttribute("role", "tooltip");
 
   const title = document.createElement("strong");
-  title.textContent = citation.source || "Unknown source";
+  title.textContent = citation.source || I18N.t("chat.citation.unknownSource");
 
   const meta = document.createElement("span");
   meta.textContent = formatCitationLocation(citation);
@@ -723,7 +723,7 @@ function renderFormDownloads(container, downloads = []) {
 
   const label = document.createElement("span");
   label.className = "form-downloads-label";
-  label.textContent = "Downloadable forms";
+  label.textContent = I18N.t("chat.formDownloads.label");
 
   const list = document.createElement("div");
   list.className = "form-downloads-list";
@@ -748,7 +748,7 @@ function createFormDownloadRow(item) {
   icon.textContent = formDownloadIcon(item);
   icon.dataset.docType = formDownloadTypeGroup(item);
   const text = document.createElement("span");
-  text.textContent = item.label || item.name || "Form";
+  text.textContent = item.label || item.name || I18N.t("chat.formDownloads.item");
   name.append(icon, text);
 
   const fileName = item.name || `${item.label || "form"}.${item.doc_type || "pdf"}`;
@@ -757,8 +757,8 @@ function createFormDownloadRow(item) {
   const downloadButton = document.createElement("button");
   downloadButton.type = "button";
   downloadButton.className = "form-download-action is-primary";
-  downloadButton.textContent = "Download";
-  downloadButton.title = "Download blank form";
+  downloadButton.textContent = I18N.t("chat.formDownloads.download");
+  downloadButton.title = I18N.t("chat.formDownloads.downloadTitle");
   downloadButton.addEventListener("click", () => {
     openTemplateDownload(downloadUrl, fileName, item);
   });
@@ -776,7 +776,7 @@ function formDownloadUrl(item) {
 
 function openTemplateDownload(url, filename, item = null) {
   if (!url) {
-    window.openDocumentErrorModal?.("Form download link not available.", [], "Download failed");
+    window.openDocumentErrorModal?.(I18N.t("chat.formDownloads.noLink"), [], I18N.t("chat.formDownloads.downloadFailedTitle"));
     return;
   }
   if (typeof window.openTemplateDownloadModal === "function") {
@@ -857,7 +857,7 @@ function normalizeFormDownloads(downloads = []) {
     })
     .map((item) => ({
       ...item,
-      label: item.display_name || item.name || "Form",
+      label: item.display_name || item.name || I18N.t("chat.formDownloads.item"),
       doc_type: item.doc_type || "",
       formats: Array.isArray(item.formats) ? item.formats : [],
       used: false,
@@ -886,7 +886,7 @@ function formatCitationLocation(citation) {
       formatCitationPageRange(citation),
     ]
       .filter(Boolean)
-      .join(" - ") || "Location not available"
+      .join(" - ") || I18N.t("chat.citation.noLocation")
   );
 }
 
@@ -895,14 +895,14 @@ function formatCitationPageRange(citation) {
   const pageEnd = Number(citation?.page_end);
   if (!Number.isInteger(page) || page < 1) return null;
   if (Number.isInteger(pageEnd) && pageEnd > page) {
-    return `PDF page ${page}-${pageEnd}`;
+    return I18N.t("chat.citation.pdfPageRange", { start: page, end: pageEnd });
   }
-  return `PDF page ${page}`;
+  return I18N.t("chat.citation.pdfPage", { page });
 }
 
 function formatCitationLabel(citation, index) {
-  return `Sumber ${citation.id || index + 1}: ${
-    citation.source || "Unknown source"
+  return `${I18N.t("chat.citation.sourceLabel", { index: citation.id || index + 1 })}: ${
+    citation.source || I18N.t("chat.citation.unknownSource")
   } - ${formatCitationLocation(citation)}`;
 }
 
@@ -923,12 +923,12 @@ function updateComposer() {
   elements.sendButton.textContent = state.isSubmitting ? "stop" : "send";
   elements.sendButton.setAttribute(
     "aria-label",
-    state.isSubmitting ? "Stop response" : "Send message",
+    state.isSubmitting ? I18N.t("chat.stop") : I18N.t("chat.send"),
   );
   elements.sendButton.classList.toggle("is-stopping", state.isSubmitting);
   elements.chatInput.placeholder = state.isSubmitting
-    ? "Type your next question..."
+    ? I18N.t("chat.placeholder.submitting")
     : isMobile
-      ? "Ask about HR docs..."
-      : "Ask about HR SOPs, onboarding, travel, or internal documents...";
+      ? I18N.t("chat.placeholder.mobile")
+      : I18N.t("chat.placeholder.default");
 }

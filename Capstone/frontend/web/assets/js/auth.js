@@ -138,7 +138,7 @@ function closeLogoutModal() {
 function openDocumentErrorModal(
   summary,
   failures = [],
-  title = "Upload not finished",
+  title = I18N.t("documentErrorModal.title"),
 ) {
   elements.documentErrorTitle.textContent = title;
   elements.documentErrorSummary.textContent = summary;
@@ -146,9 +146,9 @@ function openDocumentErrorModal(
   failures.forEach((failure) => {
     const item = document.createElement("li");
     const name = document.createElement("strong");
-    name.textContent = failure.name || "Document";
+    name.textContent = failure.name || I18N.t("documentErrorModal.defaultDocument");
     const reason = document.createElement("span");
-    reason.textContent = failure.reason || "Upload failed.";
+    reason.textContent = failure.reason || I18N.t("docs.uploadFailed");
     item.append(name, reason);
     elements.documentErrorList.appendChild(item);
   });
@@ -169,13 +169,13 @@ function closeDocumentErrorModal() {
 async function handleNewAdminSubmit(event) {
   event.preventDefault();
   if (!isAdminSession()) {
-    showNewAdminStatus("Your session is invalid. Log in again first.", true);
+    showNewAdminStatus(I18N.t("newAdminModal.sessionInvalid"), true);
     return;
   }
 
   const email = elements.newAdminEmail.value.trim().toLowerCase();
   if (!email.endsWith("@icscompute.com")) {
-    showNewAdminStatus("Email must be an @icscompute.com address.", true);
+    showNewAdminStatus(I18N.t("newAdminModal.emailMustMatch"), true);
     elements.newAdminEmail.focus();
     return;
   }
@@ -190,13 +190,13 @@ async function handleNewAdminSubmit(event) {
     });
     const data = await readJsonResponse(response);
     if (!response.ok) {
-      throw new Error(formatApiError(data.detail, "New admin was not saved."));
+      throw new Error(formatApiError(data.detail, I18N.t("newAdminModal.notSaved")));
     }
 
     elements.newAdminForm.reset();
-    showNewAdminStatus(`Admin ${data.email || payload.email} saved.`, false);
+    showNewAdminStatus(I18N.t("newAdminModal.saved", { email: data.email || payload.email }), false);
   } catch (error) {
-    showNewAdminStatus(error.message || "New admin was not saved.", true);
+    showNewAdminStatus(error.message || I18N.t("newAdminModal.notSaved"), true);
   }
 }
 
@@ -231,24 +231,8 @@ function syncAuth() {
   hideSignInGate();
   const isAdmin = isAdminSession();
   elements.body.dataset.role = isAdmin ? "admin" : "user";
-  elements.accountAvatar.textContent = (state.session.name || state.session.email || "?")
-    .trim()
-    .charAt(0)
-    .toUpperCase() || "?";
-  // The only identity cue left when the sidebar is collapsed to its icon rail.
-  elements.accountAvatar.title = state.session.email || state.session.name || "";
-  elements.accountRoleLabel.textContent = isAdmin ? "Admin mode" : "Signed in";
-  elements.accountName.textContent = state.session.name || state.session.email;
-  elements.accountHint.textContent = isAdmin ? "Admin" : "User";
-  elements.accountPopoverRole.textContent = isAdmin ? "Admin mode" : "Signed in";
-  elements.accountPopoverName.textContent = state.session.email || state.session.name;
-  // Not "the icon on the right": collapsed to the icon rail, the logout button
-  // sits under the avatar rather than beside it.
-  elements.accountPopoverHint.textContent = "Use the logout icon to sign out.";
+  refreshAccountLabels();
   elements.newAdminButton.hidden = !isAdmin;
-  elements.accountActionIcon.textContent = "logout";
-  elements.accountActionText.textContent = "Logout";
-  elements.accountActionButton.setAttribute("aria-label", "Log out");
   if (elements.policyNavLink) elements.policyNavLink.hidden = false;
   if (elements.guardrailsNavLink) elements.guardrailsNavLink.hidden = !isAdmin;
   if (elements.logsNavLink) elements.logsNavLink.hidden = !isAdmin;
@@ -271,6 +255,31 @@ function syncAuth() {
     state.logError = "";
     renderActivityLogs();
   }
+}
+
+// Split out of syncAuth() so refreshDynamicUI() (app.js, on language change)
+// can re-derive these labels from state.session without re-running the
+// nav-visibility/navigation/network side effects that live in syncAuth().
+function refreshAccountLabels() {
+  if (!isLoggedIn()) return;
+  const isAdmin = isAdminSession();
+  elements.accountAvatar.textContent = (state.session.name || state.session.email || "?")
+    .trim()
+    .charAt(0)
+    .toUpperCase() || "?";
+  // The only identity cue left when the sidebar is collapsed to its icon rail.
+  elements.accountAvatar.title = state.session.email || state.session.name || "";
+  elements.accountRoleLabel.textContent = I18N.t(isAdmin ? "account.adminMode" : "account.signedIn");
+  elements.accountName.textContent = state.session.name || state.session.email;
+  elements.accountHint.textContent = I18N.t(isAdmin ? "account.admin" : "account.user");
+  elements.accountPopoverRole.textContent = I18N.t(isAdmin ? "account.adminMode" : "account.signedIn");
+  elements.accountPopoverName.textContent = state.session.email || state.session.name;
+  // Not "the icon on the right": collapsed to the icon rail, the logout button
+  // sits under the avatar rather than beside it.
+  elements.accountPopoverHint.textContent = I18N.t("account.logoutHint");
+  elements.accountActionIcon.textContent = "logout";
+  elements.accountActionText.textContent = I18N.t("account.logout");
+  elements.accountActionButton.setAttribute("aria-label", I18N.t("account.logOutAria"));
 }
 
 function showNewAdminStatus(message, isError) {

@@ -22,12 +22,12 @@ function bindAdminDocuments() {
     event.preventDefault();
     const files = Array.from(elements.documentFileInput.files || []);
     if (!files.length) {
-      showDocumentStatus("Choose a document first.", true);
+      showDocumentStatus(I18N.t("docs.chooseDocumentFirst"), true);
       return;
     }
     await saveDocuments(files);
     elements.adminDocumentForm.reset();
-    elements.documentFileLabel.textContent = "Choose files";
+    elements.documentFileLabel.textContent = I18N.t("docs.chooseFiles");
   });
 
   elements.documentReplaceInput.addEventListener("change", async () => {
@@ -66,7 +66,9 @@ async function saveDocuments(files) {
   const failures = [];
   const insertedItems = [];
   for (const [index, file] of files.entries()) {
-    showDocumentStatus(`Uploading ${index + 1}/${files.length}: ${file.name}`);
+    showDocumentStatus(
+      I18N.t("docs.uploading", { index: index + 1, total: files.length, name: file.name }),
+    );
     try {
       const payload = await saveDocumentRequest(file);
       successCount += 1;
@@ -75,7 +77,7 @@ async function saveDocuments(files) {
     } catch (error) {
       failures.push({
         name: file.name,
-        reason: error.message || "Upload failed.",
+        reason: error.message || I18N.t("docs.uploadFailed"),
       });
     }
   }
@@ -87,12 +89,15 @@ async function saveDocuments(files) {
     if (insertedItems.length) {
       pushDocumentChange({
         type: "insert",
-        label: `Undo insert ${insertedItems.length} file${insertedItems.length === 1 ? "" : "s"}`,
+        label: I18N.t("docs.undoInsertFiles", {
+          count: insertedItems.length,
+          plural: insertedItems.length === 1 ? "" : "s",
+        }),
         items: insertedItems,
         requires_reindex: embeddableCount > 0,
       });
     }
-    const summary = `${successCount} uploaded, ${failures.length} failed.`;
+    const summary = I18N.t("docs.uploadSummary", { success: successCount, failed: failures.length });
     showDocumentStatus(summary, true);
     openDocumentErrorModal(summary, failures);
     if (embeddableCount > 0) markReindexRequired();
@@ -102,22 +107,33 @@ async function saveDocuments(files) {
   if (embeddableCount > 0) {
     pushDocumentChange({
       type: "insert",
-      label: `Undo insert ${successCount} file${successCount === 1 ? "" : "s"}`,
+      label: I18N.t("docs.undoInsertFiles", {
+        count: successCount,
+        plural: successCount === 1 ? "" : "s",
+      }),
       items: insertedItems,
       requires_reindex: true,
     });
     markReindexRequired(
-      `${embeddableCount} knowledge document${embeddableCount === 1 ? "" : "s"} updated. Finalize before continuing.`,
+      I18N.t("docs.updatedFinalizeNeeded", {
+        message: I18N.t("docs.knowledgeDocsUpdated", {
+          count: embeddableCount,
+          plural: embeddableCount === 1 ? "" : "s",
+        }),
+      }),
     );
   } else if (successCount > 0) {
     pushDocumentChange({
       type: "insert",
-      label: `Undo insert ${successCount} file${successCount === 1 ? "" : "s"}`,
+      label: I18N.t("docs.undoInsertFiles", {
+        count: successCount,
+        plural: successCount === 1 ? "" : "s",
+      }),
       items: insertedItems,
       requires_reindex: false,
     });
     showDocumentStatus(
-      `${successCount} file${successCount === 1 ? "" : "s"} uploaded successfully. No finalize needed.`,
+      I18N.t("docs.uploadedNoFinalize", { count: successCount, plural: successCount === 1 ? "" : "s" }),
     );
   }
   updateDocumentControls();
@@ -140,18 +156,20 @@ async function saveDocument(file, replacePath = "", options = {}) {
     if (payload.requires_reindex) {
       pushDocumentChange({
         type: replacePath ? "update" : "insert",
-        label: replacePath ? "Undo update file" : "Undo insert file",
+        label: I18N.t(replacePath ? "docs.undoUpdateFile" : "docs.undoInsertFile"),
         item: payload.item,
         previous: previousSnapshot,
         requires_reindex: true,
       });
       markReindexRequired(
-        `${payload.message || "Document saved."} Finalize before continuing.`,
+        I18N.t("docs.updatedFinalizeNeeded", {
+          message: payload.message || I18N.t("docs.documentSaved"),
+        }),
       );
     } else {
       pushDocumentChange({
         type: replacePath ? "update" : "insert",
-        label: replacePath ? "Undo update file" : "Undo insert file",
+        label: I18N.t(replacePath ? "docs.undoUpdateFile" : "docs.undoInsertFile"),
         item: payload.item,
         previous: previousSnapshot,
         requires_reindex: false,
@@ -161,7 +179,7 @@ async function saveDocument(file, replacePath = "", options = {}) {
       );
     }
   } catch (error) {
-    showDocumentStatus(error.message || "Document update failed.", true);
+    showDocumentStatus(error.message || I18N.t("docs.documentUpdateFailed"), true);
   } finally {
     state.isMutatingDocument = false;
     updateDocumentControls();
@@ -179,7 +197,9 @@ async function saveFormDocumentsForSop(files, linkedSopPath) {
   const failures = [];
   const insertedItems = [];
   for (const [index, file] of files.entries()) {
-    showDocumentStatus(`Uploading form ${index + 1}/${files.length}: ${file.name}`);
+    showDocumentStatus(
+      I18N.t("docs.uploadingForm", { index: index + 1, total: files.length, name: file.name }),
+    );
     try {
       const payload = await saveDocumentRequest(file, "", {
         documentKind: "form",
@@ -190,7 +210,7 @@ async function saveFormDocumentsForSop(files, linkedSopPath) {
     } catch (error) {
       failures.push({
         name: file.name,
-        reason: error.message || "Upload failed.",
+        reason: error.message || I18N.t("docs.uploadFailed"),
       });
     }
   }
@@ -202,19 +222,22 @@ async function saveFormDocumentsForSop(files, linkedSopPath) {
   if (insertedItems.length) {
     pushDocumentChange({
       type: "insert",
-      label: `Undo insert ${insertedItems.length} form${insertedItems.length === 1 ? "" : "s"}`,
+      label: I18N.t("docs.undoInsertForms", {
+        count: insertedItems.length,
+        plural: insertedItems.length === 1 ? "" : "s",
+      }),
       items: insertedItems,
       requires_reindex: false,
     });
   }
 
   if (failures.length) {
-    const summary = `${successCount} form uploaded, ${failures.length} failed.`;
+    const summary = I18N.t("docs.formUploadSummary", { success: successCount, failed: failures.length });
     showDocumentStatus(summary, true);
     openDocumentErrorModal(summary, failures);
   } else if (successCount > 0) {
     showDocumentStatus(
-      `${successCount} form${successCount === 1 ? "" : "s"} uploaded successfully. No finalize needed.`,
+      I18N.t("docs.formUploadedNoFinalize", { count: successCount, plural: successCount === 1 ? "" : "s" }),
     );
   }
   updateDocumentControls();
@@ -235,14 +258,14 @@ function isFormPdfFile(file) {
 
 function getDocumentSaveStatus(file, replacePath = "") {
   if (isFormPdfFile(file)) {
-    return replacePath ? "Updating form..." : "Uploading form...";
+    return I18N.t(replacePath ? "docs.updatingForm" : "docs.uploadingFormSingle");
   }
-  return replacePath ? "Updating document..." : "Uploading document...";
+  return I18N.t(replacePath ? "docs.updatingDocument" : "docs.uploadingDocument");
 }
 
-function formatDocumentSaveMessage(payload, isFormPdf = false) {
-  const baseMessage = payload.message || "File saved.";
-  return `${baseMessage} No finalize needed.`;
+function formatDocumentSaveMessage(payload) {
+  const baseMessage = payload.message || I18N.t("docs.fileSaved");
+  return `${baseMessage} ${I18N.t("docs.noFinalizeNeeded")}`;
 }
 
 async function saveDocumentRequest(file, replacePath = "", options = {}) {
@@ -263,7 +286,7 @@ async function saveDocumentPayload(body) {
   });
   const payload = await readJsonResponse(response);
   if (!response.ok) {
-    throw new Error(payload.detail || "Document update failed.");
+    throw new Error(payload.detail || I18N.t("docs.documentUpdateFailed"));
   }
   return payload;
 }
@@ -274,7 +297,7 @@ async function deleteDocument(item) {
 
   state.isMutatingDocument = true;
   updateDocumentControls();
-  showDocumentStatus("Deleting document...");
+  showDocumentStatus(I18N.t("docs.deletingDocument"));
 
   try {
     const deletedSnapshot = await createDocumentSnapshot(item);
@@ -287,31 +310,33 @@ async function deleteDocument(item) {
     );
     const payload = await readJsonResponse(response);
     if (!response.ok)
-      throw new Error(payload.detail || "Document delete failed.");
+      throw new Error(payload.detail || I18N.t("docs.documentDeleteFailed"));
     await loadLibrary();
     if (payload.requires_reindex) {
       pushDocumentChange({
         type: "delete",
-        label: "Undo delete file",
+        label: I18N.t("docs.undoDeleteFile"),
         previous: deletedSnapshot,
         requires_reindex: true,
       });
       markReindexRequired(
-        `${payload.message || "Document deleted."} Finalize before continuing.`,
+        I18N.t("docs.deletedFinalizeNeeded", {
+          message: payload.message || I18N.t("docs.documentDeleted"),
+        }),
       );
     } else {
       pushDocumentChange({
         type: "delete",
-        label: "Undo delete file",
+        label: I18N.t("docs.undoDeleteFile"),
         previous: deletedSnapshot,
         requires_reindex: false,
       });
       showDocumentStatus(
-        `${payload.message || "File deleted."} No finalize needed.`,
+        I18N.t("docs.deletedNoFinalize", { message: payload.message || I18N.t("docs.fileDeleted") }),
       );
     }
   } catch (error) {
-    showDocumentStatus(error.message || "Document delete failed.", true);
+    showDocumentStatus(error.message || I18N.t("docs.documentDeleteFailed"), true);
   } finally {
     state.isMutatingDocument = false;
     updateDocumentControls();
@@ -334,7 +359,10 @@ function updateDocumentControls() {
   elements.documentUndoButton.disabled =
     state.isMutatingDocument || state.isReindexing;
   if (state.documentUndoStack.length) {
-    elements.documentUndoButton.title = `Undo ${state.documentUndoStack.length} pending document change${state.documentUndoStack.length === 1 ? "" : "s"}`;
+    elements.documentUndoButton.title = I18N.t("docs.undoPendingTitle", {
+      count: state.documentUndoStack.length,
+      plural: state.documentUndoStack.length === 1 ? "" : "s",
+    });
   }
   elements.documentReindexButton.disabled =
     !isAdminSession() ||
@@ -371,15 +399,15 @@ function clearDocumentUndo() {
 
 function formatDocumentChangeLabel(undo) {
   const actionLabels = {
-    insert: "Inserted",
-    update: "Updated",
-    delete: "Deleted",
+    insert: I18N.t("docs.insertedAction"),
+    update: I18N.t("docs.updatedAction"),
+    delete: I18N.t("docs.deletedAction"),
   };
-  const action = actionLabels[undo.type] || "Changed";
+  const action = actionLabels[undo.type] || I18N.t("docs.changedAction");
   const items = undo.items || [undo.item || undo.previous].filter(Boolean);
-  if (items.length > 1) return `${action} ${items.length} files`;
+  if (items.length > 1) return I18N.t("docs.changedFilesCount", { action, count: items.length });
   const item = items[0];
-  return `${action} ${item?.display_name || item?.name || "file"}`;
+  return I18N.t("docs.changedFile", { action, name: item?.display_name || item?.name || I18N.t("docs.file") });
 }
 
 function findDocumentByPath(relativePath) {
@@ -390,7 +418,7 @@ function findDocumentByPath(relativePath) {
 
 async function createDocumentSnapshot(item) {
   if (!item?.download_url || !item.relative_path) {
-    throw new Error("Failed to create document snapshot.");
+    throw new Error(I18N.t("docs.snapshotFailed"));
   }
   return {
     name: item.name || item.relative_path.split("/").pop() || "document",
@@ -433,7 +461,7 @@ async function deleteDocumentRequest(relativePath) {
   );
   const payload = await readJsonResponse(response);
   if (!response.ok && response.status !== 404) {
-    throw new Error(payload.detail || "Undo delete failed.");
+    throw new Error(payload.detail || I18N.t("docs.undoDeleteFailed"));
   }
   return payload;
 }
@@ -477,7 +505,7 @@ async function undoDocumentChange() {
   state.isMutatingDocument = true;
   updateDocumentControls();
   showDocumentStatus(
-    `Undoing ${changes.length} document change${changes.length === 1 ? "" : "s"}...`,
+    I18N.t("docs.undoing", { count: changes.length, plural: changes.length === 1 ? "" : "s" }),
   );
 
   try {
@@ -491,14 +519,12 @@ async function undoDocumentChange() {
     state.documentChanges = [];
     state.documentUndo = null;
     if (touchedEmbeddings) {
-      clearReindexRequired("All document changes undone.");
+      clearReindexRequired(I18N.t("docs.undoDone"));
     } else {
-      showDocumentStatus(
-        "All document changes undone. No finalize needed.",
-      );
+      showDocumentStatus(I18N.t("docs.undoDoneNoFinalize"));
     }
   } catch (error) {
-    showDocumentStatus(error.message || "Document undo failed.", true);
+    showDocumentStatus(error.message || I18N.t("docs.undoFailed"), true);
   } finally {
     state.isMutatingDocument = false;
     updateDocumentControls();
@@ -521,10 +547,10 @@ async function rebuildEmbeddings() {
     });
     const payload = await readJsonResponse(response);
     if (!response.ok)
-      throw new Error(payload.detail || "Finalize failed.");
-    clearReindexRequired(payload.message || "Changes finalized.");
+      throw new Error(payload.detail || I18N.t("docs.finalizeFailed"));
+    clearReindexRequired(payload.message || I18N.t("docs.changesFinalized"));
   } catch (error) {
-    showDocumentStatus(error.message || "Finalize failed.", true);
+    showDocumentStatus(error.message || I18N.t("docs.finalizeFailed"), true);
   } finally {
     state.isReindexing = false;
     syncReindexState();
@@ -533,16 +559,14 @@ async function rebuildEmbeddings() {
   }
 }
 
-function markReindexRequired(
-  message = "Document library changed. Finalize before continuing.",
-) {
+function markReindexRequired(message = I18N.t("docs.libraryChanged")) {
   state.needsReindex = true;
   window.localStorage.setItem(REINDEX_STORAGE_KEY, "1");
   syncReindexState();
   showDocumentStatus(message, false);
 }
 
-function clearReindexRequired(message = "Changes finalized.") {
+function clearReindexRequired(message = I18N.t("docs.changesFinalized")) {
   state.needsReindex = false;
   clearDocumentUndo();
   window.localStorage.removeItem(REINDEX_STORAGE_KEY);
@@ -565,9 +589,7 @@ function syncReindexState() {
   if (state.isReindexing) {
     clearDocumentStatus();
   } else if (state.needsReindex && !elements.adminDocumentStatus.textContent) {
-    showDocumentStatus(
-      "Document library changed. Finalize before continuing.",
-    );
+    showDocumentStatus(I18N.t("docs.libraryChanged"));
   }
 }
 
@@ -605,9 +627,9 @@ function adminAuthHeaders(extraHeaders = {}) {
 }
 
 function formatSelectedFiles(files) {
-  if (!files.length) return "Choose files";
+  if (!files.length) return I18N.t("docs.chooseFiles");
   if (files.length === 1) return files[0].name;
-  return `${files.length} files selected`;
+  return I18N.t("docs.filesSelected", { count: files.length });
 }
 
 async function loadLibrary() {
@@ -696,7 +718,7 @@ function renderLibrary() {
   if (!visibleItems.length) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    empty.textContent = "No documents match this filter.";
+    empty.textContent = I18N.t("docs.noMatch");
     elements.libraryList.appendChild(empty);
     return;
   }
@@ -707,7 +729,7 @@ function renderLibrary() {
   if (!documentItems.length) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    empty.textContent = "No documents match this filter.";
+    empty.textContent = I18N.t("docs.noMatch");
     elements.libraryList.appendChild(empty);
     updateDocumentControls();
     return;
@@ -721,7 +743,7 @@ function renderLibrary() {
     state.activeDocumentFormPath = "";
   }
   const allFormItems = state.documents.filter((item) => item.document_kind === "form");
-  appendLibrarySection("Documents", documentItems, allFormItems);
+  appendLibrarySection(I18N.t("docs.sectionDocuments"), documentItems, allFormItems);
   updateDocumentControls();
 }
 
@@ -766,7 +788,7 @@ function createDocumentLibraryGroup(item, forms) {
     const header = document.createElement("div");
     header.className = "related-forms-heading";
     const title = document.createElement("span");
-    title.textContent = "Forms";
+    title.textContent = I18N.t("docs.forms");
     header.appendChild(title);
     related.appendChild(header);
 
@@ -813,6 +835,7 @@ function formsForDocument(documentItem, forms) {
 
 function createLibraryRow(item, options = {}) {
   const fragment = elements.libraryItemTemplate.content.cloneNode(true);
+  I18N.applyI18n(fragment);
   const row = fragment.querySelector(".document-row");
   row.dataset.kind = item.document_kind || "document";
   applyDocumentIcon(fragment.querySelector(".document-icon"), item);
@@ -831,9 +854,7 @@ function createLibraryRow(item, options = {}) {
     row.setAttribute("aria-expanded", options.isOpen ? "true" : "false");
     expandButton.setAttribute(
       "aria-label",
-      options.isOpen
-        ? `Hide forms for ${item.display_name}`
-        : `Show forms for ${item.display_name}`,
+      I18N.t(options.isOpen ? "docs.hideFormsFor" : "docs.showFormsFor", { name: item.display_name }),
     );
     expandButton.setAttribute("aria-expanded", options.isOpen ? "true" : "false");
     expandButton.addEventListener("click", () => toggleDocumentForms(item));
@@ -888,19 +909,20 @@ function createRelatedFormRow(item) {
   applyDocumentIcon(icon, item);
   const title = document.createElement("span");
   title.className = "related-form-title";
-  title.textContent = item.display_name || item.name || "Form";
+  title.textContent = item.display_name || item.name || I18N.t("docs.form");
   info.append(icon, title);
 
   const actions = document.createElement("div");
   actions.className = "related-form-actions";
 
+  const formName = item.display_name || item.name || I18N.t("docs.form");
   const downloadButton = document.createElement("button");
   downloadButton.className = "related-form-button";
   downloadButton.type = "button";
-  downloadButton.title = "Download form";
-  downloadButton.setAttribute("aria-label", `Download ${item.display_name || item.name || "form"}`);
+  downloadButton.title = I18N.t("docs.downloadFormTitle");
+  downloadButton.setAttribute("aria-label", I18N.t("docs.downloadNamed", { name: formName }));
   downloadButton.innerHTML =
-    '<span class="material-symbols-outlined">download</span>Download';
+    `<span class="material-symbols-outlined">download</span>${I18N.t("docs.download")}`;
   downloadButton.addEventListener("click", () => {
     openTemplateDownloadModal(item.download_url, item.name || item.display_name, {
       formats: downloadFormatsForDocument(item),
@@ -911,10 +933,10 @@ function createRelatedFormRow(item) {
   const deleteButton = document.createElement("button");
   deleteButton.className = "related-form-button admin-only is-danger";
   deleteButton.type = "button";
-  deleteButton.title = "Delete form";
-  deleteButton.setAttribute("aria-label", `Delete ${item.display_name || item.name || "form"}`);
+  deleteButton.title = I18N.t("docs.deleteFormTitle");
+  deleteButton.setAttribute("aria-label", I18N.t("docs.deleteNamed", { name: formName }));
   deleteButton.innerHTML =
-    '<span class="material-symbols-outlined">delete</span>Delete';
+    `<span class="material-symbols-outlined">delete</span>${I18N.t("docs.delete")}`;
   deleteButton.addEventListener("click", () => deleteDocument(item));
   actions.appendChild(deleteButton);
 
@@ -928,14 +950,14 @@ function createInsertFormRow(sop, hasForms) {
   row.type = "button";
   row.setAttribute(
     "aria-label",
-    hasForms ? "Insert another form" : "Insert form for this SOP",
+    I18N.t(hasForms ? "docs.insertAnotherForm" : "docs.insertFormForSop"),
   );
   const icon = document.createElement("span");
   icon.className = "material-symbols-outlined";
   icon.setAttribute("aria-hidden", "true");
   icon.textContent = "upload_file";
   const label = document.createElement("span");
-  label.textContent = hasForms ? "Insert another form" : "Insert form";
+  label.textContent = I18N.t(hasForms ? "docs.insertAnotherForm" : "docs.insertForm");
   row.append(icon, label);
   row.addEventListener("click", () => startFormUploadForSop(sop));
   return row;
@@ -984,7 +1006,7 @@ function openTemplateDownloadModal(url, filename = "form.pdf", options = {}) {
   state.pendingTemplateDownload = { url, filename, formats };
   syncTemplateDownloadFormatButton(elements.templateDownloadPdfButton, formats.pdf);
   syncTemplateDownloadFormatButton(elements.templateDownloadWordButton, formats.docx);
-  elements.templateDownloadName.textContent = filename || "Form template";
+  elements.templateDownloadName.textContent = filename || I18N.t("docs.formTemplate");
   elements.templateDownloadModal.classList.add("is-open");
   elements.templateDownloadModal.setAttribute("aria-hidden", "false");
   window.setTimeout(() => {
@@ -1082,7 +1104,7 @@ function downloadFormatsForDocument(item) {
   if (type === "txt") return templateDownloadFormats(item.download_url, filename, ["txt"]);
   return {
     pdf: {
-      label: "Download",
+      label: I18N.t("docs.download"),
       url: item.download_url,
       filename,
     },
@@ -1122,7 +1144,7 @@ async function downloadDocument(url, filename = "document") {
     window.AppApi.downloadBlob(blob, responseFilename);
   } catch (error) {
     console.error(error);
-    showDocumentStatus("Document download failed.", true);
+    showDocumentStatus(I18N.t("docs.downloadFailed"), true);
   }
 }
 

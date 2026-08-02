@@ -10,6 +10,7 @@ function renderFaqs() {
     const deleteButton = fragment.querySelector(".faq-delete");
     const citationContainer = fragment.querySelector(".faq-citations");
     const citations = getFaqCitations(item);
+    I18N.applyI18n(fragment);
     fragment.querySelector(".faq-question").textContent = item.question;
     fragment
       .querySelector(".faq-answer")
@@ -42,9 +43,9 @@ function renderFaqs() {
     askButton.addEventListener("click", () => {
       if (!hasFaqEvidence(item)) {
         openDocumentErrorModal(
-          "This FAQ doesn't have a source from indexed documents yet, so it can't be used to ask in chat.",
+          I18N.t("faq.noEvidence"),
           [],
-          "FAQ has no source",
+          I18N.t("faq.noSourceTitle"),
         );
         return;
       }
@@ -160,7 +161,7 @@ function renderFaqCitations(container, citations) {
 
 function formatCitationText(citation) {
   return [
-    citation.source || "Unknown source",
+    citation.source || I18N.t("chat.citation.unknownSource"),
     citation.section || null,
     formatCitationPageRange(citation),
   ]
@@ -173,9 +174,9 @@ function formatCitationPageRange(citation) {
   const pageEnd = Number(citation?.page_end);
   if (!Number.isInteger(page) || page < 1) return null;
   if (Number.isInteger(pageEnd) && pageEnd > page) {
-    return `PDF page ${page}-${pageEnd}`;
+    return I18N.t("chat.citation.pdfPageRange", { start: page, end: pageEnd });
   }
-  return `PDF page ${page}`;
+  return I18N.t("chat.citation.pdfPage", { page });
 }
 
 function bindAdminFaqs() {
@@ -215,7 +216,7 @@ function cancelFaqGeneration() {
   state.isMutatingFaq = false;
   hideFaqStop();
   resetFaqForm(false);
-  showFaqStatus("Generate cancelled.");
+  showFaqStatus(I18N.t("faq.cancelled"));
   updateFaqControls();
 }
 
@@ -228,7 +229,7 @@ async function saveFaq(event) {
     state.isReindexing
   ) {
     if (state.needsReindex || state.isReindexing) {
-      showFaqStatus("Finalize first before changing the FAQ.", true);
+      showFaqStatus(I18N.t("faq.finalizeFirst"), true);
     }
     return;
   }
@@ -238,7 +239,7 @@ async function saveFaq(event) {
     question: elements.faqQuestionInput.value.trim(),
   };
   if (!payload.question) {
-    showFaqStatus("Question is required.", true);
+    showFaqStatus(I18N.t("faq.questionRequired"), true);
     return;
   }
 
@@ -248,7 +249,7 @@ async function saveFaq(event) {
   updateFaqControls();
   showFaqStop();
   showFaqStatus(
-    faqId ? "Regenerating FAQ answer..." : "Generating FAQ answer...",
+    faqId ? I18N.t("faq.regenerating") : I18N.t("faq.generating"),
   );
 
   try {
@@ -273,7 +274,7 @@ async function saveFaq(event) {
 
     if (!response.ok) {
       const failure = new Error(
-        formatApiError(responsePayload.detail, "FAQ update failed."),
+        formatApiError(responsePayload.detail, I18N.t("faq.updateFailed")),
       );
       failure.status = response.status;
       throw failure;
@@ -282,22 +283,20 @@ async function saveFaq(event) {
       responsePayload.item &&
       !hasFaqEvidence(normalizeFaq(responsePayload.item))
     ) {
-      throw new Error(
-        "FAQ was not saved because there is no source from indexed documents.",
-      );
+      throw new Error(I18N.t("faq.noEvidenceOnSave"));
     }
 
-    showFaqStatus(responsePayload.message || "FAQ saved.");
+    showFaqStatus(responsePayload.message || I18N.t("faq.saved"));
     resetFaqForm(false);
     await loadFaqs();
   } catch (error) {
     if (generation.cancelled) return;
     const message = formatFaqSaveError(error);
-    showFaqStatus("FAQ was not saved.", true);
+    showFaqStatus(I18N.t("faq.notSaved"), true);
     openDocumentErrorModal(
       message,
       [],
-      faqId ? "FAQ not updated" : "FAQ not created",
+      faqId ? I18N.t("faq.notUpdatedTitle") : I18N.t("faq.notCreatedTitle"),
     );
   } finally {
     // Only clear state if this generation is still the active one; a cancel (or
@@ -318,18 +317,18 @@ function formatFaqSaveError(error) {
   // 422: the backend already validated that the question has no relevant
   // source in the indexed documents (e.g. an off-topic question).
   if (status === 422) {
-    return "FAQ was not created because this question has no relevant source in the indexed documents. Try another question or add the related document.";
+    return I18N.t("faq.error422");
   }
 
   // 5xx: the AI service is down or failed to produce an answer.
   if (status >= 500) {
     console.warn("FAQ generation detail:", rawMessage);
-    return "FAQ couldn't be created because the AI service failed to respond. Check the provider configuration and try again.";
+    return I18N.t("faq.error5xx");
   }
 
   // Client-side error (no HTTP status) — fall back to the message content.
   if (!rawMessage) {
-    return "FAQ couldn't be created. Try again shortly.";
+    return I18N.t("faq.errorGeneric");
   }
   const noSourcePatterns = [
     /no source/i,
@@ -340,7 +339,7 @@ function formatFaqSaveError(error) {
     /evidence/i,
   ];
   if (noSourcePatterns.some((pattern) => pattern.test(rawMessage))) {
-    return "FAQ was not created because there is no relevant source in the indexed documents.";
+    return I18N.t("faq.errorNoSource");
   }
 
   return rawMessage;
@@ -358,8 +357,8 @@ function startFaqEdit(item) {
   state.editingFaqId = item.id;
   elements.faqIdInput.value = item.id;
   elements.faqQuestionInput.value = item.question;
-  elements.faqSubmitButton.textContent = "Regenerate FAQ";
-  showFaqStatus("Editing FAQ item.");
+  elements.faqSubmitButton.textContent = I18N.t("faq.regenerate");
+  showFaqStatus(I18N.t("faq.editing"));
   elements.faqQuestionInput.focus();
   elements.faqForm.scrollIntoView({ behavior: "smooth", block: "center" });
 }
@@ -373,12 +372,12 @@ async function deleteFaq(item) {
     !item.id
   )
     return;
-  const confirmed = window.confirm(`Delete FAQ "${item.question}"?`);
+  const confirmed = window.confirm(I18N.t("faq.deleteConfirm", { question: item.question }));
   if (!confirmed) return;
 
   state.isMutatingFaq = true;
   updateFaqControls();
-  showFaqStatus("Deleting FAQ...");
+  showFaqStatus(I18N.t("faq.deleting"));
 
   try {
     const response = await fetch(
@@ -390,12 +389,12 @@ async function deleteFaq(item) {
     );
     const payload = await readJsonResponse(response);
     if (!response.ok)
-      throw new Error(formatApiError(payload.detail, "FAQ delete failed."));
-    showFaqStatus(payload.message || "FAQ deleted.");
+      throw new Error(formatApiError(payload.detail, I18N.t("faq.deleteFailed")));
+    showFaqStatus(payload.message || I18N.t("faq.deleted"));
     if (state.editingFaqId === item.id) resetFaqForm(false);
     await loadFaqs();
   } catch (error) {
-    showFaqStatus(error.message || "FAQ delete failed.", true);
+    showFaqStatus(error.message || I18N.t("faq.deleteFailed"), true);
   } finally {
     state.isMutatingFaq = false;
     updateFaqControls();
@@ -406,7 +405,7 @@ function resetFaqForm(clearStatus = true) {
   state.editingFaqId = "";
   elements.faqForm.reset();
   elements.faqIdInput.value = "";
-  elements.faqSubmitButton.textContent = "Generate FAQ";
+  elements.faqSubmitButton.textContent = I18N.t("faq.generate");
   if (clearStatus) clearFaqStatus();
 }
 

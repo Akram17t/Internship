@@ -7,21 +7,26 @@ const MOBILE_QUERY = "(max-width: 640px)";
 
 const initialMessages = [];
 
-const screens = {
-  chat: "Active Session",
-  faq: "Frequently Asked Questions",
-  policy: "Document Library",
-  guardrails: "Guardrails",
-  logs: "Activity Logs",
-  analytics: "Usage Analytics",
+const screenTitleKeys = {
+  chat: "screen.chat",
+  faq: "screen.faq",
+  policy: "screen.policy",
+  guardrails: "screen.guardrails",
+  logs: "screen.logs",
+  analytics: "screen.analytics",
 };
 const adminScreens = new Set(["guardrails", "logs", "analytics"]);
 
-const loadingStageLabels = [
-  "Understanding the question...",
-  "Searching documents...",
-  "Composing the answer...",
-];
+// Used both by chat.js (index into this array while a question is in
+// flight) and by refreshDynamicUI() below, so it stays a plain array of
+// live-translated strings rather than raw keys.
+function getLoadingStageLabels() {
+  return [
+    I18N.t("chat.loadingStage.understanding"),
+    I18N.t("chat.loadingStage.searching"),
+    I18N.t("chat.loadingStage.composing"),
+  ];
+}
 
 const state = {
   activeScreen: "chat",
@@ -209,6 +214,29 @@ function init() {
   void publicConfigPromise.then(() => initGoogleSignIn());
   window.addEventListener("resize", updateComposer);
   window.addEventListener("resize", syncScrollbarWidth);
+  document.addEventListener("ics:languagechange", refreshDynamicUI);
+}
+
+// I18N.setLang() re-translates every [data-i18n*] element in one synchronous
+// sweep, which blindly resets any label that a render function normally
+// derives from state (screen title, sidebar-collapse aria-label, composer
+// placeholder, FAQ submit button text, etc). Re-running the same state-driven
+// render functions right after -- all pure, no network calls -- corrects
+// those before the browser paints, so nothing actually flashes.
+function refreshDynamicUI() {
+  elements.screenTitle.textContent = I18N.t(screenTitleKeys[state.activeScreen]);
+  applySidebarCollapsed(elements.body.classList.contains("sidebar-collapsed"));
+  updateComposer();
+  renderMessages("none");
+  renderFaqs();
+  elements.faqSubmitButton.textContent = I18N.t(
+    state.editingFaqId ? "faq.regenerate" : "faq.generate",
+  );
+  renderLibrary();
+  renderSidebarConversations();
+  if (elements.logsList) renderActivityLogs();
+  refreshAccountLabels();
+  refreshSignInError();
 }
 
 async function loadPublicConfig() {
@@ -254,7 +282,7 @@ function applySidebarCollapsed(collapsed) {
   elements.body.classList.toggle("sidebar-collapsed", collapsed);
   const button = elements.sidebarCollapseButton;
   button.setAttribute("aria-expanded", collapsed ? "false" : "true");
-  const label = collapsed ? "Expand sidebar" : "Collapse sidebar";
+  const label = I18N.t(collapsed ? "sidebar.expand" : "sidebar.collapse");
   button.setAttribute("aria-label", label);
   button.title = label;
   button.querySelector(".material-symbols-outlined").textContent = collapsed
@@ -271,10 +299,10 @@ function toggleSidebarCollapsed() {
 function syncScreenFromHash() {
   const hash = window.location.hash.slice(1);
   const target =
-    screens[hash] && (!adminScreens.has(hash) || isAdminSession()) ? hash : "chat";
+    screenTitleKeys[hash] && (!adminScreens.has(hash) || isAdminSession()) ? hash : "chat";
   state.activeScreen = target;
   elements.body.dataset.activeScreen = target;
-  elements.screenTitle.textContent = screens[target];
+  elements.screenTitle.textContent = I18N.t(screenTitleKeys[target]);
 
   elements.navLinks.forEach((button) =>
     button.classList.toggle("is-active", button.dataset.screen === target),
@@ -423,7 +451,7 @@ async function readJsonResponse(response) {
   }
 }
 
-function formatApiError(detail, fallback = "Request failed.") {
+function formatApiError(detail, fallback = I18N.t("common.requestFailed")) {
   if (!detail) return fallback;
   if (typeof detail === "string") return detail;
   if (Array.isArray(detail)) {

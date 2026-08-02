@@ -83,7 +83,7 @@ async function loadActivityLogs() {
       );
       const payload = await readJsonResponse(response);
       if (!response.ok) {
-        throw new Error(formatApiError(payload.detail, "Unable to load topic logs."));
+        throw new Error(formatApiError(payload.detail, I18N.t("logs.unableToLoadTopic")));
       }
       state.activityLogs = Array.isArray(payload) ? payload : [];
       state.activityLogSessions = [];
@@ -97,7 +97,7 @@ async function loadActivityLogs() {
     } catch (error) {
       state.activityLogs = [];
       state.activityLogSummary = null;
-      state.logError = error.message || "Unable to load topic logs.";
+      state.logError = error.message || I18N.t("logs.unableToLoadTopic");
     } finally {
       state.isLoadingLogs = false;
       renderActivityLogs();
@@ -133,16 +133,16 @@ async function loadActivityLogs() {
     const summaryPayload = await readJsonResponse(summaryResponse);
     const sessionsPayload = await readJsonResponse(sessionsResponse);
     if (!logsResponse.ok) {
-      throw new Error(formatApiError(logsPayload.detail, "Unable to load logs."));
+      throw new Error(formatApiError(logsPayload.detail, I18N.t("logs.unableToLoad")));
     }
     if (!summaryResponse.ok) {
       throw new Error(
-        formatApiError(summaryPayload.detail, "Unable to load log summary."),
+        formatApiError(summaryPayload.detail, I18N.t("logs.unableToLoadSummary")),
       );
     }
     if (!sessionsResponse.ok) {
       throw new Error(
-        formatApiError(sessionsPayload.detail, "Unable to load log sessions."),
+        formatApiError(sessionsPayload.detail, I18N.t("logs.unableToLoadSessions")),
       );
     }
 
@@ -154,7 +154,7 @@ async function loadActivityLogs() {
     state.activityLogs = [];
     state.activityLogSessions = [];
     state.activityLogSummary = null;
-    state.logError = error.message || "Unable to load logs.";
+    state.logError = error.message || I18N.t("logs.unableToLoad");
   } finally {
     state.isLoadingLogs = false;
     renderActivityLogs();
@@ -198,7 +198,7 @@ function renderActivityLogs() {
   }
 
   if (state.isLoadingLogs) {
-    elements.logsStatus.textContent = "Loading activity...";
+    elements.logsStatus.textContent = I18N.t("logs.loadingActivity");
     elements.logsList.appendChild(createLogsSkeleton());
     return;
   }
@@ -227,9 +227,9 @@ function renderActivityLogQuestions() {
   clampLogPage(visibleItems.length);
   if (!visibleItems.length) {
     elements.logsStatus.textContent = state.logNameQuery
-      ? "No questions match that name."
-      : "No chatbot activity in the selected date range.";
-    elements.logsList.appendChild(createLogsEmptyState("forum", "No questions yet"));
+      ? I18N.t("logs.noQuestionsMatch")
+      : I18N.t("logs.noActivityInRange");
+    elements.logsList.appendChild(createLogsEmptyState("forum", I18N.t("logs.noQuestionsYet")));
     return;
   }
 
@@ -244,9 +244,9 @@ function renderActivityLogSessions() {
   const sessions = getVisibleSessionLogs();
   if (!sessions.length) {
     elements.logsStatus.textContent = state.logNameQuery
-      ? "No chatbot sessions match that name."
-      : "No chatbot sessions in the selected date range.";
-    elements.logsList.appendChild(createLogsEmptyState("forum", "No sessions yet"));
+      ? I18N.t("logs.noSessionsMatch")
+      : I18N.t("logs.noSessionsInRange");
+    elements.logsList.appendChild(createLogsEmptyState("forum", I18N.t("logs.noSessionsYet")));
     return;
   }
 
@@ -259,9 +259,9 @@ function renderActivityLogFeedback() {
   clampLogPage(feedbackItems.length);
   if (!feedbackItems.length) {
     elements.logsStatus.textContent = state.logNameQuery
-      ? "No feedback matches that name."
-      : "No feedback in the selected date range.";
-    elements.logsList.appendChild(createLogsEmptyState("thumb_down", "No feedback yet"));
+      ? I18N.t("logs.noFeedbackMatch")
+      : I18N.t("logs.noFeedbackInRange");
+    elements.logsList.appendChild(createLogsEmptyState("thumb_down", I18N.t("logs.noFeedbackYet")));
     return;
   }
 
@@ -273,7 +273,7 @@ function renderActivityLogFeedback() {
 }
 
 function logDisplayName(name, email) {
-  return (name || "").trim() || (email || "").trim() || "Unknown user";
+  return (name || "").trim() || (email || "").trim() || I18N.t("logs.unknownUser");
 }
 
 function matchesLogNameQuery(name, email) {
@@ -371,13 +371,13 @@ function createLogSessionRow(item, index) {
   dot.setAttribute("aria-hidden", "true");
   const title = document.createElement("span");
   title.className = "log-question";
-  title.textContent = item.first_question || item.latest_question || "Chat session";
+  title.textContent = item.first_question || item.latest_question || I18N.t("logs.chatSession");
   topLine.append(dot, title);
 
   const meta = document.createElement("small");
   meta.className = "logs-session-meta";
   const questionCountText = `${formatLogNumber(item.question_count)} ${
-    Number(item.question_count) === 1 ? "question" : "questions"
+    I18N.t(Number(item.question_count) === 1 ? "logs.questionSingular" : "logs.question")
   }`;
   meta.textContent = `${questionCountText} · ${logDisplayName(item.user_name, item.user_email)}`;
   detail.append(topLine, meta);
@@ -403,8 +403,8 @@ function createLogSessionDeleteButton(item) {
   const button = document.createElement("button");
   button.className = "log-delete-button logs-session-delete";
   button.type = "button";
-  button.setAttribute("aria-label", "Delete session logs");
-  button.title = "Delete session logs";
+  button.setAttribute("aria-label", I18N.t("logs.deleteSession"));
+  button.title = I18N.t("logs.deleteSession");
   const icon = document.createElement("span");
   icon.className = "material-symbols-outlined";
   icon.textContent = "delete";
@@ -440,7 +440,7 @@ function createLogRow(item, index) {
   statusDot.setAttribute("aria-hidden", "true");
   const question = document.createElement("span");
   question.className = "log-question";
-  question.textContent = item.details?.question || item.summary || "Chat question";
+  question.textContent = item.details?.question || item.summary || I18N.t("logs.chatQuestion");
   questionLine.append(statusDot, question);
   const user = document.createElement("span");
   user.className = "log-question-meta";
@@ -476,7 +476,7 @@ function createLogFeedbackRow(item, index) {
   const copy = document.createElement("div");
   copy.className = "log-feedback-copy";
   const kicker = document.createElement("span");
-  kicker.textContent = "User feedback";
+  kicker.textContent = I18N.t("logs.userFeedback");
   const user = document.createElement("small");
   user.className = "log-feedback-user";
   user.textContent = logDisplayName(item.details?.user_name, item.details?.user_email);
@@ -514,8 +514,8 @@ function createLogDeleteButton(item) {
   const button = document.createElement("button");
   button.className = "log-delete-button";
   button.type = "button";
-  button.setAttribute("aria-label", "Delete log");
-  button.title = "Delete log";
+  button.setAttribute("aria-label", I18N.t("logs.deleteLog"));
+  button.title = I18N.t("logs.deleteLog");
   const icon = document.createElement("span");
   icon.className = "material-symbols-outlined";
   icon.textContent = "delete";
@@ -540,14 +540,14 @@ async function deleteActivityLog(logId, button) {
     });
     const payload = await readJsonResponse(response);
     if (!response.ok) {
-      throw new Error(formatApiError(payload.detail, "Unable to delete log."));
+      throw new Error(formatApiError(payload.detail, I18N.t("logs.unableToDeleteLog")));
     }
     state.activityLogs = state.activityLogs.filter((item) => item.id !== logId);
     clampLogPage(getActiveLogItemCount());
     renderActivityLogs();
     void loadActivityLogs();
   } catch (error) {
-    state.logError = error.message || "Unable to delete log.";
+    state.logError = error.message || I18N.t("logs.unableToDeleteLog");
     renderActivityLogs();
   } finally {
     button.disabled = false;
@@ -568,7 +568,7 @@ async function deleteActivityLogSession(conversationId, button) {
     );
     const payload = await readJsonResponse(response);
     if (!response.ok) {
-      throw new Error(formatApiError(payload.detail, "Unable to delete session."));
+      throw new Error(formatApiError(payload.detail, I18N.t("logs.unableToDeleteSession")));
     }
     state.activityLogSessions = state.activityLogSessions.filter(
       (item) => item.conversation_id !== conversationId,
@@ -580,7 +580,7 @@ async function deleteActivityLogSession(conversationId, button) {
     renderActivityLogs();
     void loadActivityLogs();
   } catch (error) {
-    state.logError = error.message || "Unable to delete session.";
+    state.logError = error.message || I18N.t("logs.unableToDeleteSession");
     renderActivityLogs();
   } finally {
     button.disabled = false;
@@ -605,11 +605,11 @@ function createLogConversationPanel(item) {
   const answer =
     item.details?.answer ||
     item.details?.answer_preview ||
-    "No answer recorded.";
+    I18N.t("logs.noAnswerRecorded");
   if (hasNegativeFeedback(item)) {
     panelInner.appendChild(createLogFeedbackDetail(item.details.feedback));
   }
-  panelInner.appendChild(createLogMessage("Answer", answer, "assistant"));
+  panelInner.appendChild(createLogMessage(I18N.t("logs.answer"), answer, "assistant"));
   panel.appendChild(panelInner);
   window.requestAnimationFrame(() => setupLogReadMore(panel, answer));
   return panel;
@@ -623,13 +623,13 @@ function createLogFeedbackPanel(item) {
   const question =
     item.details?.question ||
     item.summary ||
-    "No question recorded.";
+    I18N.t("logs.noQuestionRecorded");
   const answer =
     item.details?.answer ||
     item.details?.answer_preview ||
-    "No answer recorded.";
-  panelInner.appendChild(createLogMessage("Question", question, "user"));
-  panelInner.appendChild(createLogMessage("Assistant answer", answer, "assistant"));
+    I18N.t("logs.noAnswerRecorded");
+  panelInner.appendChild(createLogMessage(I18N.t("logs.question.label"), question, "user"));
+  panelInner.appendChild(createLogMessage(I18N.t("logs.assistantAnswer"), answer, "assistant"));
   panel.appendChild(panelInner);
   window.requestAnimationFrame(() => setupLogReadMore(panel, answer));
   return panel;
@@ -655,7 +655,7 @@ function summarizeTopicFilteredLogs(items) {
 }
 
 function feedbackReasonText(item) {
-  return item?.details?.feedback?.reason || "No reason recorded.";
+  return item?.details?.feedback?.reason || I18N.t("logs.noReasonRecorded");
 }
 
 function createLogFeedbackDetail(feedback) {
@@ -668,10 +668,10 @@ function createLogFeedbackDetail(feedback) {
   const copy = document.createElement("div");
   const heading = document.createElement("span");
   heading.className = "log-message-label";
-  heading.textContent = "Feedback";
+  heading.textContent = I18N.t("logs.feedback");
   const reason = document.createElement("p");
   reason.className = "log-message-content";
-  reason.textContent = feedback?.reason || "No reason recorded.";
+  reason.textContent = feedback?.reason || I18N.t("logs.noReasonRecorded");
   copy.append(heading, reason);
   detail.append(icon, copy);
   return detail;
@@ -717,13 +717,13 @@ function setupLogReadMore(panel, answer) {
   const button = document.createElement("button");
   button.className = "log-read-more";
   button.type = "button";
-  button.textContent = "Read more";
+  button.textContent = I18N.t("logs.readMore");
   button.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
     const expanded = message.classList.toggle("is-answer-expanded");
     content.classList.toggle("is-collapsed", !expanded);
-    button.textContent = expanded ? "Show less" : "Read more";
+    button.textContent = I18N.t(expanded ? "logs.showLess" : "logs.readMore");
   });
   message.appendChild(button);
 }
@@ -739,7 +739,7 @@ function createLogsSkeleton() {
   return skeleton;
 }
 
-function createLogsEmptyState(iconName = "forum", titleText = "No questions yet") {
+function createLogsEmptyState(iconName = "forum", titleText = I18N.t("logs.noQuestionsYet")) {
   const empty = document.createElement("div");
   empty.className = "logs-empty-state";
   const icon = document.createElement("span");
@@ -774,22 +774,25 @@ function renderLogPagination(total, label = "questions") {
   const pagination = getLogPagination(total);
   const nav = document.createElement("nav");
   nav.className = "logs-page-controls";
-  nav.setAttribute("aria-label", "Logs pagination");
+  nav.setAttribute("aria-label", I18N.t("logs.paginationAria"));
 
-  const countLabel = label === "feedback" ? "feedback" : "questions";
+  const countLabel = I18N.t(label === "feedback" ? "logs.feedbackLower" : "logs.question");
   const range = document.createElement("span");
   range.className = "logs-page-label";
-  range.textContent = `${formatLogNumber(pagination.startIndex + 1)}-${formatLogNumber(
-    pagination.endIndex,
-  )} of ${formatLogNumber(total)} ${countLabel}`;
+  range.textContent = I18N.t("logs.pagination", {
+    start: formatLogNumber(pagination.startIndex + 1),
+    end: formatLogNumber(pagination.endIndex),
+    total: formatLogNumber(total),
+    label: countLabel,
+  });
 
-  const previous = createLogPageButton("chevron_left", "Previous page", () => {
+  const previous = createLogPageButton("chevron_left", I18N.t("logs.previousPage"), () => {
     state.logPage = Math.max(1, getLogPage() - 1);
     renderActivityLogs();
   });
   previous.disabled = pagination.page <= 1;
 
-  const next = createLogPageButton("chevron_right", "Next page", () => {
+  const next = createLogPageButton("chevron_right", I18N.t("logs.nextPage"), () => {
     state.logPage = Math.min(pagination.totalPages, getLogPage() + 1);
     renderActivityLogs();
   });
@@ -855,7 +858,9 @@ function renderActiveSessionFilter() {
   if (state.activeTopicFilter) {
     elements.logsSessionFilter.hidden = false;
     if (elements.logsActiveSessionLabel) {
-      elements.logsActiveSessionLabel.textContent = `Filtered by topic: ${state.activeTopicFilter.name}`;
+      elements.logsActiveSessionLabel.textContent = I18N.t("logs.filteredByTopic", {
+        name: state.activeTopicFilter.name,
+      });
     }
     return;
   }
@@ -863,9 +868,9 @@ function renderActiveSessionFilter() {
     state.activeLogsView === "questions" ? state.selectedLogSessionId || "" : "";
   elements.logsSessionFilter.hidden = !sessionId;
   if (elements.logsActiveSessionLabel) {
-    elements.logsActiveSessionLabel.textContent = sessionId
-      ? "Filtered session"
-      : "Session";
+    elements.logsActiveSessionLabel.textContent = I18N.t(
+      sessionId ? "logs.filteredSession" : "logs.session",
+    );
   }
 }
 
@@ -891,11 +896,13 @@ function syncLogViewControls() {
     activeView === "sessions",
   );
   if (elements.logsActivityTitle) {
-    elements.logsActivityTitle.textContent = {
-      questions: "Recent questions",
-      sessions: "Chat sessions",
-      feedback: "Feedback",
-    }[activeView];
+    elements.logsActivityTitle.textContent = I18N.t(
+      {
+        questions: "logs.recentQuestions",
+        sessions: "logs.chatSessions",
+        feedback: "logs.feedback",
+      }[activeView],
+    );
   }
 }
 

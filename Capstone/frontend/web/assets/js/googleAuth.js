@@ -4,9 +4,7 @@ function initGoogleSignIn() {
   if (isLoggedIn()) return;
 
   if (!state.googleClientId) {
-    showSignInError(
-      "Google sign-in is not configured yet. Ask an admin to set GOOGLE_CLIENT_ID.",
-    );
+    showSignInError(I18N.t("signin.notConfigured"), "signin.notConfigured");
     return;
   }
 
@@ -14,7 +12,7 @@ function initGoogleSignIn() {
     // Identity Services script loads with async/defer; retry briefly until ready.
     googleSignInInitAttempts += 1;
     if (googleSignInInitAttempts > 50) {
-      showSignInError("Couldn't load Google sign-in. Refresh the page and try again.");
+      showSignInError(I18N.t("signin.loadFailed"), "signin.loadFailed");
       return;
     }
     window.setTimeout(initGoogleSignIn, 100);
@@ -69,7 +67,7 @@ async function handleGoogleCredentialResponse(response) {
     });
     const payload = await readJsonResponse(apiResponse);
     if (!apiResponse.ok) {
-      throw new Error(formatApiError(payload.detail, "Sign-in failed."));
+      throw new Error(formatApiError(payload.detail, I18N.t("signin.failed")));
     }
 
     state.session = {
@@ -80,7 +78,7 @@ async function handleGoogleCredentialResponse(response) {
       expires_at: payload.expires_at || "",
     };
     if (!isLoggedIn()) {
-      throw new Error("Session is invalid. Try signing in again.");
+      throw new Error(I18N.t("signin.sessionInvalid"));
     }
     // Unconditional, not just for a different account: CHAT_STORAGE_KEY is
     // one global key, so even a same-browser session that expired silently
@@ -92,16 +90,29 @@ async function handleGoogleCredentialResponse(response) {
     window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(state.session));
     syncAuth();
   } catch (error) {
-    showSignInError(error.message || "Sign-in failed.");
+    showSignInError(error.message || I18N.t("signin.failed"));
   }
 }
 
-function showSignInError(message) {
+// Remembers which i18n key is on screen (if any) so refreshSignInError() can
+// re-translate it on a language switch -- this message is set once, before
+// the guest ever gets a chance to touch the sign-in card's language toggle,
+// so unlike the rest of the UI it has no render function to simply re-run.
+let lastSignInErrorKey = "";
+
+function showSignInError(message, key = "") {
+  lastSignInErrorKey = key;
   elements.signInError.textContent = message;
   elements.signInError.hidden = false;
 }
 
 function clearSignInError() {
+  lastSignInErrorKey = "";
   elements.signInError.textContent = "";
   elements.signInError.hidden = true;
+}
+
+function refreshSignInError() {
+  if (!lastSignInErrorKey || elements.signInError.hidden) return;
+  elements.signInError.textContent = I18N.t(lastSignInErrorKey);
 }

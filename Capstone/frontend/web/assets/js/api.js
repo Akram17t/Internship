@@ -29,7 +29,7 @@
       }
     },
 
-    formatApiError(detail, fallback = "Request failed.") {
+    formatApiError(detail, fallback = I18N.t("common.requestFailed")) {
       if (!detail) return fallback;
       if (typeof detail === "string") return detail;
       if (Array.isArray(detail)) {

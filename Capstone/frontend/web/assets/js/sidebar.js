@@ -37,6 +37,7 @@ function renderSidebarConversations() {
 
   state.conversations.forEach((item) => {
     const fragment = elements.conversationItemTemplate.content.cloneNode(true);
+    I18N.applyI18n(fragment);
     const row = fragment.querySelector(".conversation-row");
     const openButton = fragment.querySelector(".conversation-open");
     const titleEl = fragment.querySelector(".conversation-title");
@@ -44,7 +45,7 @@ function renderSidebarConversations() {
     const renameButton = fragment.querySelector(".conversation-rename");
     const deleteButton = fragment.querySelector(".conversation-delete");
 
-    titleEl.textContent = item.title || "New chat";
+    titleEl.textContent = item.title || I18N.t("sidebar.newChatTitle");
     row.classList.toggle("is-active", item.id === state.conversationId);
     openButton.addEventListener("click", () => void openConversation(item.id));
     renameButton.addEventListener("click", (event) => {

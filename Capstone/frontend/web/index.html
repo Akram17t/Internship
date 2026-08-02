@@ -63,57 +63,62 @@
             data-screen="chat"
             type="button"
             title="Chat"
+            data-i18n-title="nav.chat"
           >
             <span class="material-symbols-outlined">chat</span
-            ><span class="nav-link-label">Chat</span>
+            ><span class="nav-link-label" data-i18n="nav.chat">Chat</span>
           </button>
-          <button class="nav-link" data-screen="faq" type="button" title="FAQ">
+          <button class="nav-link" data-screen="faq" type="button" title="FAQ" data-i18n-title="nav.faq">
             <span class="material-symbols-outlined">quiz</span
-            ><span class="nav-link-label">FAQ</span>
+            ><span class="nav-link-label" data-i18n="nav.faq">FAQ</span>
           </button>
           <button
             class="nav-link"
             data-screen="policy"
             type="button"
             title="Docs"
+            data-i18n-title="nav.docs"
           >
             <span class="material-symbols-outlined">folder_open</span
-            ><span class="nav-link-label">Docs</span>
+            ><span class="nav-link-label" data-i18n="nav.docs">Docs</span>
           </button>
           <button
             class="nav-link"
             data-screen="logs"
             type="button"
             title="Logs"
+            data-i18n-title="nav.logs"
             hidden
           >
             <span class="material-symbols-outlined">receipt_long</span
-            ><span class="nav-link-label">Logs</span>
+            ><span class="nav-link-label" data-i18n="nav.logs">Logs</span>
           </button>
           <button
             class="nav-link"
             data-screen="analytics"
             type="button"
             title="Analytics"
+            data-i18n-title="nav.analytics"
             hidden
           >
             <span class="material-symbols-outlined">monitoring</span
-            ><span class="nav-link-label">Analytics</span>
+            ><span class="nav-link-label" data-i18n="nav.analytics">Analytics</span>
           </button>
           <button
             class="nav-link"
             data-screen="guardrails"
             type="button"
             title="Guardrails"
+            data-i18n-title="nav.guardrails"
             hidden
           >
             <span class="material-symbols-outlined">policy</span
-            ><span class="nav-link-label">Guardrails</span>
+            ><span class="nav-link-label" data-i18n="nav.guardrails">Guardrails</span>
           </button>
         </nav>
 
         <section class="conversation-history" aria-label="Chat history">
-          <div class="conversation-history-heading">Chats</div>
+          <div class="conversation-history-heading" data-i18n="sidebar.chatsHeading">Chats</div>
           <div class="conversation-history-list" id="conversationList"></div>
         </section>
 
@@ -128,9 +133,9 @@
             G
           </button>
           <div class="account-copy">
-            <span id="accountRoleLabel">Guest access</span>
-            <strong id="accountName">Guest</strong>
-            <small id="accountHint">Log in as admin to enable manager mode.</small>
+            <span id="accountRoleLabel" data-i18n="account.guestAccess">Guest access</span>
+            <strong id="accountName" data-i18n="account.guest">Guest</strong>
+            <small id="accountHint" data-i18n="account.guestHint">Log in as admin to enable manager mode.</small>
           </div>
           <button class="account-action" id="accountActionButton" type="button">
             <span
@@ -139,12 +144,12 @@
               aria-hidden="true"
               >login</span
             >
-            <span class="sr-only" id="accountActionText">Admin login</span>
+            <span class="sr-only" id="accountActionText" data-i18n="account.adminLoginSr">Admin login</span>
           </button>
           <div class="account-popover" id="accountPopover" hidden>
-            <span id="accountPopoverRole">Guest access</span>
-            <strong id="accountPopoverName">Guest</strong>
-            <small id="accountPopoverHint">Click the icon on the right to log in.</small>
+            <span id="accountPopoverRole" data-i18n="account.guestAccess">Guest access</span>
+            <strong id="accountPopoverName" data-i18n="account.guest">Guest</strong>
+            <small id="accountPopoverHint" data-i18n="account.guestPopoverHint">Click the icon on the right to log in.</small>
           </div>
         </section>
       </aside>
@@ -170,6 +175,7 @@
                 aria-controls="sidebar"
                 aria-expanded="false"
                 aria-label="Open navigation"
+                data-i18n-aria-label="topbar.openNav"
               >
                 <span class="material-symbols-outlined" aria-hidden="true"
                   >menu</span
@@ -178,6 +184,10 @@
               <h1 id="screenTitle">Active Session</h1>
             </div>
             <div class="topbar-actions">
+              <div class="lang-toggle" id="langToggle" role="group" aria-label="Switch language" data-i18n-aria-label="lang.toggleAria">
+                <button class="lang-toggle-option" type="button" data-lang="en">EN</button>
+                <button class="lang-toggle-option" type="button" data-lang="id">ID</button>
+              </div>
               <button
                 class="new-admin-button"
                 id="newAdminButton"
@@ -185,11 +195,11 @@
                 hidden
               >
                 <span class="material-symbols-outlined">person_add</span>
-                <span class="new-admin-label">New admin</span>
+                <span class="new-admin-label" data-i18n="topbar.newAdmin">New admin</span>
               </button>
               <button class="new-chat-button" id="newChatButton" type="button">
                 <span class="material-symbols-outlined">add_comment</span>
-                <span class="new-chat-label">New chat</span>
+                <span class="new-chat-label" data-i18n="topbar.newChat">New chat</span>
               </button>
             </div>
           </div>
@@ -209,9 +219,9 @@
             </div>
             <div class="chat-thread" id="chatThread" aria-live="polite"></div>
             <form class="composer" id="chatForm">
-              <p class="empty-chat-prompt">What are you thinking about?</p>
+              <p class="empty-chat-prompt" data-i18n="chat.emptyPrompt">What are you thinking about?</p>
               <div class="composer-control">
-                <label class="sr-only" for="chatInput">Type your message</label>
+                <label class="sr-only" for="chatInput" data-i18n="chat.inputLabel">Type your message</label>
                 <textarea
                   id="chatInput"
                   rows="1"
@@ -227,7 +237,7 @@
                   send
                 </button>
               </div>
-              <p>
+              <p data-i18n="chat.disclaimer">
                 AI-generated responses may contain inaccuracies. Please verify
                 important document details.
               </p>
@@ -237,9 +247,9 @@
           <section class="screen faq-screen" data-screen-panel="faq">
             <div class="faq-canvas">
               <div class="page-intro">
-                <span class="section-label">FAQ</span>
-                <h2>FAQ <span class="accent-text">HR</span></h2>
-                <p>
+                <span class="section-label" data-i18n="faq.sectionLabel">FAQ</span>
+                <h2 data-i18n-html="faq.heading.html">FAQ <span class="accent-text">HR</span></h2>
+                <p data-i18n="faq.intro">
                   Common questions from ICS Compute SOPs and internal documents.
                 </p>
               </div>
@@ -249,17 +259,18 @@
                 aria-label="Admin FAQ tools"
               >
                 <div class="admin-faq-copy">
-                  <span>Admin tools</span>
-                  <strong>Manage FAQ items</strong>
+                  <span data-i18n="faq.adminTools">Admin tools</span>
+                  <strong data-i18n="faq.manageItems">Manage FAQ items</strong>
                 </div>
                 <form class="admin-faq-form" id="faqForm">
                   <input id="faqIdInput" type="hidden" />
                   <label class="admin-faq-wide">
-                    <span>Question</span>
+                    <span data-i18n="faq.questionLabel">Question</span>
                     <input
                       id="faqQuestionInput"
                       type="text"
                       placeholder="Write an FAQ question"
+                      data-i18n-placeholder="faq.questionPlaceholder"
                       required
                     />
                   </label>
@@ -278,12 +289,12 @@
                       hidden
                     >
                       <span class="material-symbols-outlined">close</span>
-                      Undo
+                      <span data-i18n="faq.undo">Undo</span>
                     </button>
                   </div>
                 </form>
                 <div class="faq-progress" aria-live="polite">
-                  <strong>Generating FAQ answer</strong>
+                  <strong data-i18n="faq.generatingProgress">Generating FAQ answer</strong>
                   <span class="linear-loader" aria-hidden="true">
                     <span></span>
                   </span>
@@ -294,8 +305,8 @@
             </div>
             <footer class="faq-footer">
               <div class="faq-footer-inner">
-                <span>(C) 2026 ICS Compute &bull; Internal Documents</span>
-                <strong>HR AGENT</strong>
+                <span data-i18n="faq.footerRights">(C) 2026 ICS Compute &bull; Internal Documents</span>
+                <strong data-i18n="faq.footerBrand">HR AGENT</strong>
               </div>
             </footer>
           </section>
@@ -304,14 +315,14 @@
             <div class="policy-canvas">
               <div class="policy-heading">
                 <div class="policy-intro">
-                  <span class="section-label">Internal Documentation</span>
-                  <h2>Central <span class="accent-text">Document</span> Hub</h2>
+                  <span class="section-label" data-i18n="docs.sectionLabel">Internal Documentation</span>
+                  <h2 data-i18n-html="docs.heading.html">Central <span class="accent-text">Document</span> Hub</h2>
                   <p>
-                    Access SOP, supporting forms, and internal HR operational
-                    documents<br class="desktop-break" />
-                    in one place. SOP files are used for retrieval, while forms
-                    stay available<br class="desktop-break" />
-                    as direct downloads.
+                    <span data-i18n="docs.introLine1">Access SOP, supporting forms, and internal HR operational
+                    documents</span><br class="desktop-break" />
+                    <span data-i18n="docs.introLine2">in one place. SOP files are used for retrieval, while forms
+                    stay available</span><br class="desktop-break" />
+                    <span data-i18n="docs.introLine3">as direct downloads.</span>
                   </p>
                 </div>
                 <div class="policy-actions">
@@ -321,7 +332,7 @@
                     type="button"
                   >
                     <span class="material-symbols-outlined">filter_list</span
-                    >Filter
+                    ><span data-i18n="docs.filter">Filter</span>
                   </button>
                 </div>
               </div>
@@ -331,6 +342,7 @@
                   id="librarySearch"
                   type="search"
                   placeholder="Filter documents..."
+                  data-i18n-placeholder="docs.searchPlaceholder"
                 />
               </label>
               <section
@@ -339,8 +351,8 @@
                 aria-label="Admin document tools"
               >
                 <div class="admin-document-copy">
-                  <span>Admin tools</span>
-                  <strong>Manage SOP & form files</strong>
+                  <span data-i18n="docs.adminTools">Admin tools</span>
+                  <strong data-i18n="docs.manageFiles">Manage SOP & form files</strong>
                 </div>
                 <form class="admin-document-form" id="adminDocumentForm">
                   <label class="file-picker">
@@ -351,24 +363,25 @@
                       multiple
                     />
                     <span class="material-symbols-outlined">upload_file</span>
-                    <strong id="documentFileLabel">Choose files</strong>
+                    <strong id="documentFileLabel" data-i18n="docs.chooseFiles">Choose files</strong>
                   </label>
                   <button
                     class="admin-submit"
                     id="documentUploadButton"
                     type="submit"
+                    data-i18n="docs.insertFiles"
                   >
                     Insert files
                   </button>
                 </form>
                 <div class="document-reindex-panel">
                   <p class="document-reindex-copy">
-                    <span class="document-reindex-copy-default">
+                    <span class="document-reindex-copy-default" data-i18n="docs.finalizeNotice">
                       After you insert, update, or delete files, you must
                       Finalize to apply the changes.
                     </span>
                     <span class="document-reindex-progress" aria-live="polite">
-                      <strong>Finalizing</strong>
+                      <strong data-i18n="docs.finalizing">Finalizing</strong>
                       <span class="linear-loader" aria-hidden="true">
                         <span></span>
                       </span>
@@ -382,7 +395,7 @@
                       hidden
                     >
                       <span class="material-symbols-outlined">undo</span>
-                      Undo all
+                      <span data-i18n="docs.undoAll">Undo all</span>
                     </button>
                     <button
                       class="document-reindex-button"
@@ -391,7 +404,7 @@
                       disabled
                     >
                       <span class="material-symbols-outlined">sync</span>
-                      Finalize
+                      <span data-i18n="docs.finalize">Finalize</span>
                     </button>
                   </div>
                 </div>
@@ -413,11 +426,12 @@
               <div class="library-list" id="libraryList"></div>
               <footer class="policy-footer">
                 <p>
-                  Can't find a document? Use the
-                  <button id="chatLink" type="button">AI Chat</button> to
-                  request a specific SOP, form, or internal document.
+                  <span data-i18n="docs.footerHelpPrefix">Can't find a document? Use the</span>
+                  <button id="chatLink" type="button" data-i18n="docs.chatLinkText">AI Chat</button>
+                  <span data-i18n="docs.footerHelpSuffix">to
+                  request a specific SOP, form, or internal document.</span>
                 </p>
-                <span
+                <span data-i18n="docs.footerRights"
                   >&copy; 2026 ICS Compute &bull; All rights reserved &bull;
                   Confidential Internal Use Only</span
                 >
@@ -429,13 +443,9 @@
             <div class="policy-canvas">
               <div class="policy-heading">
                 <div class="policy-intro">
-                  <span class="section-label">AI Behavior</span>
-                  <h2>Answer <span class="accent-text">Guardrails</span></h2>
-                  <p>
-                    These rules are injected into every AI answer: citation
-                    format, form selection rules, and hallucination
-                    safeguards. Edit with care.
-                  </p>
+                  <span class="section-label" data-i18n="guardrails.sectionLabel">AI Behavior</span>
+                  <h2 data-i18n-html="guardrails.heading.html">Answer <span class="accent-text">Guardrails</span></h2>
+                  <p data-i18n="guardrails.intro">Injected into every AI answer. Edit with care.</p>
                 </div>
               </div>
               <form id="guardrailsForm">
@@ -450,6 +460,7 @@
                     class="admin-submit"
                     id="guardrailsSaveButton"
                     type="submit"
+                    data-i18n="guardrails.save"
                   >
                     Save guardrails
                   </button>
@@ -463,9 +474,9 @@
             <div class="logs-canvas">
               <div class="logs-heading">
                 <div class="logs-intro">
-                  <span class="section-label">Dashboard / Chatbot Logs</span>
-                  <h2>Chatbot <span class="accent-text">Logs</span></h2>
-                  <p>
+                  <span class="section-label" data-i18n="logs.sectionLabel">Dashboard / Chatbot Logs</span>
+                  <h2 data-i18n-html="logs.heading.html">Chatbot <span class="accent-text">Logs</span></h2>
+                  <p data-i18n="logs.intro">
                     Monitor chatbot usage patterns and review recent questions
                     without crowding the dashboard.
                   </p>
@@ -480,13 +491,13 @@
                   aria-pressed="true"
                 >
                   <div class="logs-summary-topline">
-                    <span>Total Chat</span>
+                    <span data-i18n="logs.totalChat">Total Chat</span>
                     <span class="material-symbols-outlined" aria-hidden="true">
                       forum
                     </span>
                   </div>
                   <strong id="logsTotalChat">0</strong>
-                  <small>Questions in selected range</small>
+                  <small data-i18n="logs.totalChatHint">Questions in selected range</small>
                 </button>
                 <button
                   class="logs-summary-card logs-session-card"
@@ -496,13 +507,13 @@
                   aria-pressed="false"
                 >
                   <div class="logs-summary-topline">
-                    <span>Total Session</span>
+                    <span data-i18n="logs.totalSession">Total Session</span>
                     <span class="material-symbols-outlined" aria-hidden="true">
                       grid_view
                     </span>
                   </div>
                   <strong id="logsTotalSessions">0</strong>
-                  <small>Active chatbot sessions</small>
+                  <small data-i18n="logs.totalSessionHint">Active chatbot sessions</small>
                 </button>
                 <button
                   class="logs-summary-card logs-feedback-card"
@@ -512,20 +523,20 @@
                   aria-pressed="false"
                 >
                   <div class="logs-summary-topline">
-                    <span>Feedback</span>
+                    <span data-i18n="logs.feedback">Feedback</span>
                     <span class="material-symbols-outlined" aria-hidden="true">
                       thumb_down
                     </span>
                   </div>
                   <strong id="logsNegativeFeedback">0</strong>
-                  <small>Unsatisfied responses</small>
+                  <small data-i18n="logs.feedbackHint">Unsatisfied responses</small>
                 </button>
               </div>
               <section class="logs-activity-panel">
                 <header class="logs-list-toolbar">
                   <div>
-                    <span class="logs-list-kicker">Activity stream</span>
-                    <h3>Recent questions</h3>
+                    <span class="logs-list-kicker" data-i18n="logs.activityStream">Activity stream</span>
+                    <h3 id="logsActivityHeading" data-i18n="logs.recentQuestions">Recent questions</h3>
                   </div>
                   <div class="logs-list-actions">
                     <label class="logs-search-field">
@@ -536,6 +547,7 @@
                         id="logsNameSearch"
                         type="search"
                         placeholder="Search by name..."
+                        data-i18n-placeholder="logs.searchByName"
                       />
                     </label>
                     <div
@@ -543,11 +555,11 @@
                       aria-label="Activity date range"
                     >
                       <label class="logs-date-field">
-                        <span>Start</span>
+                        <span data-i18n="logs.start">Start</span>
                         <input id="logsStartDate" type="date" />
                       </label>
                       <label class="logs-date-field">
-                        <span>End</span>
+                        <span data-i18n="logs.end">End</span>
                         <input id="logsEndDate" type="date" />
                       </label>
                     </div>
@@ -557,6 +569,8 @@
                       type="button"
                       aria-label="Refresh activity"
                       title="Refresh activity"
+                      data-i18n-aria-label="logs.refresh"
+                      data-i18n-title="logs.refresh"
                     >
                       <span
                         class="material-symbols-outlined"
@@ -573,8 +587,8 @@
                     id="logsSessionFilter"
                     hidden
                   >
-                    <span id="logsActiveSessionLabel">Filtered session</span>
-                    <button id="logsClearSessionButton" type="button">
+                    <span id="logsActiveSessionLabel" data-i18n="logs.filteredSession">Filtered session</span>
+                    <button id="logsClearSessionButton" type="button" data-i18n="logs.clear">
                       Clear
                     </button>
                   </div>
@@ -621,14 +635,14 @@
             <div class="faq-citations" hidden></div>
             <div class="faq-actions">
               <a class="faq-source" target="_blank" rel="noopener"></a>
-              <button class="faq-ask" type="button">Ask in chat</button>
+              <button class="faq-ask" type="button" data-i18n="faq.askInChat">Ask in chat</button>
               <button class="faq-edit admin-only" type="button">
                 <span class="material-symbols-outlined">edit_document</span>
-                Update
+                <span data-i18n="faq.update">Update</span>
               </button>
               <button class="faq-delete admin-only" type="button">
                 <span class="material-symbols-outlined">delete</span>
-                Delete
+                <span data-i18n="faq.delete">Delete</span>
               </button>
             </div>
           </div>
@@ -651,6 +665,7 @@
           class="conversation-rename"
           type="button"
           aria-label="Rename conversation"
+          data-i18n-aria-label="sidebar.renameConversation"
         >
           <span class="material-symbols-outlined">edit</span>
         </button>
@@ -658,6 +673,7 @@
           class="conversation-delete"
           type="button"
           aria-label="Delete conversation"
+          data-i18n-aria-label="sidebar.deleteConversation"
         >
           <span class="material-symbols-outlined">delete</span>
         </button>
@@ -678,18 +694,18 @@
         <div class="document-actions">
           <button class="document-expand" type="button" aria-label="Show forms">
             <span class="material-symbols-outlined">keyboard_arrow_down</span>
-            Forms
+            <span data-i18n="docs.forms">Forms</span>
           </button>
           <a class="document-download" target="_blank" rel="noopener"
-            >Download <span class="material-symbols-outlined">download</span></a
+            ><span data-i18n="docs.download">Download</span> <span class="material-symbols-outlined">download</span></a
           >
           <button class="document-update admin-only" type="button">
             <span class="material-symbols-outlined">edit_document</span>
-            Update
+            <span data-i18n="docs.update">Update</span>
           </button>
           <button class="document-delete admin-only" type="button">
             <span class="material-symbols-outlined">delete</span>
-            Delete
+            <span data-i18n="docs.delete">Delete</span>
           </button>
         </div>
       </article>
@@ -705,9 +721,13 @@
       hidden
     >
       <div class="auth-card signin-card">
+        <div class="lang-toggle signin-lang-toggle" role="group" aria-label="Switch language" data-i18n-aria-label="lang.toggleAria">
+          <button class="lang-toggle-option" type="button" data-lang="en">EN</button>
+          <button class="lang-toggle-option" type="button" data-lang="id">ID</button>
+        </div>
         <img class="signin-logo" src="/assets/logo.jpg" alt="ICS Compute logo" />
-        <span class="auth-kicker" id="signInTitle">HR Assistant ICS Compute</span>
-        <p class="signin-copy">
+        <span class="auth-kicker" id="signInTitle" data-i18n="signin.title">HR Assistant ICS Compute</span>
+        <p class="signin-copy" data-i18n-html="signin.copy">
           Use your <strong>@icscompute.com</strong> Google Workspace account to
           access the HR Assistant.
         </p>
@@ -733,8 +753,8 @@
         >
           close
         </button>
-        <span class="auth-kicker">Response Feedback</span>
-        <h2 id="feedbackTitle">What failed?</h2>
+        <span class="auth-kicker" data-i18n="feedbackModal.kicker">Response Feedback</span>
+        <h2 id="feedbackTitle" data-i18n="feedbackModal.title">What failed?</h2>
         <form class="auth-form feedback-form" id="feedbackForm">
           <label>
             <textarea
@@ -742,6 +762,7 @@
               rows="5"
               maxlength="500"
               placeholder="Tell us what was missing."
+              data-i18n-placeholder="feedbackModal.placeholder"
               required
             ></textarea>
           </label>
@@ -751,6 +772,7 @@
               class="template-format-cancel"
               id="feedbackCancelButton"
               type="button"
+              data-i18n="feedbackModal.cancel"
             >
               Cancel
             </button>
@@ -760,7 +782,7 @@
               type="submit"
             >
               <span class="material-symbols-outlined">thumb_down</span>
-              Submit
+              <span data-i18n="feedbackModal.submit">Submit</span>
             </button>
           </div>
         </form>
@@ -776,17 +798,17 @@
       aria-labelledby="logoutTitle"
     >
       <div class="logout-card">
-        <span class="auth-kicker">Session</span>
-        <h2 id="logoutTitle">Log out?</h2>
-        <p>
+        <span class="auth-kicker" data-i18n="logoutModal.kicker">Session</span>
+        <h2 id="logoutTitle" data-i18n="logoutModal.title">Log out?</h2>
+        <p data-i18n="logoutModal.body">
           You'll need to sign in again with your Google Workspace account to
           use the HR Assistant.
         </p>
         <div class="logout-actions">
-          <button class="logout-cancel" id="logoutCancelButton" type="button">
+          <button class="logout-cancel" id="logoutCancelButton" type="button" data-i18n="logoutModal.cancel">
             Cancel
           </button>
-          <button class="logout-confirm" id="logoutConfirmButton" type="button">
+          <button class="logout-confirm" id="logoutConfirmButton" type="button" data-i18n="logoutModal.confirm">
             Logout
           </button>
         </div>
@@ -810,27 +832,28 @@
         >
           close
         </button>
-        <span class="auth-kicker">Admin Access</span>
-        <h2 id="newAdminTitle">Add new admin</h2>
+        <span class="auth-kicker" data-i18n="newAdminModal.kicker">Admin Access</span>
+        <h2 id="newAdminTitle" data-i18n="newAdminModal.title">Add new admin</h2>
         <form class="auth-form" id="newAdminForm">
           <label>
-            <span>Email</span>
+            <span data-i18n="newAdminModal.emailLabel">Email</span>
             <input
               id="newAdminEmail"
               type="email"
               autocomplete="username"
               placeholder="admin@icscompute.com"
+              data-i18n-placeholder="newAdminModal.emailPlaceholder"
               required
             />
           </label>
-          <p class="signin-hint">
+          <p class="signin-hint" data-i18n="newAdminModal.hint">
             Admin access applies to this exact Google Workspace email as soon
             as they sign in.
           </p>
           <p class="auth-error" id="newAdminStatus" role="alert" hidden></p>
           <button class="auth-submit" type="submit">
             <span class="material-symbols-outlined">person_add</span>
-            Save admin
+            <span data-i18n="newAdminModal.save">Save admin</span>
           </button>
         </form>
       </div>
@@ -845,7 +868,7 @@
       aria-labelledby="documentErrorTitle"
     >
       <div class="document-error-card">
-        <span class="auth-kicker">Admin Notice</span>
+        <span class="auth-kicker" data-i18n="documentErrorModal.kicker">Admin Notice</span>
         <h2 id="documentErrorTitle">Upload not finished</h2>
         <p id="documentErrorSummary"></p>
         <ul id="documentErrorList"></ul>
@@ -853,6 +876,7 @@
           class="document-error-close"
           id="documentErrorCloseButton"
           type="button"
+          data-i18n="documentErrorModal.ok"
         >
           OK
         </button>
@@ -868,8 +892,8 @@
       aria-labelledby="templateDownloadTitle"
     >
       <div class="template-download-card">
-        <span class="auth-kicker">Download Document</span>
-        <h2 id="templateDownloadTitle">Choose format</h2>
+        <span class="auth-kicker" data-i18n="templateDownloadModal.kicker">Download Document</span>
+        <h2 id="templateDownloadTitle" data-i18n="templateDownloadModal.title">Choose format</h2>
         <p id="templateDownloadName">Form template</p>
         <div class="template-download-actions">
           <button
@@ -890,6 +914,7 @@
             class="template-format-cancel"
             id="templateDownloadCancelButton"
             type="button"
+            data-i18n="templateDownloadModal.cancel"
           >
             Cancel
           </button>
@@ -907,8 +932,8 @@
     >
       <div class="app-lock-card">
         <span class="linear-loader" aria-hidden="true"><span></span></span>
-        <strong>Finalizing changes</strong>
-        <p>
+        <strong data-i18n="appLock.title">Finalizing changes</strong>
+        <p data-i18n="appLock.body">
           Don't close or navigate away, wait until the finalize process is
           done.
         </p>
@@ -920,6 +945,7 @@
          Both must load before markdown.js, which renders answers with them. -->
     <script src="/assets/vendor/marked.umd.js"></script>
     <script src="/assets/vendor/purify.min.js"></script>
+    <script src="/assets/js/i18n.js"></script>
     <script src="/assets/js/api.js"></script>
     <script src="/assets/js/citations.js"></script>
     <script src="/assets/js/chat.js"></script>

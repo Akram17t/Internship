@@ -697,6 +697,62 @@ body[data-role="admin"] .account-action:hover {
     color 0.18s ease;
 }
 
+.lang-toggle {
+  display: flex;
+  height: 40px;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--ink);
+  border-radius: 100px;
+}
+
+.lang-toggle-option {
+  display: flex;
+  min-width: 34px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 100px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease;
+}
+
+.lang-toggle-option:hover:not(.is-active) {
+  background: var(--paper-deep);
+}
+
+.lang-toggle-option.is-active {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* The sign-in gate covers the topbar (and its .lang-toggle) at a higher
+   z-index, so guests need their own copy of the switcher to pick a language
+   before authenticating -- pinned to the card like .auth-close elsewhere. */
+.signin-lang-toggle {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  height: 30px;
+  padding: 2px;
+}
+
+.signin-lang-toggle .lang-toggle-option {
+  height: 24px;
+  min-width: 28px;
+  padding: 0 9px;
+  font-size: 11px;
+}
+
 .new-admin-button {
   min-width: 132px;
   border: 1px solid var(--red);
@@ -2334,6 +2390,7 @@ body[data-reindex-state="running"] .document-reindex-panel {
   align-items: center;
   gap: 16px;
   margin-top: 16px;
+  margin-bottom: 32px;
 }
 
 .guardrails-status {
@@ -4889,6 +4946,10 @@ body.logout-open {
   .new-admin-label,
   .new-chat-label {
     display: none;
+  }
+  .lang-toggle-option {
+    min-width: 28px;
+    padding: 0 8px;
   }
 
   .chat-screen.is-empty {
