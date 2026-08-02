@@ -377,15 +377,6 @@ def _direct_answer_user_prompt(
     )
 
 
-def _direct_answer_prompt(
-    question: str, evidence: str, available_forms: str, conversation_context: str = ""
-) -> str:
-    return (
-        f"{ANSWER_ROLE_PROMPT}\n\n"
-        f"{_direct_answer_user_prompt(question, evidence, available_forms, conversation_context)}"
-    )
-
-
 def _generate_answer(
     question: str, evidence: str, available_forms: str, conversation_context: str = ""
 ) -> str:

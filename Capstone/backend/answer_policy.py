@@ -36,6 +36,10 @@ def is_unsupported_answer(answer: str) -> bool:
 
 
 def strip_trailing_unsupported_answer(answer: str) -> str:
+    # Model kadang menempelkan kalimat "tidak ditemukan" di akhir jawaban yang
+    # sebenarnya sudah didukung evidence -- buang kalimat itu saja, bukan
+    # seluruh jawaban, supaya is_unsupported_answer() (exact-match) tidak
+    # salah lolos untuk teks gabungan seperti ini.
     canonical = "|".join(
         re.escape(text)
         for text in [
@@ -55,3 +59,5 @@ def strip_trailing_unsupported_answer(answer: str) -> str:
     if not supported_part:
         return answer.strip()
     return re.sub(r"\n{3,}", "\n\n", supported_part).strip()
+
+

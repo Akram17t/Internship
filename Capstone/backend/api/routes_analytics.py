@@ -1,16 +1,12 @@
 from __future__ import annotations
 
-"""Simplified analytics dashboard endpoints (PostgreSQL backend only).
+"""Simplified analytics dashboard endpoints.
 
 Reduced-scope replacement for the design's full analytics API surface:
 just a summary and a topics breakdown, both admin-only, both reading from
 analytics.daily_topic_aggregates (with an on-demand refresh trigger). No
 keyset pagination, no export endpoint, no PII detail/audit endpoint, no
 per-user ranking endpoint.
-
-These routes only function when DATABASE_BACKEND=postgres; if the app is
-running on the SQLite backend they return 503 so the rest of the app keeps
-working unaffected.
 """
 
 from datetime import date, datetime, timezone
@@ -26,7 +22,6 @@ from backend.api.auth import _require_admin
 from backend.api.core import app
 from backend.api.models import ActivityLogItem
 from backend.api.routes_admin import _activity_date_range
-from backend.settings import get_env
 
 
 class TopicSummaryItem(BaseModel):
@@ -76,14 +71,6 @@ class ActiveUserItem(BaseModel):
 class AnalyticsActiveUsersResponse(BaseModel):
     refreshed_at: str | None
     users: list[ActiveUserItem]
-
-
-def _require_postgres_backend() -> None:
-    if get_env("DATABASE_BACKEND", "sqlite").strip().lower() != "postgres":
-        raise HTTPException(
-            status_code=503,
-            detail="Analytics dashboard requires DATABASE_BACKEND=postgres.",
-        )
 
 
 def _resolve_range(
@@ -149,7 +136,6 @@ def _canonical_unique_user_counts(
 def refresh_analytics(authorization: str = Header(default="")) -> dict[str, int | str]:
     # Recompute analytics.daily_topic_aggregates from canonical_interactions.
     _require_admin(authorization)
-    _require_postgres_backend()
     written = refresh_daily_aggregates()
     return {"buckets_written": written, "refreshed_at": datetime.now(timezone.utc).isoformat()}
 
@@ -162,7 +148,6 @@ def get_analytics_summary(
     authorization: str = Header(default=""),
 ) -> AnalyticsSummaryResponse:
     _require_admin(authorization)
-    _require_postgres_backend()
     start_at, end_at = _resolve_range(start_date, end_date, tz)
     rows = _aggregate_rows(start_at, end_at)
 
@@ -202,7 +187,6 @@ def get_analytics_topics(
     authorization: str = Header(default=""),
 ) -> AnalyticsTopicsResponse:
     _require_admin(authorization)
-    _require_postgres_backend()
     start_at, end_at = _resolve_range(start_date, end_date, tz)
     rows = _aggregate_rows(start_at, end_at)
     _total_unique_users, unique_users_by_topic = _canonical_unique_user_counts(start_at, end_at)
@@ -250,7 +234,6 @@ def get_analytics_trend(
     # combo chart, sourced from the same analytics.daily_topic_aggregates
     # table as /summary and /topics - no separate storage needed.
     _require_admin(authorization)
-    _require_postgres_backend()
     start_at, end_at = _resolve_range(start_date, end_date, tz)
     rows = _aggregate_rows(start_at, end_at)
 
@@ -292,7 +275,6 @@ def get_analytics_active_users(
     # same email on the Logs screen, so this is not a new PII exposure, just
     # a ranked summary of who is asking the most questions.
     _require_admin(authorization)
-    _require_postgres_backend()
     start_at, end_at = _resolve_range(start_date, end_date, tz)
 
     from backend.db.engine import get_session
@@ -369,7 +351,6 @@ def get_logs_by_topic(
     # app.activity_logs by activity_log_id, instead of guessing from
     # keywords in the question text.
     _require_admin(authorization)
-    _require_postgres_backend()
 
     selected_topic = topic.strip()
     if selected_topic not in KNOWN_TOPIC_CODES:

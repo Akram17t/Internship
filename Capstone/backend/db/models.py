@@ -2,10 +2,9 @@ from __future__ import annotations
 
 """SQLAlchemy ORM models for the PostgreSQL backend.
 
-Mirrors the SQLite schema in backend/cache_db.py (schema `app`) plus a
-simplified analytics schema (`analytics`) for the usage dashboard. This is a
-reduced-scope implementation: no migration/audit/taxonomy-history schemas
-from the full design doc.
+Application state (schema `app`) plus a simplified analytics schema
+(`analytics`) for the usage dashboard. This is a reduced-scope implementation:
+no migration/audit/taxonomy-history schemas from the full design doc.
 """
 
 from datetime import date, datetime

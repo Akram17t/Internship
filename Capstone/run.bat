@@ -32,9 +32,9 @@ if errorlevel 1 (
   goto :fail
 )
 
-rem Analytics uses PostgreSQL when DATABASE_BACKEND=postgres. Keep these
-rem pinned runtime packages in the exact venv used below, not whichever
-rem global Python happens to be first on PATH.
+rem App state and analytics run on PostgreSQL. Keep these pinned runtime
+rem packages in the exact venv used below, not whichever global Python
+rem happens to be first on PATH.
 "%PYTHON%" -X utf8 -c "import sqlalchemy, psycopg, alembic" >nul 2>&1
 if errorlevel 1 (
   echo PostgreSQL runtime dependencies are missing. Installing pinned versions...

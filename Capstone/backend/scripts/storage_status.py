@@ -61,12 +61,7 @@ def has_valid_vector_db() -> bool:
 
 
 def has_runtime_database() -> bool:
-    """Check the configured database and required PostgreSQL app/analytics tables."""
-    backend = get_env("DATABASE_BACKEND", "sqlite").strip().lower()
-    if backend != "postgres":
-        print(f"Database preflight: {backend} backend (PostgreSQL check skipped).")
-        return True
-
+    """Check the PostgreSQL connection and required app/analytics tables."""
     required_tables = (
         "app.users",
         "app.activity_logs",

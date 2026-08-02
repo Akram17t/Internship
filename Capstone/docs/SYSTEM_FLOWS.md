@@ -10,7 +10,7 @@ flowchart TD
   A[User submit chat] --> B[frontend submitQuestion]
   B --> C[POST /query]
   C --> D[routes_public.query_knowledge_base]
-  D --> E[Ambil context dari app_state.db]
+  D --> E[Ambil context dari PostgreSQL app.conversation_messages]
   E --> F[run_knowledge_crew]
   F --> G[resolve_query_context: Context Resolution Graph]
   G --> G1{Ada history?}
@@ -126,7 +126,7 @@ flowchart TD
   H -->|Tidak| I[422 no source]
   H -->|Ya| J[Generate FAQ]
   J --> K[Validasi usable answer]
-  K --> L[Simpan ke SQLite faq_items]
+  K --> L[Simpan ke PostgreSQL faq_items]
 ```
 
 ## Index Lokasi Cepat

@@ -34,7 +34,6 @@ def _aggregate(
 
 def _disable_route_guards(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(routes_analytics, "_require_admin", lambda _authorization: None)
-    monkeypatch.setattr(routes_analytics, "_require_postgres_backend", lambda: None)
 
 
 def test_daily_aggregate_bucket_uses_sql_date_type() -> None:

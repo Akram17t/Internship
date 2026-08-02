@@ -30,34 +30,6 @@ FORM_SOP_ALIASES = {
     "exit interview": "terminasi hubungan kerja",
     "onboarding preparation": "administrasi karyawan",
 }
-FORM_INTENT_TERMS = {
-    "access",
-    "akses",
-    "apply",
-    "backup",
-    "clearance",
-    "download",
-    "excel",
-    "exit",
-    "form",
-    "formulir",
-    "incident",
-    "interview",
-    "laporan",
-    "muka",
-    "onboarding",
-    "permohonan",
-    "procedure",
-    "procedures",
-    "request",
-    "template",
-    "travel",
-    "trip",
-    "uang",
-    "word",
-}
-
-
 def _get_data_dir() -> Path:
     # Tentukan folder data backend dari konfigurasi env.
     raw_dir = get_env("DATA_DIR", "backend/data")

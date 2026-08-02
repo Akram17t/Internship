@@ -290,7 +290,7 @@ def store_semantic_cache(
 
 
 def reset_semantic_cache(*, trace_id: str = "ingest") -> None:
-    """Kosongkan semantic cache sepenuhnya (SQLite + vector store).
+    """Kosongkan semantic cache sepenuhnya (PostgreSQL + vector store).
 
     Dipanggil setelah vector index dibangun ulang. Index baru selalu mulai
     tanpa cache, jadi entri lama dihapus agar tidak menumpuk lintas index.

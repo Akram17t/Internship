@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 from fastapi import HTTPException
 
-from backend.answer_policy import is_unsupported_answer
+from backend.answer_policy import is_unsupported_answer, strip_trailing_unsupported_answer
 from backend.api.models import AdminFAQPayload, CitationResponse, FAQItem
 from backend.api.storage import _citation_download_url
 from backend.observability import environment_name, trace_context
@@ -34,6 +34,7 @@ def _build_faq_item(payload: AdminFAQPayload, faq_id: str | None = None) -> FAQI
             answer, raw_citations = run_faq_crew(question)
     except ModelGenerationError as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
+    answer = strip_trailing_unsupported_answer(answer)
     citations = [
         CitationResponse(
             **citation,

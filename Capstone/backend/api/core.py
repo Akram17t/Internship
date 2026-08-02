@@ -21,8 +21,10 @@ if str(CREW_SRC_DIR) not in sys.path:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    from backend.cache_db import init_state_db
     from backend.observability import log_startup_status, shutdown
 
+    init_state_db()
     log_startup_status()
     try:
         yield

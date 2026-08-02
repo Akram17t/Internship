@@ -8,7 +8,6 @@ from fastapi import HTTPException
 
 from backend.api.storage import _document_kind_for_path
 
-PDF_MIME = "application/pdf"
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 

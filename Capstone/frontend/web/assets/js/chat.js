@@ -662,20 +662,6 @@ function scrollChatToBottom(behavior = "auto", { force = false } = {}) {
   });
 }
 
-function renderMessageCitations(container, citations) {
-  if (!Array.isArray(citations) || !citations.length) return;
-
-  const list = document.createElement("div");
-  list.className = "citation-chips";
-
-  citations.forEach((citation, index) => {
-    list.appendChild(createCitationChip(citation, index));
-  });
-
-  container.appendChild(list);
-  container.hidden = false;
-}
-
 function normalizeAnswerSource(value) {
   const source = String(value || "").toLowerCase();
   if (source === "cache" || source === "model" || source === "fallback") {
@@ -876,40 +862,6 @@ function normalizeFormDownloads(downloads = []) {
       formats: Array.isArray(item.formats) ? item.formats : [],
       used: false,
     }));
-}
-
-function createFormDownloadChip(item, isInline = false) {
-  const link = document.createElement("a");
-  link.className = "form-download-chip";
-  if (isInline) link.classList.add("is-inline");
-  link.href = item.download_url || "#";
-  link.target = "_blank";
-  link.rel = "noopener";
-  link.setAttribute(
-    "aria-label",
-    `Download ${item.label || item.name || "form"}`,
-  );
-  link.title = `Download ${item.label || item.name || "form"}`;
-
-  const icon = document.createElement("span");
-  icon.className = "material-symbols-outlined form-download-icon";
-  icon.setAttribute("aria-hidden", "true");
-  icon.textContent = "picture_as_pdf";
-
-  const text = document.createElement("span");
-  text.className = "form-download-label";
-  text.textContent = isInline ? "PDF" : item.label || item.name || "Form";
-
-  link.append(icon, text);
-  return link;
-}
-
-function isFormSource(source) {
-  // Template form dikenali dari awalan nama file "Form" (semua dokumen kini PDF).
-  return String(source || "")
-    .trim()
-    .toLowerCase()
-    .startsWith("form");
 }
 
 function getCitationFileType(citation) {

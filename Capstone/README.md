@@ -2,7 +2,7 @@
 
 RAG-based internal document assistant for SOP, guideline, and runbook search, with a custom web frontend served directly from FastAPI.
 
-Architecture and design docs, including a topology diagram, are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+System flow diagrams are in [docs/SYSTEM_FLOWS.md](docs/SYSTEM_FLOWS.md).
 
 ## Stack
 
@@ -16,20 +16,29 @@ Architecture and design docs, including a topology diagram, are in [docs/ARCHITE
 
 1. Create a virtual environment and install dependencies from `requirements.txt`.
 2. Copy `.env.example` to `.env`, run 9Router locally or set another OpenAI-compatible `CHAT_BASE_URL`, then set `CHAT_API_KEY` if your endpoint requires it and `NSCALE_SERVICE_TOKEN`.
-3. Put SOP/knowledge PDF or DOCX files into `backend/data/`; form templates can be PDF, Word, or Excel files. Forms uploaded below an SOP in the admin UI do not need a `Form` filename prefix.
-4. Run ingestion:
+3. Start the local PostgreSQL container and apply migrations (app state and analytics require PostgreSQL -- there is no SQLite fallback):
+
+```bash
+docker compose -f docker-compose.dev-db.yml up -d
+python -m alembic -c alembic.ini upgrade head
+```
+
+4. Put SOP/knowledge PDF or DOCX files into `backend/data/`; form templates can be PDF, Word, or Excel files. Forms uploaded below an SOP in the admin UI do not need a `Form` filename prefix.
+5. Run ingestion:
 
 ```bash
 python -m backend.preprocessing.ingest
 ```
 
-5. Start the API:
+6. Start the API:
 
 ```bash
 uvicorn backend.api.main:app --reload
 ```
 
-6. Open `http://127.0.0.1:8000` in your browser.
+7. Open `http://127.0.0.1:8000` in your browser.
+
+`run.bat` (see below) automates steps 3, 5, and 6.
 
 ## Windows Scripts
 
@@ -40,7 +49,7 @@ run.bat
 clean.bat
 ```
 
-- `run.bat` uses `backend\researcher_crew\.venv`, checks the required imports, reads `CHROMA_DIR` and `DATA_DIR` from `.env`, runs ingestion only when no valid vector index exists, then starts FastAPI and opens the web frontend in your browser.
+- `run.bat` uses `backend\researcher_crew\.venv`, checks the required imports, starts the local PostgreSQL dev container if it isn't already running, reads `CHROMA_DIR` and `DATA_DIR` from `.env`, runs ingestion only when no valid vector index exists, then starts FastAPI and opens the web frontend in your browser.
 - `clean.bat` stops the server, removes `__pycache__`, `.pytest_cache`, and `*.pyc`, and clears the `CHROMA_DIR` vector index (keeping `.gitkeep`) so the next `run.bat` re-ingests documents.
 
 ## Docker Deployment
@@ -64,12 +73,23 @@ CHAT_BASE_URL=http://9router:20129/v1
 CHAT_API_KEY=
 OPENAI_COMPAT_NO_AUTH_BASE_URLS=http://9router:20129/v1
 CHUNK_AI_MAX_COMPLETION_TOKENS=16384
-APP_STATE_DB=/app/storage/app_state.db
 DATA_DIR=/app/storage/data
 CHROMA_DIR=/app/storage/chroma_db
 SEMANTIC_CACHE_DIR=/app/storage/semantic_chroma
 JWT_SECRET=<fixed-random-secret>
 API_KEY_SECRET=<fixed-random-secret>
+DATABASE_URL=<postgresql+psycopg://user:password@host:5432/dbname>
+ANALYTICS_PSEUDONYM_SECRET=<fixed-random-secret>
+```
+
+App state (conversations, admin accounts, activity logs, FAQs, semantic cache
+metadata) and analytics live in PostgreSQL, not in `app_storage` -- point
+`DATABASE_URL` at a reachable Postgres instance (RDS, a managed EC2 install,
+or the local dev container in `docker-compose.dev-db.yml`) and apply schema
+migrations before starting the app:
+
+```bash
+python -m alembic -c alembic.ini upgrade head
 ```
 
 The Compose file runs 9Router plus an internal loopback proxy. Capstone calls
@@ -148,10 +168,24 @@ python -m uvicorn backend.api.main:app --host 0.0.0.0 --port 8000 --no-access-lo
 
 Important persistent data in `app_storage`:
 
-- `app_state.db`: admin accounts, sessions state, activity logs, and app state
 - `data/`: uploaded/source documents
 - `chroma_db/`: vector database index
 - `semantic_chroma/`: semantic answer cache
+
+Admin accounts, sessions, activity logs, FAQs, and semantic cache metadata
+live in PostgreSQL (see `DATABASE_URL` above), not in `app_storage`.
+
+## Testing
+
+```bash
+pytest
+```
+
+Tests run against a dedicated `hr_agent_test` PostgreSQL database on the same
+server as `DATABASE_URL` (see `conftest.py`), never against your own dev data.
+The database and current table shape are created automatically on first run;
+each test truncates all tables beforehand for isolation. Requires the local
+PostgreSQL container to be running (`docker compose -f docker-compose.dev-db.yml up -d`).
 
 ## Frontend Config
 
@@ -201,11 +235,19 @@ Capstone/
 |   |-- api/              # FastAPI routes and frontend hosting
 |   |-- researcher_crew/  # RAG answer generation and retrieval helpers
 |   |-- preprocessing/    # ingestion, loaders, chunking, embeddings, vectorstore
+|   |-- analytics/        # topic classification and daily aggregate refresh
+|   |-- db/               # SQLAlchemy models, engine, PostgreSQL repository, Alembic migrations
 |   |-- scripts/          # small command-line helpers used by Windows scripts
 |   |-- data/             # source documents
 |   `-- chroma_db/        # persisted vector database
 |-- frontend/
 |   `-- web/              # static web frontend (HTML/CSS/JS modular globals)
+|-- frontend-dashboard/   # React/Vite source for the analytics dashboard, built into frontend/web/assets/dashboard
+|-- deploy/               # EC2 deployment and Kiro connection scripts, nginx config
+|-- docs/                 # system flow diagrams, admin guide
+|-- tests/, backend/tests/  # pytest suites
+|-- docker-compose.yml, docker-compose.dev-db.yml, Dockerfile
+|-- alembic.ini
 |-- .env.example
 |-- README.md
 |-- clean.bat

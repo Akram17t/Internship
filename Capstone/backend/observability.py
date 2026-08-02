@@ -337,16 +337,6 @@ def current_trace_id() -> str:
         return ""
 
 
-def current_observation_id() -> str:
-    client = _client()
-    if client is None:
-        return ""
-    try:
-        return str(client.get_current_observation_id() or "")
-    except Exception:
-        return ""
-
-
 def score_user_thumbs_down(
     *,
     trace_id: str,

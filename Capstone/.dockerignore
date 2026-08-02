@@ -2,11 +2,16 @@
 
 !Dockerfile
 !requirements.txt
+!alembic.ini
 
 !backend/
 !backend/*.py
 !backend/api/
 !backend/api/**
+!backend/analytics/
+!backend/analytics/**
+!backend/db/
+!backend/db/**
 !backend/preprocessing/
 !backend/preprocessing/**
 !backend/scripts/
