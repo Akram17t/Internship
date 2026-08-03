@@ -89,8 +89,8 @@
   {\Large ICS Compute\par}
   \vfill
   \begin{tabular}{>{\bfseries}rl}
-    Versi & 1.1 \\
-    Tanggal & 28 Juli 2026 \\
+    Versi & 2.0 \\
+    Tanggal & 3 Agustus 2026 \\
     Akses & Internal HR / Admin \\
   \end{tabular}
   \vfill
@@ -112,58 +112,102 @@ Buka HR Assistant melalui URL berikut:
 \begin{itemize}
   \item Akses aplikasi harus menggunakan WiFi kantor.
   \item Gunakan awalan \texttt{http://}, bukan \texttt{https://}.
+  \item Login memakai akun Google Workspace \texttt{@icscompute.com}. Akun Gmail
+        pribadi atau domain lain akan ditolak oleh sistem.
 \end{itemize}
 
 \Needspace{20\baselineskip}
-\section{Login Admin}
+\section{Login dengan Google}
 
-Secara default, aplikasi akan tampil sebagai \textbf{Guest}. Gunakan akses admin untuk membuka fitur pengelolaan FAQ, dokumen, akun admin, dan logs.
+Aplikasi tertutup untuk publik: sebelum login, seluruh layar tertutup halaman
+sign-in dan tidak ada menu yang bisa dibuka. Login tidak lagi memakai email dan
+password; semuanya lewat akun Google Workspace kantor.
 
-\screenshot[0.32\linewidth]{00-login-entry.png}{Tombol login admin pada panel akun di kiri bawah.}
-
+\screenshot[0.66\linewidth]{00-login-entry.png}{Halaman sign-in yang menutup aplikasi sebelum login.}
 
 \begin{enumerate}
-  \item Klik tombol login pada panel akun di kiri bawah.
-  \item Masukkan email dan password admin.
-  \item Klik \textbf{Login admin}.
+  \item Klik tombol \textbf{Sign in with Google}.
+  \item Pilih akun Google Workspace \texttt{@icscompute.com} Anda.
+  \item Aplikasi terbuka otomatis setelah akun terverifikasi.
 \end{enumerate}
 
-\screenshot[0.48\linewidth]{01-login-admin.png}{Form login admin.}
+\notebox{Jika browser Anda sudah punya sesi Google aktif, akan muncul pop-up
+\textit{One Tap} di kanan atas dan Anda bisa langsung memilih akun tanpa menekan
+tombol. Jika pop-up tidak muncul (mis. diblokir browser), gunakan tombol
+\textbf{Sign in with Google} pada kartu tersebut.}
+
+\Needspace{12\baselineskip}
+\subsection{Perbedaan User dan Admin}
+
+Semua karyawan dengan email \texttt{@icscompute.com} bisa login sebagai
+\textbf{user} dan memakai chat, FAQ, serta Docs. Menu pengelolaan hanya muncul
+jika email Anda terdaftar sebagai \textbf{admin}.
 
 \begin{center}
-\renewcommand{\arraystretch}{1.18}
-\begin{tabularx}{0.78\linewidth}{@{}B{3.6cm}Y@{}}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{0.94\linewidth}{@{}B{3.4cm}Y@{}}
 \toprule
-Email default & \texttt{admin@gmail.com} \\
-Password default & \texttt{admin123} \\
+Role & Yang bisa diakses \\
+\midrule
+User & Chat, FAQ, Docs (unduh dokumen dan form). \\
+Admin & Semua akses user, ditambah tombol \textbf{New admin}, menu
+\textbf{Logs}, \textbf{Analytics}, \textbf{Guardrails}, serta panel admin di FAQ
+dan Docs. \\
 \bottomrule
 \end{tabularx}
 \end{center}
-\notebox{Jika login gagal, pastikan email dan password sudah benar. Perhatikan juga huruf besar/kecil dan spasi yang tidak sengaja ikut terisi.}
 
-Setelah login berhasil, tombol \textbf{New admin}, menu \textbf{Logs}, dan panel admin pada FAQ/Docs akan muncul.
+Setelah login sebagai admin, sidebar menampilkan enam menu dan nama Anda muncul
+di panel akun kiri bawah dengan label \textbf{Admin}.
 
 \screenshot[0.76\linewidth]{02-admin-mode.png}{Tampilan setelah login sebagai admin.}
+
+\notebox{Admin pertama ditentukan lewat konfigurasi server
+(\texttt{INITIAL\_ADMIN\_EMAIL}). Admin berikutnya ditambahkan dari dalam
+aplikasi seperti pada bab berikut.}
+
+\Needspace{16\baselineskip}
+\section{Pilihan Bahasa (EN / ID)}
+
+Seluruh tampilan tersedia dalam Bahasa Inggris dan Bahasa Indonesia. Tombol
+\textbf{EN / ID} ada di kanan atas, dan juga di kartu sign-in sehingga bisa
+diganti sebelum login.
+
+\screenshot[0.86\linewidth]{21-language-toggle.png}{Tombol pilihan bahasa pada bar atas.}
+
+\begin{itemize}
+  \item Klik \textbf{ID} untuk Bahasa Indonesia, \textbf{EN} untuk Bahasa Inggris.
+  \item Pilihan bahasa tersimpan di browser, jadi tetap sama saat aplikasi dibuka lagi.
+  \item Pilihan ini hanya mengubah tampilan aplikasi, bukan bahasa jawaban chatbot.
+        Chatbot menjawab mengikuti bahasa pertanyaan Anda.
+\end{itemize}
+
+\screenshot[0.76\linewidth]{22-language-indonesian.png}{Tampilan aplikasi dalam Bahasa Indonesia.}
 
 \Needspace{16\baselineskip}
 \section{Menambahkan Admin Baru}
 
-Admin dapat menambahkan akun admin lain melalui tombol \textbf{New admin}.
+Admin dapat memberi akses admin ke rekan lain lewat tombol \textbf{New admin}.
+Formulir ini hanya meminta email, karena password sepenuhnya ditangani Google.
 
 \begin{enumerate}
   \item Klik \textbf{New admin} di kanan atas.
-  \item Isi \textbf{Nama}, \textbf{Email}, dan \textbf{Password}.
-  \item Klik \textbf{Simpan admin}.
+  \item Isi email Google Workspace orang tersebut, harus berakhiran
+        \texttt{@icscompute.com}.
+  \item Klik \textbf{Save admin}.
 \end{enumerate}
 
-\screenshot[0.48\linewidth]{03-new-admin.png}{Form tambah admin baru.}
+\screenshot[0.46\linewidth]{03-new-admin.png}{Form tambah admin baru.}
 
-\notebox{Gunakan email yang berbeda untuk setiap admin. Jika email sudah terdaftar, sistem akan menolak pembuatan akun.}
+\notebox{Akses admin berlaku untuk email persis seperti yang diisi, dan langsung
+aktif saat orang tersebut login dengan akun Google-nya. Jika email sudah
+terdaftar sebagai admin, sistem akan menolak penambahan.}
 
 \Needspace{16\baselineskip}
 \section{Chat dan Tombol Stop}
 
-Admin tetap dapat menggunakan chat seperti user biasa. Saat chatbot sedang memproses jawaban, tombol kirim berubah menjadi tombol \textbf{Stop}.
+Admin tetap dapat menggunakan chat seperti user biasa. Saat chatbot sedang
+memproses jawaban, tombol kirim berubah menjadi tombol \textbf{Stop}.
 
 \begin{enumerate}
   \item Tulis pertanyaan pada kolom chat.
@@ -173,12 +217,29 @@ Admin tetap dapat menggunakan chat seperti user biasa. Saat chatbot sedang mempr
 
 \screenshot[0.76\linewidth]{04-chat-stop.png}{Chat sedang memproses jawaban dan dapat dihentikan dengan tombol Stop.}
 
-\notebox{Chatbot menjawab berdasarkan SOP/knowledge document yang sudah masuk embeddings. Jika informasi belum ada di dokumen, chatbot dapat memberikan jawaban fallback atau meminta eskalasi ke HR.}
+\notebox{Chatbot menjawab berdasarkan SOP/knowledge document yang sudah masuk
+embeddings. Jika informasi belum ada di dokumen, chatbot dapat memberikan
+jawaban fallback atau meminta eskalasi ke HR.}
+
+\Needspace{12\baselineskip}
+\subsection{Riwayat Chat}
+
+Percakapan tersimpan per akun dan muncul pada daftar \textbf{Chats} di sidebar.
+
+\begin{itemize}
+  \item Klik salah satu judul untuk membuka kembali percakapan lama.
+  \item Klik \textbf{New chat} di kanan atas untuk memulai percakapan baru.
+  \item Setiap baris punya aksi untuk mengganti nama dan menghapus percakapan.
+\end{itemize}
+
+\notebox{Riwayat bersifat pribadi per akun: Anda hanya melihat percakapan Anda
+sendiri. Untuk melihat percakapan seluruh karyawan, gunakan menu \textbf{Logs}.}
 
 \Needspace{16\baselineskip}
 \section{Feedback Jawaban Chat}
 
-Setiap jawaban asisten menampilkan baris \textbf{Is this helpful?} dengan dua ikon jempol tepat di bawah info \textit{AI Assistant}, waktu, dan sumber jawaban.
+Setiap jawaban asisten menampilkan baris \textbf{Is this helpful?} dengan dua
+ikon jempol tepat di bawah info \textit{AI Assistant}, waktu, dan sumber jawaban.
 
 \screenshot[0.66\linewidth]{17-chat-feedback-row.png}{Baris feedback di bawah jawaban asisten.}
 
@@ -194,10 +255,15 @@ Jempol bawah (merah) & Melaporkan jawaban yang kurang memuaskan. Setelah diklik,
 \end{tabularx}
 \end{center}
 
+\notebox{Jumlah feedback negatif ikut terhitung pada kartu \textbf{Feedback} di
+menu Logs dan KPI \textbf{Negative Feedback} di menu Analytics, jadi feedback
+dari user memang dipakai untuk memantau kualitas jawaban.}
+
 \Needspace{18\baselineskip}
 \section{FAQ}
 
-Fitur FAQ dipakai untuk membuat daftar pertanyaan umum berdasarkan dokumen yang sudah masuk knowledge base.
+Fitur FAQ dipakai untuk membuat daftar pertanyaan umum berdasarkan dokumen yang
+sudah masuk knowledge base.
 
 \Needspace{14\baselineskip}
 \subsection{Generate FAQ}
@@ -222,16 +288,24 @@ FAQ yang sudah dibuat dapat diperbarui atau dihapus dari daftar.
 
 \screenshot[0.55\linewidth]{07-faq-update-delete.png}{Tombol Update dan Delete pada item FAQ.}
 
-Saat update, pertanyaan akan masuk kembali ke form dan tombol berubah menjadi \textbf{Regenerate FAQ}.
+Saat update, pertanyaan akan masuk kembali ke form dan tombol berubah menjadi
+\textbf{Regenerate FAQ}.
 
 \screenshot[0.52\linewidth]{08-faq-regenerate.png}{Mode regenerate FAQ.}
 
 \Needspace{18\baselineskip}
 \section{Document Library}
 
-Menu \textbf{Docs} dipakai untuk mengelola dokumen SOP dan Form yang tersedia di aplikasi.
+Menu \textbf{Docs} dipakai untuk mengelola dokumen SOP dan Form yang tersedia di
+aplikasi.
 
 \screenshot[0.76\linewidth]{09-document-management.png}{Panel admin untuk mengelola dokumen.}
+
+\Needspace{12\baselineskip}
+\subsection{Mencari Dokumen}
+
+Klik tombol \textbf{Filter} di kanan atas untuk memunculkan kolom pencarian,
+lalu ketik sebagian nama dokumen untuk menyaring daftar.
 
 \Needspace{12\baselineskip}
 \subsection{Upload / Insert Dokumen}
@@ -245,7 +319,8 @@ Menu \textbf{Docs} dipakai untuk mengelola dokumen SOP dan Form yang tersedia di
 \Needspace{12\baselineskip}
 \subsection{Update dan Delete Dokumen}
 
-Setiap baris dokumen memiliki tombol \textbf{Download}, \textbf{Update}, dan \textbf{Delete}.
+Setiap baris dokumen memiliki tombol \textbf{Download}, \textbf{Update}, dan
+\textbf{Delete}.
 
 \screenshot[0.52\linewidth]{10-document-row-actions.png}{Aksi pada baris dokumen.}
 
@@ -262,10 +337,14 @@ Form (Word/Excel/PDF) ditautkan langsung ke satu SOP.
 
 \screenshot[0.62\linewidth]{18-document-insert-form.png}{Panel Forms pada baris SOP dengan tombol Insert another form.}
 
+\notebox{Saat form diunduh, aplikasi menanyakan format terlebih dahulu lewat
+dialog \textbf{Choose format} dengan pilihan \textbf{PDF} atau \textbf{Word}.}
+
 \Needspace{12\baselineskip}
 \subsection{Finalize Perubahan}
 
-Klik \textbf{Finalize} setelah perubahan pada SOP/knowledge document agar chatbot memakai sumber terbaru.
+Klik \textbf{Finalize} setelah perubahan pada SOP/knowledge document agar chatbot
+memakai sumber terbaru.
 
 \begin{enumerate}
   \item Insert, update, atau delete dokumen SOP.
@@ -276,33 +355,148 @@ Klik \textbf{Finalize} setelah perubahan pada SOP/knowledge document agar chatbo
 
 \screenshot[0.52\linewidth]{11-rebuild-embeddings.png}{Tombol Finalize aktif setelah SOP diperbarui.}
 
-\Needspace{18\baselineskip}
+\notebox{Selama perubahan belum di-Finalize, tombol \textbf{Undo all} tersedia
+untuk membatalkan seluruh perubahan dokumen yang belum diterapkan.}
+
+\Needspace{20\baselineskip}
 \section{Logs}
 
-Menu \textbf{Logs} digunakan untuk memantau penggunaan chatbot.
+Menu \textbf{Logs} digunakan untuk memantau penggunaan chatbot oleh seluruh
+karyawan. Di bagian atas ada tiga kartu ringkasan yang sekaligus berfungsi
+sebagai pemilih tampilan: klik salah satu kartu untuk mengganti isi daftar di
+bawahnya.
+
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{0.94\linewidth}{@{}B{3.4cm}Y@{}}
+\toprule
+Kartu & Isi daftar setelah diklik \\
+\midrule
+Total Chat & \textbf{Recent questions} --- seluruh pertanyaan pada rentang tanggal terpilih. \\
+Total Session & \textbf{Chat sessions} --- percakapan dikelompokkan per sesi, lengkap dengan jumlah pertanyaan dan nama user. \\
+Feedback & Daftar jawaban yang dilaporkan user sebagai tidak memuaskan. \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\screenshot[0.72\linewidth]{12-logs-questions-detail.png}{Daftar pertanyaan; satu baris dibuka untuk melihat jawaban chatbot.}
+
+Pada toolbar tersedia beberapa alat bantu:
 
 \begin{itemize}
-  \item Tab \textbf{Questions} menampilkan daftar pertanyaan terbaru.
-  \item Klik satu pertanyaan untuk melihat jawaban yang diberikan chatbot.
-  \item Filter tanggal tersedia melalui field \textbf{Start} dan \textbf{End}.
+  \item \textbf{Search by name} --- menyaring aktivitas berdasarkan nama karyawan.
+  \item \textbf{Start} dan \textbf{End} --- rentang tanggal yang ditampilkan.
+  \item Tombol \textbf{refresh} --- memuat ulang data terbaru.
 \end{itemize}
 
-\screenshot[0.68\linewidth]{12-logs-questions-detail.png}{Log pertanyaan dan detail jawaban chatbot.}
+Klik satu baris pertanyaan untuk membuka jawaban yang diberikan chatbot. Jika
+jawabannya panjang, gunakan tombol \textbf{Read more} untuk melihat selengkapnya.
 
-Tab \textbf{Sessions} mengelompokkan chat berdasarkan sesi percakapan. Admin dapat membuka satu sesi untuk melihat pertanyaan dan jawaban dalam sesi tersebut, atau menghapus log sesi melalui tombol delete.
+\screenshot[0.72\linewidth]{13-logs-sessions.png}{Tampilan Chat sessions setelah kartu Total Session diklik.}
 
-\screenshot[0.68\linewidth]{13-logs-sessions.png}{Log berdasarkan sesi percakapan.}
-
-Saat satu sesi dibuka, filter \textbf{Filtered session} akan aktif. Klik \textbf{Clear} untuk kembali melihat semua pertanyaan.
+Saat satu sesi dibuka, filter \textbf{Filtered session} akan aktif dan daftar
+hanya menampilkan pertanyaan dari sesi tersebut. Klik \textbf{Clear} untuk
+kembali melihat semua pertanyaan.
 
 \screenshot[0.72\linewidth]{14-logs-session-filter.png}{Log sesi terpilih dengan tombol Clear dan detail jawaban.}
+
+\notebox{Tombol tempat sampah pada setiap baris menghapus log tersebut secara
+permanen. Data yang sudah dihapus tidak bisa dikembalikan dan akan hilang juga
+dari perhitungan Analytics.}
+
+\Needspace{20\baselineskip}
+\section{Analytics}
+
+Menu \textbf{Analytics} menampilkan ringkasan pemakaian chatbot: seberapa ramai
+dipakai, topik apa yang paling banyak ditanyakan, dan seberapa sering jawaban
+dinilai kurang memuaskan.
+
+\screenshot[0.78\linewidth]{19-analytics-overview.png}{Halaman Usage Analytics dengan pemilih rentang tanggal dan tiga KPI utama.}
+
+\Needspace{12\baselineskip}
+\subsection{Memilih Rentang Tanggal}
+
+Pada bar \textbf{Overview} tersedia tombol cepat \textbf{7D}, \textbf{30D}, dan
+\textbf{90D}, atau isi sendiri kolom \textbf{Start} dan \textbf{End}. Seluruh
+angka dan grafik di halaman ini mengikuti rentang yang dipilih.
+
+Tombol \textbf{refresh} di sebelah kanan menghitung ulang data agregat di server.
+Keterangan \textbf{Last refreshed} dan \textbf{Data available} di kanan atas
+menunjukkan kapan angka terakhir dihitung dan periode data yang tersedia.
+
+\Needspace{14\baselineskip}
+\subsection{Tiga KPI Utama}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{0.94\linewidth}{@{}B{3.9cm}Y@{}}
+\toprule
+KPI & Arti \\
+\midrule
+Total Questions & Jumlah pertanyaan pada rentang terpilih. \\
+Active Users & Jumlah karyawan berbeda yang bertanya pada rentang terpilih. \\
+Negative Feedback & Jumlah jawaban yang dilaporkan tidak memuaskan, beserta persentasenya terhadap total pertanyaan. \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+Di bawah setiap KPI ada perbandingan terhadap periode sebelumnya dengan panjang
+yang sama. Jika belum ada data pembanding, tertulis \textit{No prior-period data}.
+
+\Needspace{16\baselineskip}
+\subsection{Grafik dan Tabel}
+
+\screenshot[0.78\linewidth]{20-analytics-charts.png}{Grafik tren, sebaran topik, tabel topik, dan daftar user paling aktif.}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{0.94\linewidth}{@{}B{3.9cm}Y@{}}
+\toprule
+Panel & Isi \\
+\midrule
+Questions over time & Jumlah pertanyaan per hari, untuk melihat hari tersibuk. \\
+Topic share & Proporsi pertanyaan per topik SOP dalam bentuk donat beserta persentasenya. \\
+Topic performance & Banyaknya karyawan berbeda yang menanyakan tiap topik, diurutkan dari yang paling banyak. \\
+Most active users & Karyawan dengan jumlah pertanyaan terbanyak pada rentang terpilih. \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\notebox{Panel \textbf{Topic share}, \textbf{Topic performance}, dan \textbf{Most
+active users} bisa diklik. Klik satu bagian donat, satu baris topik, atau satu
+baris user untuk langsung membuka menu \textbf{Logs} yang sudah tersaring sesuai
+pilihan tersebut.}
 
 \Needspace{20\baselineskip}
 \section{Guardrails}
 
-Menu \textbf{Guardrails} dipakai untuk mengatur batasan yang disuntikkan ke setiap jawaban AI: topik apa saja yang boleh dijawab, dan bagaimana chatbot harus bersikap saat pertanyaan di luar topik SOP atau saat ada percobaan mengubah/membocorkan instruksi sistemnya.
+Menu \textbf{Guardrails} dipakai untuk mengatur batasan yang disuntikkan ke
+setiap jawaban AI: topik apa saja yang boleh dijawab, dan bagaimana chatbot harus
+bersikap saat pertanyaan di luar topik SOP atau saat ada percobaan
+mengubah/membocorkan instruksi sistemnya.
 
 \screenshot[0.78\linewidth]{15-guardrails-menu.png}{Menu Guardrails dengan daftar rules yang sedang aktif.}
+
+\begin{enumerate}
+  \item Ubah teks aturan pada kolom editor.
+  \item Klik \textbf{Save guardrails}.
+  \item Tes lewat chat untuk memastikan chatbot sudah mengikuti aturan baru.
+\end{enumerate}
+
+\notebox{Aturan di sini ikut terkirim pada setiap jawaban, jadi perubahan
+langsung terasa di semua percakapan. Ubah seperlunya dan pastikan hasilnya
+diuji.}
+
+\Needspace{14\baselineskip}
+\section{Logout}
+
+Klik ikon logout pada panel akun di kiri bawah, lalu konfirmasi dengan tombol
+\textbf{Logout}.
+
+\screenshot[0.44\linewidth]{23-logout.png}{Konfirmasi logout.}
+
+\notebox{Setelah logout, riwayat chat pada layar dibersihkan dan aplikasi kembali
+tertutup halaman sign-in. Selalu logout jika memakai komputer bersama.}
 
 \Needspace{12\baselineskip}
 \section{Checklist Admin}
@@ -315,11 +509,13 @@ Menu \textbf{Guardrails} dipakai untuk mengatur batasan yang disuntikkan ke seti
     \vspace{0.4em}
 
     \begin{tabularx}{\linewidth}{@{}p{0.8cm}Y@{}}
-      \checkline{Login menggunakan akun admin sebelum mengelola data.}
-      \checkline{Tambahkan admin baru jika akses perlu dibagi ke pengelola lain.}
+      \checkline{Login memakai akun Google Workspace \textbf{@icscompute.com}.}
+      \checkline{Tambahkan admin baru cukup dengan email kantornya, tanpa password.}
       \checkline{Setelah mengubah SOP, klik \textbf{Finalize}.}
       \checkline{Tambahkan Form lewat panel \textbf{Forms} pada baris SOP terkait, bukan lewat \textbf{Insert files}.}
-      \checkline{Cek Logs untuk melihat pertanyaan user, sesi chat, dan jawaban chatbot.}
+      \checkline{Cek \textbf{Logs} untuk melihat pertanyaan user, sesi chat, dan feedback negatif.}
+      \checkline{Cek \textbf{Analytics} untuk melihat tren pemakaian dan topik yang paling banyak ditanyakan.}
+      \checkline{Logout setelah selesai, terutama di komputer bersama.}
     \end{tabularx}
   \end{minipage}
 }
