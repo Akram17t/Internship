@@ -656,12 +656,16 @@ body[data-role="admin"] .account-action:hover {
 
 .topbar h1 {
   margin: 0;
+  min-width: 0;
+  overflow: hidden;
   font-family: "JetBrains Mono", monospace;
   font-size: 11px;
   font-weight: 400;
   letter-spacing: 0.15em;
   line-height: 20px;
   text-transform: uppercase;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .topbar h1::before {
@@ -3921,6 +3925,13 @@ body[data-role="admin"]
     border-bottom: 1px solid var(--line);
   }
 
+  /* 3 cards in a 2-column grid leaves the 3rd alone in its row -- span it
+     full width instead of leaving an empty bordered cell beside it. */
+  .logs-summary-card:nth-child(3) {
+    grid-column: 1 / -1;
+    border-right: 0;
+  }
+
   .logs-table .logs-table-row {
     min-width: 0;
   }
@@ -3990,6 +4001,13 @@ body[data-role="admin"]
 
   .logs-summary-card:nth-child(-n + 2) {
     border-bottom: 1px solid var(--line);
+  }
+
+  /* Overrides the odd/even rule above, which would otherwise redraw the
+     right border this card doesn't need once it spans full width. */
+  .logs-summary-card:nth-child(3) {
+    grid-column: 1 / -1;
+    border-right: 0;
   }
 
   .logs-summary-card strong {
@@ -5875,4 +5893,4 @@ body.logout-open {
 }
 
 /* Analytics dashboard is embedded via /assets/dashboard/dashboard.css
-   (built from frontend-dashboard/), not styled here. */
+   (built from frontend/dashboard/), not styled here. */
