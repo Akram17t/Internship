@@ -243,8 +243,8 @@ Capstone/
 |   |-- data/             # source documents
 |   `-- chroma_db/        # persisted vector database
 |-- frontend/
-|   `-- web/              # static web frontend (HTML/CSS/JS modular globals)
-|-- frontend-dashboard/   # React/Vite source for the analytics dashboard, built into frontend/web/assets/dashboard
+|   |-- web/              # static web frontend (HTML/CSS/JS modular globals)
+|   `-- dashboard/        # React/Vite source for the analytics dashboard, built into frontend/web/assets/dashboard
 |-- deploy/               # EC2 deployment and Kiro connection scripts, nginx config
 |-- docs/                 # system flow diagrams, admin guide
 |-- tests/, backend/tests/  # pytest suites

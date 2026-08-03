@@ -32,7 +32,7 @@ node_modules/
 
 # Local dev + QA output. Screenshots taken while checking the UI belong in a
 # scratch dir, not the repo -- only the images the app actually serves (under
-# frontend/**/assets and frontend-dashboard/src/assets) are committed.
+# frontend/**/assets and frontend/dashboard/src/assets) are committed.
 /*.png
 /*.log
 /.playwright-mcp/

@@ -34,7 +34,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: "../frontend/web/assets/dashboard",
+    outDir: "../web/assets/dashboard",
     emptyOutDir: true,
     rollupOptions: {
       output: {

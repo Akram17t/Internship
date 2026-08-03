@@ -326,7 +326,7 @@ function navigateTo(screen) {
 }
 
 // Bridge called from the embedded React analytics dashboard (separate
-// bundle, see frontend-dashboard/) so clicking a user or topic there can
+// bundle, see frontend/dashboard/) so clicking a user or topic there can
 // jump into the existing vanilla Logs screen with a filter applied,
 // without the two bundles needing to share any framework/state directly.
 // `range`, when passed, carries over the date range the admin had selected
