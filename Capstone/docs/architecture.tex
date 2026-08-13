@@ -146,11 +146,8 @@
   {\LARGE\color{Red} HR Assistant}\\[0.5cm]
   {\color{Red}\rule{\textwidth}{2pt}}
 }
-\author{%
-  \large\color{Ink} Akram\\[0.2cm]
-  \normalsize\color{Muted} ICS Compute --- Internship Program 2026
-}
-\date{\color{Muted}\today}
+\author{}
+\date{}
 
 % ============================================================================
 
@@ -307,41 +304,84 @@ GET & \texttt{/health} & Basic health check. \\
 \end{tabularx}
 
 \newpage
-\begin{landscape}
-\thispagestyle{empty}
 \section{Diagram Arsitektur Sistem}
 \vspace{0.3cm}
 \begin{center}
-\resizebox{0.90\linewidth}{!}{%
+\resizebox{0.95\linewidth}{!}{%
 \begin{tikzpicture}[>=Stealth,
- box/.style={rectangle,rounded corners,draw=LineBorder,fill=PaperLight,minimum width=2.8cm,minimum height=1cm,align=center,font=\small},
- ext/.style={ellipse,draw=Red!60,fill=WarningBg,minimum width=2.7cm,minimum height=1cm,align=center,font=\small},
- db/.style={cylinder,shape border rotate=90,aspect=.22,draw=LineBorder,fill=PaperDeep,minimum width=2.6cm,minimum height=1.1cm,align=center,font=\small},
- arr/.style={->,thick,color=Muted!80}]
-\node[box] (user) at (0,0) {Browser\\User/Admin};
-\node[box] (nginx) at (3.2,0) {Nginx\\port 80};
-\node[box,minimum width=3.8cm] (app) at (7.2,0) {FastAPI App\\static frontend + API};
-\node[ext] (router) at (11.6,0) {9Router / Kiro};
-\node[ext] (claude) at (15.2,0) {Claude};
-\node[ext] (google) at (7.2,2.2) {Google OAuth};
-\node[ext] (lang) at (11.6,2.2) {Langfuse\\optional};
-\node[box] (rag) at (3.8,-2.4) {Researcher Crew\\context + retrieval};
-\node[box] (ingest) at (9.2,-2.4) {Preprocessing\\load + chunk + embed};
-\node[ext] (nscale) at (14.0,-2.4) {Nscale\\Embeddings};
-\node[db] (pg) at (5.2,-4.7) {PostgreSQL\\app + analytics};
-\node[db] (chroma) at (9.2,-4.7) {ChromaDB\\documents + cache};
-\draw[arr] (user)--node[above]{HTTP}(nginx); \draw[arr](nginx)--(app);
-\draw[arr](google)--(app); \draw[arr,dashed](app)--(lang);
-\draw[arr](app)--(router); \draw[arr](router)--(claude);
-\draw[arr](app)--(rag); \draw[arr](app)--(ingest); \draw[arr](app)--(pg);
-\draw[arr](rag)--(chroma); \draw[arr](ingest)--(chroma); \draw[arr](ingest)--(nscale);
+  proc/.style={rectangle, rounded corners=3pt, draw=LineBorder, fill=PaperLight,
+               minimum width=2.6cm, minimum height=0.9cm, align=center, font=\footnotesize},
+  db/.style={cylinder, shape border rotate=90, aspect=.22, draw=LineBorder,
+             fill=PaperDeep, minimum width=2.6cm, minimum height=1.0cm,
+             align=center, font=\footnotesize},
+  ext/.style={rectangle, rounded corners=3pt, draw=Red!60, fill=WarningBg,
+              minimum width=2.6cm, minimum height=0.9cm, align=center, font=\footnotesize},
+  arr/.style={->, thick, color=Muted!80},
+  lbl/.style={font=\scriptsize, fill=white, inner sep=1pt}
+]
+
+%% ---- Frontend layer (top-left) ----
+\begin{scope}
+  \node[proc] (browser) at (0, 0) {Browser\\User / Admin};
+\end{scope}
+
+%% ---- Gateway ----
+\node[proc] (nginx) at (4.5, 0) {Nginx\\gateway};
+
+%% ---- Backend layer box ----
+\node[proc] (fastapi) at (9.5, 0) {FastAPI\\App};
+\node[proc] (rag)     at (9.5,-2.5) {Researcher Crew\\context + retrieval};
+\node[proc] (ingest)  at (9.5,-5.0) {Preprocessing\\load + chunk + embed};
+
+%% ---- Data layer ----
+\node[db]   (pg)      at (4.5,-5.0) {PostgreSQL\\app + analytics};
+\node[db]   (chroma)  at (4.5,-7.5) {ChromaDB\\docs + cache};
+
+%% ---- External services ----
+\node[ext] (google)  at (14.5,  1.5) {Google OAuth};
+\node[ext] (router)  at (14.5,  0.0) {9Router / Kiro};
+\node[ext] (claude)  at (14.5, -1.5) {Claude};
+\node[ext] (nscale)  at (14.5, -5.0) {Nscale\\Embeddings};
+\node[ext] (langfuse) at (14.5, -3.0) {Langfuse\\(optional)};
+
+%% Background: Backend box
+\begin{scope}[on background layer]
+  \node[draw=InkSoft!30, fill=Paper, rounded corners=6pt,
+        inner sep=12pt, fit=(fastapi)(rag)(ingest), label={[font=\scriptsize\bfseries, color=InkSoft]above left:Python Backend}] {};
+\end{scope}
+
+%% Background: Data layer box
+\begin{scope}[on background layer]
+  \node[draw=LineBorder, fill=PaperDeep, rounded corners=6pt,
+        inner sep=12pt, fit=(pg)(chroma), label={[font=\scriptsize\bfseries, color=Muted]below left:Data Layer}] {};
+\end{scope}
+
+%% Background: External services box
+\begin{scope}[on background layer]
+  \node[draw=Red!40, fill=WarningBg, rounded corners=6pt,
+        inner sep=12pt, fit=(google)(router)(claude)(nscale)(langfuse),
+        label={[font=\scriptsize\bfseries, color=Red!70]above right:External Services}] {};
+\end{scope}
+
+%% ---- Arrows ----
+\draw[arr] (browser) -- node[lbl, above]{REST API / HTTP} (nginx);
+\draw[arr] (nginx)   -- node[lbl, above]{HTTP :8000} (fastapi);
+\draw[arr] (fastapi) -- (rag);
+\draw[arr] (rag) -- (ingest);
+\draw[arr] (fastapi) -- (router);
+% Route FastAPI->PG to the LEFT of the backend column to avoid crossing Researcher Crew
+\draw[arr] (fastapi.west) -- ++(-1.2,0) |- (pg.east);
+% Route RAG->ChromaDB downward then left to avoid crossing Preprocessing
+\draw[arr] (rag.west) -- ++(-1.8,0) |- (chroma.east);
+\draw[arr] (ingest)  -- (nscale);
+\draw[arr] (router)  -- (claude);
+\draw[arr] (google)  -- (fastapi);
+\draw[arr, dashed] (rag) -- (langfuse);
+
 \end{tikzpicture}%
 }
 \end{center}
-\begin{center}\small\color{Muted}Dependency runtime utama; external service ditandai outline merah.\end{center}
-\vfill
-\landscapefooter
-\end{landscape}
+\begin{center}\small\color{Muted}Dependency runtime utama; external services ditandai outline merah.\end{center}
 
 \newpage
 \section{Data dan Konfigurasi}
@@ -374,23 +414,61 @@ GET & \texttt{/health} & Basic health check. \\
 \begin{landscape}
 \thispagestyle{empty}
 \section{Alur Chat End-to-End}
+\vspace{0.3cm}
 \begin{center}
-\resizebox{!}{11.8cm}{%
-\begin{tikzpicture}[node distance=.34cm,>=Stealth,
- flowstep/.style={rectangle,rounded corners,draw=LineBorder,fill=PaperLight,text width=12.5cm,minimum height=.75cm,align=left,font=\small,inner sep=7pt},
- alt/.style={flowstep,fill=PaperDeep},arr/.style={->,thick,color=Muted!80}]
-\node[flowstep](a){\textbf{1.} Browser mengirim question dan optional conversation ID ke FastAPI.};
-\node[alt,below=of a](b){\textbf{2.} Backend memverifikasi sesi dan mengambil conversation history dari PostgreSQL.};
-\node[flowstep,below=of b](c){\textbf{3.} Context graph menentukan retrieval query, cache query, atau jalur no-retrieval.};
-\node[alt,below=of c](d){\textbf{4.} Semantic cache dicari memakai pertanyaan literal user; cache hit mengembalikan jawaban tersimpan.};
-\node[flowstep,below=of d](e){\textbf{5.} Pada cache miss, ChromaDB melakukan semantic search; optional reranker menyusun ulang kandidat.};
-\node[alt,below=of e](f){\textbf{6.} Jika evidence cukup, 9Router/Claude menghasilkan jawaban dengan citation; jika tidak, sistem mengembalikan fallback.};
-\node[flowstep,below=of f](g){\textbf{7.} Sistem memilih form relevan, menyimpan message dan activity log, lalu mengembalikan response.};
-\node[alt,below=of g](h){\textbf{8.} Jawaban model baru masuk semantic cache hanya setelah user memberi thumbs-up.};
-\foreach \x/\y in {a/b,b/c,c/d,d/e,e/f,f/g,g/h}{\draw[arr](\x)--(\y);}
+\resizebox{0.97\linewidth}{!}{%
+\begin{tikzpicture}[>=Stealth,
+  proc/.style={rectangle, rounded corners=3pt, draw=LineBorder, fill=PaperLight,
+               minimum width=2.8cm, minimum height=0.9cm, align=center, font=\footnotesize},
+  dec/.style={diamond, draw=LineBorder, fill=PaperDeep, aspect=1.8,
+              align=center, font=\footnotesize, inner sep=2pt},
+  term/.style={rectangle, rounded corners=8pt, draw=LineBorder, fill=PaperLight,
+               minimum width=2.8cm, minimum height=0.9cm, align=center, font=\footnotesize},
+  arr/.style={->, thick, color=Muted!80},
+  lbl/.style={font=\scriptsize, fill=white, inner sep=1pt}
+]
+
+%% ---- Row 1: main happy path (left to right, y=0) ----
+\node[term]  (start)   at ( 0.0,  0) {Browser\\kirim query};
+\node[proc]  (verify)  at ( 4.0,  0) {Verifikasi sesi\\+ history PG};
+\node[proc]  (context) at ( 8.0,  0) {Context graph\\resolusi query};
+\node[dec]   (cachehit) at (12.0,  0) {Cache\\hit?};
+\node[proc]  (search)  at (16.0,  0) {ChromaDB\\semantic search};
+\node[dec]   (enough)  at (20.0,  0) {Evidence\\cukup?};
+\node[proc]  (llm)     at (24.0,  0) {9Router/Claude\\generate jawaban};
+\node[term]  (send)    at (28.0,  0) {Kirim\\response};
+
+%% ---- Row 2: branch paths (y = -3) ----
+\node[proc]  (cached)  at (12.0, -3) {Kembalikan\\jawaban cache};
+\node[proc]  (fallback) at (20.0, -3) {Fallback\\response};
+\node[proc]  (save)    at (24.0, -3) {Simpan log\\+ activity};
+
+%% ---- Main path arrows ----
+\draw[arr] (start)   -- (verify);
+\draw[arr] (verify)  -- (context);
+\draw[arr] (context) -- (cachehit);
+\draw[arr] (cachehit) -- node[lbl, above]{miss} (search);
+\draw[arr] (search)  -- (enough);
+\draw[arr] (enough)  -- node[lbl, above]{ya} (llm);
+\draw[arr] (llm)     -- (send);
+
+%% ---- Cache hit branch ----
+\draw[arr] (cachehit) -- node[lbl, right]{hit} (cached);
+\draw[arr] (cached)   -- ++(4.0, 0) -- ++(0, 3.0) -- (send);
+
+%% ---- Not enough evidence branch ----
+\draw[arr] (enough)  -- node[lbl, right]{tidak} (fallback);
+\draw[arr] (fallback) -- (save);
+\draw[arr] (save)    -- ++(4.0, 0) -- (send);
+
+%% ---- Cache note below send ----
+\node[proc, minimum width=2.8cm] (cachewrite) at (28.0, -3) {Cache update\\setelah thumbs-up};
+\draw[arr, dashed] (send) -- (cachewrite);
+
 \end{tikzpicture}%
 }
 \end{center}
+\begin{center}\small\color{Muted}Alur utama (atas) dan jalur alternatif (bawah); cache hanya diperbarui setelah feedback positif.\end{center}
 \vfill
 \landscapefooter
 \end{landscape}
@@ -399,22 +477,60 @@ GET & \texttt{/health} & Basic health check. \\
 \begin{landscape}
 \thispagestyle{empty}
 \section{Alur Ingestion Dokumen}
+\vspace{0.3cm}
 \begin{center}
-\resizebox{!}{11.8cm}{%
-\begin{tikzpicture}[node distance=.38cm,>=Stealth,
- flowstep/.style={rectangle,rounded corners,draw=LineBorder,fill=PaperLight,text width=12.5cm,minimum height=.78cm,align=left,font=\small,inner sep=7pt},
- alt/.style={flowstep,fill=PaperDeep},arr/.style={->,thick,color=Muted!80}]
-\node[flowstep](a){\textbf{1.} Admin upload PDF/DOCX/TXT; backend memvalidasi extension, ukuran, dan path sebelum menyimpan ke \texttt{DATA\_DIR}.};
-\node[alt,below=of a](b){\textbf{2.} Form PDF dapat menghasilkan DOCX sidecar; form template tidak dimasukkan ke document index.};
-\node[flowstep,below=of b](c){\textbf{3.} Admin menjalankan reindex; loader membaca seluruh dokumen embeddable.};
-\node[alt,below=of c](d){\textbf{4.} Diagram description dan AI chunking dijalankan; local splitter menjadi fallback.};
-\node[flowstep,below=of d](e){\textbf{5.} Nscale menghasilkan embedding vectors untuk chunks dan metadata.};
-\node[alt,below=of e](f){\textbf{6.} Vector store menulis index ID baru ke ChromaDB lalu mengganti active index.};
-\node[flowstep,below=of f](g){\textbf{7.} Semantic cache yang mengacu index lama dibersihkan agar jawaban stale tidak digunakan.};
-\foreach \x/\y in {a/b,b/c,c/d,d/e,e/f,f/g}{\draw[arr](\x)--(\y);}
+\resizebox{0.97\linewidth}{!}{%
+\begin{tikzpicture}[>=Stealth,
+  proc/.style={rectangle, rounded corners=3pt, draw=LineBorder, fill=PaperLight,
+               minimum width=2.8cm, minimum height=0.9cm, align=center, font=\footnotesize},
+  dec/.style={diamond, draw=LineBorder, fill=PaperDeep, aspect=1.8,
+              align=center, font=\footnotesize, inner sep=2pt},
+  term/.style={rectangle, rounded corners=8pt, draw=LineBorder, fill=PaperLight,
+               minimum width=2.8cm, minimum height=0.9cm, align=center, font=\footnotesize},
+  arr/.style={->, thick, color=Muted!80},
+  lbl/.style={font=\scriptsize, fill=white, inner sep=1pt}
+]
+
+%% ---- Row 1: main path (left to right, y=0) ----
+\node[term]  (upload)   at ( 0.0,  0) {Admin upload\\PDF/DOCX/TXT};
+\node[dec]   (formpdf)  at ( 4.0,  0) {Form\\PDF?};
+\node[proc]  (loader)   at ( 8.0,  0) {Loader baca\\dokumen};
+\node[dec]   (aichunk)  at (12.0,  0) {AI chunk\\OK?};
+\node[proc]  (embed)    at (16.0,  0) {Nscale\\embedding};
+\node[proc]  (store)    at (20.0,  0) {Tulis ke\\ChromaDB};
+\node[proc]  (activate) at (24.0,  0) {Aktifkan\\index baru};
+\node[term]  (done)     at (28.0,  0) {Selesai};
+
+%% ---- Row 2: branch paths (y = -3) ----
+\node[proc]  (sidecar)  at ( 4.0, -3) {Generate\\DOCX sidecar};
+\node[proc]  (fallback) at (12.0, -3) {Local splitter\\fallback};
+\node[proc]  (clearcache) at (24.0, -3) {Bersihkan\\cache lama};
+
+%% ---- Main path arrows ----
+\draw[arr] (upload)  -- (formpdf);
+\draw[arr] (formpdf) -- node[lbl, above]{tidak} (loader);
+\draw[arr] (loader)  -- (aichunk);
+\draw[arr] (aichunk) -- node[lbl, above]{ya} (embed);
+\draw[arr] (embed)   -- (store);
+\draw[arr] (store)   -- (activate);
+\draw[arr] (activate) -- (done);
+
+%% ---- Form PDF branch ----
+\draw[arr] (formpdf) -- node[lbl, right]{ya} (sidecar);
+\draw[arr] (sidecar) -- ++(4.0, 0) -- (loader);
+
+%% ---- AI chunk fail branch ----
+\draw[arr] (aichunk) -- node[lbl, right]{tidak} (fallback);
+\draw[arr] (fallback) -- ++(4.0, 0) -- ++(0, 3.0) -- (embed);
+
+%% ---- Clear old cache (linked from activate) ----
+\draw[arr] (activate) -- ++(0, -1.5) -- (clearcache);
+\draw[arr] (clearcache) -- ++(0, 1.5) -- (done);
+
 \end{tikzpicture}%
 }
 \end{center}
+\begin{center}\small\color{Muted}Alur ingestion utama (atas); sidecar PDF dan fallback chunking ditampilkan di baris bawah.\end{center}
 \vfill
 \landscapefooter
 \end{landscape}
@@ -437,6 +553,66 @@ Gap & Belum ada rate limiting, server-side token revocation list, dependency sca
 
 \newpage
 \section{Deployment Aktual EC2}
+
+\begin{center}
+\resizebox{0.95\linewidth}{!}{%
+\begin{tikzpicture}[>=Stealth,
+  proc/.style={rectangle, rounded corners=3pt, draw=LineBorder, fill=PaperLight,
+               minimum width=2.6cm, minimum height=0.85cm, align=center, font=\footnotesize},
+  ext/.style={rectangle, rounded corners=3pt, draw=Red!60, fill=WarningBg,
+              minimum width=2.6cm, minimum height=0.85cm, align=center, font=\footnotesize},
+  store/.style={cylinder, shape border rotate=90, aspect=.22, draw=LineBorder,
+                fill=PaperDeep, minimum width=2.4cm, minimum height=0.9cm,
+                align=center, font=\footnotesize},
+  arr/.style={->, thick, color=Muted!80},
+  darr/.style={->, thick, color=Muted!50, dashed},
+  lbl/.style={font=\scriptsize, fill=white, inner sep=1pt}
+]
+
+%% ---- Outside EC2: Users (left) ----
+\node[ext] (users) at (-3.5, 1.0) {Users\\(kantor)};
+
+%% ---- Inside EC2: containers ----
+\node[proc] (nginx)      at ( 1.5,  2.0) {Nginx\\:80};
+\node[proc] (app)        at ( 5.5,  2.0) {capstone-app\\(FastAPI :8000)};
+\node[proc] (router)     at ( 9.5,  2.0) {9router\\(:20128)};
+\node[proc] (loopback)   at ( 9.5,  0.0) {9router-loopback\\(socat)};
+\node[proc] (pg)         at ( 3.5, -1.5) {PostgreSQL\\(:5432)};
+\node[proc] (chroma)     at ( 7.5, -1.5) {ChromaDB\\(embedded)};
+
+%% ---- Outside EC2: External APIs (right) ----
+\node[ext] (extapi) at (13.5, 2.0) {External APIs\\Claude / Nscale\\Langfuse};
+
+%% ---- Below EC2: EBS storage ----
+\node[store] (ebs1) at ( 3.5, -4.0) {EBS vol\\app-data};
+\node[store] (ebs2) at ( 7.5, -4.0) {EBS vol\\pg-data};
+
+%% ---- EC2 boundary box ----
+\begin{scope}[on background layer]
+  \node[draw=InkSoft!50, fill=Paper, rounded corners=8pt, inner sep=18pt,
+        fit=(nginx)(app)(router)(loopback)(pg)(chroma),
+        label={[font=\small\bfseries, color=InkSoft]above:EC2 Instance (t3.medium, us-east-1c)}] (ec2box) {};
+\end{scope}
+
+%% ---- Traffic flow arrows ----
+\draw[arr] (users)   -- node[lbl, above]{HTTP :80} (nginx);
+\draw[arr] (nginx)   -- node[lbl, above]{:8000} (app);
+\draw[arr] (app)     -- node[lbl, above]{:20128} (router);
+\draw[arr] (router)  -- node[lbl, above]{HTTPS} (extapi);
+\draw[arr] (router)  -- (loopback);
+% Route app->pg going down then left to avoid crossing any node
+\draw[arr] (app.south) -- ++(0,-0.8) -| (pg.north);
+% Route app->chroma going down-right orthogonally
+\draw[arr] (app.south east) -- ++(0.5,-0.8) -| (chroma.north);
+
+%% ---- EBS dashed connections ----
+\draw[darr] (pg)     -- node[lbl, right]{volume} (ebs2);
+\draw[darr] (chroma) -- node[lbl, right]{volume} (ebs1);
+
+\end{tikzpicture}%
+}
+\end{center}
+\begin{center}\small\color{Muted}Deployment aktual pada satu EC2 instance; semua container berjalan dalam satu Docker Compose stack.\end{center}
 
 \subsection{Instance dan Host}
 \begin{tabularx}{\linewidth}{@{}p{4.5cm}X@{}}
