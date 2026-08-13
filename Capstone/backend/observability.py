@@ -69,7 +69,7 @@ def _observation_or_noop(observation_context: Any) -> Iterator[Any]:
 
 
 def _enabled_flag() -> bool:
-    return get_env("LANGFUSE_TRACING_ENABLED", "false").lower() in {
+    return get_env("LANGFUSE_TRACING_ENABLED", "true").lower() in {
         "1",
         "true",
         "yes",

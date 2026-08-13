@@ -50,7 +50,7 @@ clean.bat
 ```
 
 - `run.bat` uses `backend\researcher_crew\.venv`, checks the required imports, starts the local PostgreSQL dev container if it isn't already running, reads `CHROMA_DIR` and `DATA_DIR` from `.env`, runs ingestion only when no valid vector index exists, then starts FastAPI and opens the web frontend in your browser.
-- `clean.bat` stops the server, removes `__pycache__`, `.pytest_cache`, and `*.pyc`, and clears the `CHROMA_DIR` vector index (keeping `.gitkeep`) so the next `run.bat` re-ingests documents.
+- `clean.bat` stops the server, removes `__pycache__` and `*.pyc`, and clears the `CHROMA_DIR` vector index (keeping `.gitkeep`) so the next `run.bat` re-ingests documents.
 
 ## Docker Deployment
 
@@ -177,18 +177,6 @@ Important persistent data in `app_storage`:
 Admin accounts, sessions, activity logs, FAQs, and semantic cache metadata
 live in PostgreSQL (see `DATABASE_URL` above), not in `app_storage`.
 
-## Testing
-
-```bash
-pytest
-```
-
-Tests run against a dedicated `hr_agent_test` PostgreSQL database on the same
-server as `DATABASE_URL` (see `conftest.py`), never against your own dev data.
-The database and current table shape are created automatically on first run;
-each test truncates all tables beforehand for isolation. Requires the local
-PostgreSQL container to be running (`docker compose -f docker-compose.dev-db.yml up -d`).
-
 ## Frontend Config
 
 - `TYPING_ANIMATION_ENABLED=false` shows full answers immediately by default.
@@ -247,7 +235,6 @@ Capstone/
 |   `-- dashboard/        # React/Vite source for the analytics dashboard, built into frontend/web/assets/dashboard
 |-- deploy/               # EC2 deployment and Kiro connection scripts, nginx config
 |-- docs/                 # system flow diagrams, admin guide
-|-- tests/, backend/tests/  # pytest suites
 |-- docker-compose.yml, docker-compose.dev-db.yml, Dockerfile
 |-- alembic.ini
 |-- .env.example

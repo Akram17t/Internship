@@ -210,6 +210,9 @@ function logout() {
   };
   clearDocumentUndo();
   window.localStorage.removeItem(AUTH_STORAGE_KEY);
+  // Prevent Google Identity Services from immediately selecting the previous
+  // account again; the next session must start from the sign-in gate.
+  window.google?.accounts?.id?.disableAutoSelect?.();
   // CHAT_STORAGE_KEY is one global key, not scoped per user -- without this,
   // the next person to sign in on this browser (a real risk on shared/kiosk
   // machines) would see this account's chat transcript rendered immediately,
@@ -222,6 +225,7 @@ function logout() {
 function syncAuth() {
   if (!isLoggedIn()) {
     showSignInGate();
+    elements.accountActionButton.hidden = true;
     elements.body.dataset.role = "";
     state.conversations = [];
     renderSidebarConversations();
@@ -229,6 +233,7 @@ function syncAuth() {
   }
 
   hideSignInGate();
+  elements.accountActionButton.hidden = false;
   const isAdmin = isAdminSession();
   elements.body.dataset.role = isAdmin ? "admin" : "user";
   refreshAccountLabels();

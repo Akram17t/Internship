@@ -33,7 +33,8 @@ from backend.db.models import (
 )
 from backend.settings import get_env
 
-ADMIN_SESSION_SECRET_KEY = "admin_session_secret"
+SESSION_SIGNING_SECRET_KEY = "session_signing_secret"
+LEGACY_SESSION_SIGNING_SECRET_KEY = "admin_session_secret"
 GUARDRAILS_RULES_KEY = "guardrails_rules_text"
 ACTIVITY_LOG_RETENTION = timedelta(days=30)
 MAX_ACTIVITY_LOG_LIMIT = 1000
@@ -152,34 +153,29 @@ def set_guardrails_rules(text_value: str) -> None:
         _set_meta(session, GUARDRAILS_RULES_KEY, text_value)
 
 
-def _ensure_admin_session_secret(session: Session) -> str:
-    current = _get_meta(session, ADMIN_SESSION_SECRET_KEY)
+def _ensure_session_signing_secret(session: Session) -> str:
+    current = _get_meta(session, SESSION_SIGNING_SECRET_KEY)
     if current:
         return current
-    next_secret = secrets.token_hex(32)
-    _set_meta(session, ADMIN_SESSION_SECRET_KEY, next_secret)
+
+    # Preserve the existing signing value during upgrade so active sessions
+    # remain valid; only the metadata key is generalized.
+    legacy = _get_meta(session, LEGACY_SESSION_SIGNING_SECRET_KEY)
+    next_secret = legacy or secrets.token_hex(32)
+    _set_meta(session, SESSION_SIGNING_SECRET_KEY, next_secret)
+    if legacy:
+        session.delete(session.get(AppStateMeta, LEGACY_SESSION_SIGNING_SECRET_KEY))
     return next_secret
 
 
-def get_admin_session_secret() -> str:
+def get_session_signing_secret() -> str:
     with _session() as session:
-        return _ensure_admin_session_secret(session)
+        return _ensure_session_signing_secret(session)
 
 
 # --------------------------------------------------------------------------
 # admin accounts
 # --------------------------------------------------------------------------
-
-
-def is_admin_email(email: str) -> bool:
-    clean_email = email.strip().lower()
-    if not clean_email:
-        return False
-    with _session() as session:
-        row = session.execute(
-            select(AdminAccount.id).where(AdminAccount.email == clean_email).limit(1)
-        ).first()
-    return row is not None
 
 
 def add_admin_by_email(*, email: str, name: str = "") -> dict[str, str]:
@@ -195,7 +191,7 @@ def add_admin_by_email(*, email: str, name: str = "") -> dict[str, str]:
         if existing:
             raise ValueError("duplicate_email")
         session.add(
-            AdminAccount(email=clean_email, password="", name=clean_name, created_at=_now())
+            AdminAccount(email=clean_email, name=clean_name, created_at=_now())
         )
         session.execute(
             update(User).where(User.email == clean_email).values(is_admin=True)
@@ -218,7 +214,6 @@ def _ensure_initial_admin(session: Session) -> None:
         pg_insert(AdminAccount)
         .values(
             email=initial_admin_email,
-            password="",
             name=initial_admin_email.split("@")[0],
             created_at=_now(),
         )
@@ -243,7 +238,9 @@ def upsert_user(*, email: str, name: str) -> dict[str, Any]:
         raise ValueError("missing_email")
 
     with _session() as session:
-        admin_flag = is_admin_email(clean_email)
+        admin_flag = session.execute(
+            select(AdminAccount.id).where(AdminAccount.email == clean_email).limit(1)
+        ).first() is not None
         now = _now()
         stmt = (
             pg_insert(User)
@@ -1045,8 +1042,8 @@ def state_counts() -> dict[str, int]:
 
 def init_state_db() -> None:
     # Schema is managed by Alembic (backend/db/alembic). Startup only needs to
-    # ensure the admin session secret and an initial admin account exist.
+    # ensure the shared session signing secret and an initial admin entry exist.
     with _session() as session:
-        _ensure_admin_session_secret(session)
+        _ensure_session_signing_secret(session)
         _ensure_initial_admin(session)
         _cleanup_activity_logs(session)

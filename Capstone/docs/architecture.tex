@@ -1,0 +1,507 @@
+% ============================================================================
+% HR Assistant --- System Architecture Document
+% Author: Akram | ICS Compute Internship
+% Date: August 2026
+% Revised: Full rewrite with breakable tables, landscape diagrams, extended
+%          component map, configuration reference, and DB schema details.
+% ============================================================================
+\documentclass[11pt,a4paper]{article}
+
+% --- Page geometry ---
+\usepackage[top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm]{geometry}
+
+% --- Encoding & Language ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+
+% --- Fonts ---
+\usepackage{lmodern}
+\usepackage{microtype}
+
+% --- Colors (matching web app CSS variables) ---
+\usepackage[dvipsnames,svgnames,x11names]{xcolor}
+\definecolor{Ink}{HTML}{0A0A0A}
+\definecolor{InkSoft}{HTML}{1A1A1A}
+\definecolor{Muted}{HTML}{5A5852}
+\definecolor{Paper}{HTML}{F4F1EA}
+\definecolor{PaperDeep}{HTML}{EBE7DD}
+\definecolor{PaperLight}{HTML}{FAF8F2}
+\definecolor{Red}{HTML}{BC1823}
+\definecolor{DeepRed}{HTML}{97121B}
+\definecolor{LineBorder}{HTML}{C8C4BC}
+\definecolor{SidebarDark}{HTML}{151515}
+\definecolor{CodeBg}{HTML}{F8F5EF}
+\definecolor{BoxBg}{HTML}{F9F6F0}
+\definecolor{SuccessBg}{HTML}{F3F0E8}
+\definecolor{WarningBg}{HTML}{FEF5F0}
+
+% --- Graphics and diagrams ---
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit,
+                backgrounds, calc, shadows.blur}
+
+% --- Tables (standard + breakable) ---
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{ltablex}          % tabularx + longtable = breakable tabularx
+\keepXColumns                 % keep X columns in ltablex
+\usepackage{longtable}
+\usepackage{colortbl}
+\usepackage{multirow}
+\usepackage{array}
+
+% --- Landscape pages for wide diagrams ---
+\usepackage{pdflscape}
+
+% --- Lists ---
+\usepackage{enumitem}
+\setlist{nosep, leftmargin=1.5em}
+\setlist[itemize]{label={\color{Red}\textbullet}}
+
+% --- Code/monospace ---
+\usepackage{listings}
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  backgroundcolor=\color{CodeBg},
+  frame=single,
+  rulecolor=\color{LineBorder},
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+}
+
+% --- Hyperlinks ---
+\usepackage[colorlinks=true, linkcolor=Red, urlcolor=DeepRed,
+            citecolor=Red, pdfborder={0 0 0}]{hyperref}
+
+% --- Header/Footer ---
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{Muted}\textit{HR Assistant --- System Architecture}}
+\fancyhead[R]{\small\color{Muted}\thepage}
+\fancyfoot[C]{\small\color{Muted}ICS Compute --- Internship Program 2026}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.2pt}
+\newcommand{\landscapefooter}{%
+  \noindent\makebox[\linewidth]{\small\color{Muted}HR Assistant\hfill\thepage}%
+}
+
+% --- Section styling ---
+\usepackage{titlesec}
+\titleformat{\section}
+  {\Large\bfseries\color{Red}}
+  {\thesection}{1em}{}[\vspace{-0.5em}\textcolor{LineBorder}{\rule{\textwidth}{0.8pt}}]
+\titleformat{\subsection}
+  {\large\bfseries\color{InkSoft}}
+  {\thesubsection}{0.8em}{}
+\titleformat{\subsubsection}
+  {\normalsize\bfseries\color{Ink}}
+  {\thesubsubsection}{0.6em}{}
+
+% --- Custom boxes ---
+\usepackage{tcolorbox}
+\tcbuselibrary{skins, breakable}
+
+\newtcolorbox{infobox}[1][]{
+  enhanced, breakable,
+  colback=BoxBg, colframe=Red!70,
+  coltitle=white, fonttitle=\bfseries,
+  boxrule=0.5pt, arc=3pt,
+  left=8pt, right=8pt, top=6pt, bottom=6pt,
+  title=#1,
+  drop shadow={shadow xshift=0.5mm, shadow yshift=-0.5mm, opacity=0.1},
+}
+\newtcolorbox{techbox}[1][]{
+  enhanced, breakable,
+  colback=SuccessBg, colframe=InkSoft!40,
+  coltitle=white, fonttitle=\bfseries,
+  boxrule=0.5pt, arc=3pt,
+  left=8pt, right=8pt, top=6pt, bottom=6pt,
+  title=#1,
+  drop shadow={shadow xshift=0.5mm, shadow yshift=-0.5mm, opacity=0.1},
+}
+\newtcolorbox{notebox}{
+  enhanced, breakable,
+  colback=WarningBg, colframe=Red!40,
+  boxrule=0.5pt, arc=3pt,
+  left=8pt, right=8pt, top=6pt, bottom=6pt,
+}
+
+% --- Paragraph spacing ---
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.6em}
+
+% --- longtable default column separation ---
+\setlength{\LTpre}{0.5em}
+\setlength{\LTpost}{0.5em}
+
+% --- Document info ---
+\title{%
+  \vspace{-1cm}
+  {\color{Red}\rule{\textwidth}{2pt}}\\[0.8cm]
+  {\Huge\bfseries\color{Ink} System Architecture}\\[0.3cm]
+  {\LARGE\color{Red} HR Assistant}\\[0.5cm]
+  {\color{Red}\rule{\textwidth}{2pt}}
+}
+\author{%
+  \large\color{Ink} Akram\\[0.2cm]
+  \normalsize\color{Muted} ICS Compute --- Internship Program 2026
+}
+\date{\color{Muted}\today}
+
+% ============================================================================
+
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+\vfill
+\begin{center}
+\color{Muted}\small
+Dokumentasi teknis arsitektur, alur runtime, data, keamanan,\\
+dan deployment aktual HR Assistant.
+\end{center}
+
+\newpage
+\tableofcontents
+
+\newpage
+\section{Konteks Sistem}
+\subsection{Tujuan dan Ruang Lingkup}
+HR Assistant adalah aplikasi internal berbasis RAG untuk mencari informasi dari SOP, kebijakan HR, dan panduan perusahaan melalui antarmuka percakapan. Jawaban menyertakan citation dan form download ketika tersedia. Admin mengelola dokumen, FAQ, guardrails, activity log, feedback, serta analytics.
+
+\begin{tabularx}{\linewidth}{@{}p{4cm}X@{}}
+\toprule \textbf{Area} & \textbf{Kondisi aktual} \\ \midrule
+Runtime & Monolith FastAPI pada satu EC2; frontend utama disajikan sebagai static files. \\
+Data & PostgreSQL untuk state dan analytics; ChromaDB lokal untuk document index dan semantic cache. \\
+AI & 9Router/Kiro untuk chat completion, Nscale untuk embedding, dan Langfuse opsional untuk tracing. \\
+Akses & Satu Google sign-in flow. Role admin berasal dari kecocokan email pada \texttt{app.admin\_accounts}. \\
+Batas implementasi & HTTPS dan SAML tidak diimplementasikan. Tidak ada HA atau pipeline CI/CD terkelola. \\
+\bottomrule
+\end{tabularx}
+
+\subsection{Fitur Inti}
+\begin{itemize}
+  \item Chat RAG dengan conversation history, citations, dan form recommendations.
+  \item Context resolution untuk follow-up question dan semantic cache setelah thumbs-up.
+  \item Upload dokumen, reindex, FAQ, guardrails, feedback, activity log, dan analytics admin.
+  \item Optional reranking dan diagram description jika dependency tersedia.
+\end{itemize}
+
+\newpage
+\section{Ringkasan Arsitektur}
+\subsection{Keputusan Utama}
+\begin{itemize}
+  \item \textbf{Auth:} semua account login dengan Google; admin ditentukan oleh \texttt{app.admin\_accounts}.
+  \item \textbf{Session:} token HMAC-SHA256 berlaku 12 jam; role diperiksa kembali dari PostgreSQL.
+  \item \textbf{Data:} PostgreSQL menjadi source of truth; ChromaDB menyimpan document vectors dan semantic cache.
+  \item \textbf{Retrieval:} semantic search dengan optional rerank; jawaban baru di-cache setelah thumbs-up.
+  \item \textbf{Runtime:} single-instance deployment dipilih untuk operasional sederhana saat ini.
+\end{itemize}
+
+\subsection{Komponen Kode Inti}
+\begin{tabularx}{\linewidth}{@{}p{4.8cm}X@{}}
+\toprule \textbf{Komponen} & \textbf{Tanggung jawab} \\ \midrule
+\texttt{backend/api/*} & FastAPI app, auth, user/admin/analytics routes, storage, FAQ, dan forms. \\
+\texttt{backend/}\linebreak\texttt{researcher\_crew/*} & Context graph, retrieval, prompt, dan orchestrator jawaban. \\
+\texttt{backend/preprocessing/*} & Loader, visual description, chunking, embedding, dan vector store. \\
+\texttt{backend/db/*} & SQLAlchemy synchronous ORM, repository, engine, dan Alembic. \\
+\texttt{backend/analytics/*} & Topic classification, canonical interactions, dan daily aggregates. \\
+\texttt{frontend/web},\linebreak\texttt{frontend/dashboard} & SPA utama vanilla JS dan dashboard admin React/Vite. \\
+\bottomrule
+\end{tabularx}
+
+\newpage
+\begin{landscape}
+\thispagestyle{empty}
+\section{Diagram Arsitektur Sistem}
+\vspace{0.3cm}
+\begin{center}
+\resizebox{0.90\linewidth}{!}{%
+\begin{tikzpicture}[>=Stealth,
+ box/.style={rectangle,rounded corners,draw=LineBorder,fill=PaperLight,minimum width=2.8cm,minimum height=1cm,align=center,font=\small},
+ ext/.style={ellipse,draw=Red!60,fill=WarningBg,minimum width=2.7cm,minimum height=1cm,align=center,font=\small},
+ db/.style={cylinder,shape border rotate=90,aspect=.22,draw=LineBorder,fill=PaperDeep,minimum width=2.6cm,minimum height=1.1cm,align=center,font=\small},
+ arr/.style={->,thick,color=Muted!80}]
+\node[box] (user) at (0,0) {Browser\\User/Admin};
+\node[box] (nginx) at (3.2,0) {Nginx\\port 80};
+\node[box,minimum width=3.8cm] (app) at (7.2,0) {FastAPI App\\static frontend + API};
+\node[ext] (router) at (11.6,0) {9Router / Kiro};
+\node[ext] (claude) at (15.2,0) {Claude};
+\node[ext] (google) at (7.2,2.2) {Google OAuth};
+\node[ext] (lang) at (11.6,2.2) {Langfuse\\optional};
+\node[box] (rag) at (3.8,-2.4) {Researcher Crew\\context + retrieval};
+\node[box] (ingest) at (9.2,-2.4) {Preprocessing\\load + chunk + embed};
+\node[ext] (nscale) at (14.0,-2.4) {Nscale\\Embeddings};
+\node[db] (pg) at (5.2,-4.7) {PostgreSQL\\app + analytics};
+\node[db] (chroma) at (9.2,-4.7) {ChromaDB\\documents + cache};
+\draw[arr] (user)--node[above]{HTTP}(nginx); \draw[arr](nginx)--(app);
+\draw[arr](google)--(app); \draw[arr,dashed](app)--(lang);
+\draw[arr](app)--(router); \draw[arr](router)--(claude);
+\draw[arr](app)--(rag); \draw[arr](app)--(ingest); \draw[arr](app)--(pg);
+\draw[arr](rag)--(chroma); \draw[arr](ingest)--(chroma); \draw[arr](ingest)--(nscale);
+\end{tikzpicture}%
+}
+\end{center}
+\begin{center}\small\color{Muted}Dependency runtime utama; external service ditandai outline merah.\end{center}
+\vfill
+\landscapefooter
+\end{landscape}
+
+\newpage
+\section{Data dan Konfigurasi}
+\subsection{Model Data Inti}
+\begin{tabularx}{\linewidth}{@{}p{5.1cm}X@{}}
+\toprule \textbf{Tabel} & \textbf{Peran} \\ \midrule
+\texttt{app.users}, \texttt{app.admin\_accounts} & Identitas Google dan allowlist role admin tanpa password. \\
+\texttt{app.conversations}, \texttt{app.conversation\_messages} & Riwayat chat dan metadata jawaban, citation, serta form. \\
+\texttt{app.feedback}, \texttt{app.faq\_items} & Rating jawaban dan FAQ berbasis knowledge base. \\
+\texttt{app.activity\_logs}, \texttt{app.cache\_entries} & Audit produk dan metadata semantic cache. \\
+\texttt{analytics.canonical\_}\linebreak\texttt{interactions} & Interaksi ternormalisasi untuk analytics. \\
+\texttt{analytics.daily\_topic\_}\linebreak\texttt{aggregates} & Rollup harian topic, user, feedback, dan fallback/error. \\
+\texttt{app.app\_state\_meta} & Session signing secret, guardrails, dan metadata state. \\
+\bottomrule
+\end{tabularx}
+
+\subsection{Konfigurasi Wajib}
+\begin{tabularx}{\linewidth}{@{}p{5.1cm}X@{}}
+\toprule \textbf{Variable / group} & \textbf{Fungsi} \\ \midrule
+\texttt{DATABASE\_URL} & PostgreSQL connection string. \\
+\texttt{MODEL}, \texttt{CHAT\_BASE\_URL} & Model chat dan endpoint 9Router/OpenAI-compatible. \\
+\texttt{NSCALE\_SERVICE\_TOKEN}, \texttt{EMBED\_MODEL} & Credential dan model embedding. \\
+\texttt{GOOGLE\_CLIENT\_ID} & Verifikasi Google login dan rendering sign-in. \\
+\texttt{DATA\_DIR}, \texttt{CHROMA\_DIR}, \texttt{SEMANTIC\_CACHE\_DIR} & Source documents dan persistent vector stores. \\
+\texttt{LANGFUSE\_*} & Tracing opsional; switch default aktif dan IO mode masked. \\
+\bottomrule
+\end{tabularx}
+
+\begin{notebox}
+Secret tidak boleh di-commit. \texttt{JWT\_SECRET} dan \texttt{API\_KEY\_SECRET} pada production template adalah milik container 9Router, bukan signer token sesi FastAPI.
+\end{notebox}
+
+\newpage
+\section{Tampilan Aplikasi}
+Screenshot berikut menunjukkan dua area operasional utama. Sidebar dipotong agar identitas account internal tidak ikut ditampilkan.
+
+\vspace{0.5cm}
+\noindent
+\begin{minipage}[t]{0.48\linewidth}
+  \centering
+  \includegraphics[width=\linewidth,trim=280 0 0 0,clip]{admin-guide/assets/19-analytics-overview.png}
+  \par\smallskip
+  \textbf{Dashboard analytics}\par
+  \small\color{Muted}Ringkasan usage, active users, feedback, dan trend pertanyaan.
+\end{minipage}\hfill
+\begin{minipage}[t]{0.48\linewidth}
+  \centering
+  \includegraphics[width=\linewidth,trim=280 0 0 0,clip]{admin-guide/assets/09-document-management.png}
+  \par\smallskip
+  \textbf{Document management}\par
+  \small\color{Muted}Upload, update, delete, dan finalize source documents/form.
+\end{minipage}
+
+\vfill
+\begin{notebox}
+Screenshot berasal dari admin guide project dan ditampilkan sebagai konteks visual, bukan sebagai spesifikasi contract frontend.
+\end{notebox}
+
+\newpage
+\begin{landscape}
+\thispagestyle{empty}
+\section{Alur Chat End-to-End}
+\begin{center}
+\resizebox{!}{11.8cm}{%
+\begin{tikzpicture}[node distance=.34cm,>=Stealth,
+ flowstep/.style={rectangle,rounded corners,draw=LineBorder,fill=PaperLight,text width=12.5cm,minimum height=.75cm,align=left,font=\small,inner sep=7pt},
+ alt/.style={flowstep,fill=PaperDeep},arr/.style={->,thick,color=Muted!80}]
+\node[flowstep](a){\textbf{1.} Browser mengirim question dan optional conversation ID ke FastAPI.};
+\node[alt,below=of a](b){\textbf{2.} Backend memverifikasi sesi dan mengambil conversation history dari PostgreSQL.};
+\node[flowstep,below=of b](c){\textbf{3.} Context graph menentukan retrieval query, cache query, atau jalur no-retrieval.};
+\node[alt,below=of c](d){\textbf{4.} Semantic cache dicari memakai pertanyaan literal user; cache hit mengembalikan jawaban tersimpan.};
+\node[flowstep,below=of d](e){\textbf{5.} Pada cache miss, ChromaDB melakukan semantic search; optional reranker menyusun ulang kandidat.};
+\node[alt,below=of e](f){\textbf{6.} Jika evidence cukup, 9Router/Claude menghasilkan jawaban dengan citation; jika tidak, sistem mengembalikan fallback.};
+\node[flowstep,below=of f](g){\textbf{7.} Sistem memilih form relevan, menyimpan message dan activity log, lalu mengembalikan response.};
+\node[alt,below=of g](h){\textbf{8.} Jawaban model baru masuk semantic cache hanya setelah user memberi thumbs-up.};
+\foreach \x/\y in {a/b,b/c,c/d,d/e,e/f,f/g,g/h}{\draw[arr](\x)--(\y);}
+\end{tikzpicture}%
+}
+\end{center}
+\vfill
+\landscapefooter
+\end{landscape}
+
+\newpage
+\begin{landscape}
+\thispagestyle{empty}
+\section{Alur Ingestion Dokumen}
+\begin{center}
+\resizebox{!}{11.8cm}{%
+\begin{tikzpicture}[node distance=.38cm,>=Stealth,
+ flowstep/.style={rectangle,rounded corners,draw=LineBorder,fill=PaperLight,text width=12.5cm,minimum height=.78cm,align=left,font=\small,inner sep=7pt},
+ alt/.style={flowstep,fill=PaperDeep},arr/.style={->,thick,color=Muted!80}]
+\node[flowstep](a){\textbf{1.} Admin upload PDF/DOCX/TXT; backend memvalidasi extension, ukuran, dan path sebelum menyimpan ke \texttt{DATA\_DIR}.};
+\node[alt,below=of a](b){\textbf{2.} Form PDF dapat menghasilkan DOCX sidecar; form template tidak dimasukkan ke document index.};
+\node[flowstep,below=of b](c){\textbf{3.} Admin menjalankan reindex; loader membaca seluruh dokumen embeddable.};
+\node[alt,below=of c](d){\textbf{4.} Diagram description dan AI chunking dijalankan; local splitter menjadi fallback.};
+\node[flowstep,below=of d](e){\textbf{5.} Nscale menghasilkan embedding vectors untuk chunks dan metadata.};
+\node[alt,below=of e](f){\textbf{6.} Vector store menulis index ID baru ke ChromaDB lalu mengganti active index.};
+\node[flowstep,below=of f](g){\textbf{7.} Semantic cache yang mengacu index lama dibersihkan agar jawaban stale tidak digunakan.};
+\foreach \x/\y in {a/b,b/c,c/d,d/e,e/f,f/g}{\draw[arr](\x)--(\y);}
+\end{tikzpicture}%
+}
+\end{center}
+\vfill
+\landscapefooter
+\end{landscape}
+
+\newpage
+\section{Keamanan dan Otorisasi}
+\begin{tabularx}{\linewidth}{@{}p{4.4cm}X@{}}
+\toprule \textbf{Kontrol} & \textbf{Implementasi aktual} \\ \midrule
+Authentication & Google ID token untuk semua user/admin; hosted domain divalidasi. \\
+Admin role & Email pada \texttt{app.admin\_accounts} berarti admin; email lain berarti user. \\
+Session & HMAC-SHA256, expiry 12 jam, secret acak di PostgreSQL; logout menghapus sesi lokal dan menonaktifkan Google auto-select. \\
+Authorization & FastAPI dependencies membedakan user/admin dan memeriksa row user live. \\
+File handling & Validasi extension, ukuran, path traversal, document kind, dan replacement path. \\
+Privacy & Analytics memakai pseudonymous user ID; Langfuse masked mode meredaksi pola sensitif. \\
+Gap & Belum ada rate limiting, server-side token revocation list, dependency scan, atau TLS termination. \\
+\bottomrule
+\end{tabularx}
+
+\begin{infobox}[Invariant auth]
+Semua account login melalui Google. Jangan mengembalikan admin-password flow atau tombol ``Masuk sebagai admin''.
+\end{infobox}
+
+\newpage
+\section{Deployment Aktual EC2}
+\begin{infobox}[Sumber observasi]
+Inventarisasi read-only melalui SSH pada 13 Agustus 2026. Tidak ada environment secret atau credential container yang dibaca. Security Group ID diperoleh dari IMDS; detail rule tidak dapat ditarik karena host tidak memiliki IAM role/AWS SDK.
+\end{infobox}
+
+\subsection{Instance dan Host}
+\begin{tabularx}{\linewidth}{@{}p{4.5cm}X@{}}
+\toprule \textbf{Aspek} & \textbf{Nilai aktual} \\ \midrule
+Public hostname & \texttt{ec2-98-81-149-80.}\linebreak\texttt{compute-1.amazonaws.com} \\
+Instance / lokasi & \texttt{t3.medium}, Availability Zone \texttt{us-east-1c} \\
+OS / kernel & Amazon Linux 2023.12; kernel 6.18 x86\_64 \\
+Compute & 2 vCPU, RAM 3.7 GiB, tanpa swap \\
+Root storage & EBS 25 GiB, XFS; 12 GiB terpakai (45\%) saat audit \\
+Runtime tools & Docker 25.0.14, Compose 5.3.1, Nginx 1.30.3 \\
+Repository checkout & Branch \texttt{main}, revision \texttt{f36db57} saat audit \\
+\bottomrule
+\end{tabularx}
+
+\subsection{Network dan Reverse Proxy}
+Nginx aktif dan menerima HTTP pada port 80, dengan \texttt{client\_max\_body\_size 50M}, lalu meneruskan request ke \texttt{127.0.0.1:8000}. SSH mendengarkan port 22. PostgreSQL (5432), 9Router (20128), dan FastAPI (8000) hanya bind ke loopback host.
+
+Instance memakai Security Group \texttt{sg-06ef9252c75a9d9e9}. Akses inbound HTTP/SSH dibatasi ke public egress jaringan kantor berdasarkan konfirmasi owner, sehingga aplikasi tidak ditujukan untuk akses internet umum. Exact CIDR/rule perlu diverifikasi di AWS Console karena instance tidak mempunyai IAM role untuk \texttt{DescribeSecurityGroups}.
+
+\newpage
+\subsection{Container dan Persistent Storage}
+\begin{tabularx}{\linewidth}{@{}p{3.1cm}p{4.0cm}X@{}}
+\toprule \textbf{Service} & \textbf{Image / port} & \textbf{Kondisi saat audit} \\ \midrule
+\texttt{app} & Custom app; \texttt{127.0.0.1:8000} & Up 10 hari; restart \texttt{unless-stopped}; belum memiliki Docker healthcheck. \\
+\texttt{9router} & \texttt{decolua/}\linebreak\texttt{9router:latest};\linebreak\texttt{127.0.0.1:20128} & Up 10 hari; restart \texttt{unless-stopped}; tanpa healthcheck. \\
+\texttt{9router-}\linebreak\texttt{loopback} & \texttt{alpine/}\linebreak\texttt{socat:latest} & Up 10 hari; forward internal; tanpa healthcheck. \\
+\texttt{postgres} & \texttt{postgres:16-alpine}; \texttt{127.0.0.1:5432} & Up 10 hari dan healthy; restart \texttt{unless-stopped}. \\
+\bottomrule
+\end{tabularx}
+
+\begin{tabularx}{\linewidth}{@{}p{5.0cm}X@{}}
+\toprule \textbf{Docker volume} & \textbf{Penggunaan saat audit} \\ \midrule
+App storage volume & 49 MiB; menyimpan source documents dan ChromaDB. \\
+PostgreSQL data volume & 48 MiB; data PostgreSQL self-hosted pada instance yang sama. \\
+\bottomrule
+\end{tabularx}
+
+\begin{notebox}
+PostgreSQL production aktual berjalan sebagai container lokal pada EC2, bukan RDS. App, database, documents, dan vector index tetap memiliki satu failure domain.
+\end{notebox}
+
+\newpage
+\section{Dependency dan Catatan Operasional}
+\begin{tabularx}{\linewidth}{@{}p{3.5cm}X@{}}
+\toprule \textbf{Area} & \textbf{Catatan penting} \\ \midrule
+Nscale & Embedding API masih memakai akun pribadi. Kehilangan akses menghentikan ingestion dan semantic retrieval yang membutuhkan embedding baru. \\
+9Router / Kiro & Bergantung pada Kiro/AWS Builder ID di host; image memakai tag \texttt{latest}. \\
+Google OAuth & Wajib untuk membuat sesi user maupun admin baru. \\
+Langfuse & Opsional dan fail-open; switch default aktif, tetapi trace hanya dikirim jika key dan base URL tersedia. \\
+Security Group & \texttt{sg-06ef9252c75a9d9e9}; akses office-only dikonfirmasi owner, sedangkan exact CIDR perlu diverifikasi di AWS Console. \\
+HTTPS & Belum aktif; Nginx hanya listen port 80 dan tidak ditemukan TLS certificate/termination pada host. \\
+Health & Hanya PostgreSQL memiliki Docker healthcheck. Endpoint app \texttt{/health} belum memeriksa dependency. \\
+\bottomrule
+\end{tabularx}
+
+\subsection{Proses Update}
+Script \texttt{deploy/update-ec2.sh} membackup konfigurasi, memvalidasi Compose, menjalankan rebuild/recreate container, menerapkan Alembic migration, memeriksa 9Router/model, lalu melakukan polling \texttt{/health}. Semua container memakai restart policy \texttt{unless-stopped}.
+
+\newpage
+\section{Lima Rekomendasi Utama}
+\begin{tabularx}{\linewidth}{@{}p{4.3cm}X@{}}
+\toprule \textbf{Rekomendasi} & \textbf{Alasan dan arah implementasi} \\ \midrule
+Migrasikan Nscale & Pindahkan embedding dari akun pribadi ke akun organisasi atau endpoint embedding organisasi yang kompatibel. Pertahankan interface OpenAI-compatible agar perubahan ingestion minimal. \\
+Aktifkan HTTPS & Pasang TLS termination melalui ALB + ACM atau Nginx dengan certificate terkelola, redirect HTTP ke HTTPS, dan dokumentasikan renewal. Pembatasan jaringan kantor tetap dipertahankan. \\
+Perbaiki deployment & Ganti image tag \texttt{latest} dengan versi immutable; tambahkan healthcheck app/9Router, readiness gate, release manifest, dan prosedur rollback yang teruji. \\
+Kelola network sebagai code & Definisikan Security Group dan office CIDR melalui Terraform/CloudFormation; pertimbangkan AWS Systems Manager agar SSH publik dapat diminimalkan. \\
+Lengkapi health dan alerting & Pertahankan Langfuse masked tracing aktif secara default; tambah dependency-aware readiness dan alarm provider, 5xx, disk, serta database. \\
+\bottomrule
+\end{tabularx}
+
+\newpage
+\section{Struktur Repository}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+<project-root>/
+|-- backend/
+|   |-- api/                    # FastAPI routes, auth, storage, models
+|   |   |-- main.py             # Application entry point
+|   |   |-- core.py             # App factory, middleware, static mounts
+|   |   |-- routes_public.py    # Query, conversations, download
+|   |   |-- routes_admin.py     # Documents, reindex, FAQ, logs
+|   |   |-- routes_auth.py      # Google login flow
+|   |   |-- routes_analytics.py # Analytics dashboard routes
+|   |   |-- auth.py             # HMAC session + Google verification
+|   |   `-- storage.py          # Document and form management
+|   |-- researcher_crew/
+|   |   `-- src/researcher_crew/
+|   |       |-- main.py         # RAG orchestrator
+|   |       |-- context_graph.py
+|   |       |-- context_schema.py
+|   |       `-- tools/custom_tool.py
+|   |-- preprocessing/
+|   |   |-- ingest.py           # Ingestion entry point
+|   |   |-- loader.py           # PDF/DOCX/TXT loader
+|   |   |-- chunker.py          # AI chunking + fallback
+|   |   |-- diagram_description.py
+|   |   |-- embedding.py        # Nscale embeddings
+|   |   `-- vectorstore.py      # ChromaDB index
+|   |-- analytics/              # Topic and aggregate processing
+|   |-- db/
+|   |   |-- models.py           # SQLAlchemy ORM
+|   |   |-- engine.py           # Synchronous engine/session
+|   |   |-- repository.py       # Database operations
+|   |   `-- alembic/            # Migration scripts
+|   |-- data/                   # Source documents and forms
+|   |-- settings.py             # Environment helpers
+|   |-- semantic_cache.py
+|   `-- observability.py
+|-- frontend/
+|   |-- web/                    # Main static SPA
+|   `-- dashboard/              # React/Vite analytics source
+|-- deploy/
+|   |-- nginx/hr-agent.conf     # Reverse proxy config
+|   `-- update-ec2.sh           # EC2 update script
+|-- docs/                       # Architecture and admin guide
+|-- docker-compose.yml          # Production services
+|-- docker-compose.dev-db.yml   # Local development PostgreSQL
+|-- Dockerfile
+|-- alembic.ini
+|-- requirements.txt
+|-- .env.example
+|-- run.bat
+`-- clean.bat
+\end{lstlisting}
+
+\end{document}

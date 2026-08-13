@@ -29,7 +29,7 @@ done
 echo "Validating Docker Compose configuration..."
 docker compose config --quiet
 
-echo "Building and recreating Capstone services..."
+echo "Building and recreating HR Assistant services..."
 docker compose up -d --build --force-recreate
 docker compose ps
 

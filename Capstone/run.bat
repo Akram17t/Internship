@@ -53,7 +53,7 @@ if errorlevel 1 (
   echo Database preflight failed. FastAPI was not started.
   echo Start Docker Desktop, then retry run.bat.
   echo To apply missing migrations manually:
-  echo   backend\researcher_crew\.venv\Scripts\python -m alembic -c backend\db\alembic.ini upgrade head
+  echo   backend\researcher_crew\.venv\Scripts\python -m alembic -c alembic.ini upgrade head
   goto :fail
 )
 

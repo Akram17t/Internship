@@ -12,14 +12,9 @@ from fastapi import HTTPException
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
 
-from backend.cache_db import get_admin_session_secret, get_user_by_email, is_admin_email
+from backend.cache_db import get_session_signing_secret, get_user_by_email
 from backend.api.core import SESSION_TTL
 from backend.settings import get_env, get_required_env
-
-
-# TODO(testing-only): remove once real @icscompute.com accounts are available
-# to test with -- lets one personal Gmail account through the domain check.
-TESTING_EMAIL_ALLOWLIST = {"akrambaasir@gmail.com"}
 
 
 def _allowed_email_domain() -> str:
@@ -28,11 +23,8 @@ def _allowed_email_domain() -> str:
 
 
 def _is_allowed_login_email(email: str) -> bool:
-    # Email yang boleh dipakai login: domain Workspace resmi, atau daftar
-    # testing-only di atas.
+    # Hanya akun dari domain Google Workspace resmi yang boleh login.
     clean_email = email.strip().lower()
-    if clean_email in TESTING_EMAIL_ALLOWLIST:
-        return True
     return clean_email.endswith("@" + _allowed_email_domain())
 
 
@@ -47,8 +39,6 @@ def _verify_google_id_token(token: str) -> dict[str, str]:
 
     email = str(claims.get("email", "")).strip().lower()
     name = str(claims.get("name") or email.split("@")[0]).strip()
-    if email in TESTING_EMAIL_ALLOWLIST:
-        return {"email": email, "name": name}
 
     domain = _allowed_email_domain()
     hosted_domain = str(claims.get("hd", "")).strip().lower()
@@ -66,7 +56,7 @@ def _verify_google_id_token(token: str) -> dict[str, str]:
 
 def _session_secret() -> str:
     # Ambil secret penanda tangan token sesi.
-    return get_admin_session_secret()
+    return get_session_signing_secret()
 
 
 def _base64url_encode(value: bytes) -> str:
@@ -163,5 +153,4 @@ __all__ = [
     "_require_admin",
     "_allowed_email_domain",
     "_is_allowed_login_email",
-    "is_admin_email",
 ]
