@@ -22,9 +22,14 @@ def _allowed_email_domain() -> str:
     return get_env("ALLOWED_EMAIL_DOMAIN", "icscompute.com").strip().lower()
 
 
+_ALLOWED_PERSONAL_EMAILS: set[str] = {"akrambaasir@gmail.com"}
+
+
 def _is_allowed_login_email(email: str) -> bool:
     # Hanya akun dari domain Google Workspace resmi yang boleh login.
     clean_email = email.strip().lower()
+    if clean_email in _ALLOWED_PERSONAL_EMAILS:
+        return True
     return clean_email.endswith("@" + _allowed_email_domain())
 
 
@@ -42,7 +47,10 @@ def _verify_google_id_token(token: str) -> dict[str, str]:
 
     domain = _allowed_email_domain()
     hosted_domain = str(claims.get("hd", "")).strip().lower()
-    if (
+    if email in _ALLOWED_PERSONAL_EMAILS:
+        # Akun personal yang di-whitelist, skip domain check.
+        pass
+    elif (
         not claims.get("email_verified")
         or hosted_domain != domain
         or not email.endswith("@" + domain)

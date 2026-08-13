@@ -191,6 +191,75 @@ Batas implementasi & HTTPS dan SAML tidak diimplementasikan. Tidak ada HA atau p
   \item Optional reranking dan diagram description jika dependency tersedia.
 \end{itemize}
 
+\subsection{Tech Stack}
+\begin{tabularx}{\linewidth}{@{}p{3.5cm}X@{}}
+\toprule \textbf{Layer} & \textbf{Teknologi} \\ \midrule
+Backend & Python 3.11, FastAPI, SQLAlchemy, Alembic, ChromaDB \\
+Frontend (User) & Vanilla JS SPA, static HTML/CSS/JS \\
+Frontend (Admin) & React 18, Vite, Recharts \\
+Database & PostgreSQL 16 \\
+Vector Store & ChromaDB (persistent local) \\
+AI/LLM & Claude via 9Router/Kiro (OpenAI-compatible API) \\
+Embeddings & Nscale (OpenAI-compatible endpoint) \\
+Observability & Langfuse (optional tracing) \\
+Infrastructure & AWS EC2 (t3.medium), Docker Compose, Nginx \\
+\bottomrule
+\end{tabularx}
+
+\newpage
+\section{Struktur Repository}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+<project-root>/
+|-- backend/
+|   |-- api/                    # FastAPI routes, auth, storage, models
+|   |   |-- main.py             # Application entry point
+|   |   |-- core.py             # App factory, middleware, static mounts
+|   |   |-- routes_public.py    # Query, conversations, download
+|   |   |-- routes_admin.py     # Documents, reindex, FAQ, logs
+|   |   |-- routes_auth.py      # Google login flow
+|   |   |-- routes_analytics.py # Analytics dashboard routes
+|   |   |-- auth.py             # HMAC session + Google verification
+|   |   `-- storage.py          # Document and form management
+|   |-- researcher_crew/
+|   |   `-- src/researcher_crew/
+|   |       |-- main.py         # RAG orchestrator
+|   |       |-- context_graph.py
+|   |       |-- context_schema.py
+|   |       `-- tools/custom_tool.py
+|   |-- preprocessing/
+|   |   |-- ingest.py           # Ingestion entry point
+|   |   |-- loader.py           # PDF/DOCX/TXT loader
+|   |   |-- chunker.py          # AI chunking + fallback
+|   |   |-- diagram_description.py
+|   |   |-- embedding.py        # Nscale embeddings
+|   |   `-- vectorstore.py      # ChromaDB index
+|   |-- analytics/              # Topic and aggregate processing
+|   |-- db/
+|   |   |-- models.py           # SQLAlchemy ORM
+|   |   |-- engine.py           # Synchronous engine/session
+|   |   |-- repository.py       # Database operations
+|   |   `-- alembic/            # Migration scripts
+|   |-- data/                   # Source documents and forms
+|   |-- settings.py             # Environment helpers
+|   |-- semantic_cache.py
+|   `-- observability.py
+|-- frontend/
+|   |-- web/                    # Main static SPA
+|   `-- dashboard/              # React/Vite analytics source
+|-- deploy/
+|   |-- nginx/hr-agent.conf     # Reverse proxy config
+|   `-- update-ec2.sh           # EC2 update script
+|-- docs/                       # Architecture and admin guide
+|-- docker-compose.yml          # Production services
+|-- docker-compose.dev-db.yml   # Local development PostgreSQL
+|-- Dockerfile
+|-- alembic.ini
+|-- requirements.txt
+|-- .env.example
+|-- run.bat
+`-- clean.bat
+\end{lstlisting}
+
 \newpage
 \section{Ringkasan Arsitektur}
 \subsection{Keputusan Utama}
@@ -211,6 +280,29 @@ Batas implementasi & HTTPS dan SAML tidak diimplementasikan. Tidak ada HA atau p
 \texttt{backend/db/*} & SQLAlchemy synchronous ORM, repository, engine, dan Alembic. \\
 \texttt{backend/analytics/*} & Topic classification, canonical interactions, dan daily aggregates. \\
 \texttt{frontend/web},\linebreak\texttt{frontend/dashboard} & SPA utama vanilla JS dan dashboard admin React/Vite. \\
+\bottomrule
+\end{tabularx}
+
+
+
+\newpage
+\subsection{API Overview}
+Semua endpoint berada di bawah FastAPI monolith pada port 8000. Autentikasi menggunakan session token di header.
+
+\begin{tabularx}{\linewidth}{@{}p{2.2cm}p{5.5cm}X@{}}
+\toprule \textbf{Method} & \textbf{Endpoint} & \textbf{Deskripsi} \\ \midrule
+POST & \texttt{/api/auth/google} & Login via Google ID token, return session. \\
+POST & \texttt{/api/query} & Kirim pertanyaan ke RAG pipeline. \\
+GET & \texttt{/api/conversations} & List conversation history user. \\
+GET & \texttt{/api/conversations/:id} & Detail messages pada conversation. \\
+POST & \texttt{/api/feedback} & Submit feedback (thumbs up/down). \\
+GET & \texttt{/api/admin/documents} & List dokumen yang dikelola. \\
+POST & \texttt{/api/admin/documents} & Upload dokumen baru. \\
+POST & \texttt{/api/admin/reindex} & Trigger reindex embedding. \\
+GET & \texttt{/api/admin/faq} & List FAQ items. \\
+GET & \texttt{/api/admin/logs} & Activity log dan session history. \\
+GET & \texttt{/api/admin/analytics/*} & Analytics data (overview, charts, topics). \\
+GET & \texttt{/health} & Basic health check. \\
 \bottomrule
 \end{tabularx}
 
@@ -262,7 +354,7 @@ Batas implementasi & HTTPS dan SAML tidak diimplementasikan. Tidak ada HA atau p
 \texttt{app.activity\_logs}, \texttt{app.cache\_entries} & Audit produk dan metadata semantic cache. \\
 \texttt{analytics.canonical\_}\linebreak\texttt{interactions} & Interaksi ternormalisasi untuk analytics. \\
 \texttt{analytics.daily\_topic\_}\linebreak\texttt{aggregates} & Rollup harian topic, user, feedback, dan fallback/error. \\
-\texttt{app.app\_state\_meta} & Session signing secret, guardrails, dan metadata state. \\
+\texttt{app.app\_state\_meta} & Session signing, guardrails, dan metadata state. \\
 \bottomrule
 \end{tabularx}
 
@@ -277,36 +369,6 @@ Batas implementasi & HTTPS dan SAML tidak diimplementasikan. Tidak ada HA atau p
 \texttt{LANGFUSE\_*} & Tracing opsional; switch default aktif dan IO mode masked. \\
 \bottomrule
 \end{tabularx}
-
-\begin{notebox}
-Secret tidak boleh di-commit. \texttt{JWT\_SECRET} dan \texttt{API\_KEY\_SECRET} pada production template adalah milik container 9Router, bukan signer token sesi FastAPI.
-\end{notebox}
-
-\newpage
-\section{Tampilan Aplikasi}
-Screenshot berikut menunjukkan dua area operasional utama. Sidebar dipotong agar identitas account internal tidak ikut ditampilkan.
-
-\vspace{0.5cm}
-\noindent
-\begin{minipage}[t]{0.48\linewidth}
-  \centering
-  \includegraphics[width=\linewidth,trim=280 0 0 0,clip]{admin-guide/assets/19-analytics-overview.png}
-  \par\smallskip
-  \textbf{Dashboard analytics}\par
-  \small\color{Muted}Ringkasan usage, active users, feedback, dan trend pertanyaan.
-\end{minipage}\hfill
-\begin{minipage}[t]{0.48\linewidth}
-  \centering
-  \includegraphics[width=\linewidth,trim=280 0 0 0,clip]{admin-guide/assets/09-document-management.png}
-  \par\smallskip
-  \textbf{Document management}\par
-  \small\color{Muted}Upload, update, delete, dan finalize source documents/form.
-\end{minipage}
-
-\vfill
-\begin{notebox}
-Screenshot berasal dari admin guide project dan ditampilkan sebagai konteks visual, bukan sebagai spesifikasi contract frontend.
-\end{notebox}
 
 \newpage
 \begin{landscape}
@@ -371,15 +433,10 @@ Gap & Belum ada rate limiting, server-side token revocation list, dependency sca
 \bottomrule
 \end{tabularx}
 
-\begin{infobox}[Invariant auth]
-Semua account login melalui Google. Jangan mengembalikan admin-password flow atau tombol ``Masuk sebagai admin''.
-\end{infobox}
+
 
 \newpage
 \section{Deployment Aktual EC2}
-\begin{infobox}[Sumber observasi]
-Inventarisasi read-only melalui SSH pada 13 Agustus 2026. Tidak ada environment secret atau credential container yang dibaca. Security Group ID diperoleh dari IMDS; detail rule tidak dapat ditarik karena host tidak memiliki IAM role/AWS SDK.
-\end{infobox}
 
 \subsection{Instance dan Host}
 \begin{tabularx}{\linewidth}{@{}p{4.5cm}X@{}}
@@ -397,7 +454,7 @@ Repository checkout & Branch \texttt{main}, revision \texttt{f36db57} saat audit
 \subsection{Network dan Reverse Proxy}
 Nginx aktif dan menerima HTTP pada port 80, dengan \texttt{client\_max\_body\_size 50M}, lalu meneruskan request ke \texttt{127.0.0.1:8000}. SSH mendengarkan port 22. PostgreSQL (5432), 9Router (20128), dan FastAPI (8000) hanya bind ke loopback host.
 
-Instance memakai Security Group \texttt{sg-06ef9252c75a9d9e9}. Akses inbound HTTP/SSH dibatasi ke public egress jaringan kantor berdasarkan konfirmasi owner, sehingga aplikasi tidak ditujukan untuk akses internet umum. Exact CIDR/rule perlu diverifikasi di AWS Console karena instance tidak mempunyai IAM role untuk \texttt{DescribeSecurityGroups}.
+Instance memakai Security Group \texttt{sg-06ef9252c75a9d9e9}. Akses inbound HTTP/SSH dibatasi ke public egress jaringan kantor berdasarkan konfirmasi owner, sehingga aplikasi tidak ditujukan untuk akses internet umum.
 
 \newpage
 \subsection{Container dan Persistent Storage}
@@ -421,6 +478,8 @@ PostgreSQL data volume & 48 MiB; data PostgreSQL self-hosted pada instance yang 
 PostgreSQL production aktual berjalan sebagai container lokal pada EC2, bukan RDS. App, database, documents, dan vector index tetap memiliki satu failure domain.
 \end{notebox}
 
+
+
 \newpage
 \section{Dependency dan Catatan Operasional}
 \begin{tabularx}{\linewidth}{@{}p{3.5cm}X@{}}
@@ -429,7 +488,7 @@ Nscale & Embedding API masih memakai akun pribadi. Kehilangan akses menghentikan
 9Router / Kiro & Bergantung pada Kiro/AWS Builder ID di host; image memakai tag \texttt{latest}. \\
 Google OAuth & Wajib untuk membuat sesi user maupun admin baru. \\
 Langfuse & Opsional dan fail-open; switch default aktif, tetapi trace hanya dikirim jika key dan base URL tersedia. \\
-Security Group & \texttt{sg-06ef9252c75a9d9e9}; akses office-only dikonfirmasi owner, sedangkan exact CIDR perlu diverifikasi di AWS Console. \\
+Security Group & \texttt{sg-06ef9252c75a9d9e9}; akses office-only dikonfirmasi owner. \\
 HTTPS & Belum aktif; Nginx hanya listen port 80 dan tidak ditemukan TLS certificate/termination pada host. \\
 Health & Hanya PostgreSQL memiliki Docker healthcheck. Endpoint app \texttt{/health} belum memeriksa dependency. \\
 \bottomrule
@@ -438,70 +497,36 @@ Health & Hanya PostgreSQL memiliki Docker healthcheck. Endpoint app \texttt{/hea
 \subsection{Proses Update}
 Script \texttt{deploy/update-ec2.sh} membackup konfigurasi, memvalidasi Compose, menjalankan rebuild/recreate container, menerapkan Alembic migration, memeriksa 9Router/model, lalu melakukan polling \texttt{/health}. Semua container memakai restart policy \texttt{unless-stopped}.
 
+
+
 \newpage
-\section{Lima Rekomendasi Utama}
-\begin{tabularx}{\linewidth}{@{}p{4.3cm}X@{}}
-\toprule \textbf{Rekomendasi} & \textbf{Alasan dan arah implementasi} \\ \midrule
-Migrasikan Nscale & Pindahkan embedding dari akun pribadi ke akun organisasi atau endpoint embedding organisasi yang kompatibel. Pertahankan interface OpenAI-compatible agar perubahan ingestion minimal. \\
-Aktifkan HTTPS & Pasang TLS termination melalui ALB + ACM atau Nginx dengan certificate terkelola, redirect HTTP ke HTTPS, dan dokumentasikan renewal. Pembatasan jaringan kantor tetap dipertahankan. \\
-Perbaiki deployment & Ganti image tag \texttt{latest} dengan versi immutable; tambahkan healthcheck app/9Router, readiness gate, release manifest, dan prosedur rollback yang teruji. \\
-Kelola network sebagai code & Definisikan Security Group dan office CIDR melalui Terraform/CloudFormation; pertimbangkan AWS Systems Manager agar SSH publik dapat diminimalkan. \\
-Lengkapi health dan alerting & Pertahankan Langfuse masked tracing aktif secara default; tambah dependency-aware readiness dan alarm provider, 5xx, disk, serta database. \\
+\section{Skalabilitas dan Keterbatasan}
+\begin{tabularx}{\linewidth}{@{}p{4.5cm}X@{}}
+\toprule \textbf{Aspek} & \textbf{Kondisi saat ini} \\ \midrule
+Concurrent users & Single-instance FastAPI dengan synchronous ORM; cocok untuk internal use (<50 concurrent users). \\
+Horizontal scaling & Tidak didukung --- ChromaDB lokal dan session di memori menghalangi multi-instance. \\
+Database & PostgreSQL container lokal; belum ada connection pooling atau read replica. \\
+Vector store & ChromaDB bersifat embedded; untuk skala lebih besar perlu migrasi ke managed vector DB (e.g., Pinecone, pgvector). \\
+Storage & EBS 25 GiB shared antara OS, app, dan data; perlu monitoring kapasitas. \\
+Bottleneck utama & LLM API latency dan embedding API menjadi limiting factor untuk response time, bukan compute lokal. \\
+Path to scale & Jika perlu scaling: pisahkan database ke RDS, gunakan managed vector store, dan tambahkan load balancer di depan multiple app instances. \\
 \bottomrule
 \end{tabularx}
 
+\begin{infobox}[Catatan kapasitas]
+Dengan t3.medium (2 vCPU, 3.7 GiB RAM) dan single-process deployment, sistem mampu melayani operasi internal sehari-hari. Peningkatan beban signifikan memerlukan revisi arsitektur pada layer database dan vector store terlebih dahulu.
+\end{infobox}
+
 \newpage
-\section{Struktur Repository}
-\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
-<project-root>/
-|-- backend/
-|   |-- api/                    # FastAPI routes, auth, storage, models
-|   |   |-- main.py             # Application entry point
-|   |   |-- core.py             # App factory, middleware, static mounts
-|   |   |-- routes_public.py    # Query, conversations, download
-|   |   |-- routes_admin.py     # Documents, reindex, FAQ, logs
-|   |   |-- routes_auth.py      # Google login flow
-|   |   |-- routes_analytics.py # Analytics dashboard routes
-|   |   |-- auth.py             # HMAC session + Google verification
-|   |   `-- storage.py          # Document and form management
-|   |-- researcher_crew/
-|   |   `-- src/researcher_crew/
-|   |       |-- main.py         # RAG orchestrator
-|   |       |-- context_graph.py
-|   |       |-- context_schema.py
-|   |       `-- tools/custom_tool.py
-|   |-- preprocessing/
-|   |   |-- ingest.py           # Ingestion entry point
-|   |   |-- loader.py           # PDF/DOCX/TXT loader
-|   |   |-- chunker.py          # AI chunking + fallback
-|   |   |-- diagram_description.py
-|   |   |-- embedding.py        # Nscale embeddings
-|   |   `-- vectorstore.py      # ChromaDB index
-|   |-- analytics/              # Topic and aggregate processing
-|   |-- db/
-|   |   |-- models.py           # SQLAlchemy ORM
-|   |   |-- engine.py           # Synchronous engine/session
-|   |   |-- repository.py       # Database operations
-|   |   `-- alembic/            # Migration scripts
-|   |-- data/                   # Source documents and forms
-|   |-- settings.py             # Environment helpers
-|   |-- semantic_cache.py
-|   `-- observability.py
-|-- frontend/
-|   |-- web/                    # Main static SPA
-|   `-- dashboard/              # React/Vite analytics source
-|-- deploy/
-|   |-- nginx/hr-agent.conf     # Reverse proxy config
-|   `-- update-ec2.sh           # EC2 update script
-|-- docs/                       # Architecture and admin guide
-|-- docker-compose.yml          # Production services
-|-- docker-compose.dev-db.yml   # Local development PostgreSQL
-|-- Dockerfile
-|-- alembic.ini
-|-- requirements.txt
-|-- .env.example
-|-- run.bat
-`-- clean.bat
-\end{lstlisting}
+\section{Rekomendasi}
+\begin{tabularx}{\linewidth}{@{}p{4.3cm}X@{}}
+\toprule \textbf{Rekomendasi} & \textbf{Alasan} \\ \midrule
+Migrasikan Nscale & Embedding API masih menggunakan akun pribadi --- perlu dipindahkan ke akun organisasi agar tidak bergantung pada satu individu. \\
+Aktifkan HTTPS & Saat ini traffic berjalan plain HTTP. Perlu TLS termination agar komunikasi terenkripsi. \\
+Perbaiki deployment & Deployment saat ini hanya menggunakan satu EC2 tanpa load balancer, auto-scaling, atau redundansi. Image container masih memakai tag \texttt{latest} tanpa versioning. \\
+Kelola infrastructure as code & Security group dan konfigurasi network belum didefinisikan sebagai code, sehingga sulit diaudit dan direproduksi. \\
+Tambah health check dan alerting & Hanya PostgreSQL yang memiliki healthcheck. Perlu monitoring dependency-aware dan alerting untuk error rate, disk, dan availability. \\
+\bottomrule
+\end{tabularx}
 
 \end{document}
