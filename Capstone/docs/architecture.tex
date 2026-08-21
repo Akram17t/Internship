@@ -173,7 +173,7 @@ HR Assistant adalah aplikasi internal berbasis RAG untuk mencari informasi dari 
 \begin{tabularx}{\linewidth}{@{}p{4cm}X@{}}
 \toprule \textbf{Area} & \textbf{Kondisi aktual} \\ \midrule
 Runtime & Monolith FastAPI pada satu EC2; frontend utama disajikan sebagai static files. \\
-Data & PostgreSQL untuk state dan analytics; ChromaDB lokal untuk document index dan semantic cache. \\
+Data & PostgreSQL untuk state, analytics, dan metadata cache; ChromaDB lokal untuk document index dan vector semantic cache. \\
 AI & 9Router/Kiro untuk chat completion, Nscale untuk embedding, dan Langfuse opsional untuk tracing. \\
 Akses & Satu Google sign-in flow. Role admin berasal dari kecocokan email pada \texttt{app.admin\_accounts}. \\
 Batas implementasi & HTTPS dan SAML tidak diimplementasikan. Tidak ada HA atau pipeline CI/CD terkelola. \\
@@ -191,9 +191,9 @@ Batas implementasi & HTTPS dan SAML tidak diimplementasikan. Tidak ada HA atau p
 \subsection{Tech Stack}
 \begin{tabularx}{\linewidth}{@{}p{3.5cm}X@{}}
 \toprule \textbf{Layer} & \textbf{Teknologi} \\ \midrule
-Backend & Python 3.11, FastAPI, SQLAlchemy, Alembic, ChromaDB \\
+Backend & Python 3.12, FastAPI, SQLAlchemy, Alembic, ChromaDB \\
 Frontend (User) & Vanilla JS SPA, static HTML/CSS/JS \\
-Frontend (Admin) & React 18, Vite, Recharts \\
+Frontend (Admin) & React 19, TypeScript, Vite, Recharts \\
 Database & PostgreSQL 16 \\
 Vector Store & ChromaDB (persistent local) \\
 AI/LLM & Claude via 9Router/Kiro (OpenAI-compatible API) \\
@@ -263,7 +263,7 @@ Infrastructure & AWS EC2 (t3.medium), Docker Compose, Nginx \\
 \begin{itemize}
   \item \textbf{Auth:} semua account login dengan Google; admin ditentukan oleh \texttt{app.admin\_accounts}.
   \item \textbf{Session:} token HMAC-SHA256 berlaku 12 jam; role diperiksa kembali dari PostgreSQL.
-  \item \textbf{Data:} PostgreSQL menjadi source of truth; ChromaDB menyimpan document vectors dan semantic cache.
+  \item \textbf{Data:} PostgreSQL menjadi source of truth untuk state dan metadata cache; ChromaDB menyimpan document vectors dan vector index semantic cache.
   \item \textbf{Retrieval:} semantic search dengan optional rerank; jawaban baru di-cache setelah thumbs-up.
   \item \textbf{Runtime:} single-instance deployment dipilih untuk operasional sederhana saat ini.
 \end{itemize}
@@ -289,14 +289,14 @@ Semua endpoint berada di bawah FastAPI monolith pada port 8000. Autentikasi meng
 \begin{tabularx}{\linewidth}{@{}p{2.2cm}p{5.5cm}X@{}}
 \toprule \textbf{Method} & \textbf{Endpoint} & \textbf{Deskripsi} \\ \midrule
 POST & \texttt{/api/auth/google} & Login via Google ID token, return session. \\
-POST & \texttt{/api/query} & Kirim pertanyaan ke RAG pipeline. \\
+POST & \texttt{/query} & Kirim pertanyaan ke RAG pipeline. \\
 GET & \texttt{/api/conversations} & List conversation history user. \\
-GET & \texttt{/api/conversations/:id} & Detail messages pada conversation. \\
+GET & \texttt{/api/conversations/:id/messages} & Detail messages pada conversation. \\
 POST & \texttt{/api/feedback} & Submit feedback (thumbs up/down). \\
-GET & \texttt{/api/admin/documents} & List dokumen yang dikelola. \\
+GET & \texttt{/api/library} & List dokumen dan form yang dapat diakses. \\
 POST & \texttt{/api/admin/documents} & Upload dokumen baru. \\
 POST & \texttt{/api/admin/reindex} & Trigger reindex embedding. \\
-GET & \texttt{/api/admin/faq} & List FAQ items. \\
+GET & \texttt{/api/faq} & List FAQ items yang dipublikasikan. \\
 GET & \texttt{/api/admin/logs} & Activity log dan session history. \\
 GET & \texttt{/api/admin/analytics/*} & Analytics data (overview, charts, topics). \\
 GET & \texttt{/health} & Basic health check. \\
@@ -347,20 +347,20 @@ GET & \texttt{/health} & Basic health check. \\
 %% Background: Backend box
 \begin{scope}[on background layer]
   \node[draw=InkSoft!30, fill=Paper, rounded corners=6pt,
-        inner sep=12pt, fit=(fastapi)(rag)(ingest), label={[font=\scriptsize\bfseries, color=InkSoft]above left:Python Backend}] {};
+        inner sep=12pt, fit=(fastapi)(rag)(ingest), label={[font=\scriptsize\bfseries, color=InkSoft]above:Python Backend}] {};
 \end{scope}
 
 %% Background: Data layer box
 \begin{scope}[on background layer]
   \node[draw=LineBorder, fill=PaperDeep, rounded corners=6pt,
-        inner sep=12pt, fit=(pg)(chroma), label={[font=\scriptsize\bfseries, color=Muted]below left:Data Layer}] {};
+        inner sep=12pt, fit=(pg)(chroma), label={[font=\scriptsize\bfseries, color=Muted]below:Data Layer}] {};
 \end{scope}
 
 %% Background: External services box
 \begin{scope}[on background layer]
   \node[draw=Red!40, fill=WarningBg, rounded corners=6pt,
         inner sep=12pt, fit=(google)(router)(claude)(nscale)(langfuse),
-        label={[font=\scriptsize\bfseries, color=Red!70]above right:External Services}] {};
+        label={[font=\scriptsize\bfseries, color=Red!70]above:External Services}] {};
 \end{scope}
 
 %% ---- Arrows ----
@@ -369,10 +369,11 @@ GET & \texttt{/health} & Basic health check. \\
 \draw[arr] (fastapi) -- (rag);
 \draw[arr] (rag) -- (ingest);
 \draw[arr] (fastapi) -- (router);
-% Route FastAPI->PG to the LEFT of the backend column to avoid crossing Researcher Crew
-\draw[arr] (fastapi.west) -- ++(-1.2,0) |- (pg.east);
-% Route RAG->ChromaDB downward then left to avoid crossing Preprocessing
-\draw[arr] (rag.west) -- ++(-1.8,0) |- (chroma.east);
+% Route FastAPI->PG from the south-west corner (below the Nginx->FastAPI row)
+% on an outer channel so it never crosses the RAG->ChromaDB channel below.
+\draw[arr] (fastapi.south west) -- ++(-2.2,0) |- (pg.east);
+% Route RAG->ChromaDB on an inner channel, closer to the backend column.
+\draw[arr] (rag.west) -- ++(-1.2,0) |- (chroma.east);
 \draw[arr] (ingest)  -- (nscale);
 \draw[arr] (router)  -- (claude);
 \draw[arr] (google)  -- (fastapi);
@@ -390,8 +391,8 @@ GET & \texttt{/health} & Basic health check. \\
 \toprule \textbf{Tabel} & \textbf{Peran} \\ \midrule
 \texttt{app.users}, \texttt{app.admin\_accounts} & Identitas Google dan allowlist role admin tanpa password. \\
 \texttt{app.conversations}, \texttt{app.conversation\_messages} & Riwayat chat dan metadata jawaban, citation, serta form. \\
-\texttt{app.feedback}, \texttt{app.faq\_items} & Rating jawaban dan FAQ berbasis knowledge base. \\
-\texttt{app.activity\_logs}, \texttt{app.cache\_entries} & Audit produk dan metadata semantic cache. \\
+\texttt{app.faq\_items} & FAQ berbasis knowledge base beserta citation metadata. \\
+\texttt{app.activity\_logs}, \texttt{app.semantic\_cache\_entries} & Log/feedback produk dan metadata semantic cache. \\
 \texttt{analytics.canonical\_}\linebreak\texttt{interactions} & Interaksi ternormalisasi untuk analytics. \\
 \texttt{analytics.daily\_topic\_}\linebreak\texttt{aggregates} & Rollup harian topic, user, feedback, dan fallback/error. \\
 \texttt{app.app\_state\_meta} & Session signing, guardrails, dan metadata state. \\
@@ -454,15 +455,18 @@ GET & \texttt{/health} & Basic health check. \\
 
 %% ---- Cache hit branch ----
 \draw[arr] (cachehit) -- node[lbl, right]{hit} (cached);
-\draw[arr] (cached)   -- ++(4.0, 0) -- ++(0, 3.0) -- (send);
+% Return lane sits between row 1 and row 2 so it never overlaps either row;
+% enters "send" slightly left of centre to stay clear of the save-branch arrow.
+\draw[arr] (cached.north) -- ++(0,1.05) -| ($(send.south)+(-0.7,0)$);
 
 %% ---- Not enough evidence branch ----
 \draw[arr] (enough)  -- node[lbl, right]{tidak} (fallback);
 \draw[arr] (fallback) -- (save);
-\draw[arr] (save)    -- ++(4.0, 0) -- (send);
-
 %% ---- Cache note below send ----
 \node[proc, minimum width=2.8cm] (cachewrite) at (28.0, -3) {Cache update\\setelah thumbs-up};
+% Return lane routed around the cache-write node below "send" (avoids the
+% coordinate (28,-3), which is where cachewrite sits), entering slightly right.
+\draw[arr] (save.east) -- ++(1.0,0) -- ++(0,1.5) -| ($(send.south)+(0.7,0)$);
 \draw[arr, dashed] (send) -- (cachewrite);
 
 \end{tikzpicture}%
@@ -525,7 +529,7 @@ GET & \texttt{/health} & Basic health check. \\
 
 %% ---- Clear old cache (linked from activate) ----
 \draw[arr] (activate) -- ++(0, -1.5) -- (clearcache);
-\draw[arr] (clearcache) -- ++(0, 1.5) -- (done);
+\draw[arr] (clearcache) -- ++(0, 1.5) -| (done);
 
 \end{tikzpicture}%
 }
@@ -584,8 +588,10 @@ Gap & Belum ada rate limiting, server-side token revocation list, dependency sca
 \node[ext] (extapi) at (13.5, 2.0) {External APIs\\Claude / Nscale\\Langfuse};
 
 %% ---- Below EC2: EBS storage ----
-\node[store] (ebs1) at ( 3.5, -4.0) {EBS vol\\app-data};
-\node[store] (ebs2) at ( 7.5, -4.0) {EBS vol\\pg-data};
+% Positioned so each volume sits directly under its owning service,
+% keeping the connector lines below straight instead of crossing.
+\node[store] (ebs1) at ( 3.5, -4.0) {EBS vol\\pg-data};
+\node[store] (ebs2) at ( 7.5, -4.0) {EBS vol\\app-data};
 
 %% ---- EC2 boundary box ----
 \begin{scope}[on background layer]
@@ -606,13 +612,13 @@ Gap & Belum ada rate limiting, server-side token revocation list, dependency sca
 \draw[arr] (app.south east) -- ++(0.5,-0.8) -| (chroma.north);
 
 %% ---- EBS dashed connections ----
-\draw[darr] (pg)     -- node[lbl, right]{volume} (ebs2);
-\draw[darr] (chroma) -- node[lbl, right]{volume} (ebs1);
+\draw[darr] (pg)     -- node[lbl, right]{volume} (ebs1);
+\draw[darr] (chroma) -- node[lbl, right]{volume} (ebs2);
 
 \end{tikzpicture}%
 }
 \end{center}
-\begin{center}\small\color{Muted}Deployment aktual pada satu EC2 instance; semua container berjalan dalam satu Docker Compose stack.\end{center}
+\begin{center}\small\color{Muted}Snapshot deployment yang diaudit menggunakan satu EC2; Compose proyek mengelola app dan 9Router, sedangkan PostgreSQL harus tersedia melalui DATABASE\_URL.\end{center}
 
 \subsection{Instance dan Host}
 \begin{tabularx}{\linewidth}{@{}p{4.5cm}X@{}}
@@ -679,9 +685,9 @@ Script \texttt{deploy/update-ec2.sh} membackup konfigurasi, memvalidasi Compose,
 \section{Skalabilitas dan Keterbatasan}
 \begin{tabularx}{\linewidth}{@{}p{4.5cm}X@{}}
 \toprule \textbf{Aspek} & \textbf{Kondisi saat ini} \\ \midrule
-Concurrent users & Single-instance FastAPI dengan synchronous ORM; cocok untuk internal use (<50 concurrent users). \\
-Horizontal scaling & Tidak didukung --- ChromaDB lokal dan session di memori menghalangi multi-instance. \\
-Database & PostgreSQL container lokal; belum ada connection pooling atau read replica. \\
+Concurrent users & Single-process FastAPI dengan synchronous ORM; ditujukan untuk beban internal kecil dan belum memiliki hasil load test formal. \\
+Horizontal scaling & Belum didukung langsung --- ChromaDB dan file dokumen lokal memerlukan shared storage atau vector service sebelum app dibuat multi-instance. \\
+Database & Snapshot produksi memakai PostgreSQL container lokal; SQLAlchemy pool dikonfigurasi, tetapi belum ada read replica atau failover terkelola. \\
 Vector store & ChromaDB bersifat embedded; untuk skala lebih besar perlu migrasi ke managed vector DB (e.g., Pinecone, pgvector). \\
 Storage & EBS 25 GiB shared antara OS, app, dan data; perlu monitoring kapasitas. \\
 Bottleneck utama & LLM API latency dan embedding API menjadi limiting factor untuk response time, bukan compute lokal. \\

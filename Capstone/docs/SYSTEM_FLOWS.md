@@ -1,7 +1,8 @@
 # System Flows Capstone
 
-Peta cepat flow sistem setelah formfill dihapus. Form sekarang hanya template
-kosong yang bisa diunduh sebagai PDF atau DOCX.
+Peta teknis alur runtime HR Assistant saat ini. Form diperlakukan sebagai
+template kosong yang dapat diunduh dalam format yang tersedia (PDF, Word, atau
+Excel); aplikasi tidak mengisi isi form secara otomatis.
 
 ## 1. Chat RAG dan Context Switching
 

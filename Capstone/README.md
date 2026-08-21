@@ -1,245 +1,430 @@
-# ICS SOP & Knowledge Assistant
+# HR Assistant — ICS SOP & Knowledge Assistant
 
-RAG-based internal document assistant for SOP, guideline, and runbook search, with a custom web frontend served directly from FastAPI.
+Internal HR knowledge assistant developed as an internship capstone project at ICS Compute. The application uses Retrieval-Augmented Generation (RAG) to answer questions from company SOPs, policies, guidelines, and organizational documents. Answers can include source citations and related downloadable form templates.
 
-System flow diagrams are in [docs/SYSTEM_FLOWS.md](docs/SYSTEM_FLOWS.md).
+> This repository contains application source code and technical documentation. Company source documents under `backend/data/` are intended for authorized internal review only.
 
-## Stack
+## Highlights
 
-- FastAPI for REST backend and frontend hosting
-- Vanilla HTML, CSS, and JavaScript for the web UI
-- OpenAI-compatible chat, FAQ, and document chunk generation, defaulting to 9Router with Kiro for chat
-- Nscale OpenAI-compatible API for hosted embeddings
-- ChromaDB for local vector storage
+- RAG chat with source citations, conversation history, follow-up context resolution, and safe fallback responses.
+- LangGraph-based context resolution that decides whether a message requires document retrieval.
+- Semantic answer cache populated only after positive user feedback.
+- Document library for SOPs and related PDF, Word, or Excel form templates.
+- Google Workspace sign-in with user/admin role separation and 12-hour signed sessions.
+- Admin tools for documents, reindexing, FAQs, guardrails, activity logs, feedback review, and account management.
+- Usage analytics with date filters, topic distribution, trends, active users, and negative-feedback metrics.
+- Bilingual English/Indonesian interface; assistant responses follow the language of the question.
+- Optional Langfuse tracing with masked input/output data.
+- Local Windows workflow and single-host Docker/EC2 deployment scripts.
 
-## Quick Start
+## Architecture
 
-1. Create a virtual environment and install dependencies from `requirements.txt`.
-2. Copy `.env.example` to `.env`, run 9Router locally or set another OpenAI-compatible `CHAT_BASE_URL`, then set `CHAT_API_KEY` if your endpoint requires it and `NSCALE_SERVICE_TOKEN`.
-3. Start the local PostgreSQL container and apply migrations (app state and analytics require PostgreSQL -- there is no SQLite fallback):
+```mermaid
+flowchart LR
+    U[User or Admin Browser] --> API[FastAPI]
+    API --> AUTH[Google Sign-In]
+    API --> PG[(PostgreSQL)]
+    API --> RAG[LangGraph Context + RAG Pipeline]
+    RAG --> DOCS[(ChromaDB Document Index)]
+    RAG --> CACHE[(ChromaDB Cache Vectors)]
+    RAG --> LLM[9Router / OpenAI-compatible Chat API]
+    DOCS --> EMBED[Nscale Embeddings]
+    CACHE --> EMBED
+    API --> WEB[Vanilla JS Web App]
+    WEB --> DASH[Embedded React Analytics Dashboard]
+```
+
+The document index is stored in ChromaDB. Semantic-cache answer metadata is stored in PostgreSQL while its similarity-search vectors are stored in a separate ChromaDB collection. PostgreSQL is the source of truth for users, admin accounts, conversations, messages, FAQs, logs, guardrails, analytics, and cache metadata.
+
+For detailed diagrams and runtime flows, see:
+
+- [`docs/SYSTEM_FLOWS.md`](docs/SYSTEM_FLOWS.md)
+- [`docs/architecture.pdf`](docs/architecture.pdf) and its source, [`docs/architecture.tex`](docs/architecture.tex)
+- [`docs/admin-guide/admin_guide.pdf`](docs/admin-guide/admin_guide.pdf) and its source, [`docs/admin-guide/admin_guide.tex`](docs/admin-guide/admin_guide.tex)
+
+## Technology Stack
+
+| Area | Technology |
+|---|---|
+| Backend | Python 3.12, FastAPI, Uvicorn |
+| RAG orchestration | LangGraph, LangChain loaders/splitters |
+| Database | PostgreSQL 16, SQLAlchemy 2, Alembic |
+| Vector storage | Persistent local ChromaDB |
+| Chat completion | 9Router/Kiro by default, or another OpenAI-compatible endpoint |
+| Embeddings | Nscale OpenAI-compatible API |
+| User frontend | Vanilla HTML, CSS, and modular JavaScript |
+| Analytics dashboard | React 19, TypeScript, Vite, Recharts, Tailwind CSS 4 |
+| Authentication | Google ID token verification and signed application sessions |
+| Observability | Langfuse 4 (optional) |
+| Deployment | Docker Compose, Nginx, AWS EC2 scripts |
+
+## Repository Layout
+
+```text
+Capstone/
+|-- backend/
+|   |-- api/                 # FastAPI app, routes, auth, storage, request models
+|   |-- analytics/           # Topic classification and aggregate refresh
+|   |-- db/                  # SQLAlchemy models, repository, Alembic migrations
+|   |-- preprocessing/       # Load, describe, chunk, embed, and index documents
+|   |-- researcher_crew/src/ # Context graph, retrieval, prompts, answer generation
+|   |-- scripts/             # Storage checks and maintenance helpers
+|   |-- data/                # Authorized source documents and linked forms
+|   |-- semantic_cache.py    # PostgreSQL + Chroma semantic answer cache
+|   `-- observability.py     # Optional Langfuse integration
+|-- frontend/
+|   |-- web/                 # Main static SPA served by FastAPI
+|   `-- dashboard/           # React/Vite analytics source
+|-- tests/                   # Backend and frontend-integration tests
+|-- deploy/                  # EC2 update, Kiro connection, and Nginx config
+|-- docs/                    # Architecture, system flows, and admin guide
+|-- .env.example             # Safe local configuration template
+|-- .env.production.example  # Safe production configuration template
+|-- alembic.ini
+|-- docker-compose.dev-db.yml
+|-- docker-compose.yml
+|-- Dockerfile
+|-- requirements.txt
+|-- run.bat / clean.bat
+`-- README.md
+```
+
+## Prerequisites
+
+Required for local development:
+
+- Python 3.12
+- Docker Desktop with Docker Compose (for PostgreSQL)
+- A configured OpenAI-compatible chat endpoint; the default local setup expects 9Router at `http://localhost:20128/v1`
+- An Nscale service token for embeddings
+- A Google OAuth client ID configured for the local application origin
+
+Optional:
+
+- Node.js and npm, only when rebuilding or developing the React analytics dashboard
+- A LaTeX distribution, only when regenerating the PDF documentation
+- `pytest`, only when running the test suite (it is not a production dependency)
+
+## Local Setup
+
+### 1. Create the Python environment
+
+`run.bat` expects the virtual environment at `backend/researcher_crew/.venv`.
+
+**Windows PowerShell or Command Prompt:**
+
+```bat
+py -3.12 -m venv backend\researcher_crew\.venv
+backend\researcher_crew\.venv\Scripts\python -m pip install --upgrade pip
+backend\researcher_crew\.venv\Scripts\python -m pip install -r requirements.txt
+```
+
+**Linux/macOS:**
+
+```bash
+python3.12 -m venv .venv
+. .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+### 2. Configure the environment
+
+Create a local configuration from the safe template:
+
+```bat
+copy .env.example .env
+```
+
+```bash
+cp .env.example .env
+```
+
+At minimum, review and set:
+
+```env
+MODEL=kr/claude-sonnet-4.5
+CHAT_BASE_URL=http://localhost:20128/v1
+CHAT_API_KEY=
+NSCALE_SERVICE_TOKEN=<your-token>
+GOOGLE_CLIENT_ID=<your-google-client-id>
+INITIAL_ADMIN_EMAIL=<first-admin@your-domain>
+ANALYTICS_PSEUDONYM_SECRET=<random-secret>
+DATABASE_URL=postgresql+psycopg://hr_agent:hr_agent_dev_password@localhost:5432/hr_agent
+```
+
+If the chat endpoint does not require authentication, list it in `OPENAI_COMPAT_NO_AUTH_BASE_URLS`. Never put real credentials in `.env.example`.
+
+### 3. Start PostgreSQL and apply migrations
 
 ```bash
 docker compose -f docker-compose.dev-db.yml up -d
 python -m alembic -c alembic.ini upgrade head
 ```
 
-4. Put SOP/knowledge PDF or DOCX files into `backend/data/`; form templates can be PDF, Word, or Excel files. Forms uploaded below an SOP in the admin UI do not need a `Form` filename prefix.
-5. Run ingestion:
+On Windows, use the virtual-environment Python if it is not activated:
+
+```bat
+backend\researcher_crew\.venv\Scripts\python -m alembic -c alembic.ini upgrade head
+```
+
+PostgreSQL is required. There is no SQLite fallback.
+
+### 4. Add and index documents
+
+Place embeddable `.pdf`, `.docx`, or `.txt` files in `DATA_DIR` (default: `backend/data/`). Linked form templates may be PDF, Word, or Excel files under the appropriate `forms/` subfolder or can be uploaded through the admin UI.
 
 ```bash
 python -m backend.preprocessing.ingest
 ```
 
-6. Start the API:
+Ingestion:
+
+1. loads supported non-form documents;
+2. adds optional diagram descriptions for likely visual PDF pages;
+3. generates AI-assisted chunks, with a local splitter fallback;
+4. creates embeddings and atomically activates a new ChromaDB index;
+5. writes chunk diagnostics to `backend/debug/chunks.md`; and
+6. clears the old semantic cache after a successful reindex.
+
+### 5. Start the application
 
 ```bash
-uvicorn backend.api.main:app --reload
+python -m uvicorn backend.api.main:app --reload
 ```
 
-7. Open `http://127.0.0.1:8000` in your browser.
+Open `http://127.0.0.1:8000`.
 
-`run.bat` (see below) automates steps 3, 5, and 6.
+Interactive API documentation is available at `http://127.0.0.1:8000/docs` while the app is running.
 
-## Windows Scripts
+## Windows Helper Scripts
 
-For the easiest Windows flow, use:
+After the first database migration is applied, the easiest Windows workflow is:
 
 ```bat
 run.bat
+```
+
+`run.bat`:
+
+- uses `backend/researcher_crew/.venv`;
+- verifies required imports;
+- starts the local PostgreSQL container when necessary;
+- checks that the migrated database schema is ready;
+- reuses an existing valid vector index or runs ingestion when source documents exist; and
+- starts FastAPI on port `8000` and opens the browser.
+
+Cleanup:
+
+```bat
 clean.bat
 ```
 
-- `run.bat` uses `backend\researcher_crew\.venv`, checks the required imports, starts the local PostgreSQL dev container if it isn't already running, reads `CHROMA_DIR` and `DATA_DIR` from `.env`, runs ingestion only when no valid vector index exists, then starts FastAPI and opens the web frontend in your browser.
-- `clean.bat` stops the server, removes `__pycache__` and `*.pyc`, and clears the `CHROMA_DIR` vector index (keeping `.gitkeep`) so the next `run.bat` re-ingests documents.
+`clean.bat` stops the local server, removes Python bytecode caches, and clears the local document-vector index so the next run can re-ingest documents. It does not delete PostgreSQL data.
 
-## Docker Deployment
+## Frontend Development
 
-For a single-container VPS deployment, use the provided Dockerfile and
-`docker-compose.yml`. Runtime data is stored in the named Docker volume
-`app_storage`, mounted at `/app/storage` inside the container.
+### Main web application
 
-1. Copy the production env template and fill in the API keys. `.env.production`
-   is git-ignored -- it holds real secrets, so it's created locally per
-   environment (dev machine, EC2) and never committed:
+The main UI is a static SPA in `frontend/web/`. `assets/app.js` initializes the application, while feature modules are organized under `assets/js/`:
 
-```bash
-cp .env.production.example .env.production
-```
+- `chat.js`, `markdown.js`, `citations.js`: chat, rendering, source citations, and form downloads
+- `auth.js`, `googleAuth.js`, `api.js`: session, Google sign-in, and request helpers
+- `sidebar.js`: conversation list, rename, and delete behavior
+- `faq.js`, `library.js`: FAQ and document/form management
+- `logs.js`, `analytics.js`, `guardrails.js`: admin monitoring and configuration
+- `i18n.js`: English/Indonesian interface text
 
-2. Confirm the production storage paths stay on `/app/storage`, and keep the
-   internal 9Router service URL on the Compose network:
+No bundler is required for these files.
 
-```env
-MODEL=kr/claude-sonnet-4.5
-CHAT_BASE_URL=http://9router:20129/v1
-CHAT_API_KEY=
-OPENAI_COMPAT_NO_AUTH_BASE_URLS=http://9router:20129/v1
-CHUNK_AI_MAX_COMPLETION_TOKENS=16384
-DATA_DIR=/app/storage/data
-CHROMA_DIR=/app/storage/chroma_db
-SEMANTIC_CACHE_DIR=/app/storage/semantic_chroma
-JWT_SECRET=<fixed-random-secret>
-API_KEY_SECRET=<fixed-random-secret>
-DATABASE_URL=<postgresql+psycopg://user:password@host:5432/dbname>
-ANALYTICS_PSEUDONYM_SECRET=<fixed-random-secret>
-```
+### React analytics dashboard
 
-App state (conversations, admin accounts, activity logs, FAQs, semantic cache
-metadata) and analytics live in PostgreSQL, not in `app_storage` -- point
-`DATABASE_URL` at a reachable Postgres instance (RDS, a managed EC2 install,
-or the local dev container in `docker-compose.dev-db.yml`) and apply schema
-migrations before starting the app:
+React source lives in `frontend/dashboard/`. The generated bundle is embedded into the main app at `frontend/web/assets/dashboard/`.
 
 ```bash
+cd frontend/dashboard
+npm ci
+npm run lint
+npm run build
+```
+
+The Vite build intentionally emits fixed filenames (`dashboard.js` and `dashboard.css`) and removes the standalone development `index.html` from production output so the dashboard remains behind the main application's sign-in gate.
+
+For dashboard-only development:
+
+```bash
+npm run dev
+```
+
+Vite proxies `/api` requests to `http://127.0.0.1:8000`.
+
+## Configuration Reference
+
+### Required runtime configuration
+
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | PostgreSQL SQLAlchemy connection string |
+| `MODEL` | Chat-completion model identifier |
+| `CHAT_BASE_URL` | OpenAI-compatible chat endpoint |
+| `NSCALE_SERVICE_TOKEN` | Nscale embedding credential |
+| `EMBED_MODEL` | Embedding model identifier |
+| `RERANK_MODEL` | Optional cross-encoder model name when the extra runtime dependency is available |
+| `GOOGLE_CLIENT_ID` | Google ID-token audience and frontend sign-in client |
+
+### Common application settings
+
+| Variable | Default / role |
+|---|---|
+| `DATA_DIR` | `backend/data`; source documents and forms |
+| `CHROMA_DIR` | `backend/chroma_db`; active document vectors |
+| `CHUNK_CACHE_DIR` | `backend/cache/chunks`; AI chunk cache |
+| `SEMANTIC_CACHE_DIR` | `backend/cache/semantic_chroma`; cache similarity vectors |
+| `TOP_K` | Number of final retrieved chunks |
+| `RETRIEVAL_MIN_SCORE` | Minimum accepted reranker score |
+| `SEMANTIC_CACHE_THRESHOLD` | Cache-hit similarity threshold |
+| `ALLOWED_EMAIL_DOMAIN` | Allowed Google Workspace domain |
+| `INITIAL_ADMIN_EMAIL` | Seeds the first admin if no admin account exists |
+| `ANALYTICS_PSEUDONYM_SECRET` | HMAC secret for stable pseudonymous analytics IDs |
+| `TYPING_ANIMATION_ENABLED` | Enables/disables answer reveal animation |
+
+See [`.env.example`](.env.example) and [`.env.production.example`](.env.production.example) for the complete safe templates.
+
+## Main API Endpoints
+
+All protected endpoints expect `Authorization: Bearer <session-token>`, except browser download routes which also accept a short-lived session token through their query string fallback.
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/health` | Basic process health |
+| `GET` | `/api/config` | Public frontend configuration |
+| `POST` | `/api/auth/google` | Exchange a Google ID token for an application session |
+| `POST` | `/query` | Run context resolution, cache lookup, retrieval, and answer generation |
+| `POST` | `/api/feedback` | Record positive/negative answer feedback |
+| `GET` | `/api/faq` | List published FAQs |
+| `GET` | `/api/library` | List authorized documents and forms |
+| `GET` | `/api/documents/{path}` | Download a document or form template |
+| `GET` | `/api/citations/{path}` | Open a cited source document |
+| `GET/PATCH/DELETE` | `/api/conversations/...` | List, read, rename, or delete user conversations |
+| `POST/DELETE` | `/api/admin/documents...` | Upload, replace, or delete managed documents/forms |
+| `POST` | `/api/admin/reindex` | Rebuild the document-vector index |
+| `POST/PUT/DELETE` | `/api/admin/faq...` | Manage FAQ content |
+| `GET/PUT` | `/api/admin/guardrails` | Read or update answer guardrails |
+| `GET/DELETE` | `/api/admin/logs...` | Review or delete activity logs/sessions |
+| `GET/POST` | `/api/admin/analytics/...` | Query or refresh usage analytics |
+
+FastAPI's generated `/docs` page is the authoritative endpoint/schema reference.
+
+## Tests and Validation
+
+The full test suite expects a reachable, migrated **disposable PostgreSQL database** through `DATABASE_URL`. Never point tests at development or production data.
+
+> **Current test-isolation limitation:** `test_admin_auth.py` and `test_admin_logs.py` expect empty tables but do not reset PostgreSQL state between every test case. The application checks and non-DB tests pass, but these DB-heavy modules require a table reset/isolation fixture between cases for a completely clean full-suite run.
+
+```bash
+docker compose -f docker-compose.dev-db.yml up -d
 python -m alembic -c alembic.ini upgrade head
+python -m pytest -q
 ```
 
-The Compose file runs 9Router plus an internal loopback proxy. Capstone calls
-port `20129`, which forwards to 9Router through `127.0.0.1` inside the router
-network namespace, so no API key is needed for app-to-router traffic. Only the
-dashboard/API port `20128` is bound to EC2 localhost. Keep it closed publicly
-and use an SSH tunnel for dashboard access. The existing `/home/ec2-user/.9router`
-data directory remains mounted so the Kiro connection survives rebuilds.
-Keep `CHAT_API_KEY` blank for this internal 9Router
-setup. The app treats `localhost:20128`, `localhost:20129`, `9router:20128`,
-and `9router:20129` as no-auth 9Router endpoints and will not fall back to a
-global `OPENAI_API_KEY` for them.
-
-3. Build and start the app:
+Frontend dashboard checks:
 
 ```bash
+cd frontend/dashboard
+npm ci
+npm run lint
+npm run build
+```
+
+Docker configuration/build checks:
+
+```bash
+docker compose config
 docker compose build
-docker compose up -d
 ```
 
-To rebuild and validate the complete deployment on EC2:
+## Single-Host Docker Deployment
 
-```bash
-bash deploy/update-ec2.sh
-```
+The production Compose file starts the application, 9Router, and a loopback proxy. PostgreSQL is not declared in `docker-compose.yml`; `DATABASE_URL` must point to a reachable migrated PostgreSQL instance. The audited EC2 environment described in `docs/architecture.pdf` used a PostgreSQL container on the same host, but a managed database is also compatible.
 
-If the EC2 9Router database has no Kiro account, connect it directly with the
-AWS Builder ID device flow:
+1. Create a production configuration:
 
-```bash
-bash deploy/connect-kiro-ec2.sh
-```
+   ```bash
+   cp .env.production.example .env.production
+   ```
 
-4. Add source documents to the `DATA_DIR` volume path, then run ingestion:
+2. Fill all credentials and stable secrets. Keep production storage paths under `/app/storage` and keep the internal chat URL at `http://9router:20129/v1`.
 
-```bash
-docker compose run --rm app python -m backend.preprocessing.ingest
-```
+3. Validate, build, and start:
 
-Ingestion also writes the exact chunks sent to embeddings into
-`debug/chunks.md` next to the configured `DATA_DIR`. Locally this is
-`backend/debug/chunks.md`; in Docker deployment this is
-`/app/storage/debug/chunks.md`.
+   ```bash
+   docker compose config
+   docker compose up -d --build
+   ```
 
-5. Inspect logs when needed:
+4. Apply database migrations:
 
-```bash
-docker compose logs app
-```
+   ```bash
+   docker compose exec app python -m alembic -c alembic.ini upgrade head
+   ```
 
-6. On EC2 or a VPS, put Nginx in front of the app so the public URL can use
-   port 80 while Docker stays bound to localhost:
+5. Add source documents to the configured volume and run ingestion:
 
-```bash
-sudo dnf install -y nginx
-sudo systemctl enable --now nginx
-sudo cp deploy/nginx/hr-agent.conf /etc/nginx/conf.d/hr-agent.conf
-sudo nginx -t
-sudo systemctl reload nginx
-```
+   ```bash
+   docker compose run --rm app python -m backend.preprocessing.ingest
+   ```
 
-Then open:
+6. Inspect logs and health:
 
-```text
-http://PUBLIC_SERVER_IP
-```
+   ```bash
+   docker compose logs app
+   curl http://127.0.0.1:8000/health
+   ```
 
-For this setup, expose `HTTP 80` in the cloud firewall/security group. Keep
-`SSH 22` limited to your IP, and keep Docker port `8000` closed to the public.
+For the existing EC2 workflow, `deploy/update-ec2.sh` backs up configuration, rebuilds services, runs Alembic, validates 9Router/model access, and polls application health. `deploy/connect-kiro-ec2.sh` supports the AWS Builder ID device flow for the host-side 9Router account. Nginx configuration is provided at `deploy/nginx/hr-agent.conf`.
 
-The container starts FastAPI with the production command:
-
-```bash
-python -m uvicorn backend.api.main:app --host 0.0.0.0 --port 8000 --no-access-log
-```
-
-Important persistent data in `app_storage`:
-
-- `data/`: uploaded/source documents
-- `chroma_db/`: vector database index
-- `semantic_chroma/`: semantic answer cache
-
-Admin accounts, sessions, activity logs, FAQs, and semantic cache metadata
-live in PostgreSQL (see `DATABASE_URL` above), not in `app_storage`.
-
-## Frontend Config
-
-- `TYPING_ANIMATION_ENABLED=false` shows full answers immediately by default.
-- Set `TYPING_ANIMATION_ENABLED=true` to restore the assistant typing reveal.
+The repository configuration exposes the application and 9Router dashboard only on host loopback. Use Nginx or an SSH tunnel as appropriate, restrict security-group access, and add TLS before exposing the service beyond a trusted internal network.
 
 ## Langfuse Observability
 
-The backend can send RAG traces to Langfuse Cloud. Set these values in the
-local `.env` file only:
+Tracing is optional and fail-open. Configure it only in local/private environment files:
 
 ```env
 LANGFUSE_TRACING_ENABLED=true
 LANGFUSE_PUBLIC_KEY=<project-public-key>
 LANGFUSE_SECRET_KEY=<project-secret-key>
-LANGFUSE_BASE_URL=https://jp.cloud.langfuse.com
+LANGFUSE_BASE_URL=https://your-langfuse-host
 LANGFUSE_TRACING_ENVIRONMENT=development
 LANGFUSE_TRACE_IO_MODE=masked
 ```
 
-Each `/query` request creates one `chat-query` trace, grouped by conversation
-session. The trace includes context resolution (LangGraph-based, replacing
-follow-up query rewriting), cache, retrieval, generation, semantic
-cache store, and response finalization observations. `masked` mode redacts
-common secrets, contact details, and large image data before export.
+Each `/query` can produce a `chat-query` trace covering context resolution, semantic cache, retrieval, generation, cache storage, and response finalization. `masked` mode redacts common secret/contact patterns and large image payloads before export.
 
-## Frontend Pages
+## Safe Distribution Checklist
 
-- `Chat`: main conversational interface connected to `POST /query`
-- `FAQ`: curated operational starter questions
-- `Library`: admin document/form list with download links from `backend/data`
-- Form templates: direct download only, with PDF/Word/Excel format choices based on the uploaded file
+Before sharing this project as a ZIP or copying it outside the development machine:
 
-## Frontend Scripts
+**Include:** source code, tests, safe `.example` environment templates, source documents authorized for the recipient, frontend assets/source, deployment scripts, migrations, and documentation (including admin-guide screenshots).
 
-The frontend is still plain browser JavaScript without a bundler. `frontend/web/assets/app.js`
-is now the bootstrap/glue file, while feature logic lives in small global modules:
+**Exclude:**
 
-- `assets/js/chat.js`: chat submit/rendering, citations, and form links
-- `assets/js/faq.js`, `assets/js/library.js`, `assets/js/auth.js`, `assets/js/api.js`, `assets/js/markdown.js`: FAQ, document admin, auth bindings, API helpers, and markdown rendering
+- `.env` and `.env.production`
+- `.git/`, `.venv/`, `node_modules/`
+- `__pycache__/`, `*.pyc`, `.pytest_cache/`, `*.tsbuildinfo`
+- local Chroma/vector indexes and semantic/chunk caches
+- generated ingestion diagnostics such as `backend/debug/chunks.md`
+- deployment backups, process markers, editor state, and transient logs
 
-## Structure
+Never replace the safe `.env.example` files with real credentials. Rotate any credential immediately if it is accidentally included in an archive or commit.
 
-```text
-Capstone/
-|-- backend/
-|   |-- api/              # FastAPI routes and frontend hosting
-|   |-- researcher_crew/  # RAG answer generation and retrieval helpers
-|   |-- preprocessing/    # ingestion, loaders, chunking, embeddings, vectorstore
-|   |-- analytics/        # topic classification and daily aggregate refresh
-|   |-- db/               # SQLAlchemy models, engine, PostgreSQL repository, Alembic migrations
-|   |-- scripts/          # small command-line helpers used by Windows scripts
-|   |-- data/             # source documents
-|   `-- chroma_db/        # persisted vector database
-|-- frontend/
-|   |-- web/              # static web frontend (HTML/CSS/JS modular globals)
-|   `-- dashboard/        # React/Vite source for the analytics dashboard, built into frontend/web/assets/dashboard
-|-- deploy/               # EC2 deployment and Kiro connection scripts, nginx config
-|-- docs/                 # system flow diagrams, admin guide
-|-- docker-compose.yml, docker-compose.dev-db.yml, Dockerfile
-|-- alembic.ini
-|-- .env.example
-|-- README.md
-|-- clean.bat
-|-- run.bat
-`-- requirements.txt
-```
+## Current Limitations
+
+- The provided deployment is single-host and has no built-in high availability.
+- Document and cache vector stores are local persistent ChromaDB directories, so horizontal app scaling requires shared/managed storage or a different vector backend.
+- The application has no built-in rate limiter or server-side session revocation list.
+- The basic `/health` endpoint does not verify every external dependency.
+- Nginx configuration currently provides HTTP reverse proxying only; TLS termination must be added for broader use.
+
+## Project Context
+
+Capstone project for the ICS Compute internship program, developed and documented by Akram. This repository is intended for project review and authorized internal use.
